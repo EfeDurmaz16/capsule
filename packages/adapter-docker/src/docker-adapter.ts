@@ -41,6 +41,8 @@ export const dockerCapabilities: CapabilityMap = {
     fileWrite: "native",
     fileList: "native",
     destroy: "native",
+    snapshot: "unsupported",
+    restore: "unsupported",
     exposePort: "native",
     networkPolicy: "experimental",
     filesystemPolicy: "emulated",
