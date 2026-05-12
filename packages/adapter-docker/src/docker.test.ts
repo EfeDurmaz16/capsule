@@ -29,8 +29,21 @@ describe("docker adapter", () => {
     const capsule = new Capsule({ adapter: docker() });
     expect(capsule.supportLevel("sandbox.exec")).toBe("native");
     expect(capsule.supportLevel("sandbox.exposePort")).toBe("native");
+    expect(capsule.supportLevel("sandbox.snapshot")).toBe("unsupported");
+    expect(capsule.supportLevel("sandbox.restore")).toBe("unsupported");
+    expect(capsule.supports("sandbox.snapshot")).toBe(false);
+    expect(capsule.supports("sandbox.restore")).toBe(false);
     expect(capsule.supportLevel("job.run")).toBe("native");
     expect(capsule.supports("service.deploy")).toBe(false);
+  });
+
+  test("does not expose unsupported Docker sandbox snapshot or restore APIs", () => {
+    const adapter = docker();
+
+    expect(adapter.capabilities.sandbox?.snapshot).toBe("unsupported");
+    expect(adapter.capabilities.sandbox?.restore).toBe("unsupported");
+    expect(adapter.sandbox).not.toHaveProperty("snapshot");
+    expect(adapter.sandbox).not.toHaveProperty("restore");
   });
 
   test("maps sandbox exposed ports to local-only Docker publish flags", () => {

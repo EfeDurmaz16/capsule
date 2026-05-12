@@ -8,7 +8,7 @@ Status legend:
 
 | Provider | Adapter status | Sandbox | Job | Service | Edge/function | Database/resource | Preview | Machine | Support notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Docker | real | native | native | unsupported | unsupported | unsupported | unsupported | unsupported | Local Docker is useful but not safe for hostile code by default. Sandbox port exposure is supported through local-only `127.0.0.1` Docker publish flags unless a caller explicitly opts into another bind IP. |
+| Docker | real | native | native | unsupported | unsupported | unsupported | unsupported | unsupported | Local Docker is useful but not safe for hostile code by default. Sandbox port exposure is supported through local-only `127.0.0.1` Docker publish flags unless a caller explicitly opts into another bind IP. Sandbox snapshot/restore are unsupported because Capsule exposes no public restore API or portable Docker restore semantics today. |
 | Neon | real | unsupported | unsupported | unsupported | unsupported | native | unsupported | unsupported | Database branch create/delete and connection URI retrieval are implemented; preview orchestration remains unsupported. |
 | E2B | real | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Cloud sandbox create, exec, file read/write/list, and destroy are implemented through the E2B SDK. |
 | Daytona | real | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Sandbox create, exec, file read/write/list, and delete are implemented through the Daytona SDK; job and preview wrappers are unsupported until implemented. |

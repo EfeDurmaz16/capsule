@@ -6,7 +6,7 @@ Capsule capability paths use dot notation, such as `sandbox.exec`, `service.depl
 
 Examples:
 
-- Docker: `sandbox.exec` and `sandbox.exposePort` are native, `sandbox.filesystemPolicy` is emulated, `sandbox.networkPolicy` is experimental, `service.deploy` is unsupported. Docker sandbox port exposure is local-only by default: requested ports are published to `127.0.0.1` unless a caller explicitly supplies another `hostIp`.
+- Docker: `sandbox.exec` and `sandbox.exposePort` are native, `sandbox.filesystemPolicy` is emulated, `sandbox.networkPolicy` is experimental, `sandbox.snapshot` and `sandbox.restore` are unsupported, and `service.deploy` is unsupported. Docker sandbox port exposure is local-only by default: requested ports are published to `127.0.0.1` unless a caller explicitly supplies another `hostIp`.
 - E2B: `sandbox.create`, `sandbox.exec`, and sandbox file operations are native through the E2B SDK; jobs remain unsupported until Capsule models an explicit E2B-backed job flow.
 - Daytona: sandbox lifecycle, command execution, and file operations are native through the Daytona SDK; job and preview behavior remain unsupported until explicit public wrappers exist.
 - Modal: sandbox lifecycle, command execution, and file read/write are native through the Modal JS SDK; file listing and broader function/service/preview workflows remain unsupported.
