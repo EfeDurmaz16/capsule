@@ -5,6 +5,6 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "references": [{ "path": "../core" }, { "path": "../adapter-docker" }],
+  "references": [{ "path": "../core" }, { "path": "../adapter-docker" }, { "path": "../adapter-neon" }, { "path": "../store-jsonl" }],
   "include": ["src"]
 }

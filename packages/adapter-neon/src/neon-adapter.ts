@@ -91,15 +91,16 @@ async function getConnectionString(
 }
 
 export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
-  const client = new NeonClient(options);
+  const getClient = () => new NeonClient(options);
   return {
     name: adapter,
     provider,
     capabilities: neonCapabilities,
-    raw: client,
+    raw: { baseUrl: options.baseUrl ?? "https://console.neon.tech/api/v2" },
     database: {
       branch: {
         create: async (spec: CreateDatabaseBranchSpec, context: AdapterContext): Promise<DatabaseBranch> => {
+          const client = getClient();
           const startedAt = new Date();
           const response = await client.request<NeonBranchResponse>({
             method: "POST",
@@ -145,6 +146,7 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
           };
         },
         delete: async (spec: DeleteDatabaseBranchSpec, context: AdapterContext): Promise<DeletedDatabaseBranch> => {
+          const client = getClient();
           const startedAt = new Date();
           await client.request<unknown>({
             method: "DELETE",
