@@ -3,6 +3,7 @@
   "references": [
     { "path": "./packages/core" },
     { "path": "./packages/adapter-docker" },
+    { "path": "./packages/adapter-cloudflare" },
     { "path": "./packages/adapter-e2b" },
     { "path": "./packages/adapter-mock" },
     { "path": "./packages/adapter-neon" },
