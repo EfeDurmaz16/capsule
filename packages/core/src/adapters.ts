@@ -1,0 +1,75 @@
+import type {
+  CapabilityMap,
+  CapsulePolicy,
+  CapsuleReceipt,
+  CreateDatabaseBranchSpec,
+  CreateMachineSpec,
+  CreatePreviewSpec,
+  CreateSandboxSpec,
+  DatabaseBranch,
+  DeployEdgeSpec,
+  DeployServiceSpec,
+  EdgeDeployment,
+  JobRun,
+  Machine,
+  PreviewEnvironment,
+  RunJobSpec,
+  Sandbox,
+  ServiceDeployment
+} from "./types.js";
+import type { CreateReceiptInput } from "./receipts.js";
+import type { PolicyDecision, PolicyInput } from "./policy.js";
+
+export interface AdapterContext {
+  receipts: boolean;
+  policy: CapsulePolicy;
+  supportLevel(path: string): import("./types.js").SupportLevel;
+  evaluatePolicy(input?: PolicyInput): PolicyDecision;
+  createReceipt(input: Omit<CreateReceiptInput, "provider" | "adapter" | "supportLevel"> & { supportLevel?: import("./types.js").SupportLevel }): CapsuleReceipt;
+}
+
+export interface SandboxAdapter {
+  create(spec: CreateSandboxSpec, context: AdapterContext): Promise<Sandbox>;
+}
+
+export interface JobAdapter {
+  run(spec: RunJobSpec, context: AdapterContext): Promise<JobRun>;
+}
+
+export interface ServiceAdapter {
+  deploy(spec: DeployServiceSpec, context: AdapterContext): Promise<ServiceDeployment>;
+}
+
+export interface EdgeAdapter {
+  deploy(spec: DeployEdgeSpec, context: AdapterContext): Promise<EdgeDeployment>;
+}
+
+export interface DatabaseBranchAdapter {
+  create(spec: CreateDatabaseBranchSpec, context: AdapterContext): Promise<DatabaseBranch>;
+}
+
+export interface DatabaseAdapter {
+  branch: DatabaseBranchAdapter;
+}
+
+export interface PreviewAdapter {
+  create(spec: CreatePreviewSpec, context: AdapterContext): Promise<PreviewEnvironment>;
+}
+
+export interface MachineAdapter {
+  create(spec: CreateMachineSpec, context: AdapterContext): Promise<Machine>;
+}
+
+export interface CapsuleAdapter {
+  name: string;
+  provider: string;
+  capabilities: CapabilityMap;
+  raw?: unknown;
+  sandbox?: SandboxAdapter;
+  job?: JobAdapter;
+  service?: ServiceAdapter;
+  edge?: EdgeAdapter;
+  database?: DatabaseAdapter;
+  preview?: PreviewAdapter;
+  machine?: MachineAdapter;
+}
