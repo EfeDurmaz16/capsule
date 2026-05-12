@@ -5,6 +5,7 @@
     { "path": "./packages/adapter-docker" },
     { "path": "./packages/adapter-cloudflare" },
     { "path": "./packages/adapter-cloud-run" },
+    { "path": "./packages/adapter-daytona" },
     { "path": "./packages/adapter-e2b" },
     { "path": "./packages/adapter-ec2" },
     { "path": "./packages/adapter-ecs" },
