@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Capsule } from "@capsule/core";
+import { Capsule, runAdapterContract } from "@capsule/core";
 import { cloudRun, cloudRunCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200): Response {
@@ -7,6 +7,10 @@ function response(body: unknown, status = 200): Response {
 }
 
 describe("cloud-run adapter", () => {
+  it("runs the shared adapter contract suite", async () => {
+    await runAdapterContract(cloudRun({}));
+  });
+
   it("declares job and service capabilities", () => {
     expect(cloudRunCapabilities.job?.run).toBe("native");
     expect(cloudRunCapabilities.service?.deploy).toBe("native");

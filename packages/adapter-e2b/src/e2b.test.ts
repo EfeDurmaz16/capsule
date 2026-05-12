@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Capsule, MemoryReceiptStore } from "@capsule/core";
+import { Capsule, MemoryReceiptStore, runAdapterContract } from "@capsule/core";
 import { e2b, e2bCapabilities } from "./e2b-adapter.js";
 
 class FakeE2BSandbox {
@@ -36,6 +36,10 @@ class FakeE2BSandbox {
 }
 
 describe("e2b adapter", () => {
+  it("runs the shared adapter contract suite", async () => {
+    await runAdapterContract(e2b());
+  });
+
   it("declares real sandbox capabilities", () => {
     expect(e2bCapabilities.sandbox?.create).toBe("native");
     expect(e2bCapabilities.sandbox?.exec).toBe("native");

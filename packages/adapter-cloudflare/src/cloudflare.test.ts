@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule } from "@capsule/core";
+import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule/core";
 import { cloudflare, cloudflareCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200): Response {
@@ -17,6 +17,10 @@ async function workerFile(): Promise<string> {
 }
 
 describe("cloudflare adapter", () => {
+  it("runs the shared adapter contract suite", async () => {
+    await runAdapterContract(cloudflare());
+  });
+
   it("declares edge deploy as native", () => {
     expect(cloudflareCapabilities.edge?.deploy).toBe("native");
     expect(cloudflareCapabilities.edge?.routes).toBe("unsupported");

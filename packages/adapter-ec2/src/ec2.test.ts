@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule } from "@capsule/core";
+import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule/core";
 import { ec2, ec2Capabilities } from "./index.js";
 
 describe("ec2 adapter", () => {
+  it("runs the shared adapter contract suite", async () => {
+    await runAdapterContract(ec2());
+  });
+
   it("declares machine create as native", () => {
     expect(ec2Capabilities.machine?.create).toBe("native");
     expect(ec2Capabilities.machine?.exec).toBe("unsupported");

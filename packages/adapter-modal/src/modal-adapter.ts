@@ -74,21 +74,21 @@ export const modalCapabilities: CapabilityMap = {
     artifacts: "emulated"
   },
   job: {
-    run: "emulated",
+    run: "unsupported",
     status: "unsupported",
     cancel: "unsupported",
-    logs: "native",
-    artifacts: "emulated",
-    timeout: "native",
-    env: "native",
-    resources: "native"
+    logs: "unsupported",
+    artifacts: "unsupported",
+    timeout: "unsupported",
+    env: "unsupported",
+    resources: "unsupported"
   },
   service: {
-    deploy: "experimental",
+    deploy: "unsupported",
     update: "unsupported",
     delete: "unsupported",
-    status: "experimental",
-    logs: "native",
+    status: "unsupported",
+    logs: "unsupported",
     url: "unsupported"
   },
   edge: {
@@ -102,10 +102,10 @@ export const modalCapabilities: CapabilityMap = {
     connectionString: "unsupported"
   },
   preview: {
-    create: "experimental",
+    create: "unsupported",
     destroy: "unsupported",
-    status: "experimental",
-    logs: "native",
+    status: "unsupported",
+    logs: "unsupported",
     urls: "unsupported"
   },
   machine: {

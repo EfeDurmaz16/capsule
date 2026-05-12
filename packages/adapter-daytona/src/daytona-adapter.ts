@@ -67,13 +67,13 @@ export const daytonaCapabilities: CapabilityMap = {
     artifacts: "emulated"
   },
   job: {
-    run: "emulated",
+    run: "unsupported",
     status: "unsupported",
     cancel: "unsupported",
     logs: "unsupported",
-    artifacts: "emulated",
-    timeout: "native",
-    env: "native"
+    artifacts: "unsupported",
+    timeout: "unsupported",
+    env: "unsupported"
   },
   service: {
     deploy: "unsupported",
@@ -94,9 +94,9 @@ export const daytonaCapabilities: CapabilityMap = {
     connectionString: "unsupported"
   },
   preview: {
-    create: "experimental",
+    create: "unsupported",
     destroy: "unsupported",
-    status: "experimental",
+    status: "unsupported",
     logs: "unsupported",
     urls: "unsupported"
   },

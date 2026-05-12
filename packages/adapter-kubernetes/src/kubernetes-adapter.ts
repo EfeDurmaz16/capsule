@@ -52,7 +52,7 @@ const adapter = "kubernetes";
 
 export const kubernetesCapabilities: CapabilityMap = {
   sandbox: {
-    create: "experimental",
+    create: "unsupported",
     exec: "unsupported",
     fileRead: "unsupported",
     fileWrite: "unsupported",
@@ -92,14 +92,14 @@ export const kubernetesCapabilities: CapabilityMap = {
     connectionString: "unsupported"
   },
   preview: {
-    create: "experimental",
+    create: "unsupported",
     destroy: "unsupported",
-    status: "experimental",
+    status: "unsupported",
     logs: "unsupported",
-    urls: "experimental"
+    urls: "unsupported"
   },
   machine: {
-    create: "experimental",
+    create: "unsupported",
     exec: "unsupported",
     start: "unsupported",
     stop: "unsupported",

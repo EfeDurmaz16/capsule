@@ -37,12 +37,12 @@ export const vercelCapabilities: CapabilityMap = {
     env: "unsupported"
   },
   service: {
-    deploy: "experimental",
+    deploy: "unsupported",
     update: "unsupported",
     delete: "unsupported",
-    status: "experimental",
+    status: "unsupported",
     logs: "unsupported",
-    url: "native"
+    url: "unsupported"
   },
   edge: {
     deploy: "native",
@@ -60,11 +60,11 @@ export const vercelCapabilities: CapabilityMap = {
     connectionString: "unsupported"
   },
   preview: {
-    create: "experimental",
+    create: "unsupported",
     destroy: "unsupported",
-    status: "experimental",
+    status: "unsupported",
     logs: "unsupported",
-    urls: "native"
+    urls: "unsupported"
   },
   machine: {
     create: "unsupported",

@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { Capsule, MemoryReceiptStore } from "@capsule/core";
+import { Capsule, MemoryReceiptStore, runAdapterContract } from "@capsule/core";
 import { daytona, daytonaCapabilities } from "./index.js";
 
 describe("daytona adapter", () => {
+  it("runs the shared adapter contract suite", async () => {
+    await runAdapterContract(daytona());
+  });
+
   it("declares sandbox capabilities as native", () => {
     expect(daytonaCapabilities.sandbox?.create).toBe("native");
     expect(daytonaCapabilities.sandbox?.exec).toBe("native");

@@ -37,17 +37,17 @@ export const ec2Capabilities: CapabilityMap = {
     destroy: "unsupported"
   },
   job: {
-    run: "emulated",
+    run: "unsupported",
     status: "unsupported",
     cancel: "unsupported",
     logs: "unsupported",
     artifacts: "unsupported",
     timeout: "unsupported",
-    env: "emulated",
-    resources: "emulated"
+    env: "unsupported",
+    resources: "unsupported"
   },
   service: {
-    deploy: "emulated",
+    deploy: "unsupported",
     update: "unsupported",
     delete: "unsupported",
     status: "unsupported",
