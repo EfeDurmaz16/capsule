@@ -1,0 +1,131 @@
+import { GoogleAuth } from "google-auth-library";
+import { AdapterExecutionError } from "@capsule/core";
+
+export interface CloudRunClientOptions {
+  projectId?: string;
+  location?: string;
+  accessToken?: string;
+  baseUrl?: string;
+  fetch?: typeof fetch;
+  waitForOperations?: boolean;
+  operationTimeoutMs?: number;
+}
+
+export interface CloudRunOperation<T = unknown> {
+  name: string;
+  done?: boolean;
+  error?: { code?: number; message?: string };
+  response?: T;
+  metadata?: Record<string, unknown>;
+}
+
+export class CloudRunClient {
+  readonly projectId: string;
+  readonly location: string;
+  private readonly baseUrl: string;
+  private readonly fetchImpl: typeof fetch;
+  private readonly accessToken?: string;
+
+  constructor(private readonly options: CloudRunClientOptions = {}) {
+    if (!options.projectId) {
+      throw new AdapterExecutionError("Cloud Run adapter requires projectId.");
+    }
+    if (!options.location) {
+      throw new AdapterExecutionError("Cloud Run adapter requires location.");
+    }
+    this.projectId = options.projectId;
+    this.location = options.location;
+    this.baseUrl = options.baseUrl ?? "https://run.googleapis.com/v2";
+    this.fetchImpl = options.fetch ?? globalThis.fetch;
+    this.accessToken = options.accessToken;
+  }
+
+  parent(): string {
+    return `projects/${this.projectId}/locations/${this.location}`;
+  }
+
+  resource(kind: "jobs" | "services", id: string): string {
+    return `${this.parent()}/${kind}/${id}`;
+  }
+
+  async createJob(jobId: string, body: unknown): Promise<CloudRunOperation> {
+    return await this.request<CloudRunOperation>({
+      method: "POST",
+      path: `/${this.parent()}/jobs`,
+      query: { jobId },
+      body
+    });
+  }
+
+  async runJob(name: string): Promise<CloudRunOperation> {
+    return await this.request<CloudRunOperation>({ method: "POST", path: `/${name}:run`, body: {} });
+  }
+
+  async createService(serviceId: string, body: unknown): Promise<CloudRunOperation> {
+    return await this.request<CloudRunOperation>({
+      method: "POST",
+      path: `/${this.parent()}/services`,
+      query: { serviceId },
+      body
+    });
+  }
+
+  async getService(name: string): Promise<Record<string, unknown>> {
+    return await this.request<Record<string, unknown>>({ path: `/${name}` });
+  }
+
+  async waitOperation<T>(operation: CloudRunOperation<T>): Promise<CloudRunOperation<T>> {
+    if (this.options.waitForOperations === false || operation.done) {
+      return operation;
+    }
+    return await this.request<CloudRunOperation<T>>({
+      method: "POST",
+      path: `/${operation.name}:wait`,
+      body: { timeout: `${Math.ceil((this.options.operationTimeoutMs ?? 300_000) / 1000)}s` }
+    });
+  }
+
+  private async token(): Promise<string> {
+    if (this.accessToken) {
+      return this.accessToken;
+    }
+    const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
+    const client = await auth.getClient();
+    const headers = await client.getRequestHeaders();
+    const authorization = headers.get("authorization");
+    if (!authorization?.startsWith("Bearer ")) {
+      throw new AdapterExecutionError("Cloud Run adapter could not resolve Google Cloud credentials.");
+    }
+    return authorization.slice("Bearer ".length);
+  }
+
+  private async request<T>(options: { method?: string; path: string; query?: Record<string, string | undefined>; body?: unknown }): Promise<T> {
+    const url = new URL(`${this.baseUrl}${options.path}`);
+    for (const [key, value] of Object.entries(options.query ?? {})) {
+      if (value !== undefined) {
+        url.searchParams.set(key, value);
+      }
+    }
+    const response = await this.fetchImpl(url, {
+      method: options.method ?? "GET",
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${await this.token()}`,
+        ...(options.body === undefined ? {} : { "content-type": "application/json" })
+      },
+      body: options.body === undefined ? undefined : JSON.stringify(options.body)
+    });
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : undefined;
+    if (!response.ok) {
+      const message =
+        typeof data?.error?.message === "string"
+          ? data.error.message
+          : typeof data?.message === "string"
+            ? data.message
+            : `Cloud Run API request failed with status ${response.status}`;
+      throw new AdapterExecutionError(message, { status: response.status, error: data?.error });
+    }
+    return data as T;
+  }
+}
