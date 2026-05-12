@@ -11,6 +11,7 @@
     { "path": "./packages/adapter-ecs" },
     { "path": "./packages/adapter-kubernetes" },
     { "path": "./packages/adapter-lambda" },
+    { "path": "./packages/adapter-modal" },
     { "path": "./packages/adapter-mock" },
     { "path": "./packages/adapter-neon" },
     { "path": "./packages/adapter-vercel" },
