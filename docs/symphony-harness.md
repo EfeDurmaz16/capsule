@@ -18,6 +18,8 @@ Capsule's Symphony layer has four files:
 - `.capsule/tasks.json`: the local v1/v2 task graph.
 - `scripts/capsule-gap-report.mjs`: a repo scanner that reports capability gaps and mock-first examples.
 - `scripts/create-github-issues.mjs`: a safe issue generator. By default it prints issue payloads and commands. It only calls `gh issue create` with `--apply`.
+- `.github/workflows/ci.yml`: CI proof for typecheck, tests, build, and the gap report.
+- `.github/ISSUE_TEMPLATE/capsule-task.yml`: a structured issue template that matches the task graph.
 
 GitHub Issues can be used as the durable task ledger. Linear can mirror the same task graph when `LINEAR_API_KEY` and a project slug are available. The current repository scaffold avoids publishing either until an operator chooses to run the publish step.
 

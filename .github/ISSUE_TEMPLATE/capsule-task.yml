@@ -1,0 +1,53 @@
+name: Capsule implementation task
+description: Scoped task for Capsule v1/v2 implementation work.
+title: "[CAP-000] "
+labels:
+  - capsule
+  - needs-verification
+body:
+  - type: input
+    id: source-task
+    attributes:
+      label: Source task
+      description: Task identifier from .capsule/tasks.json, if applicable.
+      placeholder: CAP-001
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What should change?
+    validations:
+      required: true
+  - type: textarea
+    id: success-criteria
+    attributes:
+      label: Success criteria
+      description: Concrete checks that must be true before handoff.
+      placeholder: |
+        - [ ] Capability map stays honest
+        - [ ] Tests pass without live credentials
+        - [ ] Docs/examples updated
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Required verification
+      value: |
+        - [ ] pnpm capsule:gap
+        - [ ] pnpm typecheck
+        - [ ] pnpm test
+        - [ ] pnpm build
+    validations:
+      required: true
+  - type: textarea
+    id: guardrails
+    attributes:
+      label: Guardrails
+      value: |
+        - Do not fake provider support.
+        - Do not run live provider operations unless CAPSULE_LIVE_TESTS=1 and credentials are present.
+        - Do not log secrets, provider tokens, private keys, or raw connection strings.
+        - Commit atomically.
