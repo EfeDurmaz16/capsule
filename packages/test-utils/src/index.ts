@@ -19,6 +19,7 @@ const liveFlag = "CAPSULE_LIVE_TESTS";
 
 export const liveProviderCredentials = {
   cloudflare: ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"],
+  daytona: ["DAYTONA_API_KEY"],
   neon: ["NEON_API_KEY"],
   vercel: ["VERCEL_TOKEN"]
 } as const;

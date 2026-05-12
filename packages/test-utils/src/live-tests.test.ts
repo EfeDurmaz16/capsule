@@ -26,4 +26,11 @@ describe("live test gates", () => {
   test("enables provider live tests when the flag and credentials are present", () => {
     expect(providerLiveTestGate("neon", { env: { CAPSULE_LIVE_TESTS: "1", NEON_API_KEY: "key" } })).toEqual({ enabled: true });
   });
+
+  test("gates Daytona live tests on Daytona credentials", () => {
+    expect(providerLiveTestGate("daytona", { env: { CAPSULE_LIVE_TESTS: "1" } })).toEqual({
+      enabled: false,
+      skipReason: "daytona live tests require credential env var: DAYTONA_API_KEY."
+    });
+  });
 });

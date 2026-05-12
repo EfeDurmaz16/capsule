@@ -225,6 +225,9 @@ importers:
         specifier: ^0.175.0
         version: 0.175.0(ws@8.20.1)
     devDependencies:
+      '@capsule/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       tsup:
         specifier: ^8.5.0
         version: 8.5.1(postcss@8.5.14)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.9.0)
