@@ -1,17 +1,22 @@
-import { CreateServiceCommand, ECSClient, RunTaskCommand } from "@aws-sdk/client-ecs";
+import { CreateServiceCommand, DescribeTasksCommand, ECSClient, RunTaskCommand, StopTaskCommand, type Task } from "@aws-sdk/client-ecs";
 import {
   logsFromOutput,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
+  type CancelJobResult,
+  type CancelJobSpec,
   type DeployServiceSpec,
+  type JobStatusResult,
+  type JobStatusSpec,
   type JobRun,
+  type JobRunStatus,
   type RunJobSpec,
   type ServiceDeployment
 } from "@capsule/core";
 
 interface ECSClientLike {
-  send(command: RunTaskCommand | CreateServiceCommand): Promise<any>;
+  send(command: RunTaskCommand | CreateServiceCommand | DescribeTasksCommand | StopTaskCommand): Promise<any>;
 }
 
 export interface ECSAdapterOptions {
@@ -40,8 +45,8 @@ export const ecsCapabilities: CapabilityMap = {
   },
   job: {
     run: "native",
-    status: "unsupported",
-    cancel: "unsupported",
+    status: "native",
+    cancel: "native",
     logs: "unsupported",
     artifacts: "unsupported",
     timeout: "unsupported",
@@ -110,6 +115,41 @@ function tags(labels?: Record<string, string>): Array<{ key: string; value: stri
   return entries.length > 0 ? entries.map(([key, value]) => ({ key, value })) : undefined;
 }
 
+function statusFromTask(task?: Task): JobRunStatus {
+  switch (task?.lastStatus) {
+    case "PROVISIONING":
+    case "PENDING":
+      return "queued";
+    case "ACTIVATING":
+    case "RUNNING":
+    case "DEACTIVATING":
+    case "STOPPING":
+    case "DEPROVISIONING":
+      return "running";
+    case "STOPPED":
+      if (task.stopCode === "UserInitiated" || task.stoppedReason?.toLowerCase().includes("stopped by user")) return "cancelled";
+      if (task.containers?.some((container) => container.exitCode !== undefined && container.exitCode !== 0)) return "failed";
+      if (task.containers?.some((container) => container.exitCode === 0)) return "succeeded";
+      return "failed";
+    default:
+      return task ? "running" : "failed";
+  }
+}
+
+function taskMetadata(task: Task | undefined, extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    taskArn: task?.taskArn,
+    lastStatus: task?.lastStatus,
+    desiredStatus: task?.desiredStatus,
+    healthStatus: task?.healthStatus,
+    stopCode: task?.stopCode,
+    stoppedReason: task?.stoppedReason,
+    startedAt: task?.startedAt?.toISOString(),
+    stoppedAt: task?.stoppedAt?.toISOString(),
+    ...extra
+  };
+}
+
 function defaultClient(options: ECSAdapterOptions): ECSClientLike {
   return new ECSClient({ region: options.region });
 }
@@ -147,7 +187,7 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
         );
         const task = response.tasks?.[0];
         const failure = response.failures?.[0];
-        const status = task ? "running" : "failed";
+        const status: JobRunStatus = task ? "running" : "failed";
         const receipt = context.receipts
           ? context.createReceipt({
               type: "job.run",
@@ -166,7 +206,7 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
                 ]
               },
               resource: { id: task?.taskArn ?? failure?.arn ?? options.taskDefinition, name: options.taskDefinition, status },
-              metadata: { cluster: options.cluster, failures: response.failures }
+              metadata: taskMetadata(task, { cluster: options.cluster, failures: response.failures })
             })
           : undefined;
         return {
@@ -175,6 +215,53 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
           status,
           result: status === "failed" ? { exitCode: 1, stdout: "", stderr: JSON.stringify(response.failures ?? []), logs: logsFromOutput("", ""), artifacts: [], receipt } : undefined,
           receipt
+        };
+      },
+      status: async (spec: JobStatusSpec, context: AdapterContext): Promise<JobStatusResult> => {
+        const startedAt = new Date();
+        const response = await getClient().send(new DescribeTasksCommand({ cluster: options.cluster, tasks: [spec.id] }));
+        const task = response.tasks?.[0];
+        const failure = response.failures?.[0];
+        const status = statusFromTask(task);
+        const id = task?.taskArn ?? failure?.arn ?? spec.id;
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "job.status",
+              capabilityPath: "job.status",
+              startedAt,
+              resource: { id, name: id, status },
+              metadata: taskMetadata(task, { cluster: options.cluster, failures: response.failures })
+            })
+          : undefined;
+        return {
+          id,
+          provider,
+          status,
+          receipt,
+          metadata: taskMetadata(task, { cluster: options.cluster, failures: response.failures })
+        };
+      },
+      cancel: async (spec: CancelJobSpec, context: AdapterContext): Promise<CancelJobResult> => {
+        const startedAt = new Date();
+        const response = await getClient().send(new StopTaskCommand({ cluster: options.cluster, task: spec.id, reason: spec.reason }));
+        const task = response.task;
+        const status = statusFromTask(task) === "cancelled" ? "cancelled" : "cancelling";
+        const id = task?.taskArn ?? spec.id;
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "job.cancel",
+              capabilityPath: "job.cancel",
+              startedAt,
+              resource: { id, name: id, status },
+              metadata: taskMetadata(task, { cluster: options.cluster, reason: spec.reason })
+            })
+          : undefined;
+        return {
+          id,
+          provider,
+          status,
+          receipt,
+          metadata: taskMetadata(task, { cluster: options.cluster, reason: spec.reason })
         };
       }
     },

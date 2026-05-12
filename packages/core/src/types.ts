@@ -148,6 +148,8 @@ export interface CapsuleReceipt {
     | "sandbox.exec"
     | "sandbox.destroy"
     | "job.run"
+    | "job.status"
+    | "job.cancel"
     | "service.deploy"
     | "edge.deploy"
     | "database.branch.create"
