@@ -140,13 +140,13 @@ function runIssue(issue, state) {
   writeState(state);
 
   const command = [
-    "exec",
-    "--cd",
-    workspace,
     "-s",
     "danger-full-access",
     "-a",
     "never",
+    "exec",
+    "--cd",
+    workspace,
     promptFor(issue)
   ];
 
