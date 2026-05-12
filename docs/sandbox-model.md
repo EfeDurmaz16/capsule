@@ -10,6 +10,8 @@ Docker local is useful for development and CI, but it is not safe for hostile un
 
 The E2B adapter uses the official E2B SDK for cloud sandbox creation, command execution, file read/write/list, and sandbox destruction. Network `none` maps to E2B's internet-access control for the sandbox; host allowlists and OS-level filesystem policy remain provider-specific or adapter-boundary concerns.
 
+The E2B live integration test is opt-in. It is skipped unless both `CAPSULE_LIVE_TESTS=1` and `E2B_API_KEY` are set. The test creates a real E2B sandbox, executes a command, writes/reads/lists a file, and destroys the sandbox in cleanup. Do not set `CAPSULE_LIVE_TESTS=1` in routine local or CI runs unless live provider operations are intended.
+
 The Daytona adapter uses the official Daytona TypeScript SDK for cloud sandbox creation, command execution, file read/write/list, and deletion. Capsule maps `network.none` to Daytona network blocking and `allowlist` to Daytona's network allow list request, while keeping filesystem policy as adapter-boundary enforcement.
 
 The Modal adapter uses the Modal JavaScript SDK for sandbox creation, command execution, file read/write, and termination. Modal's public sandbox file listing surface is not modeled as a stable high-level method in this adapter, so `sandbox.fileList` remains unsupported instead of being faked.
