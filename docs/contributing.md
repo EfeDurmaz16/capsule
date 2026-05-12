@@ -9,6 +9,10 @@ pnpm test
 pnpm typecheck
 ```
 
+## Live Tests
+
+Live provider tests must use `@capsule/test-utils` and remain skipped by default. The shared gate only enables live operations when `CAPSULE_LIVE_TESTS=1` is present and the provider-specific credential environment variables are set. Skip reasons should name the missing flag or credential variables so CI output explains why a live test did not run.
+
 ## Add An Adapter
 
 1. Create a package under `packages/adapter-*`.

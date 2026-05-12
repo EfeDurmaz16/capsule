@@ -15,6 +15,7 @@
     { "path": "./packages/adapter-mock" },
     { "path": "./packages/adapter-neon" },
     { "path": "./packages/adapter-vercel" },
+    { "path": "./packages/test-utils" },
     { "path": "./packages/ai" },
     { "path": "./packages/cli" },
     { "path": "./packages/store-jsonl" },
