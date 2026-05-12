@@ -5,8 +5,13 @@ import {
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
+  type CancelJobResult,
+  type CancelJobSpec,
   type DeployServiceSpec,
   type JobRun,
+  type JobRunStatus,
+  type JobStatusResult,
+  type JobStatusSpec,
   type RunJobSpec,
   type ServiceDeployment
 } from "@capsule/core";
@@ -17,6 +22,7 @@ interface KubernetesObject {
     namespace?: string;
     uid?: string;
     labels?: Record<string, string>;
+    deletionTimestamp?: string;
   };
   status?: Record<string, unknown>;
 }
@@ -24,6 +30,7 @@ interface KubernetesObject {
 interface BatchApi {
   createNamespacedJob(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
   readNamespacedJob?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
+  deleteNamespacedJob?(input: { namespace: string; name: string; gracePeriodSeconds?: number; propagationPolicy?: string; body?: unknown }): Promise<KubernetesObject>;
 }
 
 interface AppsApi {
@@ -61,8 +68,8 @@ export const kubernetesCapabilities: CapabilityMap = {
   },
   job: {
     run: "native",
-    status: "unsupported",
-    cancel: "unsupported",
+    status: "native",
+    cancel: "native",
     logs: "unsupported",
     artifacts: "unsupported",
     timeout: "native",
@@ -219,6 +226,41 @@ function clusterUrl(name: string, namespace: string, port?: number): string {
   return `http://${name}.${namespace}.svc.cluster.local${port ? `:${port}` : ""}`;
 }
 
+function conditionIsTrue(condition: unknown, type: string): boolean {
+  return Boolean(
+    condition &&
+      typeof condition === "object" &&
+      "type" in condition &&
+      condition.type === type &&
+      "status" in condition &&
+      condition.status === "True"
+  );
+}
+
+function numericStatus(status: Record<string, unknown> | undefined, key: string): number {
+  const value = status?.[key];
+  return typeof value === "number" ? value : 0;
+}
+
+function jobStatus(job: KubernetesObject): JobRunStatus {
+  if (job.metadata?.deletionTimestamp) return "cancelled";
+  const conditions = Array.isArray(job.status?.conditions) ? job.status.conditions : [];
+  if (conditions.some((condition) => conditionIsTrue(condition, "Complete"))) return "succeeded";
+  if (conditions.some((condition) => conditionIsTrue(condition, "Failed"))) return "failed";
+  if (numericStatus(job.status, "succeeded") > 0) return "succeeded";
+  if (numericStatus(job.status, "failed") > 0) return "failed";
+  if (numericStatus(job.status, "active") > 0) return "running";
+  return "queued";
+}
+
+function requireBatchMethod<K extends keyof BatchApi>(batch: BatchApi, method: K): NonNullable<BatchApi[K]> {
+  const value = batch[method];
+  if (typeof value !== "function") {
+    throw new AdapterExecutionError(`Kubernetes Batch API client does not implement ${String(method)}.`);
+  }
+  return value;
+}
+
 function defaultClients(options: KubernetesAdapterOptions): KubernetesClients {
   const config = new k8s.KubeConfig();
   if (options.kubeconfigPath) {
@@ -266,16 +308,58 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
                   "This adapter creates the Job and records the Kubernetes resource; log collection is not implemented yet."
                 ]
               },
-              resource: { id: created.metadata?.uid ?? name, name, status: "running" },
-              metadata: { namespace, kubernetesName: created.metadata?.name ?? name }
+              resource: { id: created.metadata?.name ?? name, name, status: "running" },
+              metadata: { namespace, kubernetesName: created.metadata?.name ?? name, uid: created.metadata?.uid }
             })
           : undefined;
         return {
-          id: created.metadata?.uid ?? name,
+          id: created.metadata?.name ?? name,
           provider,
           status: "running",
           result: { exitCode: 0, stdout: "", stderr: "", logs: logsFromOutput("", ""), artifacts: [], receipt },
           receipt
+        };
+      },
+      status: async (spec: JobStatusSpec): Promise<JobStatusResult> => {
+        const batch = getClients().batch;
+        const readNamespacedJob = requireBatchMethod(batch, "readNamespacedJob");
+        const job = await readNamespacedJob.call(batch, { namespace, name: spec.id });
+        const name = job.metadata?.name ?? spec.id;
+        return {
+          id: name,
+          provider,
+          status: jobStatus(job),
+          metadata: { namespace, kubernetesName: name, uid: job.metadata?.uid, job }
+        };
+      },
+      cancel: async (spec: CancelJobSpec): Promise<CancelJobResult> => {
+        const batch = getClients().batch;
+        const deleteNamespacedJob = requireBatchMethod(batch, "deleteNamespacedJob");
+        const name = spec.id;
+        const deletion = await deleteNamespacedJob.call(batch, {
+          namespace,
+          name,
+          gracePeriodSeconds: 0,
+          propagationPolicy: "Foreground",
+          body: {
+            apiVersion: "v1",
+            kind: "DeleteOptions",
+            gracePeriodSeconds: 0,
+            propagationPolicy: "Foreground"
+          }
+        });
+        return {
+          id: deletion.metadata?.name ?? name,
+          provider,
+          status: "cancelling",
+          metadata: {
+            namespace,
+            kubernetesName: deletion.metadata?.name ?? name,
+            uid: deletion.metadata?.uid,
+            reason: spec.reason,
+            semantics: "delete-job-foreground",
+            deletion
+          }
         };
       }
     },
