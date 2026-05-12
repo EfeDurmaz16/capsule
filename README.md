@@ -117,4 +117,58 @@ pnpm test
 pnpm typecheck
 ```
 
+## Packages
+
+- `@capsule/core`: domain types, `Capsule` facade, capabilities, policy, receipts, errors, logs, artifacts, and adapter contracts.
+- `@capsule/adapter-docker`: real Docker CLI adapter for sandbox and one-shot job execution.
+- `@capsule/adapter-mock`: mock E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models.
+- `@capsule/ai`: framework-agnostic code execution tool helper.
+- `@capsule/cli`: small CLI with `doctor`, `capabilities`, `run`, and `sandbox`.
+
+## Examples
+
+```bash
+pnpm --filter @capsule/example-capability-check start
+pnpm --filter @capsule/example-policy-receipts start
+pnpm --filter @capsule/example-deployment-model start
+pnpm --filter @capsule/example-edge-model start
+pnpm --filter @capsule/example-database-branch-model start
+pnpm --filter @capsule/example-preview-environment-model start
+pnpm --filter @capsule/example-machine-model start
+```
+
+Docker-backed examples require Docker:
+
+```bash
+pnpm --filter @capsule/example-sandbox-docker start
+pnpm --filter @capsule/example-job-docker start
+```
+
+## Real And Mocked
+
+Real in this repository:
+
+- core TypeScript contracts;
+- capability negotiation;
+- policy checks for env/secrets and timeout merging;
+- receipt generation with SHA-256 stdout/stderr hashes;
+- Docker CLI sandbox/job adapter;
+- mock provider adapters;
+- CLI;
+- examples and tests.
+
+Mocked:
+
+- E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 provider calls;
+- service, edge, database, preview, and machine lifecycle operations outside Docker;
+- preview orchestration across real providers.
+
+Known limitations:
+
+- Capsule is not a sandbox by itself.
+- Docker local is not safe for hostile untrusted code by default.
+- Policy enforcement depends on adapter/provider support.
+- Receipts record what Capsule observed; they are not signed attestations yet.
+- Persistence, hosted API, auth, dashboard, queues, and stores are intentionally outside core.
+
 Capsule is designed for provider teams, framework maintainers, and runtime engineers to critique and extend. Adapter contributions should include capability maps, docs, and contract tests.
