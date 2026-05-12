@@ -6,8 +6,8 @@ import type { AdapterContext, CapsuleAdapter } from "./adapters.js";
 import type { ReceiptStore } from "./stores.js";
 import type {
   CapabilityMap,
-  CapsulePolicy,
   CancelJobSpec,
+  CapsulePolicy,
   CreateDatabaseBranchSpec,
   DeleteDatabaseBranchSpec,
   CreateMachineSpec,

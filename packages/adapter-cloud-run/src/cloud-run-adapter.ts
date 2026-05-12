@@ -4,12 +4,16 @@ import {
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
+  type CancelJobResult,
+  type CancelJobSpec,
   type DeployServiceSpec,
+  type JobStatusResult,
+  type JobStatusSpec,
   type JobRun,
   type RunJobSpec,
   type ServiceDeployment
 } from "@capsule/core";
-import { CloudRunClient, type CloudRunClientOptions, type CloudRunOperation } from "./cloud-run-client.js";
+import { CloudRunClient, type CloudRunClientOptions, type CloudRunExecution, type CloudRunOperation } from "./cloud-run-client.js";
 
 export interface CloudRunAdapterOptions extends CloudRunClientOptions {}
 
@@ -27,8 +31,8 @@ export const cloudRunCapabilities: CapabilityMap = {
   },
   job: {
     run: "native",
-    status: "unsupported",
-    cancel: "unsupported",
+    status: "native",
+    cancel: "native",
     logs: "unsupported",
     artifacts: "unsupported",
     timeout: "native",
@@ -138,10 +142,42 @@ function serviceBody(spec: DeployServiceSpec) {
   };
 }
 
-function operationStatus(operation: CloudRunOperation): "succeeded" | "failed" | "running" {
+function isExecution(value: unknown): value is CloudRunExecution {
+  return Boolean(value && typeof value === "object" && "name" in value && typeof value.name === "string");
+}
+
+function executionStatus(execution: CloudRunExecution): JobRun["status"] {
+  switch (execution.completionStatus) {
+    case "EXECUTION_SUCCEEDED":
+      return "succeeded";
+    case "EXECUTION_FAILED":
+      return "failed";
+    case "EXECUTION_CANCELLED":
+      return "cancelled";
+    case "EXECUTION_PENDING":
+      return "queued";
+    case "EXECUTION_RUNNING":
+      return "running";
+    case "COMPLETION_STATUS_UNSPECIFIED":
+    case undefined:
+      break;
+  }
+  if (execution.reconciling || (execution.runningCount ?? 0) > 0) return "running";
+  if ((execution.cancelledCount ?? 0) > 0) return "cancelled";
+  if ((execution.failedCount ?? 0) > 0) return "failed";
+  if (execution.taskCount !== undefined && execution.succeededCount !== undefined && execution.succeededCount >= execution.taskCount) return "succeeded";
+  return "queued";
+}
+
+function operationStatus(operation: CloudRunOperation): JobRun["status"] {
   if (operation.error) return "failed";
+  if (isExecution(operation.response)) return executionStatus(operation.response);
   if (operation.done) return "succeeded";
   return "running";
+}
+
+function executionName(operation: CloudRunOperation, fallback: string): string {
+  return isExecution(operation.response) ? operation.response.name : fallback;
 }
 
 function serviceUrl(service: Record<string, unknown>, operation: CloudRunOperation): string | undefined {
@@ -169,6 +205,7 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
         const run = await client.runJob(client.resource("jobs", id));
         const operation = await client.waitOperation(run);
         const status = operationStatus(operation);
+        const runId = executionName(operation, client.resource("jobs", id));
         const receipt = context.receipts
           ? context.createReceipt({
               type: "job.run",
@@ -185,12 +222,12 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
                   "Cloud Run Admin API does not return stdout/stderr; use Cloud Logging integration for logs."
                 ]
               },
-              resource: { id: id, name: client.resource("jobs", id), status },
+              resource: { id: runId, name: runId, status },
               metadata: { createOperation: create.name, runOperation: run.name, operation }
             })
           : undefined;
         return {
-          id,
+          id: runId,
           provider,
           status,
           result:
@@ -198,6 +235,27 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
               ? { exitCode: 0, stdout: "", stderr: "", logs: logsFromOutput("", ""), artifacts: [], receipt }
               : undefined,
           receipt
+        };
+      },
+      status: async (spec: JobStatusSpec): Promise<JobStatusResult> => {
+        const client = getClient();
+        const execution = await client.getExecution(spec.id);
+        return {
+          id: execution.name,
+          provider,
+          status: executionStatus(execution),
+          metadata: { execution }
+        };
+      },
+      cancel: async (spec: CancelJobSpec): Promise<CancelJobResult> => {
+        const client = getClient();
+        const execution = await client.cancelExecution(spec.id);
+        const status = executionStatus(execution) === "cancelled" ? "cancelled" : "cancelling";
+        return {
+          id: execution.name,
+          provider,
+          status,
+          metadata: { execution, reason: spec.reason }
         };
       }
     },
