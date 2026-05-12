@@ -359,6 +359,9 @@ importers:
       '@capsule/adapter-e2b':
         specifier: workspace:*
         version: link:../adapter-e2b
+      '@capsule/adapter-ecs':
+        specifier: workspace:*
+        version: link:../adapter-ecs
       '@capsule/adapter-kubernetes':
         specifier: workspace:*
         version: link:../adapter-kubernetes

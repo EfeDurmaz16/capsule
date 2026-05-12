@@ -86,6 +86,7 @@ Capsule can apply network, filesystem, secrets, limits, cost, TTL, and approval 
 | Vercel | unsupported | unsupported | experimental | native | unsupported | experimental | unsupported |
 | Kubernetes | experimental | native | native | unsupported | unsupported | experimental | experimental |
 | Lambda | unsupported | native | unsupported | unsupported | unsupported | unsupported | unsupported |
+| ECS/Fargate | unsupported | native | native | unsupported | unsupported | experimental | unsupported |
 | Daytona | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported |
 | Modal | native | native | experimental | unsupported | unsupported | experimental | unsupported |
 | Cloud Run | unsupported | native | native | unsupported | unsupported | experimental | unsupported |
@@ -132,6 +133,7 @@ pnpm typecheck
 - `@capsule/adapter-cloud-run`: real Cloud Run Admin API adapter for jobs and services.
 - `@capsule/adapter-kubernetes`: real Kubernetes client adapter for Jobs, Deployments, and Services.
 - `@capsule/adapter-lambda`: real AWS Lambda invoke adapter for existing functions as jobs.
+- `@capsule/adapter-ecs`: real ECS/Fargate adapter for existing task definitions.
 - `@capsule/adapter-neon`: real Neon API adapter for database branch create/delete and connection URI retrieval.
 - `@capsule/adapter-vercel`: real Vercel REST adapter for inline deployment creation.
 - `@capsule/adapter-mock`: mock E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models.
@@ -171,6 +173,7 @@ Real in this repository:
 - Cloud Run job run and service deploy through the Cloud Run Admin API;
 - Kubernetes Job, Deployment, and Service creation through the official Kubernetes client;
 - AWS Lambda invocation through AWS SDK v3;
+- ECS RunTask and CreateService through AWS SDK v3;
 - Neon database branch create/delete through the Neon API;
 - Vercel inline deployment creation through the Vercel REST API;
 - Neon connection URI retrieval when `databaseName` and `roleName` are configured;
@@ -181,7 +184,7 @@ Real in this repository:
 
 Mocked:
 
-- Daytona, Modal, ECS, and EC2 provider calls;
+- Daytona, Modal, and EC2 provider calls;
 - service, edge, database, preview, and machine lifecycle operations outside Docker;
 - preview orchestration across real providers.
 

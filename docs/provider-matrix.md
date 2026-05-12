@@ -16,13 +16,14 @@ Status legend:
 | Vercel | real | unsupported | unsupported | experimental | native | unsupported | experimental | unsupported | Inline deployment creation is implemented; large file upload/SHA flow, aliases, env, logs, and rollback remain explicit future capabilities. |
 | Kubernetes | real | experimental | native | native | unsupported | unsupported | experimental | experimental | Jobs, Deployments, and Services are implemented through the official Kubernetes client; logs/ingress/rollout are explicit future work. |
 | Lambda | real | unsupported | native | unsupported | unsupported | unsupported | unsupported | unsupported | Existing Lambda function invocation is implemented as `job.run`; function deployment/env mutation is not faked. |
+| ECS/Fargate | real | unsupported | native | native | unsupported | unsupported | experimental | unsupported | RunTask and CreateService are implemented for existing task definitions; task-definition registration and load balancers are future work. |
 | Daytona | mock/planned | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported | Workspace-oriented sandbox model. |
 | Modal | mock/planned | native | native | experimental | unsupported | unsupported | experimental | unsupported | Strong function and sandbox fit. |
 | Cloudflare Sandbox | mock/planned | experimental | experimental | experimental | native | experimental | experimental | unsupported | Bindings and runtime semantics matter. |
 | Microsandbox | planned | experimental | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Sandbox-focused future adapter target. |
 | Cloud Run Jobs | real | unsupported | native | unsupported | unsupported | unsupported | experimental | unsupported | Job primitive implemented by `@capsule/adapter-cloud-run`. |
 | Cloud Run Services | real | unsupported | unsupported | native | unsupported | unsupported | experimental | unsupported | Service primitive implemented by `@capsule/adapter-cloud-run`. |
-| ECS/Fargate | mock/planned | unsupported | native | native | unsupported | unsupported | experimental | unsupported | Tasks and services map naturally. |
+| ECS/Fargate | real | unsupported | native | native | unsupported | unsupported | experimental | unsupported | Existing task definitions are run/deployed by `@capsule/adapter-ecs`. |
 | Kubernetes Jobs | real | experimental | native | unsupported | unsupported | unsupported | experimental | experimental | Job primitive implemented by `@capsule/adapter-kubernetes`; cluster policy varies. |
 | Kubernetes Deployments | real | experimental | unsupported | native | unsupported | unsupported | experimental | experimental | Deployment and Service creation implemented by `@capsule/adapter-kubernetes`. |
 | Lambda | real | unsupported | native | unsupported | experimental | unsupported | unsupported | unsupported | Existing function invoke is implemented by `@capsule/adapter-lambda`; edge deploy remains future work. |

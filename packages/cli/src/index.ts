@@ -4,6 +4,7 @@ import { cloudflare } from "@capsule/adapter-cloudflare";
 import { cloudRun } from "@capsule/adapter-cloud-run";
 import { docker, dockerAvailable } from "@capsule/adapter-docker";
 import { e2b } from "@capsule/adapter-e2b";
+import { ecs } from "@capsule/adapter-ecs";
 import { kubernetes } from "@capsule/adapter-kubernetes";
 import { lambda } from "@capsule/adapter-lambda";
 import { neon } from "@capsule/adapter-neon";
@@ -33,6 +34,11 @@ interface ParsedArgs {
   kubeconfig?: string;
   region?: string;
   functionName?: string;
+  cluster?: string;
+  taskDefinition?: string;
+  containerName?: string;
+  subnets?: string[];
+  securityGroups?: string[];
   port?: number;
   hardDelete?: boolean;
   rest: string[];
@@ -148,6 +154,31 @@ function parse(argv: string[]): ParsedArgs {
       index += 1;
       continue;
     }
+    if (arg === "--cluster") {
+      parsed.cluster = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--task-definition") {
+      parsed.taskDefinition = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--container-name") {
+      parsed.containerName = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--subnet") {
+      parsed.subnets = [...(parsed.subnets ?? []), args[index + 1]];
+      index += 1;
+      continue;
+    }
+    if (arg === "--security-group") {
+      parsed.securityGroups = [...(parsed.securityGroups ?? []), args[index + 1]];
+      index += 1;
+      continue;
+    }
     if (arg === "--port") {
       parsed.port = Number(args[index + 1]);
       index += 1;
@@ -178,6 +209,7 @@ Commands:
   capsule capabilities --adapter vercel
   capsule capabilities --adapter kubernetes --namespace default
   capsule capabilities --adapter lambda --region us-east-1 --function-name my-function
+  capsule capabilities --adapter ecs --region us-east-1 --cluster default --task-definition task:1 --container-name main
   capsule capabilities --adapter cloud-run --project-id <gcp-project> --location us-central1
   capsule run --image node:22 -- node -e "console.log('hello')"
   capsule sandbox --image node:22
@@ -185,7 +217,9 @@ Commands:
   capsule job --adapter cloud-run --project-id <gcp-project> --location us-central1 --name my-job --image us-docker.pkg.dev/project/repo/job:tag
   capsule job --adapter kubernetes --namespace default --name my-job --image node:22 -- node -e "console.log('hi')"
   capsule job --adapter lambda --region us-east-1 --function-name my-function --image ignored
+  capsule job --adapter ecs --region us-east-1 --cluster default --task-definition task:1 --container-name main --subnet subnet-123 --security-group sg-123 --image intent -- node job.js
   capsule service --adapter cloud-run --project-id <gcp-project> --location us-central1 --name api --image us-docker.pkg.dev/project/repo/api:tag --port 8080
+  capsule service --adapter ecs --region us-east-1 --cluster default --task-definition api:1 --container-name main --name api --image intent
   capsule service --adapter kubernetes --namespace default --name api --image ghcr.io/acme/api:latest --port 8080
   capsule edge --adapter cloudflare --name my-worker --entrypoint worker.js ./dist/worker.js
   capsule edge --adapter vercel --name my-deployment --project-name my-project --entrypoint index.js ./index.js
@@ -237,6 +271,23 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   if (parsed.adapter === "lambda") {
     return new Capsule({
       adapter: lambda({ region: parsed.region, functionName: parsed.functionName }),
+      receipts: true,
+      receiptStore
+    });
+  }
+  if (parsed.adapter === "ecs") {
+    if (!parsed.cluster || !parsed.taskDefinition || !parsed.containerName) {
+      throw new Error("ECS adapter requires --cluster, --task-definition, and --container-name");
+    }
+    return new Capsule({
+      adapter: ecs({
+        region: parsed.region,
+        cluster: parsed.cluster,
+        taskDefinition: parsed.taskDefinition,
+        containerName: parsed.containerName,
+        subnets: parsed.subnets,
+        securityGroups: parsed.securityGroups
+      }),
       receipts: true,
       receiptStore
     });
@@ -303,8 +354,8 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "job": {
-      if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes" && parsed.adapter !== "lambda") {
-        throw new Error("job currently requires --adapter cloud-run, --adapter kubernetes, or --adapter lambda");
+      if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes" && parsed.adapter !== "lambda" && parsed.adapter !== "ecs") {
+        throw new Error("job currently requires --adapter cloud-run, --adapter kubernetes, --adapter lambda, or --adapter ecs");
       }
       if (!parsed.image) {
         throw new Error("Missing --image");
@@ -318,8 +369,8 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "service": {
-      if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes") {
-        throw new Error("service currently requires --adapter cloud-run or --adapter kubernetes");
+      if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes" && parsed.adapter !== "ecs") {
+        throw new Error("service currently requires --adapter cloud-run, --adapter kubernetes, or --adapter ecs");
       }
       if (!parsed.name) {
         throw new Error("Missing --name");
