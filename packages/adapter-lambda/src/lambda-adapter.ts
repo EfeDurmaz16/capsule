@@ -12,6 +12,9 @@ import {
 
 interface LambdaClientLike {
   send(command: InvokeCommand): Promise<{
+    $metadata?: {
+      requestId?: string;
+    };
     StatusCode?: number;
     FunctionError?: string;
     LogResult?: string;
@@ -118,6 +121,19 @@ function status(statusCode: number | undefined, functionError: string | undefine
   return statusCode && statusCode >= 200 && statusCode < 300 ? "succeeded" : "failed";
 }
 
+function receiptNotes(policyNotes: string[], invocationType: LambdaAdapterOptions["invocationType"]): string[] {
+  const notes = [
+    ...policyNotes,
+    "AWS Lambda invoke is native for existing functions.",
+    "Capsule passes env/command/image as event payload; it does not mutate Lambda environment variables or deploy function code.",
+    "Lambda API status code does not imply function success when FunctionError is present."
+  ];
+  if (invocationType === "Event") {
+    notes.push("Lambda async Event invocation only confirms enqueue; Capsule does not support provider-side async job.status for Lambda.");
+  }
+  return notes;
+}
+
 function defaultClient(options: LambdaAdapterOptions): LambdaClientLike {
   return new LambdaClient({ region: options.region });
 }
@@ -163,15 +179,18 @@ export function lambda(options: LambdaAdapterOptions = {}): CapsuleAdapter {
               stderr,
               policy: {
                 ...policy,
-                notes: [
-                  ...policy.notes,
-                  "AWS Lambda invoke is native for existing functions.",
-                  "Capsule passes env/command/image as event payload; it does not mutate Lambda environment variables or deploy function code.",
-                  "Lambda API status code does not imply function success when FunctionError is present."
-                ]
+                notes: receiptNotes(policy.notes, invocationType)
               },
               resource: { id: functionName, name: functionName, status: runStatus },
-              metadata: { statusCode: response.StatusCode, functionError: response.FunctionError, executedVersion: response.ExecutedVersion, logTail: logs || undefined }
+              metadata: {
+                invocationType,
+                statusCode: response.StatusCode,
+                requestId: response.$metadata?.requestId,
+                executedVersion: response.ExecutedVersion ?? null,
+                functionError: response.FunctionError ?? null,
+                asyncStatusSupport: invocationType === "Event" ? "unsupported" : undefined,
+                logTail: logs || undefined
+              }
             })
           : undefined;
         const result: ExecResult | undefined =
