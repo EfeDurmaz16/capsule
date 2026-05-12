@@ -22,6 +22,16 @@ nohup caffeinate -dimsu node scripts/capsule-autopilot.mjs --max-parallel 2 > .s
 echo $! > .symphony/autopilot.pid
 ```
 
+For a macOS LaunchAgent run that survives the shell closing:
+
+```bash
+mkdir -p ~/Library/LaunchAgents .symphony/logs
+cp scripts/com.capsule.autopilot.plist.example ~/Library/LaunchAgents/com.capsule.autopilot.plist
+launchctl bootout "gui/$(id -u)" ~/Library/LaunchAgents/com.capsule.autopilot.plist 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.capsule.autopilot.plist
+launchctl kickstart -k "gui/$(id -u)/com.capsule.autopilot"
+```
+
 ## Check Status
 
 ```bash
@@ -35,6 +45,7 @@ gh pr list --limit 20
 
 ```bash
 kill "$(cat .symphony/autopilot.pid)"
+launchctl bootout "gui/$(id -u)" ~/Library/LaunchAgents/com.capsule.autopilot.plist
 ```
 
 ## Safety

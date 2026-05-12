@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.capsule.autopilot</string>
+  <key>WorkingDirectory</key>
+  <string>/Users/efebarandurmaz/capsule</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/caffeinate</string>
+    <string>-dimsu</string>
+    <string>/opt/homebrew/bin/node</string>
+    <string>scripts/capsule-autopilot.mjs</string>
+    <string>--max-parallel</string>
+    <string>3</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>GH_REPO</key>
+    <string>EfeDurmaz16/capsule</string>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/Users/efebarandurmaz/capsule/.symphony/logs/launchd-autopilot.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/efebarandurmaz/capsule/.symphony/logs/launchd-autopilot.err.log</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <false/>
+</dict>
+</plist>
