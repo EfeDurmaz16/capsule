@@ -1,0 +1,28 @@
+{
+  "name": "@capsule/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "capsule": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --banner.js \"#!/usr/bin/env node\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@capsule/adapter-docker": "workspace:*",
+    "@capsule/core": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
+  }
+}
