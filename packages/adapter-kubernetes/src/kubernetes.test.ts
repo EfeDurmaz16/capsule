@@ -9,6 +9,8 @@ describe("kubernetes adapter", () => {
 
   it("declares job and service capabilities", () => {
     expect(kubernetesCapabilities.job?.run).toBe("native");
+    expect(kubernetesCapabilities.job?.status).toBe("native");
+    expect(kubernetesCapabilities.job?.cancel).toBe("native");
     expect(kubernetesCapabilities.service?.deploy).toBe("native");
     expect(kubernetesCapabilities.service?.url).toBe("experimental");
   });
@@ -42,9 +44,10 @@ describe("kubernetes adapter", () => {
       labels: { "capsule.dev/example": "true" }
     });
 
-    expect(run.id).toBe("job-uid");
+    expect(run.id).toBe("build-job");
     expect(run.status).toBe("running");
     expect(run.receipt?.type).toBe("job.run");
+    expect(run.receipt?.metadata).toMatchObject({ kubernetesName: "build-job", uid: "job-uid" });
     expect(calls[0]?.namespace).toBe("capsule");
     expect(calls[0]?.body).toMatchObject({
       apiVersion: "batch/v1",
@@ -69,6 +72,94 @@ describe("kubernetes adapter", () => {
         }
       }
     });
+  });
+
+  it("reads Kubernetes Job status phases from the Batch API", async () => {
+    const jobs: Record<string, any> = {
+      queued: { metadata: { name: "queued", uid: "uid-queued" }, status: {} },
+      running: { metadata: { name: "running" }, status: { active: 1 } },
+      succeeded: { metadata: { name: "succeeded" }, status: { conditions: [{ type: "Complete", status: "True" }] } },
+      failed: { metadata: { name: "failed" }, status: { conditions: [{ type: "Failed", status: "True" }] } },
+      deleted: { metadata: { name: "deleted", deletionTimestamp: "2026-05-13T00:00:00Z" }, status: { active: 1 } }
+    };
+    const reads: Array<{ namespace: string; name: string }> = [];
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "jobs",
+        clients: {
+          batch: {
+            createNamespacedJob: async () => ({}),
+            readNamespacedJob: async (input) => {
+              reads.push(input);
+              return jobs[input.name];
+            },
+            deleteNamespacedJob: async () => ({})
+          },
+          apps: { createNamespacedDeployment: async () => ({}) },
+          core: { createNamespacedService: async () => ({}) }
+        }
+      })
+    });
+
+    await expect(capsule.job.status({ id: "queued" })).resolves.toMatchObject({ id: "queued", provider: "kubernetes", status: "queued" });
+    await expect(capsule.job.status({ id: "running" })).resolves.toMatchObject({ id: "running", provider: "kubernetes", status: "running" });
+    await expect(capsule.job.status({ id: "succeeded" })).resolves.toMatchObject({ id: "succeeded", provider: "kubernetes", status: "succeeded" });
+    await expect(capsule.job.status({ id: "failed" })).resolves.toMatchObject({ id: "failed", provider: "kubernetes", status: "failed" });
+    await expect(capsule.job.status({ id: "deleted" })).resolves.toMatchObject({ id: "deleted", provider: "kubernetes", status: "cancelled" });
+    expect(reads).toEqual([
+      { namespace: "jobs", name: "queued" },
+      { namespace: "jobs", name: "running" },
+      { namespace: "jobs", name: "succeeded" },
+      { namespace: "jobs", name: "failed" },
+      { namespace: "jobs", name: "deleted" }
+    ]);
+  });
+
+  it("maps cancel to an explicit foreground Job deletion request", async () => {
+    const deletes: Array<{ namespace: string; name: string; gracePeriodSeconds?: number; propagationPolicy?: string; body?: unknown }> = [];
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "jobs",
+        clients: {
+          batch: {
+            createNamespacedJob: async () => ({}),
+            readNamespacedJob: async () => ({}),
+            deleteNamespacedJob: async (input) => {
+              deletes.push(input);
+              return { metadata: { name: input.name, uid: "job-uid" } };
+            }
+          },
+          apps: { createNamespacedDeployment: async () => ({}) },
+          core: { createNamespacedService: async () => ({}) }
+        }
+      })
+    });
+
+    await expect(capsule.job.cancel({ id: "build-job", reason: "user requested stop" })).resolves.toMatchObject({
+      id: "build-job",
+      provider: "kubernetes",
+      status: "cancelling",
+      metadata: {
+        namespace: "jobs",
+        kubernetesName: "build-job",
+        reason: "user requested stop",
+        semantics: "delete-job-foreground"
+      }
+    });
+    expect(deletes).toEqual([
+      {
+        namespace: "jobs",
+        name: "build-job",
+        gracePeriodSeconds: 0,
+        propagationPolicy: "Foreground",
+        body: {
+          apiVersion: "v1",
+          kind: "DeleteOptions",
+          gracePeriodSeconds: 0,
+          propagationPolicy: "Foreground"
+        }
+      }
+    ]);
   });
 
   it("creates a Deployment and Service from DeployServiceSpec", async () => {
