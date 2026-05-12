@@ -327,6 +327,9 @@ importers:
       '@capsule/adapter-e2b':
         specifier: workspace:*
         version: link:../adapter-e2b
+      '@capsule/adapter-kubernetes':
+        specifier: workspace:*
+        version: link:../adapter-kubernetes
       '@capsule/adapter-neon':
         specifier: workspace:*
         version: link:../adapter-neon

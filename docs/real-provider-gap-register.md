@@ -10,7 +10,6 @@ Capsule now has real adapters for Docker, E2B, Neon, Cloudflare Workers, Cloud R
 | Daytona | `@capsule/adapter-daytona` | `sandbox.create`, workspace exec/files | Daytona API key, organization/project/workspace defaults | Workspace semantics are close to sandbox but long-lived enough to document honestly. |
 | Lambda | `@capsule/adapter-lambda` | `job.run` / function invoke | AWS region, credentials, function name mapping | Use AWS SDK v3 for signing; do not force `RunJobSpec.image` into Lambda invoke without explicit mapping. |
 | ECS/Fargate | `@capsule/adapter-ecs` | `job.run`, service deploy later | AWS region, cluster, task definition, subnets, security groups | Needs adapter options because Capsule's generic `RunJobSpec` cannot infer networking. |
-| Kubernetes | `@capsule/adapter-kubernetes` | `job.run`, service deploy | kubeconfig/context/namespace | Use Kubernetes client; map logs/status honestly and avoid pretending cluster policy is uniform. |
 | EC2 | `@capsule/adapter-ec2` | `machine.create` | AWS region, AMI, subnet/security group/key/role | Lower-level primitive; do not hide SSH/IAM/network leakage. |
 | Fly Machines | `@capsule/adapter-fly` | `machine.create`, `job.run` | Fly token, org/app/region | Machines overlap with service/job; capability map must distinguish one-shot machine runs. |
 | Azure Container Apps | `@capsule/adapter-azure-container-apps` | `job.run`, `service.deploy` | Azure tenant/subscription/resource group/environment | Use Azure identity/client libraries only where auth complexity justifies it. |

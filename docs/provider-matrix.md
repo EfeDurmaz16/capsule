@@ -14,6 +14,7 @@ Status legend:
 | Cloudflare Workers | real | unsupported | unsupported | unsupported | native | unsupported | unsupported | unsupported | Worker module upload is implemented; routes, secrets, logs, versions, and rollback remain explicit future capabilities. |
 | Cloud Run | real | unsupported | native | native | unsupported | unsupported | experimental | unsupported | Cloud Run Jobs and Services are implemented via Admin API v2; logs/IAM/public access are not faked. |
 | Vercel | real | unsupported | unsupported | experimental | native | unsupported | experimental | unsupported | Inline deployment creation is implemented; large file upload/SHA flow, aliases, env, logs, and rollback remain explicit future capabilities. |
+| Kubernetes | real | experimental | native | native | unsupported | unsupported | experimental | experimental | Jobs, Deployments, and Services are implemented through the official Kubernetes client; logs/ingress/rollout are explicit future work. |
 | Daytona | mock/planned | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported | Workspace-oriented sandbox model. |
 | Modal | mock/planned | native | native | experimental | unsupported | unsupported | experimental | unsupported | Strong function and sandbox fit. |
 | Cloudflare Sandbox | mock/planned | experimental | experimental | experimental | native | experimental | experimental | unsupported | Bindings and runtime semantics matter. |
@@ -21,8 +22,8 @@ Status legend:
 | Cloud Run Jobs | real | unsupported | native | unsupported | unsupported | unsupported | experimental | unsupported | Job primitive implemented by `@capsule/adapter-cloud-run`. |
 | Cloud Run Services | real | unsupported | unsupported | native | unsupported | unsupported | experimental | unsupported | Service primitive implemented by `@capsule/adapter-cloud-run`. |
 | ECS/Fargate | mock/planned | unsupported | native | native | unsupported | unsupported | experimental | unsupported | Tasks and services map naturally. |
-| Kubernetes Jobs | mock/planned | experimental | native | unsupported | unsupported | experimental | experimental | experimental | Cluster policy varies. |
-| Kubernetes Deployments | mock/planned | experimental | unsupported | native | unsupported | experimental | experimental | experimental | Service deployment fit. |
+| Kubernetes Jobs | real | experimental | native | unsupported | unsupported | unsupported | experimental | experimental | Job primitive implemented by `@capsule/adapter-kubernetes`; cluster policy varies. |
+| Kubernetes Deployments | real | experimental | unsupported | native | unsupported | unsupported | experimental | experimental | Deployment and Service creation implemented by `@capsule/adapter-kubernetes`. |
 | Lambda | mock/planned | unsupported | native | unsupported | experimental | unsupported | unsupported | unsupported | Function semantics differ from containers. |
 | Vercel | real | unsupported | unsupported | experimental | native | unsupported | experimental | unsupported | Edge/deployment primitive implemented by `@capsule/adapter-vercel`; routes and aliases are future work. |
 | Cloudflare Workers | mock/planned | unsupported | experimental | experimental | native | experimental | experimental | unsupported | Broader bindings/resource lifecycle remains modeled in mocks until implemented by real adapters. |

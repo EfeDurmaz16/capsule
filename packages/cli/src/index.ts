@@ -4,6 +4,7 @@ import { cloudflare } from "@capsule/adapter-cloudflare";
 import { cloudRun } from "@capsule/adapter-cloud-run";
 import { docker, dockerAvailable } from "@capsule/adapter-docker";
 import { e2b } from "@capsule/adapter-e2b";
+import { kubernetes } from "@capsule/adapter-kubernetes";
 import { neon } from "@capsule/adapter-neon";
 import { vercel } from "@capsule/adapter-vercel";
 import { jsonlReceiptStore } from "@capsule/store-jsonl";
@@ -26,6 +27,9 @@ interface ParsedArgs {
   location?: string;
   projectName?: string;
   target?: string;
+  namespace?: string;
+  context?: string;
+  kubeconfig?: string;
   port?: number;
   hardDelete?: boolean;
   rest: string[];
@@ -116,6 +120,21 @@ function parse(argv: string[]): ParsedArgs {
       index += 1;
       continue;
     }
+    if (arg === "--namespace") {
+      parsed.namespace = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--context") {
+      parsed.context = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--kubeconfig") {
+      parsed.kubeconfig = args[index + 1];
+      index += 1;
+      continue;
+    }
     if (arg === "--port") {
       parsed.port = Number(args[index + 1]);
       index += 1;
@@ -144,12 +163,15 @@ Commands:
   capsule capabilities --adapter e2b
   capsule capabilities --adapter cloudflare
   capsule capabilities --adapter vercel
+  capsule capabilities --adapter kubernetes --namespace default
   capsule capabilities --adapter cloud-run --project-id <gcp-project> --location us-central1
   capsule run --image node:22 -- node -e "console.log('hello')"
   capsule sandbox --image node:22
   capsule sandbox --adapter e2b -- node -e "console.log('hello from E2B')"
   capsule job --adapter cloud-run --project-id <gcp-project> --location us-central1 --name my-job --image us-docker.pkg.dev/project/repo/job:tag
+  capsule job --adapter kubernetes --namespace default --name my-job --image node:22 -- node -e "console.log('hi')"
   capsule service --adapter cloud-run --project-id <gcp-project> --location us-central1 --name api --image us-docker.pkg.dev/project/repo/api:tag --port 8080
+  capsule service --adapter kubernetes --namespace default --name api --image ghcr.io/acme/api:latest --port 8080
   capsule edge --adapter cloudflare --name my-worker --entrypoint worker.js ./dist/worker.js
   capsule edge --adapter vercel --name my-deployment --project-name my-project --entrypoint index.js ./index.js
   capsule neon branch-create --project <project_id> --name pr-42 --database neondb --role neondb_owner --receipt-file .capsule/receipts.jsonl
@@ -186,6 +208,13 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   if (parsed.adapter === "vercel") {
     return new Capsule({
       adapter: vercel({ project: parsed.projectName, target: parsed.target }),
+      receipts: true,
+      receiptStore
+    });
+  }
+  if (parsed.adapter === "kubernetes") {
+    return new Capsule({
+      adapter: kubernetes({ namespace: parsed.namespace, context: parsed.context, kubeconfigPath: parsed.kubeconfig }),
       receipts: true,
       receiptStore
     });
@@ -252,8 +281,8 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "job": {
-      if (parsed.adapter !== "cloud-run") {
-        throw new Error("job currently requires --adapter cloud-run");
+      if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes") {
+        throw new Error("job currently requires --adapter cloud-run or --adapter kubernetes");
       }
       if (!parsed.image) {
         throw new Error("Missing --image");
@@ -267,8 +296,8 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "service": {
-      if (parsed.adapter !== "cloud-run") {
-        throw new Error("service currently requires --adapter cloud-run");
+      if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes") {
+        throw new Error("service currently requires --adapter cloud-run or --adapter kubernetes");
       }
       if (!parsed.name) {
         throw new Error("Missing --name");

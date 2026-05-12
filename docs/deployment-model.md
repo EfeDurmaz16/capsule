@@ -15,3 +15,5 @@ Machines cover EC2, Compute Engine, Azure VM, bare metal, Firecracker, Nomad, an
 Cloud Run, ECS, and Kubernetes overlap naturally for jobs and services. Vercel and Cloudflare need edge-specific primitives because routing, deployment release models, bindings, and platform runtimes are first-class.
 
 The real Cloud Run adapter uses the Cloud Run Admin API v2 for Jobs and Services. It creates and runs jobs, creates services from container images, waits for long-running operations when configured, and records receipts. It does not fake stdout/stderr from Cloud Logging, mutate IAM to make services public, or deploy from source through Cloud Build.
+
+The real Kubernetes adapter uses the official Kubernetes JavaScript client. It creates Jobs for `job.run` and creates a Deployment plus Service for `service.deploy`. It records Kubernetes resource IDs and in-cluster DNS names, but it does not claim rollout completion, ingress exposure, log collection, RBAC enforcement, or runtime isolation beyond what the target cluster actually provides.
