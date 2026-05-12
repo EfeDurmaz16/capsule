@@ -1,6 +1,7 @@
 {
-  "name": "@capsule/adapter-docker",
+  "name": "@capsule/test-utils",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,12 +15,10 @@
     "build": "tsup src/index.ts --format esm && tsc -p tsconfig.json --emitDeclarationOnly",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
-  "dependencies": {
-    "@capsule/core": "workspace:*"
-  },
   "devDependencies": {
-    "@capsule/test-utils": "workspace:*",
+    "@types/node": "^24.10.0",
     "tsup": "^8.5.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.14"
   }
 }
