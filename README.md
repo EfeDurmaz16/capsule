@@ -107,6 +107,7 @@ Capsule can apply network, filesystem, secrets, limits, cost, TTL, and approval 
 - [Provider matrix](docs/provider-matrix.md)
 - [Security model](docs/security-model.md)
 - [Roadmap](docs/roadmap.md)
+- [Real provider gap register](docs/real-provider-gap-register.md)
 - [Contributing](docs/contributing.md)
 - [Comparison](docs/comparison.md)
 - [Technical decisions](docs/technical-decisions.md)
