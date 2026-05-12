@@ -9,7 +9,7 @@ Examples:
 - Docker: `sandbox.exec` is native, `sandbox.filesystemPolicy` is emulated, `sandbox.networkPolicy` is experimental, `service.deploy` is unsupported.
 - E2B: `sandbox.create`, `sandbox.exec`, and sandbox file operations are native through the E2B SDK; jobs remain unsupported until Capsule models an explicit E2B-backed job flow.
 - Daytona: sandbox lifecycle, command execution, and file operations are native through the Daytona SDK; job behavior remains emulated over sandbox execution.
-- Modal: sandbox and jobs are native, service and preview are experimental.
+- Modal: sandbox lifecycle, command execution, and file read/write are native through the Modal JS SDK; file listing and broader function/service workflows remain unsupported or experimental.
 - Cloud Run: jobs and services are native through the real Cloud Run Admin API adapter; logs, IAM/public access, and source builds are intentionally not faked.
 - Vercel: edge deployment is native through the real Vercel REST adapter; service/preview semantics remain experimental and aliases, env, logs, and rollback are not faked.
 - Cloudflare: edge is native; sandbox, job, service, database, and preview are experimental.

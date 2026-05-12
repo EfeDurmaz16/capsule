@@ -1,12 +1,11 @@
 # Real Provider Gap Register
 
-Capsule now has real adapters for Docker, E2B, Neon, Cloudflare Workers, Cloud Run, and Vercel. The mock adapter remains valuable for contract examples, but these providers still need real adapter packages before the repository can honestly claim there are no mock-only provider paths.
+Capsule now has real adapters for Docker, E2B, Daytona, Modal, Neon, Cloudflare Workers, Cloud Run, Vercel, Kubernetes, Lambda, ECS/Fargate, and EC2. The mock adapter remains valuable for contract examples, but no original provider family is represented only by mocks.
 
 ## Remaining Mock/Planned Providers
 
 | Provider | Target package | First real primitive | Required provider config | Notes |
 | --- | --- | --- | --- | --- |
-| Modal | `@capsule/adapter-modal` | `sandbox.create`, `job.run` | Modal token/profile or SDK config | Prefer official SDK if TypeScript support covers sandbox/function lifecycle. |
 | Fly Machines | `@capsule/adapter-fly` | `machine.create`, `job.run` | Fly token, org/app/region | Machines overlap with service/job; capability map must distinguish one-shot machine runs. |
 | Azure Container Apps | `@capsule/adapter-azure-container-apps` | `job.run`, `service.deploy` | Azure tenant/subscription/resource group/environment | Use Azure identity/client libraries only where auth complexity justifies it. |
 
@@ -23,8 +22,6 @@ A provider leaves this register only when:
 
 ## Near-Term Order
 
-1. Kubernetes jobs/services, because the primitives are standard and contract-testable locally with fake clients.
-2. Lambda invoke, because AWS SDK v3 gives correct signing and the job/function model is narrow.
-3. ECS/Fargate tasks, because it shares AWS auth but needs more network config.
-4. Modal and Daytona, after current SDK/API shape is verified.
-5. EC2/Fly/Azure, after machine lifecycle contracts are expanded beyond create-only.
+1. Add deeper lifecycle operations to existing real adapters: logs, status polling, cancel/delete, rollback, route/alias management, and teardown.
+2. Add Fly Machines and Azure Container Apps as extra roadmap providers beyond the original mocked package set.
+3. Add provider contract test suites that adapter authors can run against fake clients and optional live credentials.

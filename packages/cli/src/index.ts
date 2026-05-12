@@ -9,6 +9,7 @@ import { ec2 } from "@capsule/adapter-ec2";
 import { ecs } from "@capsule/adapter-ecs";
 import { kubernetes } from "@capsule/adapter-kubernetes";
 import { lambda } from "@capsule/adapter-lambda";
+import { modal } from "@capsule/adapter-modal";
 import { neon } from "@capsule/adapter-neon";
 import { vercel } from "@capsule/adapter-vercel";
 import { jsonlReceiptStore } from "@capsule/store-jsonl";
@@ -45,6 +46,7 @@ interface ParsedArgs {
   imageId?: string;
   instanceType?: string;
   apiUrl?: string;
+  appName?: string;
   port?: number;
   hardDelete?: boolean;
   rest: string[];
@@ -205,6 +207,11 @@ function parse(argv: string[]): ParsedArgs {
       index += 1;
       continue;
     }
+    if (arg === "--app-name") {
+      parsed.appName = args[index + 1];
+      index += 1;
+      continue;
+    }
     if (arg === "--port") {
       parsed.port = Number(args[index + 1]);
       index += 1;
@@ -232,6 +239,7 @@ Commands:
   capsule capabilities --adapter neon
   capsule capabilities --adapter e2b
   capsule capabilities --adapter daytona
+  capsule capabilities --adapter modal --app-name capsule
   capsule capabilities --adapter cloudflare
   capsule capabilities --adapter vercel
   capsule capabilities --adapter kubernetes --namespace default
@@ -243,6 +251,7 @@ Commands:
   capsule sandbox --image node:22
   capsule sandbox --adapter e2b -- node -e "console.log('hello from E2B')"
   capsule sandbox --adapter daytona --image node:22 -- node -e "console.log('hello from Daytona')"
+  capsule sandbox --adapter modal --app-name capsule --image debian:bookworm-slim -- bash -lc "echo hello"
   capsule job --adapter cloud-run --project-id <gcp-project> --location us-central1 --name my-job --image us-docker.pkg.dev/project/repo/job:tag
   capsule job --adapter kubernetes --namespace default --name my-job --image node:22 -- node -e "console.log('hi')"
   capsule job --adapter lambda --region us-east-1 --function-name my-function --image ignored
@@ -272,6 +281,9 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   }
   if (parsed.adapter === "daytona") {
     return new Capsule({ adapter: daytona({ apiUrl: parsed.apiUrl, target: parsed.target }), receipts: true, receiptStore });
+  }
+  if (parsed.adapter === "modal") {
+    return new Capsule({ adapter: modal({ appName: parsed.appName, defaultImage: parsed.image }), receipts: true, receiptStore });
   }
   if (parsed.adapter === "cloudflare") {
     return new Capsule({

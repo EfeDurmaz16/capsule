@@ -82,6 +82,7 @@ Capsule can apply network, filesystem, secrets, limits, cost, TTL, and approval 
 | Docker | native | native | unsupported | unsupported | unsupported | unsupported | unsupported |
 | E2B | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported |
 | Daytona | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported |
+| Modal | native | emulated | experimental | unsupported | unsupported | experimental | unsupported |
 | Cloud Run | unsupported | native | native | unsupported | unsupported | experimental | unsupported |
 | Cloudflare Workers | unsupported | unsupported | unsupported | native | unsupported | unsupported | unsupported |
 | Vercel | unsupported | unsupported | experimental | native | unsupported | experimental | unsupported |
@@ -132,6 +133,7 @@ pnpm typecheck
 - `@capsule/adapter-docker`: real Docker CLI adapter for sandbox and one-shot job execution.
 - `@capsule/adapter-e2b`: real E2B SDK adapter for cloud sandbox execution.
 - `@capsule/adapter-daytona`: real Daytona SDK adapter for sandbox execution.
+- `@capsule/adapter-modal`: real Modal JS SDK adapter for sandbox execution.
 - `@capsule/adapter-cloudflare`: real Cloudflare API adapter for Worker module edge deployment.
 - `@capsule/adapter-cloud-run`: real Cloud Run Admin API adapter for jobs and services.
 - `@capsule/adapter-kubernetes`: real Kubernetes client adapter for Jobs, Deployments, and Services.
@@ -174,6 +176,7 @@ Real in this repository:
 - Docker CLI sandbox/job adapter;
 - E2B cloud sandbox create/exec/file/list/destroy through the E2B SDK;
 - Daytona sandbox create/exec/file/list/destroy through the Daytona SDK;
+- Modal sandbox create/exec/read/write/destroy through the Modal JS SDK;
 - Cloudflare Worker module upload through the Cloudflare API;
 - Cloud Run job run and service deploy through the Cloud Run Admin API;
 - Kubernetes Job, Deployment, and Service creation through the official Kubernetes client;
@@ -190,7 +193,7 @@ Real in this repository:
 
 Mocked:
 
-- Modal provider calls;
+- no original provider family is represented only by mocks; remaining gaps are explicit unsupported or experimental capabilities inside real adapters.
 - service, edge, database, preview, and machine lifecycle operations outside Docker;
 - preview orchestration across real providers.
 

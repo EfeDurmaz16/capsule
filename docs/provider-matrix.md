@@ -12,6 +12,7 @@ Status legend:
 | Neon | real | unsupported | unsupported | unsupported | unsupported | native | experimental | unsupported | Database branch create/delete and connection URI retrieval are implemented. |
 | E2B | real | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Cloud sandbox create, exec, file read/write/list, and destroy are implemented through the E2B SDK. |
 | Daytona | real | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported | Sandbox create, exec, file read/write/list, and delete are implemented through the Daytona SDK. |
+| Modal | real | native | emulated | experimental | unsupported | unsupported | experimental | unsupported | Sandbox create, exec, file read/write, and terminate are implemented through the Modal JS SDK; file listing is unsupported. |
 | Cloudflare Workers | real | unsupported | unsupported | unsupported | native | unsupported | unsupported | unsupported | Worker module upload is implemented; routes, secrets, logs, versions, and rollback remain explicit future capabilities. |
 | Cloud Run | real | unsupported | native | native | unsupported | unsupported | experimental | unsupported | Cloud Run Jobs and Services are implemented via Admin API v2; logs/IAM/public access are not faked. |
 | Vercel | real | unsupported | unsupported | experimental | native | unsupported | experimental | unsupported | Inline deployment creation is implemented; large file upload/SHA flow, aliases, env, logs, and rollback remain explicit future capabilities. |
@@ -20,7 +21,7 @@ Status legend:
 | ECS/Fargate | real | unsupported | native | native | unsupported | unsupported | experimental | unsupported | RunTask and CreateService are implemented for existing task definitions; task-definition registration and load balancers are future work. |
 | EC2 | real | unsupported | emulated | emulated | unsupported | unsupported | unsupported | native | `machine.create` is implemented through RunInstances; exec/start/stop/snapshot remain explicit future work. |
 | Daytona | real | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported | Workspace-oriented sandbox model implemented by `@capsule/adapter-daytona`. |
-| Modal | mock/planned | native | native | experimental | unsupported | unsupported | experimental | unsupported | Strong function and sandbox fit. |
+| Modal | real | native | emulated | experimental | unsupported | unsupported | experimental | unsupported | Sandbox primitive implemented by `@capsule/adapter-modal`; broader functions/services are future work. |
 | Cloudflare Sandbox | mock/planned | experimental | experimental | experimental | native | experimental | experimental | unsupported | Bindings and runtime semantics matter. |
 | Microsandbox | planned | experimental | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Sandbox-focused future adapter target. |
 | Cloud Run Jobs | real | unsupported | native | unsupported | unsupported | unsupported | experimental | unsupported | Job primitive implemented by `@capsule/adapter-cloud-run`. |

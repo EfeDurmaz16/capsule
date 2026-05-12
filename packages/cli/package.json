@@ -27,6 +27,7 @@
     "@capsule/adapter-ecs": "workspace:*",
     "@capsule/adapter-kubernetes": "workspace:*",
     "@capsule/adapter-lambda": "workspace:*",
+    "@capsule/adapter-modal": "workspace:*",
     "@capsule/adapter-neon": "workspace:*",
     "@capsule/adapter-vercel": "workspace:*",
     "@capsule/core": "workspace:*",
