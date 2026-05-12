@@ -18,6 +18,7 @@ describe("lambda adapter", () => {
       send: async (command: any) => {
         sent.push(command.input);
         return {
+          $metadata: { requestId: "req-123" },
           StatusCode: 200,
           Payload: new TextEncoder().encode(JSON.stringify({ ok: true })),
           LogResult: Buffer.from("done\n").toString("base64"),
@@ -36,6 +37,14 @@ describe("lambda adapter", () => {
     expect(run.status).toBe("succeeded");
     expect(run.result?.stdout).toBe(JSON.stringify({ ok: true }));
     expect(run.receipt?.type).toBe("job.run");
+    expect(run.receipt?.metadata).toMatchObject({
+      invocationType: "RequestResponse",
+      statusCode: 200,
+      requestId: "req-123",
+      executedVersion: "$LATEST",
+      functionError: null,
+      logTail: "done\n"
+    });
     expect(sent[0]).toMatchObject({
       FunctionName: "capsule-worker",
       InvocationType: "RequestResponse",
@@ -52,8 +61,10 @@ describe("lambda adapter", () => {
   it("maps FunctionError to failed even when HTTP status is 200", async () => {
     const client = {
       send: async () => ({
+        $metadata: { requestId: "req-failed" },
         StatusCode: 200,
         FunctionError: "Unhandled",
+        ExecutedVersion: "42",
         Payload: new TextEncoder().encode(JSON.stringify({ errorMessage: "boom" }))
       })
     };
@@ -61,6 +72,56 @@ describe("lambda adapter", () => {
     const run = await capsule.job.run({ image: "ignored" });
     expect(run.status).toBe("failed");
     expect(run.result?.exitCode).toBe(1);
-    expect(run.receipt?.metadata?.functionError).toBe("Unhandled");
+    expect(run.receipt?.metadata).toMatchObject({
+      requestId: "req-failed",
+      executedVersion: "42",
+      functionError: "Unhandled"
+    });
+  });
+
+  it("keeps unsupported async status semantics explicit for Event invocations", async () => {
+    const client = {
+      send: async () => ({
+        $metadata: { requestId: "req-event" },
+        StatusCode: 202,
+        ExecutedVersion: "7"
+      })
+    };
+    const capsule = new Capsule({ adapter: lambda({ functionName: "async-worker", invocationType: "Event", client }), receipts: true });
+    const run = await capsule.job.run({ image: "ignored" });
+
+    expect(run.status).toBe("queued");
+    expect(run.result).toBeUndefined();
+    expect(run.receipt?.exitCode).toBeUndefined();
+    expect(run.receipt?.metadata).toMatchObject({
+      invocationType: "Event",
+      statusCode: 202,
+      requestId: "req-event",
+      executedVersion: "7",
+      functionError: null,
+      asyncStatusSupport: "unsupported"
+    });
+    expect(run.receipt?.policy.notes?.join(" ")).toContain("does not support provider-side async job.status");
+  });
+
+  it("records receipt metadata when Lambda returns a malformed payload", async () => {
+    const client = {
+      send: async () => ({
+        $metadata: { requestId: "req-malformed" },
+        StatusCode: 200,
+        ExecutedVersion: "$LATEST",
+        Payload: new TextEncoder().encode("{not-json")
+      })
+    };
+    const capsule = new Capsule({ adapter: lambda({ functionName: "malformed-worker", client }), receipts: true });
+    const run = await capsule.job.run({ image: "ignored" });
+
+    expect(run.status).toBe("succeeded");
+    expect(run.result?.stdout).toBe("{not-json");
+    expect(run.receipt?.metadata).toMatchObject({
+      requestId: "req-malformed",
+      executedVersion: "$LATEST",
+      functionError: null
+    });
   });
 });
