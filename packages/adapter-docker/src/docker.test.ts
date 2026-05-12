@@ -2,6 +2,8 @@ import { describe, expect, test } from "vitest";
 import { Capsule } from "@capsule/core";
 import { docker, dockerAvailable } from "./index.js";
 
+const hasDocker = await dockerAvailable();
+
 describe("docker adapter", () => {
   test("declares Docker capabilities", () => {
     const capsule = new Capsule({ adapter: docker() });
@@ -10,10 +12,7 @@ describe("docker adapter", () => {
     expect(capsule.supports("service.deploy")).toBe(false);
   });
 
-  test("runs Docker job when Docker is available", async () => {
-    if (!(await dockerAvailable())) {
-      return;
-    }
+  test.skipIf(!hasDocker)("runs Docker job when Docker is available", async () => {
     const capsule = new Capsule({ adapter: docker(), receipts: true });
     const run = await capsule.job.run({ image: "node:22", command: ["node", "-e", "console.log('docker ok')"], timeoutMs: 30_000 });
     expect(run.result?.stdout).toContain("docker ok");
