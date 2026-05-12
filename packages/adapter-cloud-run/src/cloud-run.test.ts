@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Capsule, runAdapterContract } from "@capsule/core";
-import { cloudRun, cloudRunCapabilities } from "./index.js";
+import { CloudRunClient, cloudRun, cloudRunCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -13,6 +13,8 @@ describe("cloud-run adapter", () => {
 
   it("declares job and service capabilities", () => {
     expect(cloudRunCapabilities.job?.run).toBe("native");
+    expect(cloudRunCapabilities.job?.status).toBe("native");
+    expect(cloudRunCapabilities.job?.cancel).toBe("native");
     expect(cloudRunCapabilities.service?.deploy).toBe("native");
     expect(cloudRunCapabilities.edge?.deploy).toBe("unsupported");
   });
@@ -21,7 +23,13 @@ describe("cloud-run adapter", () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(url), init: init ?? {} });
-      if (String(url).endsWith(":wait")) return response({ name: "operations/run", done: true, response: { name: "execution-1" } });
+      if (String(url).endsWith(":wait")) {
+        return response({
+          name: "operations/run",
+          done: true,
+          response: { name: "projects/proj/locations/us-central1/jobs/capsule-job/executions/execution-1", completionStatus: "EXECUTION_SUCCEEDED" }
+        });
+      }
       if (String(url).includes(":run")) return response({ name: "operations/run", done: false });
       return response({ name: "operations/create", done: true });
     }) as typeof fetch;
@@ -40,6 +48,7 @@ describe("cloud-run adapter", () => {
     });
 
     expect(run.status).toBe("succeeded");
+    expect(run.id).toBe("projects/proj/locations/us-central1/jobs/capsule-job/executions/execution-1");
     expect(run.receipt?.type).toBe("job.run");
     expect(calls[0]?.url).toContain("/projects/proj/locations/us-central1/jobs?jobId=capsule-job");
     expect(calls[0]?.init.headers).toMatchObject({ authorization: "Bearer token" });
@@ -48,6 +57,37 @@ describe("cloud-run adapter", () => {
     });
     expect(calls[1]?.url).toContain("/jobs/capsule-job:run");
     expect(calls[2]?.url).toContain("/operations/run:wait");
+  });
+
+  it("maps Cloud Run execution status and cancel requests", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const execution = "projects/proj/locations/us-central1/jobs/capsule-job/executions/execution-1";
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      if (String(url).endsWith(":cancel")) return response({ name: execution, completionStatus: "EXECUTION_CANCELLED" });
+      return response({ name: execution, completionStatus: "EXECUTION_RUNNING", runningCount: 1, taskCount: 1 });
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: cloudRun({ projectId: "proj", location: "us-central1", accessToken: "token", fetch: fetchMock })
+    });
+
+    await expect(capsule.job.status({ id: execution })).resolves.toMatchObject({ id: execution, provider: "cloud-run", status: "running" });
+    await expect(capsule.job.cancel({ id: execution })).resolves.toMatchObject({ id: execution, provider: "cloud-run", status: "cancelled" });
+    expect(calls[0]).toMatchObject({ url: expect.stringContaining(`/v2/${execution}`), init: { method: "GET" } });
+    expect(calls[1]).toMatchObject({ url: expect.stringContaining(`/v2/${execution}:cancel`), init: { method: "POST", body: "{}" } });
+  });
+
+  it("maps Cloud Run execution delete request without treating it as cancel", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const execution = "projects/proj/locations/us-central1/jobs/capsule-job/executions/execution-1";
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return response({ name: "operations/delete", done: true });
+    }) as typeof fetch;
+    const client = new CloudRunClient({ projectId: "proj", location: "us-central1", accessToken: "token", fetch: fetchMock });
+
+    await expect(client.deleteExecution(execution)).resolves.toMatchObject({ name: "operations/delete", done: true });
+    expect(calls[0]).toMatchObject({ url: expect.stringContaining(`/v2/${execution}`), init: { method: "DELETE" } });
   });
 
   it("deploys a Cloud Run service and returns URL", async () => {

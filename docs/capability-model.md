@@ -10,7 +10,7 @@ Examples:
 - E2B: `sandbox.create`, `sandbox.exec`, and sandbox file operations are native through the E2B SDK; jobs remain unsupported until Capsule models an explicit E2B-backed job flow.
 - Daytona: sandbox lifecycle, command execution, and file operations are native through the Daytona SDK; job and preview behavior remain unsupported until explicit public wrappers exist.
 - Modal: sandbox lifecycle, command execution, and file read/write are native through the Modal JS SDK; file listing and broader function/service/preview workflows remain unsupported.
-- Cloud Run: jobs and services are native through the real Cloud Run Admin API adapter; logs, IAM/public access, source builds, and preview orchestration are intentionally not faked.
+- Cloud Run: jobs and services are native through the real Cloud Run Admin API adapter; job execution status and cancel map to the Cloud Run Execution API when the caller has the execution resource name. Execution delete is not treated as cancel because it removes the execution resource/list entry. Logs, IAM/public access, source builds, and preview orchestration are intentionally not faked.
 - Vercel: edge deployment is native through the real Vercel REST adapter; service/preview semantics, aliases, env, logs, and rollback are not faked.
 - Cloudflare: real Worker upload is native through `edge.deploy`; sandbox, job, service, database, and preview are unsupported until implemented by the real adapter.
 - Real Cloudflare adapter: `edge.deploy` is native for Worker module upload; routes, logs, secrets, versions, and rollback are unsupported until modeled as explicit operations.

@@ -19,6 +19,19 @@ export interface CloudRunOperation<T = unknown> {
   metadata?: Record<string, unknown>;
 }
 
+export interface CloudRunExecution {
+  name: string;
+  completionStatus?: "COMPLETION_STATUS_UNSPECIFIED" | "EXECUTION_SUCCEEDED" | "EXECUTION_FAILED" | "EXECUTION_RUNNING" | "EXECUTION_PENDING" | "EXECUTION_CANCELLED";
+  reconciling?: boolean;
+  runningCount?: number;
+  succeededCount?: number;
+  failedCount?: number;
+  cancelledCount?: number;
+  taskCount?: number;
+  logUri?: string;
+  deleteTime?: string;
+}
+
 export class CloudRunClient {
   readonly projectId: string;
   readonly location: string;
@@ -59,6 +72,18 @@ export class CloudRunClient {
 
   async runJob(name: string): Promise<CloudRunOperation> {
     return await this.request<CloudRunOperation>({ method: "POST", path: `/${name}:run`, body: {} });
+  }
+
+  async getExecution(name: string): Promise<CloudRunExecution> {
+    return await this.request<CloudRunExecution>({ path: `/${name}` });
+  }
+
+  async cancelExecution(name: string): Promise<CloudRunExecution> {
+    return await this.request<CloudRunExecution>({ method: "POST", path: `/${name}:cancel`, body: {} });
+  }
+
+  async deleteExecution(name: string): Promise<CloudRunOperation> {
+    return await this.request<CloudRunOperation>({ method: "DELETE", path: `/${name}` });
   }
 
   async createService(serviceId: string, body: unknown): Promise<CloudRunOperation> {
