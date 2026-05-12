@@ -314,6 +314,9 @@ importers:
       '@capsule/adapter-neon':
         specifier: workspace:*
         version: link:../adapter-neon
+      '@capsule/adapter-vercel':
+        specifier: workspace:*
+        version: link:../adapter-vercel
       '@capsule/core':
         specifier: workspace:*
         version: link:../core

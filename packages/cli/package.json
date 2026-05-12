@@ -23,6 +23,7 @@
     "@capsule/adapter-docker": "workspace:*",
     "@capsule/adapter-e2b": "workspace:*",
     "@capsule/adapter-neon": "workspace:*",
+    "@capsule/adapter-vercel": "workspace:*",
     "@capsule/core": "workspace:*",
     "@capsule/store-jsonl": "workspace:*"
   },

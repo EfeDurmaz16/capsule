@@ -5,6 +5,7 @@ import { cloudRun } from "@capsule/adapter-cloud-run";
 import { docker, dockerAvailable } from "@capsule/adapter-docker";
 import { e2b } from "@capsule/adapter-e2b";
 import { neon } from "@capsule/adapter-neon";
+import { vercel } from "@capsule/adapter-vercel";
 import { jsonlReceiptStore } from "@capsule/store-jsonl";
 
 interface ParsedArgs {
@@ -23,6 +24,8 @@ interface ParsedArgs {
   workersDevSubdomain?: string;
   projectId?: string;
   location?: string;
+  projectName?: string;
+  target?: string;
   port?: number;
   hardDelete?: boolean;
   rest: string[];
@@ -103,6 +106,16 @@ function parse(argv: string[]): ParsedArgs {
       index += 1;
       continue;
     }
+    if (arg === "--project-name") {
+      parsed.projectName = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--target") {
+      parsed.target = args[index + 1];
+      index += 1;
+      continue;
+    }
     if (arg === "--port") {
       parsed.port = Number(args[index + 1]);
       index += 1;
@@ -130,6 +143,7 @@ Commands:
   capsule capabilities --adapter neon
   capsule capabilities --adapter e2b
   capsule capabilities --adapter cloudflare
+  capsule capabilities --adapter vercel
   capsule capabilities --adapter cloud-run --project-id <gcp-project> --location us-central1
   capsule run --image node:22 -- node -e "console.log('hello')"
   capsule sandbox --image node:22
@@ -137,6 +151,7 @@ Commands:
   capsule job --adapter cloud-run --project-id <gcp-project> --location us-central1 --name my-job --image us-docker.pkg.dev/project/repo/job:tag
   capsule service --adapter cloud-run --project-id <gcp-project> --location us-central1 --name api --image us-docker.pkg.dev/project/repo/api:tag --port 8080
   capsule edge --adapter cloudflare --name my-worker --entrypoint worker.js ./dist/worker.js
+  capsule edge --adapter vercel --name my-deployment --project-name my-project --entrypoint index.js ./index.js
   capsule neon branch-create --project <project_id> --name pr-42 --database neondb --role neondb_owner --receipt-file .capsule/receipts.jsonl
   capsule neon branch-delete --project <project_id> --branch-id br_xxx --hard-delete
 `);
@@ -164,6 +179,13 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   if (parsed.adapter === "cloud-run") {
     return new Capsule({
       adapter: cloudRun({ projectId: parsed.projectId, location: parsed.location }),
+      receipts: true,
+      receiptStore
+    });
+  }
+  if (parsed.adapter === "vercel") {
+    return new Capsule({
+      adapter: vercel({ project: parsed.projectName, target: parsed.target }),
       receipts: true,
       receiptStore
     });
@@ -211,8 +233,8 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "edge": {
-      if (parsed.adapter !== "cloudflare") {
-        throw new Error("edge currently requires --adapter cloudflare");
+      if (parsed.adapter !== "cloudflare" && parsed.adapter !== "vercel") {
+        throw new Error("edge currently requires --adapter cloudflare or --adapter vercel");
       }
       if (!parsed.name) {
         throw new Error("Missing --name");

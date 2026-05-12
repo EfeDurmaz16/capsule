@@ -10,7 +10,7 @@ Examples:
 - E2B: `sandbox.create`, `sandbox.exec`, and sandbox file operations are native through the E2B SDK; jobs remain unsupported until Capsule models an explicit E2B-backed job flow.
 - Modal: sandbox and jobs are native, service and preview are experimental.
 - Cloud Run: jobs and services are native through the real Cloud Run Admin API adapter; logs, IAM/public access, and source builds are intentionally not faked.
-- Vercel: edge is native, service and preview are experimental.
+- Vercel: edge deployment is native through the real Vercel REST adapter; service/preview semantics remain experimental and aliases, env, logs, and rollback are not faked.
 - Cloudflare: edge is native; sandbox, job, service, database, and preview are experimental.
 - Real Cloudflare adapter: `edge.deploy` is native for Worker module upload; routes, logs, secrets, versions, and rollback are unsupported until modeled as explicit operations.
 - Neon: database branch creation and connection strings are native.

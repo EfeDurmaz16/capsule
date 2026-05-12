@@ -13,6 +13,7 @@ Status legend:
 | E2B | real | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Cloud sandbox create, exec, file read/write/list, and destroy are implemented through the E2B SDK. |
 | Cloudflare Workers | real | unsupported | unsupported | unsupported | native | unsupported | unsupported | unsupported | Worker module upload is implemented; routes, secrets, logs, versions, and rollback remain explicit future capabilities. |
 | Cloud Run | real | unsupported | native | native | unsupported | unsupported | experimental | unsupported | Cloud Run Jobs and Services are implemented via Admin API v2; logs/IAM/public access are not faked. |
+| Vercel | real | unsupported | unsupported | experimental | native | unsupported | experimental | unsupported | Inline deployment creation is implemented; large file upload/SHA flow, aliases, env, logs, and rollback remain explicit future capabilities. |
 | Daytona | mock/planned | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported | Workspace-oriented sandbox model. |
 | Modal | mock/planned | native | native | experimental | unsupported | unsupported | experimental | unsupported | Strong function and sandbox fit. |
 | Cloudflare Sandbox | mock/planned | experimental | experimental | experimental | native | experimental | experimental | unsupported | Bindings and runtime semantics matter. |
@@ -23,7 +24,7 @@ Status legend:
 | Kubernetes Jobs | mock/planned | experimental | native | unsupported | unsupported | experimental | experimental | experimental | Cluster policy varies. |
 | Kubernetes Deployments | mock/planned | experimental | unsupported | native | unsupported | experimental | experimental | experimental | Service deployment fit. |
 | Lambda | mock/planned | unsupported | native | unsupported | experimental | unsupported | unsupported | unsupported | Function semantics differ from containers. |
-| Vercel | mock/planned | unsupported | unsupported | experimental | native | unsupported | experimental | unsupported | Edge, deployments, routes, aliases. |
+| Vercel | real | unsupported | unsupported | experimental | native | unsupported | experimental | unsupported | Edge/deployment primitive implemented by `@capsule/adapter-vercel`; routes and aliases are future work. |
 | Cloudflare Workers | mock/planned | unsupported | experimental | experimental | native | experimental | experimental | unsupported | Broader bindings/resource lifecycle remains modeled in mocks until implemented by real adapters. |
 | Cloudflare Containers | mock/planned | experimental | experimental | experimental | native | experimental | experimental | unsupported | Hybrid runtime model. |
 | EC2 | mock/planned | unsupported | emulated | emulated | unsupported | unsupported | unsupported | native | Low-level and leaky. |
