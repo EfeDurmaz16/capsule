@@ -3,6 +3,8 @@ import type {
   CapsulePolicy,
   CapsuleReceipt,
   CreateDatabaseBranchSpec,
+  DeletedDatabaseBranch,
+  DeleteDatabaseBranchSpec,
   CreateMachineSpec,
   CreatePreviewSpec,
   CreateSandboxSpec,
@@ -46,6 +48,7 @@ export interface EdgeAdapter {
 
 export interface DatabaseBranchAdapter {
   create(spec: CreateDatabaseBranchSpec, context: AdapterContext): Promise<DatabaseBranch>;
+  delete?(spec: DeleteDatabaseBranchSpec, context: AdapterContext): Promise<DeletedDatabaseBranch>;
 }
 
 export interface DatabaseAdapter {

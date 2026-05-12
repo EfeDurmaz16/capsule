@@ -7,6 +7,7 @@ import type {
   CapabilityMap,
   CapsulePolicy,
   CreateDatabaseBranchSpec,
+  DeleteDatabaseBranchSpec,
   CreateMachineSpec,
   CreatePreviewSpec,
   CreateSandboxSpec,
@@ -86,6 +87,13 @@ export class Capsule {
             throw new UnsupportedCapabilityError("database.branchCreate");
           }
           return this.options.adapter.database.branch.create(spec, this.context());
+        },
+        delete: async (spec: DeleteDatabaseBranchSpec) => {
+          this.require("database.branchDelete");
+          if (!this.options.adapter.database?.branch.delete) {
+            throw new UnsupportedCapabilityError("database.branchDelete");
+          }
+          return this.options.adapter.database.branch.delete(spec, this.context());
         }
       }
     };

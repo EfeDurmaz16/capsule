@@ -4,6 +4,7 @@ import {
   type CapsuleAdapter,
   type CapabilityMap,
   type CreateDatabaseBranchSpec,
+  type DeleteDatabaseBranchSpec,
   type CreateMachineSpec,
   type CreatePreviewSpec,
   type CreateSandboxSpec,
@@ -235,6 +236,20 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
             status: "ready",
             receipt
           };
+        },
+        delete: async (spec: DeleteDatabaseBranchSpec, context: AdapterContext) => {
+          const startedAt = new Date();
+          const receipt = context.receipts
+            ? context.createReceipt({
+                type: "database.branch.delete",
+                capabilityPath: "database.branchDelete",
+                startedAt,
+                policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
+                resource: { id: spec.branchId, status: "deleted" },
+                metadata: { project: spec.project, hardDelete: spec.hardDelete }
+              })
+            : undefined;
+          return { id: spec.branchId, provider, project: spec.project, status: "deleted", receipt };
         }
       }
     };

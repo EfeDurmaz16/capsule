@@ -1,1 +1,1 @@
-export type { CreateDatabaseBranchSpec, DatabaseBranch } from "../types.js";
+export type { CreateDatabaseBranchSpec, DatabaseBranch, DeletedDatabaseBranch, DeleteDatabaseBranchSpec } from "../types.js";

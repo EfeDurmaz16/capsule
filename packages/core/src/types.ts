@@ -331,6 +331,12 @@ export interface CreateDatabaseBranchSpec {
   labels?: Record<string, string>;
 }
 
+export interface DeleteDatabaseBranchSpec {
+  project: string;
+  branchId: string;
+  hardDelete?: boolean;
+}
+
 export interface DatabaseBranch {
   id: string;
   provider: string;
@@ -339,6 +345,14 @@ export interface DatabaseBranch {
   parent?: string;
   connectionString?: string;
   status: "creating" | "ready" | "failed" | "deleted";
+  receipt?: CapsuleReceipt;
+}
+
+export interface DeletedDatabaseBranch {
+  id: string;
+  provider: string;
+  project: string;
+  status: "deleted";
   receipt?: CapsuleReceipt;
 }
 
