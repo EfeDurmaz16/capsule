@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule } from "@capsule/core";
+import { AdapterExecutionError, assertAdapterContract, assertUnsupportedCapabilitiesReject, Capsule } from "@capsule/core";
 import { cloudflare, cloudflareCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200): Response {
@@ -20,6 +20,12 @@ describe("cloudflare adapter", () => {
   it("declares edge deploy as native", () => {
     expect(cloudflareCapabilities.edge?.deploy).toBe("native");
     expect(cloudflareCapabilities.edge?.routes).toBe("unsupported");
+  });
+
+  it("satisfies the public adapter contract", async () => {
+    const adapter = cloudflare();
+    assertAdapterContract(adapter);
+    await assertUnsupportedCapabilitiesReject(adapter);
   });
 
   it("uploads a Worker module and creates a receipt", async () => {

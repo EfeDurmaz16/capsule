@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { Capsule } from "./capsule.js";
 import { supportLevel, supports } from "./capabilities.js";
+import { assertAdapterContract, assertUnsupportedCapabilitiesReject, unsupportedExecutableCapabilityPaths } from "./contract.js";
 import { UnsupportedCapabilityError, PolicyViolationError } from "./errors.js";
 import { evaluatePolicy, mergeTimeout } from "./policy.js";
 import { createReceipt } from "./receipts.js";
@@ -55,6 +56,12 @@ describe("capabilities", () => {
     const capsule = new Capsule({ adapter });
     await expect(capsule.job.run({ image: "node:22" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.database.branch.delete({ project: "app", branchId: "br_mock" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+  });
+
+  test("adapter contract helpers cover unsupported public operations", async () => {
+    assertAdapterContract(adapter);
+    expect(unsupportedExecutableCapabilityPaths(adapter)).toContain("job.run");
+    await assertUnsupportedCapabilitiesReject(adapter);
   });
 });
 

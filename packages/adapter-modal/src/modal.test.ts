@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, MemoryReceiptStore } from "@capsule/core";
+import { AdapterExecutionError, assertAdapterContract, assertUnsupportedCapabilitiesReject, Capsule, MemoryReceiptStore } from "@capsule/core";
 import { modal, modalCapabilities } from "./index.js";
 
 describe("modal adapter", () => {
   it("declares sandbox support with honest file list gap", () => {
     expect(modalCapabilities.sandbox?.create).toBe("native");
     expect(modalCapabilities.sandbox?.fileList).toBe("unsupported");
+  });
+
+  it("satisfies the public adapter contract", async () => {
+    const adapter = modal();
+    assertAdapterContract(adapter);
+    await assertUnsupportedCapabilitiesReject(adapter);
   });
 
   it("creates a sandbox and maps exec/read/write/destroy", async () => {

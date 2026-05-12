@@ -1,8 +1,39 @@
 import { describe, expect, test } from "vitest";
-import { Capsule } from "@capsule/core";
-import { mockCloudRun, mockCloudflare, mockEC2, mockE2B, mockKubernetes, mockNeon, mockVercel } from "./index.js";
+import { assertAdapterContract, assertUnsupportedCapabilitiesReject, Capsule } from "@capsule/core";
+import {
+  mockCloudRun,
+  mockCloudflare,
+  mockDaytona,
+  mockEC2,
+  mockE2B,
+  mockECS,
+  mockKubernetes,
+  mockLambda,
+  mockModal,
+  mockNeon,
+  mockVercel
+} from "./index.js";
 
 describe("mock adapters", () => {
+  test("mock adapters satisfy the public adapter contract", async () => {
+    for (const adapter of [
+      mockCloudRun(),
+      mockCloudflare(),
+      mockDaytona(),
+      mockEC2(),
+      mockE2B(),
+      mockECS(),
+      mockKubernetes(),
+      mockLambda(),
+      mockModal(),
+      mockNeon(),
+      mockVercel()
+    ]) {
+      assertAdapterContract(adapter);
+      await assertUnsupportedCapabilitiesReject(adapter);
+    }
+  });
+
   test("mockE2B capabilities", () => {
     const capsule = new Capsule({ adapter: mockE2B() });
     expect(capsule.supportLevel("sandbox.exec")).toBe("native");

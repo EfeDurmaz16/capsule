@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { Capsule } from "@capsule/core";
+import { assertAdapterContract, assertUnsupportedCapabilitiesReject, Capsule } from "@capsule/core";
 import { lambda, lambdaCapabilities } from "./index.js";
 
 describe("lambda adapter", () => {
   it("declares job run as native", () => {
     expect(lambdaCapabilities.job?.run).toBe("native");
     expect(lambdaCapabilities.job?.env).toBe("emulated");
+  });
+
+  it("satisfies the public adapter contract", async () => {
+    const adapter = lambda({ functionName: "capsule-worker", client: { send: async () => ({}) } });
+    assertAdapterContract(adapter);
+    await assertUnsupportedCapabilitiesReject(adapter);
   });
 
   it("invokes an existing Lambda function", async () => {

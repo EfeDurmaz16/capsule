@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { Capsule } from "@capsule/core";
+import { assertAdapterContract, assertUnsupportedCapabilitiesReject, Capsule } from "@capsule/core";
 import { docker, dockerAvailable } from "./index.js";
 
 const hasDocker = await dockerAvailable();
@@ -10,6 +10,12 @@ describe("docker adapter", () => {
     expect(capsule.supportLevel("sandbox.exec")).toBe("native");
     expect(capsule.supportLevel("job.run")).toBe("native");
     expect(capsule.supports("service.deploy")).toBe(false);
+  });
+
+  test("satisfies the public adapter contract", async () => {
+    const adapter = docker();
+    assertAdapterContract(adapter);
+    await assertUnsupportedCapabilitiesReject(adapter);
   });
 
   test.skipIf(!hasDocker)("runs Docker job when Docker is available", async () => {

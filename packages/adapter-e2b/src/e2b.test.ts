@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Capsule, MemoryReceiptStore } from "@capsule/core";
+import { assertAdapterContract, assertUnsupportedCapabilitiesReject, Capsule, MemoryReceiptStore } from "@capsule/core";
 import { e2b, e2bCapabilities } from "./e2b-adapter.js";
 
 class FakeE2BSandbox {
@@ -40,6 +40,12 @@ describe("e2b adapter", () => {
     expect(e2bCapabilities.sandbox?.create).toBe("native");
     expect(e2bCapabilities.sandbox?.exec).toBe("native");
     expect(e2bCapabilities.job?.run).toBe("unsupported");
+  });
+
+  it("satisfies the public adapter contract", async () => {
+    const adapter = e2b({ sandboxClass: FakeE2BSandbox });
+    assertAdapterContract(adapter);
+    await assertUnsupportedCapabilitiesReject(adapter);
   });
 
   it("creates a sandbox and maps file and exec operations", async () => {

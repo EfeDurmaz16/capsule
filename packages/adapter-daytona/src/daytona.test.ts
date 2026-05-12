@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { Capsule, MemoryReceiptStore } from "@capsule/core";
+import { assertAdapterContract, assertUnsupportedCapabilitiesReject, Capsule, MemoryReceiptStore } from "@capsule/core";
 import { daytona, daytonaCapabilities } from "./index.js";
 
 describe("daytona adapter", () => {
   it("declares sandbox capabilities as native", () => {
     expect(daytonaCapabilities.sandbox?.create).toBe("native");
     expect(daytonaCapabilities.sandbox?.exec).toBe("native");
+  });
+
+  it("satisfies the public adapter contract", async () => {
+    const adapter = daytona();
+    assertAdapterContract(adapter);
+    await assertUnsupportedCapabilitiesReject(adapter);
   });
 
   it("creates a sandbox and maps exec/files/destroy", async () => {

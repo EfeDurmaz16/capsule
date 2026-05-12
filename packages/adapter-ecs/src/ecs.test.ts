@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { Capsule } from "@capsule/core";
+import { assertAdapterContract, assertUnsupportedCapabilitiesReject, Capsule } from "@capsule/core";
 import { ecs, ecsCapabilities } from "./index.js";
 
 describe("ecs adapter", () => {
   it("declares job and service capabilities", () => {
     expect(ecsCapabilities.job?.run).toBe("native");
     expect(ecsCapabilities.service?.deploy).toBe("native");
+  });
+
+  it("satisfies the public adapter contract", async () => {
+    const adapter = ecs({ cluster: "cluster-a", taskDefinition: "task-def:1", containerName: "main", client: { send: async () => ({}) } });
+    assertAdapterContract(adapter);
+    await assertUnsupportedCapabilitiesReject(adapter);
   });
 
   it("runs an ECS task using an existing task definition", async () => {

@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule } from "@capsule/core";
+import { AdapterExecutionError, assertAdapterContract, assertUnsupportedCapabilitiesReject, Capsule } from "@capsule/core";
 import { ec2, ec2Capabilities } from "./index.js";
 
 describe("ec2 adapter", () => {
   it("declares machine create as native", () => {
     expect(ec2Capabilities.machine?.create).toBe("native");
     expect(ec2Capabilities.machine?.exec).toBe("unsupported");
+  });
+
+  it("satisfies the public adapter contract", async () => {
+    const adapter = ec2({ client: { send: async () => ({}) } });
+    assertAdapterContract(adapter);
+    await assertUnsupportedCapabilitiesReject(adapter);
   });
 
   it("creates an EC2 instance", async () => {

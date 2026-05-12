@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Capsule } from "@capsule/core";
+import { assertAdapterContract, assertUnsupportedCapabilitiesReject, Capsule } from "@capsule/core";
 import { cloudRun, cloudRunCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200): Response {
@@ -11,6 +11,12 @@ describe("cloud-run adapter", () => {
     expect(cloudRunCapabilities.job?.run).toBe("native");
     expect(cloudRunCapabilities.service?.deploy).toBe("native");
     expect(cloudRunCapabilities.edge?.deploy).toBe("unsupported");
+  });
+
+  it("satisfies the public adapter contract", async () => {
+    const adapter = cloudRun({ projectId: "", location: "", accessToken: "" });
+    assertAdapterContract(adapter);
+    await assertUnsupportedCapabilitiesReject(adapter);
   });
 
   it("creates and runs a Cloud Run job", async () => {

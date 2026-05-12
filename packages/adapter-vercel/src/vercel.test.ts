@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule } from "@capsule/core";
+import { AdapterExecutionError, assertAdapterContract, assertUnsupportedCapabilitiesReject, Capsule } from "@capsule/core";
 import { vercel, vercelCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200): Response {
@@ -19,7 +19,14 @@ async function sourceFile(): Promise<string> {
 describe("vercel adapter", () => {
   it("declares edge deploy as native", () => {
     expect(vercelCapabilities.edge?.deploy).toBe("native");
+    expect(vercelCapabilities.service?.deploy).toBe("unsupported");
     expect(vercelCapabilities.edge?.rollback).toBe("unsupported");
+  });
+
+  it("satisfies the public adapter contract", async () => {
+    const adapter = vercel();
+    assertAdapterContract(adapter);
+    await assertUnsupportedCapabilitiesReject(adapter);
   });
 
   it("creates an inline deployment", async () => {

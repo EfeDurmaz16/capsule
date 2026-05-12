@@ -1,12 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { Capsule } from "@capsule/core";
+import { assertAdapterContract, assertUnsupportedCapabilitiesReject, Capsule } from "@capsule/core";
 import { kubernetes, kubernetesCapabilities } from "./index.js";
 
 describe("kubernetes adapter", () => {
   it("declares job and service capabilities", () => {
+    expect(kubernetesCapabilities.sandbox?.create).toBe("unsupported");
     expect(kubernetesCapabilities.job?.run).toBe("native");
     expect(kubernetesCapabilities.service?.deploy).toBe("native");
     expect(kubernetesCapabilities.service?.url).toBe("experimental");
+  });
+
+  it("satisfies the public adapter contract", async () => {
+    const adapter = kubernetes({
+      clients: {
+        batch: { createNamespacedJob: async () => ({}) },
+        apps: { createNamespacedDeployment: async () => ({}) },
+        core: { createNamespacedService: async () => ({}) }
+      }
+    });
+    assertAdapterContract(adapter);
+    await assertUnsupportedCapabilitiesReject(adapter);
   });
 
   it("creates a Kubernetes Job from RunJobSpec", async () => {

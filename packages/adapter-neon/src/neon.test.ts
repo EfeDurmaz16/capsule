@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { Capsule } from "@capsule/core";
-import { neon } from "./index.js";
+import { assertAdapterContract, assertUnsupportedCapabilitiesReject, Capsule } from "@capsule/core";
+import { neon, neonCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200): Response {
   return new Response(body === undefined ? undefined : JSON.stringify(body), {
@@ -10,6 +10,18 @@ function response(body: unknown, status = 200): Response {
 }
 
 describe("neon adapter", () => {
+  test("declares database branch capabilities as native", () => {
+    expect(neonCapabilities.database?.branchCreate).toBe("native");
+    expect(neonCapabilities.database?.branchDelete).toBe("native");
+    expect(neonCapabilities.preview?.create).toBe("unsupported");
+  });
+
+  test("satisfies the public adapter contract", async () => {
+    const adapter = neon();
+    assertAdapterContract(adapter);
+    await assertUnsupportedCapabilitiesReject(adapter);
+  });
+
   test("creates a branch and retrieves connection URI", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {

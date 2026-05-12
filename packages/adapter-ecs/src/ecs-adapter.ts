@@ -71,9 +71,9 @@ export const ecsCapabilities: CapabilityMap = {
     connectionString: "unsupported"
   },
   preview: {
-    create: "experimental",
+    create: "unsupported",
     destroy: "unsupported",
-    status: "experimental",
+    status: "unsupported",
     logs: "unsupported",
     urls: "unsupported"
   },
