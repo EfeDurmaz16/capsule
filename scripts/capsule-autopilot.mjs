@@ -116,6 +116,12 @@ function ensureBranch(issue) {
   if (!existsSync(workspace)) {
     git(["fetch", "origin", "main"]);
     git(["worktree", "add", "-B", branch, workspace, "origin/main"]);
+  } else {
+    const dirty = git(["status", "--short"], workspace, { silent: true }).trim();
+    if (!dirty) {
+      git(["fetch", "origin", "main"], workspace);
+      git(["merge", "--ff-only", "origin/main"], workspace);
+    }
   }
   return { branch, workspace };
 }
