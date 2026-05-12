@@ -171,7 +171,7 @@ pnpm capsule:autopilot -- --once --dry-run --max-parallel 2
 For an overnight run on macOS:
 
 ```bash
-nohup caffeinate -dimsu pnpm capsule:autopilot -- --max-parallel 2 > .symphony/logs/autopilot.log 2>&1 &
+nohup caffeinate -dimsu node scripts/capsule-autopilot.mjs --max-parallel 2 > .symphony/logs/autopilot.log 2>&1 &
 ```
 
 ## Real And Mocked

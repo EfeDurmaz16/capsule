@@ -11,14 +11,14 @@ The second mode is practical when Linear is not configured. It reads open GitHub
 
 ```bash
 git pull --ff-only
-caffeinate -dimsu pnpm capsule:autopilot -- --max-parallel 2
+caffeinate -dimsu node scripts/capsule-autopilot.mjs --max-parallel 2
 ```
 
 For a detached run:
 
 ```bash
 mkdir -p .symphony/logs
-nohup caffeinate -dimsu pnpm capsule:autopilot -- --max-parallel 2 > .symphony/logs/autopilot.log 2>&1 &
+nohup caffeinate -dimsu node scripts/capsule-autopilot.mjs --max-parallel 2 > .symphony/logs/autopilot.log 2>&1 &
 echo $! > .symphony/autopilot.pid
 ```
 
@@ -41,6 +41,8 @@ kill "$(cat .symphony/autopilot.pid)"
 
 - The runner does not close issues automatically.
 - The runner does not merge PRs automatically.
+- The runner skips issues that already have an open `autopilot/issue-N` pull request.
+- The runner skips issues labeled `autopilot-running`, `autopilot-failed`, `blocked`, or `needs-design`.
 - Each issue runs in a separate worktree under `.symphony/workspaces`.
 - Live provider tests must still be explicitly gated with `CAPSULE_LIVE_TESTS=1`.
 - If Linear is configured later, the same task graph can be mirrored there and the OpenAI Symphony reference implementation can poll Linear directly.

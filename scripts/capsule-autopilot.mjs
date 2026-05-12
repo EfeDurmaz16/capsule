@@ -15,6 +15,7 @@ const once = args.has("--once");
 const dryRun = args.has("--dry-run");
 const pollMs = Number(valueAfter("--poll-ms") ?? process.env.CAPSULE_AUTOPILOT_POLL_MS ?? "60000");
 const repo = valueAfter("--repo") ?? process.env.GH_REPO ?? gh(["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"], { silent: true }).trim();
+const excludedLabels = new Set(["autopilot-running", "autopilot-failed", "blocked", "needs-design"]);
 
 mkdirSync(workspacesDir, { recursive: true });
 mkdirSync(logsDir, { recursive: true });
@@ -73,13 +74,20 @@ function eligibleIssues() {
     "--label",
     "needs-verification",
     "--limit",
-    "50",
+    "100",
     "--json",
     "number,title,body,url,labels"
   ], { silent: true });
   return JSON.parse(output)
-    .filter((issue) => !issue.labels.some((label) => label.name === "autopilot-running"))
+    .filter((issue) => !issue.labels.some((label) => excludedLabels.has(label.name)))
+    .filter((issue) => !hasOpenPullRequest(issue))
     .sort((a, b) => issueSortKey(a) - issueSortKey(b));
+}
+
+function hasOpenPullRequest(issue) {
+  const branch = `autopilot/issue-${issue.number}`;
+  const output = gh(["pr", "list", "--repo", repo, "--head", branch, "--state", "open", "--json", "number"], { silent: true });
+  return JSON.parse(output).length > 0;
 }
 
 function issueSortKey(issue) {
