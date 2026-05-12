@@ -106,6 +106,7 @@ Capsule can apply network, filesystem, secrets, limits, cost, TTL, and approval 
 - [Roadmap](docs/roadmap.md)
 - [Contributing](docs/contributing.md)
 - [Comparison](docs/comparison.md)
+- [Technical decisions](docs/technical-decisions.md)
 
 ## Development
 
