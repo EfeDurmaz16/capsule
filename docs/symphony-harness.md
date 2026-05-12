@@ -63,3 +63,11 @@ pnpm capsule:issues -- --apply
 ```
 
 The final command creates GitHub issues through `gh issue create`; use it only after reviewing the generated task list.
+
+Without Linear, use the GitHub-backed runner:
+
+```bash
+pnpm capsule:autopilot -- --max-parallel 2
+```
+
+For an overnight run, wrap it in `caffeinate` so macOS does not sleep while agents are running.

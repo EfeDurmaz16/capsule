@@ -106,6 +106,7 @@ Capsule can apply network, filesystem, secrets, limits, cost, TTL, and approval 
 - [Roadmap](docs/roadmap.md)
 - [Real provider gap register](docs/real-provider-gap-register.md)
 - [Symphony harness](docs/symphony-harness.md)
+- [Autopilot runbook](docs/autopilot-runbook.md)
 - [Contributing](docs/contributing.md)
 - [Comparison](docs/comparison.md)
 - [Technical decisions](docs/technical-decisions.md)
@@ -155,6 +156,22 @@ Docker-backed examples require Docker:
 ```bash
 pnpm --filter @capsule/example-sandbox-docker start
 pnpm --filter @capsule/example-job-docker start
+```
+
+## Maintainer Autopilot
+
+Capsule includes a repo-local automation harness for long-running maintenance work:
+
+```bash
+pnpm capsule:gap
+pnpm capsule:issues
+pnpm capsule:autopilot -- --once --dry-run --max-parallel 2
+```
+
+For an overnight run on macOS:
+
+```bash
+nohup caffeinate -dimsu pnpm capsule:autopilot -- --max-parallel 2 > .symphony/logs/autopilot.log 2>&1 &
 ```
 
 ## Real And Mocked
