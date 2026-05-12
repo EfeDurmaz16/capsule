@@ -121,6 +121,7 @@ pnpm typecheck
 
 - `@capsule/core`: domain types, `Capsule` facade, capabilities, policy, receipts, errors, logs, artifacts, and adapter contracts.
 - `@capsule/adapter-docker`: real Docker CLI adapter for sandbox and one-shot job execution.
+- `@capsule/adapter-neon`: real Neon API adapter for database branch create/delete and connection URI retrieval.
 - `@capsule/adapter-mock`: mock E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models.
 - `@capsule/ai`: framework-agnostic code execution tool helper.
 - `@capsule/cli`: small CLI with `doctor`, `capabilities`, `run`, and `sandbox`.
@@ -153,15 +154,26 @@ Real in this repository:
 - policy checks for env/secrets and timeout merging;
 - receipt generation with SHA-256 stdout/stderr hashes;
 - Docker CLI sandbox/job adapter;
+- Neon database branch create/delete through the Neon API;
+- Neon connection URI retrieval when `databaseName` and `roleName` are configured;
+- local JSONL receipt persistence through `@capsule/store-jsonl`;
 - mock provider adapters;
 - CLI;
 - examples and tests.
 
 Mocked:
 
-- E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 provider calls;
+- E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Lambda, ECS, Kubernetes, and EC2 provider calls;
 - service, edge, database, preview, and machine lifecycle operations outside Docker;
 - preview orchestration across real providers.
+
+CLI examples:
+
+```bash
+capsule capabilities --adapter neon
+capsule neon branch-create --project "$NEON_PROJECT_ID" --name pr-42 --database neondb --role neondb_owner --receipt-file .capsule/receipts.jsonl
+capsule neon branch-delete --project "$NEON_PROJECT_ID" --branch-id br_xxx --hard-delete --receipt-file .capsule/receipts.jsonl
+```
 
 Known limitations:
 
@@ -169,6 +181,6 @@ Known limitations:
 - Docker local is not safe for hostile untrusted code by default.
 - Policy enforcement depends on adapter/provider support.
 - Receipts record what Capsule observed; they are not signed attestations yet.
-- Persistence, hosted API, auth, dashboard, queues, and stores are intentionally outside core.
+- Hosted persistence, auth, dashboard, queues, and server APIs are intentionally outside core.
 
 Capsule is designed for provider teams, framework maintainers, and runtime engineers to critique and extend. Adapter contributions should include capability maps, docs, and contract tests.

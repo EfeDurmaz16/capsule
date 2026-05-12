@@ -8,6 +8,17 @@ Core types, capability negotiation, support levels, errors, policy decisions, re
 
 Docker, E2B, Daytona, Modal Sandboxes, Cloudflare Sandbox, Microsandbox, and future Firecracker or microVM adapters.
 
+Current real adapters:
+
+- Docker sandbox/job.
+- Neon database/resource.
+
+Next real adapters:
+
+- E2B sandbox.
+- Cloud Run jobs/services.
+- Vercel or Cloudflare edge deployments.
+
 ## Job And Service Adapters
 
 Cloud Run, ECS/Fargate, Kubernetes, Azure Container Apps, Modal, Docker, Fly Machines, and other container platforms.
@@ -19,6 +30,8 @@ Vercel, Cloudflare Workers/Pages/Containers, Lambda, Netlify-style functions, an
 ## Database And Resource Adapters
 
 Neon, Cloudflare D1/KV/R2, Supabase branching, PlanetScale-style branching, and managed resource receipts.
+
+Neon branch create/delete and connection URI retrieval are implemented. Reset, migrations, snapshots, and restore remain planned.
 
 ## Preview Orchestration
 
