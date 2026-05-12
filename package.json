@@ -9,6 +9,8 @@
     "test": "vitest run",
     "typecheck": "tsc -b",
     "lint": "tsc -b --pretty false",
+    "capsule:gap": "node scripts/capsule-gap-report.mjs",
+    "capsule:issues": "node scripts/create-github-issues.mjs",
     "format": "prettier --write ."
   },
   "devDependencies": {

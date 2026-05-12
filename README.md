@@ -82,19 +82,10 @@ Capsule can apply network, filesystem, secrets, limits, cost, TTL, and approval 
 | Docker | native | native | unsupported | unsupported | unsupported | unsupported | unsupported |
 | E2B | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported |
 | Daytona | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported |
-| Modal | native | emulated | experimental | unsupported | unsupported | experimental | unsupported |
-| Cloud Run | unsupported | native | native | unsupported | unsupported | experimental | unsupported |
-| Cloudflare Workers | unsupported | unsupported | unsupported | native | unsupported | unsupported | unsupported |
-| Vercel | unsupported | unsupported | experimental | native | unsupported | experimental | unsupported |
-| Kubernetes | experimental | native | native | unsupported | unsupported | experimental | experimental |
-| Lambda | unsupported | native | unsupported | unsupported | unsupported | unsupported | unsupported |
-| ECS/Fargate | unsupported | native | native | unsupported | unsupported | experimental | unsupported |
-| EC2 | unsupported | emulated | emulated | unsupported | unsupported | unsupported | native |
-| Daytona | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported |
 | Modal | native | native | experimental | unsupported | unsupported | experimental | unsupported |
 | Cloud Run | unsupported | native | native | unsupported | unsupported | experimental | unsupported |
-| Vercel | unsupported | unsupported | experimental | native | unsupported | experimental | unsupported |
 | Cloudflare | experimental | experimental | experimental | native | experimental | experimental | unsupported |
+| Vercel | unsupported | unsupported | experimental | native | unsupported | experimental | unsupported |
 | Neon | unsupported | unsupported | unsupported | unsupported | native | experimental | unsupported |
 | Lambda | unsupported | native | unsupported | experimental | unsupported | unsupported | unsupported |
 | ECS/Fargate | unsupported | native | native | unsupported | unsupported | experimental | unsupported |
@@ -114,6 +105,7 @@ Capsule can apply network, filesystem, secrets, limits, cost, TTL, and approval 
 - [Security model](docs/security-model.md)
 - [Roadmap](docs/roadmap.md)
 - [Real provider gap register](docs/real-provider-gap-register.md)
+- [Symphony harness](docs/symphony-harness.md)
 - [Contributing](docs/contributing.md)
 - [Comparison](docs/comparison.md)
 - [Technical decisions](docs/technical-decisions.md)

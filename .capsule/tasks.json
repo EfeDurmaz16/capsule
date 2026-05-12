@@ -1,0 +1,98 @@
+{
+  "mission": "Finish Capsule v1 and v2 as a production-grade OSS runtime adapter/control-plane SDK.",
+  "labels": [
+    "capsule",
+    "symphony",
+    "needs-verification"
+  ],
+  "tasks": [
+    {
+      "id": "CAP-001",
+      "title": "Harden adapter contract tests for every provider package",
+      "labels": ["type:test", "area:contracts", "release:v1"],
+      "priority": 1,
+      "successCriteria": [
+        "Each adapter package has focused capability and receipt tests",
+        "Unsupported capability behavior is covered by reusable contract helpers",
+        "pnpm test passes without live credentials"
+      ]
+    },
+    {
+      "id": "CAP-002",
+      "title": "Add live integration test gates for real providers",
+      "labels": ["type:test", "area:providers", "release:v1"],
+      "priority": 1,
+      "successCriteria": [
+        "Live tests are skipped by default",
+        "Each live test requires explicit CAPSULE_LIVE_TESTS=1 plus provider credentials",
+        "Live tests create disposable resources and tear them down"
+      ]
+    },
+    {
+      "id": "CAP-003",
+      "title": "Finish real lifecycle operations for deployed resources",
+      "labels": ["type:feature", "area:lifecycle", "release:v1"],
+      "priority": 1,
+      "successCriteria": [
+        "Service delete/status/logs are implemented where provider APIs support them",
+        "Job status/cancel/logs are implemented where provider APIs support them",
+        "Capabilities stay honest when operations remain unsupported"
+      ]
+    },
+    {
+      "id": "CAP-004",
+      "title": "Replace mock-first examples with real-adapter examples gated by env vars",
+      "labels": ["type:docs", "area:examples", "release:v1"],
+      "priority": 2,
+      "successCriteria": [
+        "Examples default to safe mock mode when credentials are absent",
+        "Examples can run against real adapters when provider env vars are set",
+        "README explains exactly which examples call real APIs"
+      ]
+    },
+    {
+      "id": "CAP-005",
+      "title": "Implement real preview environment composition",
+      "labels": ["type:feature", "area:preview", "release:v2"],
+      "priority": 2,
+      "successCriteria": [
+        "Preview creation can compose database branch, service or edge deploy, and check job",
+        "Preview cleanup records receipts for every resource",
+        "Failure handling preserves enough evidence for cleanup and debugging"
+      ]
+    },
+    {
+      "id": "CAP-006",
+      "title": "Add release and publishing infrastructure",
+      "labels": ["type:infra", "area:release", "release:v1"],
+      "priority": 2,
+      "successCriteria": [
+        "GitHub Actions runs typecheck, tests, and build",
+        "Package publishing configuration is explicit",
+        "Release notes can identify changed packages"
+      ]
+    },
+    {
+      "id": "CAP-007",
+      "title": "Add missing roadmap adapters for Fly Machines and Azure Container Apps",
+      "labels": ["type:feature", "area:providers", "release:v2"],
+      "priority": 3,
+      "successCriteria": [
+        "Fly adapter covers machine.create and one-shot job execution",
+        "Azure Container Apps adapter covers job.run and service.deploy",
+        "Docs and CLI list the new providers honestly"
+      ]
+    },
+    {
+      "id": "CAP-008",
+      "title": "Strengthen policy and receipt security posture",
+      "labels": ["type:security", "area:policy", "release:v1"],
+      "priority": 1,
+      "successCriteria": [
+        "Secret redaction has focused tests across stdout, stderr, and logs",
+        "Receipts include enforcement notes for delegated, best-effort, and unsupported policy",
+        "No adapter logs raw provider credentials or secret values"
+      ]
+    }
+  ]
+}
