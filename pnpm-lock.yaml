@@ -270,6 +270,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@capsule/adapter-cloudflare':
+        specifier: workspace:*
+        version: link:../adapter-cloudflare
       '@capsule/adapter-docker':
         specifier: workspace:*
         version: link:../adapter-docker

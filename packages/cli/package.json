@@ -18,6 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@capsule/adapter-cloudflare": "workspace:*",
     "@capsule/adapter-docker": "workspace:*",
     "@capsule/adapter-e2b": "workspace:*",
     "@capsule/adapter-neon": "workspace:*",

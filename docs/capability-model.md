@@ -12,6 +12,7 @@ Examples:
 - Cloud Run: jobs and services are native, previews are experimental.
 - Vercel: edge is native, service and preview are experimental.
 - Cloudflare: edge is native; sandbox, job, service, database, and preview are experimental.
+- Real Cloudflare adapter: `edge.deploy` is native for Worker module upload; routes, logs, secrets, versions, and rollback are unsupported until modeled as explicit operations.
 - Neon: database branch creation and connection strings are native.
 - Lambda: jobs are native and edge is experimental.
 - EC2: machines are native; jobs and services are emulated.

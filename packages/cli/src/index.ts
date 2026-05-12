@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Capsule } from "@capsule/core";
+import { cloudflare } from "@capsule/adapter-cloudflare";
 import { docker, dockerAvailable } from "@capsule/adapter-docker";
 import { e2b } from "@capsule/adapter-e2b";
 import { neon } from "@capsule/adapter-neon";
@@ -16,6 +17,9 @@ interface ParsedArgs {
   branchId?: string;
   database?: string;
   role?: string;
+  entrypoint?: string;
+  compatibilityDate?: string;
+  workersDevSubdomain?: string;
   hardDelete?: boolean;
   rest: string[];
 }
@@ -70,6 +74,21 @@ function parse(argv: string[]): ParsedArgs {
       index += 1;
       continue;
     }
+    if (arg === "--entrypoint") {
+      parsed.entrypoint = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--compatibility-date") {
+      parsed.compatibilityDate = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--workers-dev-subdomain") {
+      parsed.workersDevSubdomain = args[index + 1];
+      index += 1;
+      continue;
+    }
     if (arg === "--hard-delete") {
       parsed.hardDelete = true;
       continue;
@@ -91,9 +110,11 @@ Commands:
   capsule capabilities
   capsule capabilities --adapter neon
   capsule capabilities --adapter e2b
+  capsule capabilities --adapter cloudflare
   capsule run --image node:22 -- node -e "console.log('hello')"
   capsule sandbox --image node:22
   capsule sandbox --adapter e2b -- node -e "console.log('hello from E2B')"
+  capsule edge --adapter cloudflare --name my-worker --entrypoint worker.js ./dist/worker.js
   capsule neon branch-create --project <project_id> --name pr-42 --database neondb --role neondb_owner --receipt-file .capsule/receipts.jsonl
   capsule neon branch-delete --project <project_id> --branch-id br_xxx --hard-delete
 `);
@@ -110,6 +131,13 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   }
   if (parsed.adapter === "e2b") {
     return new Capsule({ adapter: e2b(), receipts: true, receiptStore });
+  }
+  if (parsed.adapter === "cloudflare") {
+    return new Capsule({
+      adapter: cloudflare({ compatibilityDate: parsed.compatibilityDate, workersDevSubdomain: parsed.workersDevSubdomain }),
+      receipts: true,
+      receiptStore
+    });
   }
   return new Capsule({ adapter: docker(), receipts: true, receiptStore });
 }
@@ -151,6 +179,25 @@ async function main(argv: string[]): Promise<void> {
     }
     case "capabilities": {
       console.log(JSON.stringify(capsule.capabilities(), null, 2));
+      return;
+    }
+    case "edge": {
+      if (parsed.adapter !== "cloudflare") {
+        throw new Error("edge currently requires --adapter cloudflare");
+      }
+      if (!parsed.name) {
+        throw new Error("Missing --name");
+      }
+      const sourcePath = parsed.rest[0];
+      if (!sourcePath) {
+        throw new Error("Missing Worker module path");
+      }
+      const deployment = await capsule.edge.deploy({
+        name: parsed.name,
+        runtime: "workers",
+        source: { path: sourcePath, entrypoint: parsed.entrypoint }
+      });
+      console.log(JSON.stringify(deployment, null, 2));
       return;
     }
     case "run": {

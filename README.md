@@ -81,6 +81,7 @@ Capsule can apply network, filesystem, secrets, limits, cost, TTL, and approval 
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Docker | native | native | unsupported | unsupported | unsupported | unsupported | unsupported |
 | E2B | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported |
+| Cloudflare Workers | unsupported | unsupported | unsupported | native | unsupported | unsupported | unsupported |
 | Daytona | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported |
 | Modal | native | native | experimental | unsupported | unsupported | experimental | unsupported |
 | Cloud Run | unsupported | native | native | unsupported | unsupported | experimental | unsupported |
@@ -122,6 +123,7 @@ pnpm typecheck
 - `@capsule/core`: domain types, `Capsule` facade, capabilities, policy, receipts, errors, logs, artifacts, and adapter contracts.
 - `@capsule/adapter-docker`: real Docker CLI adapter for sandbox and one-shot job execution.
 - `@capsule/adapter-e2b`: real E2B SDK adapter for cloud sandbox execution.
+- `@capsule/adapter-cloudflare`: real Cloudflare API adapter for Worker module edge deployment.
 - `@capsule/adapter-neon`: real Neon API adapter for database branch create/delete and connection URI retrieval.
 - `@capsule/adapter-mock`: mock E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models.
 - `@capsule/ai`: framework-agnostic code execution tool helper.
@@ -156,6 +158,7 @@ Real in this repository:
 - receipt generation with SHA-256 stdout/stderr hashes;
 - Docker CLI sandbox/job adapter;
 - E2B cloud sandbox create/exec/file/list/destroy through the E2B SDK;
+- Cloudflare Worker module upload through the Cloudflare API;
 - Neon database branch create/delete through the Neon API;
 - Neon connection URI retrieval when `databaseName` and `roleName` are configured;
 - local JSONL receipt persistence through `@capsule/store-jsonl`;
@@ -165,7 +168,7 @@ Real in this repository:
 
 Mocked:
 
-- Daytona, Modal, Cloud Run, Vercel, Cloudflare, Lambda, ECS, Kubernetes, and EC2 provider calls;
+- Daytona, Modal, Cloud Run, Vercel, Lambda, ECS, Kubernetes, and EC2 provider calls;
 - service, edge, database, preview, and machine lifecycle operations outside Docker;
 - preview orchestration across real providers.
 
