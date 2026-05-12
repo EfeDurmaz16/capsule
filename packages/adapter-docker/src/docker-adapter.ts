@@ -21,6 +21,15 @@ export interface DockerAdapterOptions {
   defaultImage?: string;
 }
 
+interface DockerSandboxCreateArgsInput {
+  name: string;
+  workdir: string;
+  image: string;
+  env?: Record<string, string>;
+  networkNone?: boolean;
+  exposedPorts?: CreateSandboxSpec["exposedPorts"];
+}
+
 const provider = "docker";
 const adapter = "docker";
 
@@ -32,6 +41,7 @@ export const dockerCapabilities: CapabilityMap = {
     fileWrite: "native",
     fileList: "native",
     destroy: "native",
+    exposePort: "native",
     networkPolicy: "experimental",
     filesystemPolicy: "emulated",
     secretMounting: "emulated",
@@ -107,6 +117,45 @@ function resourceArgs(resources?: { cpu?: number; memoryMb?: number }): string[]
   return [
     ...(resources?.memoryMb ? ["--memory", `${resources.memoryMb}m`] : []),
     ...(resources?.cpu ? ["--cpus", String(resources.cpu)] : [])
+  ];
+}
+
+function assertPort(value: number, label: string): void {
+  if (!Number.isInteger(value) || value < 1 || value > 65_535) {
+    throw new AdapterExecutionError(`${label} must be an integer between 1 and 65535.`);
+  }
+}
+
+function publishPortArgs(exposedPorts?: CreateSandboxSpec["exposedPorts"]): string[] {
+  return (exposedPorts ?? []).flatMap((port) => {
+    assertPort(port.containerPort, "containerPort");
+    if (port.hostPort !== undefined) {
+      assertPort(port.hostPort, "hostPort");
+    }
+    const protocol = port.protocol ?? "tcp";
+    if (protocol !== "tcp" && protocol !== "udp") {
+      throw new AdapterExecutionError("protocol must be tcp or udp.");
+    }
+    const hostIp = port.hostIp ?? "127.0.0.1";
+    const hostPort = port.hostPort ?? "";
+    return ["--publish", `${hostIp}:${hostPort}:${port.containerPort}/${protocol}`];
+  });
+}
+
+export function dockerSandboxCreateArgs(input: DockerSandboxCreateArgsInput): string[] {
+  return [
+    "create",
+    "--name",
+    input.name,
+    "--workdir",
+    input.workdir,
+    ...(input.networkNone ? ["--network", "none"] : []),
+    ...publishPortArgs(input.exposedPorts),
+    ...envArgs(input.env),
+    input.image,
+    "sh",
+    "-lc",
+    "mkdir -p /workspace && while :; do sleep 3600; done"
   ];
 }
 
@@ -240,19 +289,14 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
         const name = spec.name ?? `capsule-${Date.now()}`;
         const create = await runDocker(
-          [
-            "create",
-            "--name",
+          dockerSandboxCreateArgs({
             name,
-            "--workdir",
-            spec.cwd ?? "/workspace",
-            ...(context.policy.network?.mode === "none" ? ["--network", "none"] : []),
-            ...envArgs(spec.env),
+            workdir: spec.cwd ?? "/workspace",
             image,
-            "sh",
-            "-lc",
-            "mkdir -p /workspace && while :; do sleep 3600; done"
-          ],
+            env: spec.env,
+            networkNone: context.policy.network?.mode === "none",
+            exposedPorts: spec.exposedPorts
+          }),
           { timeoutMs: spec.timeoutMs }
         );
         if (create.exitCode !== 0) {
@@ -268,7 +312,7 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
           id,
           provider,
           createdAt: startedAt.toISOString(),
-          metadata: { image, name }
+          metadata: { image, name, exposedPorts: spec.exposedPorts ?? [] }
         };
         if (context.receipts) {
           context.createReceipt({

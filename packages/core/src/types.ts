@@ -207,6 +207,12 @@ export interface CreateSandboxSpec {
   cwd?: string;
   timeoutMs?: number;
   labels?: Record<string, string>;
+  exposedPorts?: Array<{
+    containerPort: number;
+    hostPort?: number;
+    protocol?: "tcp" | "udp";
+    hostIp?: string;
+  }>;
 }
 
 export interface SandboxHandle {
