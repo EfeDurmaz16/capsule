@@ -14,6 +14,6 @@ Examples:
 - Cloudflare: edge is native; sandbox, job, service, database, and preview are experimental.
 - Real Cloudflare adapter: `edge.deploy` is native for Worker module upload; routes, logs, secrets, versions, and rollback are unsupported until modeled as explicit operations.
 - Neon: database branch creation and connection strings are native.
-- Lambda: jobs are native and edge is experimental.
+- Lambda: existing function invoke is native for `job.run`; deployment, environment mutation, and Lambda@Edge remain future explicit capabilities.
 - Kubernetes: jobs and services are native through the real Kubernetes adapter; sandbox/machine support remains experimental because cluster/runtime configuration is leaky.
 - EC2: machines are native; jobs and services are emulated.
