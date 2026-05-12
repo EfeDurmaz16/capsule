@@ -1,10 +1,23 @@
 import { describe, expect, test } from "vitest";
 import { Capsule, runAdapterContract } from "@capsule/core";
-import { liveTest, liveTestGate } from "@capsule/test-utils";
-import { docker, dockerAvailable } from "./index.js";
+import { liveTest, liveTestGate, type LiveTestGate } from "@capsule/test-utils";
+import { docker, dockerAvailable, runDocker } from "./index.js";
 
 const hasDocker = await dockerAvailable();
-const dockerLiveGate = liveTestGate({ provider: "docker" });
+const dockerLiveGate: LiveTestGate = hasDocker ? liveTestGate({ provider: "docker" }) : { enabled: false, skipReason: "Docker is not available." };
+
+function uniqueName(label: string): string {
+  return `capsule-test-${label}-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+async function containerExists(id: string): Promise<boolean> {
+  const inspected = await runDocker(["inspect", id], { timeoutMs: 10_000 });
+  return inspected.exitCode === 0;
+}
+
+function runLiveDocker(name: string, fn: () => unknown | Promise<unknown>, timeout?: number): void {
+  liveTest(test, name, dockerLiveGate, fn, timeout);
+}
 
 describe("docker adapter", () => {
   test("runs the shared adapter contract suite", async () => {
@@ -18,16 +31,87 @@ describe("docker adapter", () => {
     expect(capsule.supports("service.deploy")).toBe(false);
   });
 
-  liveTest(
-    test,
-    "runs Docker job when live tests and Docker are available",
-    hasDocker ? dockerLiveGate : { enabled: false, skipReason: "Docker is not available." },
-    async () => {
-      const capsule = new Capsule({ adapter: docker(), receipts: true });
-      const run = await capsule.job.run({ image: "node:22", command: ["node", "-e", "console.log('docker ok')"], timeoutMs: 30_000 });
-      expect(run.result?.stdout).toContain("docker ok");
-      expect(run.receipt?.type).toBe("job.run");
-    },
-    60_000
-  );
+  runLiveDocker("runs Docker job when live tests and Docker are available", async () => {
+    const capsule = new Capsule({ adapter: docker(), receipts: true });
+    const run = await capsule.job.run({ image: "node:22", command: ["node", "-e", "console.log('docker ok')"], timeoutMs: 30_000 });
+    expect(run.result?.stdout).toContain("docker ok");
+    expect(run.receipt?.type).toBe("job.run");
+  }, 60_000);
+
+  runLiveDocker("covers sandbox create, exec, file read/write/list, and destroy", async () => {
+    const capsule = new Capsule({ adapter: docker(), receipts: true });
+    const sandbox = await capsule.sandbox.create({ image: "node:22", name: uniqueName("sandbox"), timeoutMs: 30_000 });
+    const id = sandbox.handle.id;
+    try {
+      await sandbox.writeFile("/workspace/capsule/live.txt", "hello from docker sandbox");
+      const file = await sandbox.readFile("/workspace/capsule/live.txt");
+      const entries = await sandbox.listFiles("/workspace/capsule");
+      const exec = await sandbox.exec({ command: ["node", "-e", "const fs=require('fs'); console.log(fs.readFileSync('/workspace/capsule/live.txt','utf8'))"] });
+
+      expect(new TextDecoder().decode(file)).toBe("hello from docker sandbox");
+      expect(entries).toContainEqual(expect.objectContaining({ name: "live.txt", path: "/workspace/capsule/live.txt", type: "file" }));
+      expect(exec.exitCode).toBe(0);
+      expect(exec.stdout).toContain("hello from docker sandbox");
+      expect(exec.receipt?.type).toBe("sandbox.exec");
+    } finally {
+      await sandbox.destroy();
+    }
+
+    expect(await containerExists(id)).toBe(false);
+  }, 90_000);
+
+  runLiveDocker("covers Docker job.run timeout behavior", async () => {
+    const capsule = new Capsule({ adapter: docker(), receipts: true });
+    const run = await capsule.job.run({
+      image: "node:22",
+      command: ["node", "-e", "setTimeout(() => console.log('late'), 10_000)"],
+      timeoutMs: 1_000
+    });
+
+    expect(run.status).toBe("failed");
+    expect(run.result?.exitCode).toBe(124);
+    expect(run.result?.stderr).toContain("Command timed out after 1000ms");
+    expect(run.receipt?.type).toBe("job.run");
+  }, 60_000);
+
+  runLiveDocker("covers Docker network none behavior for job.run", async () => {
+    const capsule = new Capsule({
+      adapter: docker(),
+      receipts: true,
+      policy: { network: { mode: "none" } }
+    });
+    const run = await capsule.job.run({
+      image: "node:22",
+      command: [
+        "node",
+        "-e",
+        "fetch('https://example.com').then(() => process.exit(0)).catch(() => { console.error('network blocked'); process.exit(42); })"
+      ],
+      timeoutMs: 30_000
+    });
+
+    expect(run.status).toBe("failed");
+    expect(run.result?.exitCode).toBe(42);
+    expect(run.result?.stderr).toContain("network blocked");
+    expect(run.receipt?.policy.notes).toContain("Docker network policy applied with --network none.");
+  }, 60_000);
+
+  runLiveDocker("cleans up sandbox containers when a live test fails after create", async () => {
+    const capsule = new Capsule({ adapter: docker(), receipts: true });
+    let id: string | undefined;
+    const sentinel = new Error("simulated test failure");
+
+    await expect(async () => {
+      const sandbox = await capsule.sandbox.create({ image: "node:22", name: uniqueName("cleanup"), timeoutMs: 30_000 });
+      id = sandbox.handle.id;
+      try {
+        throw sentinel;
+      } finally {
+        await sandbox.destroy();
+      }
+    }).rejects.toThrow(sentinel);
+
+    expect(id).toBeDefined();
+    expect(await containerExists(id!)).toBe(false);
+  }, 60_000);
 });
