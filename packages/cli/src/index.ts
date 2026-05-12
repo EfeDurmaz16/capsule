@@ -4,6 +4,7 @@ import { cloudflare } from "@capsule/adapter-cloudflare";
 import { cloudRun } from "@capsule/adapter-cloud-run";
 import { docker, dockerAvailable } from "@capsule/adapter-docker";
 import { e2b } from "@capsule/adapter-e2b";
+import { ec2 } from "@capsule/adapter-ec2";
 import { ecs } from "@capsule/adapter-ecs";
 import { kubernetes } from "@capsule/adapter-kubernetes";
 import { lambda } from "@capsule/adapter-lambda";
@@ -39,6 +40,9 @@ interface ParsedArgs {
   containerName?: string;
   subnets?: string[];
   securityGroups?: string[];
+  subnetId?: string;
+  imageId?: string;
+  instanceType?: string;
   port?: number;
   hardDelete?: boolean;
   rest: string[];
@@ -179,6 +183,21 @@ function parse(argv: string[]): ParsedArgs {
       index += 1;
       continue;
     }
+    if (arg === "--subnet-id") {
+      parsed.subnetId = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--image-id") {
+      parsed.imageId = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--instance-type") {
+      parsed.instanceType = args[index + 1];
+      index += 1;
+      continue;
+    }
     if (arg === "--port") {
       parsed.port = Number(args[index + 1]);
       index += 1;
@@ -210,6 +229,7 @@ Commands:
   capsule capabilities --adapter kubernetes --namespace default
   capsule capabilities --adapter lambda --region us-east-1 --function-name my-function
   capsule capabilities --adapter ecs --region us-east-1 --cluster default --task-definition task:1 --container-name main
+  capsule capabilities --adapter ec2 --region us-east-1 --image-id ami-123 --instance-type t3.micro
   capsule capabilities --adapter cloud-run --project-id <gcp-project> --location us-central1
   capsule run --image node:22 -- node -e "console.log('hello')"
   capsule sandbox --image node:22
@@ -221,6 +241,7 @@ Commands:
   capsule service --adapter cloud-run --project-id <gcp-project> --location us-central1 --name api --image us-docker.pkg.dev/project/repo/api:tag --port 8080
   capsule service --adapter ecs --region us-east-1 --cluster default --task-definition api:1 --container-name main --name api --image intent
   capsule service --adapter kubernetes --namespace default --name api --image ghcr.io/acme/api:latest --port 8080
+  capsule machine --adapter ec2 --region us-east-1 --name dev --image-id ami-123 --instance-type t3.micro --subnet-id subnet-123 --security-group sg-123
   capsule edge --adapter cloudflare --name my-worker --entrypoint worker.js ./dist/worker.js
   capsule edge --adapter vercel --name my-deployment --project-name my-project --entrypoint index.js ./index.js
   capsule neon branch-create --project <project_id> --name pr-42 --database neondb --role neondb_owner --receipt-file .capsule/receipts.jsonl
@@ -287,6 +308,19 @@ function createCapsule(parsed: ParsedArgs): Capsule {
         containerName: parsed.containerName,
         subnets: parsed.subnets,
         securityGroups: parsed.securityGroups
+      }),
+      receipts: true,
+      receiptStore
+    });
+  }
+  if (parsed.adapter === "ec2") {
+    return new Capsule({
+      adapter: ec2({
+        region: parsed.region,
+        imageId: parsed.imageId,
+        instanceType: parsed.instanceType,
+        subnetId: parsed.subnetId,
+        securityGroupIds: parsed.securityGroups
       }),
       receipts: true,
       receiptStore
@@ -384,6 +418,21 @@ async function main(argv: string[]): Promise<void> {
         ports: parsed.port ? [{ port: parsed.port, protocol: "http" }] : undefined
       });
       console.log(JSON.stringify(deployment, null, 2));
+      return;
+    }
+    case "machine": {
+      if (parsed.adapter !== "ec2") {
+        throw new Error("machine currently requires --adapter ec2");
+      }
+      if (!parsed.name) {
+        throw new Error("Missing --name");
+      }
+      const machine = await capsule.machine.create({
+        name: parsed.name,
+        image: parsed.imageId ?? parsed.image,
+        size: parsed.instanceType
+      });
+      console.log(JSON.stringify(machine, null, 2));
       return;
     }
     case "run": {

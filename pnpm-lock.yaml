@@ -375,6 +375,9 @@ importers:
       '@capsule/adapter-e2b':
         specifier: workspace:*
         version: link:../adapter-e2b
+      '@capsule/adapter-ec2':
+        specifier: workspace:*
+        version: link:../adapter-ec2
       '@capsule/adapter-ecs':
         specifier: workspace:*
         version: link:../adapter-ecs

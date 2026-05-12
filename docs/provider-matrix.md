@@ -17,6 +17,7 @@ Status legend:
 | Kubernetes | real | experimental | native | native | unsupported | unsupported | experimental | experimental | Jobs, Deployments, and Services are implemented through the official Kubernetes client; logs/ingress/rollout are explicit future work. |
 | Lambda | real | unsupported | native | unsupported | unsupported | unsupported | unsupported | unsupported | Existing Lambda function invocation is implemented as `job.run`; function deployment/env mutation is not faked. |
 | ECS/Fargate | real | unsupported | native | native | unsupported | unsupported | experimental | unsupported | RunTask and CreateService are implemented for existing task definitions; task-definition registration and load balancers are future work. |
+| EC2 | real | unsupported | emulated | emulated | unsupported | unsupported | unsupported | native | `machine.create` is implemented through RunInstances; exec/start/stop/snapshot remain explicit future work. |
 | Daytona | mock/planned | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported | Workspace-oriented sandbox model. |
 | Modal | mock/planned | native | native | experimental | unsupported | unsupported | experimental | unsupported | Strong function and sandbox fit. |
 | Cloudflare Sandbox | mock/planned | experimental | experimental | experimental | native | experimental | experimental | unsupported | Bindings and runtime semantics matter. |
@@ -30,6 +31,6 @@ Status legend:
 | Vercel | real | unsupported | unsupported | experimental | native | unsupported | experimental | unsupported | Edge/deployment primitive implemented by `@capsule/adapter-vercel`; routes and aliases are future work. |
 | Cloudflare Workers | mock/planned | unsupported | experimental | experimental | native | experimental | experimental | unsupported | Broader bindings/resource lifecycle remains modeled in mocks until implemented by real adapters. |
 | Cloudflare Containers | mock/planned | experimental | experimental | experimental | native | experimental | experimental | unsupported | Hybrid runtime model. |
-| EC2 | mock/planned | unsupported | emulated | emulated | unsupported | unsupported | unsupported | native | Low-level and leaky. |
+| EC2 | real | unsupported | emulated | emulated | unsupported | unsupported | unsupported | native | Low-level machine creation is implemented by `@capsule/adapter-ec2`. |
 | Fly Machines | planned | experimental | native | native | unsupported | unsupported | experimental | experimental | Machine and app semantics overlap. |
 | Azure Container Apps | planned | unsupported | native | native | unsupported | unsupported | experimental | unsupported | Jobs and services fit. |
