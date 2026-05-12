@@ -9,6 +9,8 @@ describe("ecs adapter", () => {
 
   it("declares job and service capabilities", () => {
     expect(ecsCapabilities.job?.run).toBe("native");
+    expect(ecsCapabilities.job?.status).toBe("native");
+    expect(ecsCapabilities.job?.cancel).toBe("native");
     expect(ecsCapabilities.service?.deploy).toBe("native");
   });
 
@@ -42,6 +44,7 @@ describe("ecs adapter", () => {
 
     expect(run.status).toBe("running");
     expect(run.receipt?.type).toBe("job.run");
+    expect(run.receipt?.metadata).toMatchObject({ taskArn: "arn:task/123", lastStatus: "PENDING" });
     expect(sent[0]).toMatchObject({
       cluster: "cluster-a",
       taskDefinition: "task-def:1",
@@ -51,6 +54,81 @@ describe("ecs adapter", () => {
         containerOverrides: [{ name: "main", command: ["node", "job.js"], environment: [{ name: "NODE_ENV", value: "test" }], cpu: 256, memory: 512 }]
       }
     });
+  });
+
+  it("describes ECS task status from task ARN", async () => {
+    const sent: any[] = [];
+    const client = {
+      send: async (command: any) => {
+        sent.push(command.input);
+        return {
+          tasks: [
+            {
+              taskArn: "arn:task/123",
+              lastStatus: "STOPPED",
+              desiredStatus: "STOPPED",
+              stopCode: "EssentialContainerExited",
+              stoppedReason: "Essential container in task exited",
+              containers: [{ name: "main", exitCode: 0 }]
+            }
+          ]
+        };
+      }
+    };
+    const capsule = new Capsule({
+      adapter: ecs({ cluster: "cluster-a", taskDefinition: "task-def:1", containerName: "main", client }),
+      receipts: true
+    });
+
+    const status = await capsule.job.status({ id: "arn:task/123" });
+
+    expect(status).toMatchObject({ id: "arn:task/123", provider: "ecs", status: "succeeded" });
+    expect(status.receipt?.type).toBe("job.status");
+    expect(status.receipt?.resource).toMatchObject({ id: "arn:task/123", status: "succeeded" });
+    expect(status.receipt?.metadata).toMatchObject({
+      cluster: "cluster-a",
+      taskArn: "arn:task/123",
+      lastStatus: "STOPPED",
+      desiredStatus: "STOPPED",
+      stopCode: "EssentialContainerExited",
+      stoppedReason: "Essential container in task exited"
+    });
+    expect(sent[0]).toMatchObject({ cluster: "cluster-a", tasks: ["arn:task/123"] });
+  });
+
+  it("cancels ECS tasks with StopTask", async () => {
+    const sent: any[] = [];
+    const client = {
+      send: async (command: any) => {
+        sent.push(command.input);
+        return {
+          task: {
+            taskArn: "arn:task/123",
+            lastStatus: "STOPPED",
+            desiredStatus: "STOPPED",
+            stopCode: "UserInitiated",
+            stoppedReason: "Task stopped by user"
+          }
+        };
+      }
+    };
+    const capsule = new Capsule({
+      adapter: ecs({ cluster: "cluster-a", taskDefinition: "task-def:1", containerName: "main", client }),
+      receipts: true
+    });
+
+    const cancel = await capsule.job.cancel({ id: "arn:task/123", reason: "user requested cancellation" });
+
+    expect(cancel).toMatchObject({ id: "arn:task/123", provider: "ecs", status: "cancelled" });
+    expect(cancel.receipt?.type).toBe("job.cancel");
+    expect(cancel.receipt?.metadata).toMatchObject({
+      cluster: "cluster-a",
+      taskArn: "arn:task/123",
+      lastStatus: "STOPPED",
+      stopCode: "UserInitiated",
+      reason: "user requested cancellation"
+    });
+    expect(sent[0]).toMatchObject({ cluster: "cluster-a", task: "arn:task/123", reason: "user requested cancellation" });
   });
 
   it("creates an ECS service using an existing task definition", async () => {
