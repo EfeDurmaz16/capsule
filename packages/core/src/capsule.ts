@@ -3,6 +3,7 @@ import { supportLevel, supports, type CapabilityPath } from "./capabilities.js";
 import { evaluatePolicy, mergeTimeout } from "./policy.js";
 import { createReceipt } from "./receipts.js";
 import type { AdapterContext, CapsuleAdapter } from "./adapters.js";
+import type { ReceiptStore } from "./stores.js";
 import type {
   CapabilityMap,
   CapsulePolicy,
@@ -20,6 +21,7 @@ export interface CapsuleOptions {
   adapter: CapsuleAdapter;
   policy?: CapsulePolicy;
   receipts?: boolean;
+  receiptStore?: ReceiptStore;
 }
 
 export class Capsule {
@@ -152,13 +154,19 @@ export class Capsule {
       policy: this.options.policy ?? {},
       supportLevel: (path: string) => supportLevel(adapter.capabilities, path as CapabilityPath),
       evaluatePolicy: (input = {}) => evaluatePolicy(this.options.policy, input),
-      createReceipt: (input) =>
-        createReceipt({
+      createReceipt: (input) => {
+        const receipt = createReceipt({
           ...input,
           provider: adapter.provider,
           adapter: adapter.name,
           supportLevel: input.supportLevel ?? supportLevel(adapter.capabilities, input.capabilityPath as CapabilityPath)
-        })
+        });
+        void this.options.receiptStore?.write(receipt);
+        return receipt;
+      },
+      recordReceipt: async (receipt) => {
+        await this.options.receiptStore?.write(receipt);
+      }
     };
   }
 

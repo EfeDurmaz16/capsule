@@ -28,6 +28,7 @@ export interface AdapterContext {
   supportLevel(path: string): import("./types.js").SupportLevel;
   evaluatePolicy(input?: PolicyInput): PolicyDecision;
   createReceipt(input: Omit<CreateReceiptInput, "provider" | "adapter" | "supportLevel"> & { supportLevel?: import("./types.js").SupportLevel }): CapsuleReceipt;
+  recordReceipt(receipt: CapsuleReceipt): Promise<void>;
 }
 
 export interface SandboxAdapter {

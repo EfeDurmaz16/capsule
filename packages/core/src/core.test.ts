@@ -4,6 +4,7 @@ import { supportLevel, supports } from "./capabilities.js";
 import { UnsupportedCapabilityError, PolicyViolationError } from "./errors.js";
 import { evaluatePolicy, mergeTimeout } from "./policy.js";
 import { createReceipt } from "./receipts.js";
+import { MemoryReceiptStore } from "./stores.js";
 import type { CapsuleAdapter, CapabilityMap } from "./index.js";
 
 const capabilities: CapabilityMap = {
@@ -85,5 +86,21 @@ describe("receipts", () => {
     expect(receipt.stdoutHash).toBe("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
     expect(receipt.policy.decision).toBe("allowed");
     expect(receipt.durationMs).toBe(1000);
+  });
+
+  test("records receipts into a configured store", async () => {
+    const receiptStore = new MemoryReceiptStore();
+    const receiptAdapter: CapsuleAdapter = {
+      ...adapter,
+      sandbox: {
+        create: async (_spec, context) => {
+          context.createReceipt({ type: "sandbox.create", capabilityPath: "sandbox.create", startedAt: new Date("2026-01-01T00:00:00.000Z") });
+          return adapter.sandbox!.create({}, context);
+        }
+      }
+    };
+    const capsule = new Capsule({ adapter: receiptAdapter, receipts: true, receiptStore });
+    await capsule.sandbox.create({});
+    expect(receiptStore.receipts[0]?.type).toBe("sandbox.create");
   });
 });
