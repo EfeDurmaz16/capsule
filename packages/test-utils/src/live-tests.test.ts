@@ -33,4 +33,14 @@ describe("live test gates", () => {
       skipReason: "daytona live tests require credential env var: DAYTONA_API_KEY."
     });
   });
+
+  test("gates Modal live tests behind Modal token configuration", () => {
+    expect(providerLiveTestGate("modal", { env: { CAPSULE_LIVE_TESTS: "1", MODAL_TOKEN_ID: "id" } })).toEqual({
+      enabled: false,
+      skipReason: "modal live tests require credential env var: MODAL_TOKEN_SECRET."
+    });
+    expect(providerLiveTestGate("modal", { env: { CAPSULE_LIVE_TESTS: "1", MODAL_TOKEN_ID: "id", MODAL_TOKEN_SECRET: "secret" } })).toEqual({
+      enabled: true
+    });
+  });
 });
