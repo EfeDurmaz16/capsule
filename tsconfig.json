@@ -1,0 +1,20 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/adapter-docker" },
+    { "path": "./packages/adapter-mock" },
+    { "path": "./packages/ai" },
+    { "path": "./packages/cli" },
+    { "path": "./examples/sandbox-docker" },
+    { "path": "./examples/job-docker" },
+    { "path": "./examples/agent-code-execution" },
+    { "path": "./examples/capability-check" },
+    { "path": "./examples/policy-receipts" },
+    { "path": "./examples/deployment-model" },
+    { "path": "./examples/edge-model" },
+    { "path": "./examples/database-branch-model" },
+    { "path": "./examples/preview-environment-model" },
+    { "path": "./examples/machine-model" }
+  ]
+}
