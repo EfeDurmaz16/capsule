@@ -35,8 +35,8 @@ export function capabilities(levels: {
     },
     job: {
       run: levels.job ?? unsupported,
-      status: levels.job ?? unsupported,
-      cancel: levels.job ?? unsupported,
+      status: unsupported,
+      cancel: unsupported,
       logs: levels.job ?? unsupported,
       artifacts: levels.job ? "emulated" : unsupported,
       timeout: levels.job ?? unsupported,

@@ -21,6 +21,16 @@ const publicCapabilities: PublicCapability[] = [
     exercise: (capsule) => capsule.job.run({ image: "capsule-contract-test" })
   },
   {
+    path: "job.status",
+    isImplemented: (adapter) => typeof adapter.job?.status === "function",
+    exercise: (capsule) => capsule.job.status({ id: "capsule-contract-test" })
+  },
+  {
+    path: "job.cancel",
+    isImplemented: (adapter) => typeof adapter.job?.cancel === "function",
+    exercise: (capsule) => capsule.job.cancel({ id: "capsule-contract-test" })
+  },
+  {
     path: "service.deploy",
     isImplemented: (adapter) => typeof adapter.service?.deploy === "function",
     exercise: (capsule) => capsule.service.deploy({ name: "capsule-contract-test", image: "capsule-contract-test" })

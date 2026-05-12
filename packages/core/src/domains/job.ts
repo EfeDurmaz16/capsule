@@ -1,1 +1,1 @@
-export type { JobRun, RunJobSpec } from "../types.js";
+export type { CancelJobResult, CancelJobSpec, JobRun, JobRunStatus, JobStatusResult, JobStatusSpec, RunJobSpec } from "../types.js";

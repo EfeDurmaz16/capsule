@@ -43,7 +43,7 @@ export const lambdaCapabilities: CapabilityMap = {
   },
   job: {
     run: "native",
-    status: "native",
+    status: "unsupported",
     cancel: "unsupported",
     logs: "experimental",
     artifacts: "unsupported",
