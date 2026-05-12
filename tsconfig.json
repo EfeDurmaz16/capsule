@@ -7,6 +7,7 @@
     { "path": "./packages/adapter-cloud-run" },
     { "path": "./packages/adapter-e2b" },
     { "path": "./packages/adapter-kubernetes" },
+    { "path": "./packages/adapter-lambda" },
     { "path": "./packages/adapter-mock" },
     { "path": "./packages/adapter-neon" },
     { "path": "./packages/adapter-vercel" },
