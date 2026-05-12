@@ -63,7 +63,7 @@ export const lambdaCapabilities: CapabilityMap = {
     deploy: "unsupported",
     rollback: "unsupported",
     routes: "unsupported",
-    logs: "experimental"
+    logs: "unsupported"
   },
   database: {
     branchCreate: "unsupported",

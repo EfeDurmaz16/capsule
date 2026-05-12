@@ -58,11 +58,11 @@ export const cloudRunCapabilities: CapabilityMap = {
     connectionString: "unsupported"
   },
   preview: {
-    create: "experimental",
+    create: "unsupported",
     destroy: "unsupported",
-    status: "experimental",
+    status: "unsupported",
     logs: "unsupported",
-    urls: "experimental"
+    urls: "unsupported"
   },
   machine: {
     create: "unsupported",

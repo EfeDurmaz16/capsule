@@ -8,14 +8,14 @@ Examples:
 
 - Docker: `sandbox.exec` is native, `sandbox.filesystemPolicy` is emulated, `sandbox.networkPolicy` is experimental, `service.deploy` is unsupported.
 - E2B: `sandbox.create`, `sandbox.exec`, and sandbox file operations are native through the E2B SDK; jobs remain unsupported until Capsule models an explicit E2B-backed job flow.
-- Daytona: sandbox lifecycle, command execution, and file operations are native through the Daytona SDK; job behavior remains emulated over sandbox execution.
-- Modal: sandbox lifecycle, command execution, and file read/write are native through the Modal JS SDK; file listing and broader function/service workflows remain unsupported or experimental.
-- Cloud Run: jobs and services are native through the real Cloud Run Admin API adapter; logs, IAM/public access, and source builds are intentionally not faked.
-- Vercel: edge deployment is native through the real Vercel REST adapter; service/preview semantics remain experimental and aliases, env, logs, and rollback are not faked.
-- Cloudflare: edge is native; sandbox, job, service, database, and preview are experimental.
+- Daytona: sandbox lifecycle, command execution, and file operations are native through the Daytona SDK; job and preview behavior remain unsupported until explicit public wrappers exist.
+- Modal: sandbox lifecycle, command execution, and file read/write are native through the Modal JS SDK; file listing and broader function/service/preview workflows remain unsupported.
+- Cloud Run: jobs and services are native through the real Cloud Run Admin API adapter; logs, IAM/public access, source builds, and preview orchestration are intentionally not faked.
+- Vercel: edge deployment is native through the real Vercel REST adapter; service/preview semantics, aliases, env, logs, and rollback are not faked.
+- Cloudflare: real Worker upload is native through `edge.deploy`; sandbox, job, service, database, and preview are unsupported until implemented by the real adapter.
 - Real Cloudflare adapter: `edge.deploy` is native for Worker module upload; routes, logs, secrets, versions, and rollback are unsupported until modeled as explicit operations.
 - Neon: database branch creation and connection strings are native.
 - Lambda: existing function invoke is native for `job.run`; deployment, environment mutation, and Lambda@Edge remain future explicit capabilities.
 - ECS/Fargate: existing task definitions can be run as jobs and services natively; task definition registration, load balancers, logs, and service discovery remain future explicit capabilities.
-- Kubernetes: jobs and services are native through the real Kubernetes adapter; sandbox/machine support remains experimental because cluster/runtime configuration is leaky.
-- EC2: `machine.create` is native through the real EC2 adapter; exec/start/stop/snapshot remain unsupported until modeled explicitly.
+- Kubernetes: jobs and services are native through the real Kubernetes adapter; sandbox, preview, and machine support remain unsupported until explicit public wrappers exist.
+- EC2: `machine.create` is native through the real EC2 adapter; job/service wrappers and exec/start/stop/snapshot remain unsupported until modeled explicitly.

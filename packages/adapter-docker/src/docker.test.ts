@@ -1,10 +1,14 @@
 import { describe, expect, test } from "vitest";
-import { Capsule } from "@capsule/core";
+import { Capsule, runAdapterContract } from "@capsule/core";
 import { docker, dockerAvailable } from "./index.js";
 
 const hasDocker = await dockerAvailable();
 
 describe("docker adapter", () => {
+  test("runs the shared adapter contract suite", async () => {
+    await runAdapterContract(docker());
+  });
+
   test("declares Docker capabilities", () => {
     const capsule = new Capsule({ adapter: docker() });
     expect(capsule.supportLevel("sandbox.exec")).toBe("native");

@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { Capsule } from "@capsule/core";
+import { Capsule, runAdapterContract } from "@capsule/core";
 import { lambda, lambdaCapabilities } from "./index.js";
 
 describe("lambda adapter", () => {
+  it("runs the shared adapter contract suite", async () => {
+    await runAdapterContract(lambda());
+  });
+
   it("declares job run as native", () => {
     expect(lambdaCapabilities.job?.run).toBe("native");
     expect(lambdaCapabilities.job?.env).toBe("emulated");

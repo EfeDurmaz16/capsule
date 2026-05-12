@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { Capsule } from "@capsule/core";
+import { Capsule, runAdapterContract } from "@capsule/core";
 import { neon } from "./index.js";
 
 function response(body: unknown, status = 200): Response {
@@ -10,6 +10,10 @@ function response(body: unknown, status = 200): Response {
 }
 
 describe("neon adapter", () => {
+  test("runs the shared adapter contract suite", async () => {
+    await runAdapterContract(neon());
+  });
+
   test("creates a branch and retrieves connection URI", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {

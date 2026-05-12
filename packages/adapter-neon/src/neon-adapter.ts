@@ -45,13 +45,13 @@ export const neonCapabilities: CapabilityMap = {
     restore: "unsupported"
   },
   preview: {
-    create: "experimental",
-    destroy: "experimental",
-    status: "experimental",
+    create: "unsupported",
+    destroy: "unsupported",
+    status: "unsupported",
     logs: "unsupported",
     urls: "unsupported",
-    ttl: "emulated",
-    cleanup: "experimental"
+    ttl: "unsupported",
+    cleanup: "unsupported"
   }
 };
 

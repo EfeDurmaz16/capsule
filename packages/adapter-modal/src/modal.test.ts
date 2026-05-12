@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, MemoryReceiptStore } from "@capsule/core";
+import { AdapterExecutionError, Capsule, MemoryReceiptStore, runAdapterContract } from "@capsule/core";
 import { modal, modalCapabilities } from "./index.js";
 
 describe("modal adapter", () => {
+  it("runs the shared adapter contract suite", async () => {
+    await runAdapterContract(modal());
+  });
+
   it("declares sandbox support with honest file list gap", () => {
     expect(modalCapabilities.sandbox?.create).toBe("native");
     expect(modalCapabilities.sandbox?.fileList).toBe("unsupported");

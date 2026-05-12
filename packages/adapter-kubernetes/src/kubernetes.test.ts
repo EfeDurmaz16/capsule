@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { Capsule } from "@capsule/core";
+import { Capsule, runAdapterContract } from "@capsule/core";
 import { kubernetes, kubernetesCapabilities } from "./index.js";
 
 describe("kubernetes adapter", () => {
+  it("runs the shared adapter contract suite", async () => {
+    await runAdapterContract(kubernetes());
+  });
+
   it("declares job and service capabilities", () => {
     expect(kubernetesCapabilities.job?.run).toBe("native");
     expect(kubernetesCapabilities.service?.deploy).toBe("native");

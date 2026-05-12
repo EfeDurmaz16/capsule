@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { Capsule } from "@capsule/core";
+import { Capsule, runAdapterContract } from "@capsule/core";
 import { ecs, ecsCapabilities } from "./index.js";
 
 describe("ecs adapter", () => {
+  it("runs the shared adapter contract suite", async () => {
+    await runAdapterContract(ecs({ cluster: "contract", taskDefinition: "contract:1", containerName: "main" }));
+  });
+
   it("declares job and service capabilities", () => {
     expect(ecsCapabilities.job?.run).toBe("native");
     expect(ecsCapabilities.service?.deploy).toBe("native");
