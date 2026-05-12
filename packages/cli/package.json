@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@capsule/adapter-docker": "workspace:*",
+    "@capsule/adapter-e2b": "workspace:*",
     "@capsule/adapter-neon": "workspace:*",
     "@capsule/core": "workspace:*",
     "@capsule/store-jsonl": "workspace:*"

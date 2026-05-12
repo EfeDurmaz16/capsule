@@ -260,6 +260,9 @@ importers:
       '@capsule/adapter-docker':
         specifier: workspace:*
         version: link:../adapter-docker
+      '@capsule/adapter-e2b':
+        specifier: workspace:*
+        version: link:../adapter-e2b
       '@capsule/adapter-neon':
         specifier: workspace:*
         version: link:../adapter-neon

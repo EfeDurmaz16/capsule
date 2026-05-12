@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Capsule } from "@capsule/core";
 import { docker, dockerAvailable } from "@capsule/adapter-docker";
+import { e2b } from "@capsule/adapter-e2b";
 import { neon } from "@capsule/adapter-neon";
 import { jsonlReceiptStore } from "@capsule/store-jsonl";
 
@@ -89,8 +90,10 @@ Commands:
   capsule doctor
   capsule capabilities
   capsule capabilities --adapter neon
+  capsule capabilities --adapter e2b
   capsule run --image node:22 -- node -e "console.log('hello')"
   capsule sandbox --image node:22
+  capsule sandbox --adapter e2b -- node -e "console.log('hello from E2B')"
   capsule neon branch-create --project <project_id> --name pr-42 --database neondb --role neondb_owner --receipt-file .capsule/receipts.jsonl
   capsule neon branch-delete --project <project_id> --branch-id br_xxx --hard-delete
 `);
@@ -104,6 +107,9 @@ function createCapsule(parsed: ParsedArgs): Capsule {
       receipts: true,
       receiptStore
     });
+  }
+  if (parsed.adapter === "e2b") {
+    return new Capsule({ adapter: e2b(), receipts: true, receiptStore });
   }
   return new Capsule({ adapter: docker(), receipts: true, receiptStore });
 }

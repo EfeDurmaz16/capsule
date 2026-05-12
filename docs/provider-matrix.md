@@ -10,7 +10,7 @@ Status legend:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Docker | real | native | native | unsupported | unsupported | unsupported | unsupported | unsupported | Local Docker is useful but not safe for hostile code by default. |
 | Neon | real | unsupported | unsupported | unsupported | unsupported | native | experimental | unsupported | Database branch create/delete and connection URI retrieval are implemented. |
-| E2B | mock/planned | native | emulated | unsupported | unsupported | unsupported | unsupported | unsupported | Sandbox-first provider. |
+| E2B | real | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Cloud sandbox create, exec, file read/write/list, and destroy are implemented through the E2B SDK. |
 | Daytona | mock/planned | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported | Workspace-oriented sandbox model. |
 | Modal | mock/planned | native | native | experimental | unsupported | unsupported | experimental | unsupported | Strong function and sandbox fit. |
 | Cloudflare Sandbox | mock/planned | experimental | experimental | experimental | native | experimental | experimental | unsupported | Bindings and runtime semantics matter. |
