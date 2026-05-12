@@ -9,3 +9,5 @@ Policy concerns include network access, filesystem boundaries, secret injection,
 Docker local is useful for development and CI, but it is not safe for hostile untrusted code unless configured carefully outside Capsule. Capsule will not claim OS-level isolation when it is only invoking Docker CLI.
 
 The E2B adapter uses the official E2B SDK for cloud sandbox creation, command execution, file read/write/list, and sandbox destruction. Network `none` maps to E2B's internet-access control for the sandbox; host allowlists and OS-level filesystem policy remain provider-specific or adapter-boundary concerns.
+
+The Daytona adapter uses the official Daytona TypeScript SDK for cloud sandbox creation, command execution, file read/write/list, and deletion. Capsule maps `network.none` to Daytona network blocking and `allowlist` to Daytona's network allow list request, while keeping filesystem policy as adapter-boundary enforcement.

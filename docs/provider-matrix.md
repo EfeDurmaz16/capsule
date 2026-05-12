@@ -11,6 +11,7 @@ Status legend:
 | Docker | real | native | native | unsupported | unsupported | unsupported | unsupported | unsupported | Local Docker is useful but not safe for hostile code by default. |
 | Neon | real | unsupported | unsupported | unsupported | unsupported | native | experimental | unsupported | Database branch create/delete and connection URI retrieval are implemented. |
 | E2B | real | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Cloud sandbox create, exec, file read/write/list, and destroy are implemented through the E2B SDK. |
+| Daytona | real | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported | Sandbox create, exec, file read/write/list, and delete are implemented through the Daytona SDK. |
 | Cloudflare Workers | real | unsupported | unsupported | unsupported | native | unsupported | unsupported | unsupported | Worker module upload is implemented; routes, secrets, logs, versions, and rollback remain explicit future capabilities. |
 | Cloud Run | real | unsupported | native | native | unsupported | unsupported | experimental | unsupported | Cloud Run Jobs and Services are implemented via Admin API v2; logs/IAM/public access are not faked. |
 | Vercel | real | unsupported | unsupported | experimental | native | unsupported | experimental | unsupported | Inline deployment creation is implemented; large file upload/SHA flow, aliases, env, logs, and rollback remain explicit future capabilities. |
@@ -18,7 +19,7 @@ Status legend:
 | Lambda | real | unsupported | native | unsupported | unsupported | unsupported | unsupported | unsupported | Existing Lambda function invocation is implemented as `job.run`; function deployment/env mutation is not faked. |
 | ECS/Fargate | real | unsupported | native | native | unsupported | unsupported | experimental | unsupported | RunTask and CreateService are implemented for existing task definitions; task-definition registration and load balancers are future work. |
 | EC2 | real | unsupported | emulated | emulated | unsupported | unsupported | unsupported | native | `machine.create` is implemented through RunInstances; exec/start/stop/snapshot remain explicit future work. |
-| Daytona | mock/planned | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported | Workspace-oriented sandbox model. |
+| Daytona | real | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported | Workspace-oriented sandbox model implemented by `@capsule/adapter-daytona`. |
 | Modal | mock/planned | native | native | experimental | unsupported | unsupported | experimental | unsupported | Strong function and sandbox fit. |
 | Cloudflare Sandbox | mock/planned | experimental | experimental | experimental | native | experimental | experimental | unsupported | Bindings and runtime semantics matter. |
 | Microsandbox | planned | experimental | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Sandbox-focused future adapter target. |

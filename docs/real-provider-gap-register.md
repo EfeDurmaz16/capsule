@@ -7,7 +7,6 @@ Capsule now has real adapters for Docker, E2B, Neon, Cloudflare Workers, Cloud R
 | Provider | Target package | First real primitive | Required provider config | Notes |
 | --- | --- | --- | --- | --- |
 | Modal | `@capsule/adapter-modal` | `sandbox.create`, `job.run` | Modal token/profile or SDK config | Prefer official SDK if TypeScript support covers sandbox/function lifecycle. |
-| Daytona | `@capsule/adapter-daytona` | `sandbox.create`, workspace exec/files | Daytona API key, organization/project/workspace defaults | Workspace semantics are close to sandbox but long-lived enough to document honestly. |
 | Fly Machines | `@capsule/adapter-fly` | `machine.create`, `job.run` | Fly token, org/app/region | Machines overlap with service/job; capability map must distinguish one-shot machine runs. |
 | Azure Container Apps | `@capsule/adapter-azure-container-apps` | `job.run`, `service.deploy` | Azure tenant/subscription/resource group/environment | Use Azure identity/client libraries only where auth complexity justifies it. |
 

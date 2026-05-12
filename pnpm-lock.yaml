@@ -385,6 +385,9 @@ importers:
       '@capsule/adapter-cloudflare':
         specifier: workspace:*
         version: link:../adapter-cloudflare
+      '@capsule/adapter-daytona':
+        specifier: workspace:*
+        version: link:../adapter-daytona
       '@capsule/adapter-docker':
         specifier: workspace:*
         version: link:../adapter-docker
