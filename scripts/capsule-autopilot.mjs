@@ -137,9 +137,9 @@ function runIssue(issue, state) {
     "exec",
     "--cd",
     workspace,
-    "--sandbox",
+    "-s",
     "danger-full-access",
-    "--ask-for-approval",
+    "-a",
     "never",
     promptFor(issue)
   ];
