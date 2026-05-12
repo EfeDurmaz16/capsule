@@ -27,6 +27,7 @@ For a macOS LaunchAgent run that survives the shell closing:
 ```bash
 mkdir -p ~/Library/LaunchAgents .symphony/logs
 cp scripts/com.capsule.autopilot.plist.example ~/Library/LaunchAgents/com.capsule.autopilot.plist
+plutil -replace ProgramArguments.2 -string "$(command -v node)" ~/Library/LaunchAgents/com.capsule.autopilot.plist
 launchctl bootout "gui/$(id -u)" ~/Library/LaunchAgents/com.capsule.autopilot.plist 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.capsule.autopilot.plist
 launchctl kickstart -k "gui/$(id -u)/com.capsule.autopilot"

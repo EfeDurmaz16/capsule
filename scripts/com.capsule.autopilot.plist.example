@@ -10,7 +10,7 @@
   <array>
     <string>/usr/bin/caffeinate</string>
     <string>-dimsu</string>
-    <string>/opt/homebrew/bin/node</string>
+    <string>/Users/efebarandurmaz/.nvm/versions/node/v24.10.0/bin/node</string>
     <string>scripts/capsule-autopilot.mjs</string>
     <string>--max-parallel</string>
     <string>3</string>
@@ -18,7 +18,7 @@
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
-    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <string>/Users/efebarandurmaz/.nvm/versions/node/v24.10.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     <key>GH_REPO</key>
     <string>EfeDurmaz16/capsule</string>
   </dict>
