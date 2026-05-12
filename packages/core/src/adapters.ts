@@ -2,6 +2,8 @@ import type {
   CapabilityMap,
   CapsulePolicy,
   CapsuleReceipt,
+  CancelJobResult,
+  CancelJobSpec,
   CreateDatabaseBranchSpec,
   DeletedDatabaseBranch,
   DeleteDatabaseBranchSpec,
@@ -13,6 +15,8 @@ import type {
   DeployServiceSpec,
   EdgeDeployment,
   JobRun,
+  JobStatusResult,
+  JobStatusSpec,
   Machine,
   PreviewEnvironment,
   RunJobSpec,
@@ -37,6 +41,8 @@ export interface SandboxAdapter {
 
 export interface JobAdapter {
   run(spec: RunJobSpec, context: AdapterContext): Promise<JobRun>;
+  status?(spec: JobStatusSpec, context: AdapterContext): Promise<JobStatusResult>;
+  cancel?(spec: CancelJobSpec, context: AdapterContext): Promise<CancelJobResult>;
 }
 
 export interface ServiceAdapter {

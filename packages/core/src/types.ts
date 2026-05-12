@@ -259,12 +259,40 @@ export interface RunJobSpec {
   labels?: Record<string, string>;
 }
 
+export type JobRunStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
+
 export interface JobRun {
   id: string;
   provider: string;
-  status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  status: JobRunStatus;
   result?: ExecResult;
   receipt?: CapsuleReceipt;
+}
+
+export interface JobStatusSpec {
+  id: string;
+}
+
+export interface JobStatusResult {
+  id: string;
+  provider: string;
+  status: JobRunStatus;
+  result?: ExecResult;
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
+}
+
+export interface CancelJobSpec {
+  id: string;
+  reason?: string;
+}
+
+export interface CancelJobResult {
+  id: string;
+  provider: string;
+  status: "cancelled" | "cancelling";
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
 }
 
 export interface DeployServiceSpec {

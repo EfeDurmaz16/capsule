@@ -54,6 +54,8 @@ describe("capabilities", () => {
   test("unsupported capability throws", async () => {
     const capsule = new Capsule({ adapter });
     await expect(capsule.job.run({ image: "node:22" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.job.status({ id: "job_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.job.cancel({ id: "job_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.database.branch.delete({ project: "app", branchId: "br_mock" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
   });
 });

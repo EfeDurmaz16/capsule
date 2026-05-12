@@ -7,6 +7,7 @@ import type { ReceiptStore } from "./stores.js";
 import type {
   CapabilityMap,
   CapsulePolicy,
+  CancelJobSpec,
   CreateDatabaseBranchSpec,
   DeleteDatabaseBranchSpec,
   CreateMachineSpec,
@@ -14,6 +15,7 @@ import type {
   CreateSandboxSpec,
   DeployEdgeSpec,
   DeployServiceSpec,
+  JobStatusSpec,
   RunJobSpec
 } from "./types.js";
 
@@ -56,6 +58,20 @@ export class Capsule {
           throw new UnsupportedCapabilityError("job.run");
         }
         return this.options.adapter.job.run({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, this.context());
+      },
+      status: async (spec: JobStatusSpec) => {
+        this.require("job.status");
+        if (!this.options.adapter.job?.status) {
+          throw new UnsupportedCapabilityError("job.status");
+        }
+        return this.options.adapter.job.status(spec, this.context());
+      },
+      cancel: async (spec: CancelJobSpec) => {
+        this.require("job.cancel");
+        if (!this.options.adapter.job?.cancel) {
+          throw new UnsupportedCapabilityError("job.cancel");
+        }
+        return this.options.adapter.job.cancel(spec, this.context());
       }
     };
 

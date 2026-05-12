@@ -61,7 +61,7 @@ export const kubernetesCapabilities: CapabilityMap = {
   },
   job: {
     run: "native",
-    status: "experimental",
+    status: "unsupported",
     cancel: "unsupported",
     logs: "unsupported",
     artifacts: "unsupported",
