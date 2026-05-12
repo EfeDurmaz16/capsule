@@ -12,12 +12,13 @@ Status legend:
 | Neon | real | unsupported | unsupported | unsupported | unsupported | native | experimental | unsupported | Database branch create/delete and connection URI retrieval are implemented. |
 | E2B | real | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Cloud sandbox create, exec, file read/write/list, and destroy are implemented through the E2B SDK. |
 | Cloudflare Workers | real | unsupported | unsupported | unsupported | native | unsupported | unsupported | unsupported | Worker module upload is implemented; routes, secrets, logs, versions, and rollback remain explicit future capabilities. |
+| Cloud Run | real | unsupported | native | native | unsupported | unsupported | experimental | unsupported | Cloud Run Jobs and Services are implemented via Admin API v2; logs/IAM/public access are not faked. |
 | Daytona | mock/planned | native | emulated | unsupported | unsupported | unsupported | experimental | unsupported | Workspace-oriented sandbox model. |
 | Modal | mock/planned | native | native | experimental | unsupported | unsupported | experimental | unsupported | Strong function and sandbox fit. |
 | Cloudflare Sandbox | mock/planned | experimental | experimental | experimental | native | experimental | experimental | unsupported | Bindings and runtime semantics matter. |
 | Microsandbox | planned | experimental | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Sandbox-focused future adapter target. |
-| Cloud Run Jobs | mock/planned | unsupported | native | unsupported | unsupported | unsupported | experimental | unsupported | Job primitive. |
-| Cloud Run Services | mock/planned | unsupported | unsupported | native | unsupported | unsupported | experimental | unsupported | Service primitive. |
+| Cloud Run Jobs | real | unsupported | native | unsupported | unsupported | unsupported | experimental | unsupported | Job primitive implemented by `@capsule/adapter-cloud-run`. |
+| Cloud Run Services | real | unsupported | unsupported | native | unsupported | unsupported | experimental | unsupported | Service primitive implemented by `@capsule/adapter-cloud-run`. |
 | ECS/Fargate | mock/planned | unsupported | native | native | unsupported | unsupported | experimental | unsupported | Tasks and services map naturally. |
 | Kubernetes Jobs | mock/planned | experimental | native | unsupported | unsupported | experimental | experimental | experimental | Cluster policy varies. |
 | Kubernetes Deployments | mock/planned | experimental | unsupported | native | unsupported | experimental | experimental | experimental | Service deployment fit. |

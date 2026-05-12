@@ -13,3 +13,5 @@ Database branches and managed resources cover Neon, Cloudflare D1/KV/R2, Supabas
 Machines cover EC2, Compute Engine, Azure VM, bare metal, Firecracker, Nomad, and Fly Machines lower-level control. EC2 is lower-level because networking, images, volumes, security groups, SSH, and lifecycle semantics leak through.
 
 Cloud Run, ECS, and Kubernetes overlap naturally for jobs and services. Vercel and Cloudflare need edge-specific primitives because routing, deployment release models, bindings, and platform runtimes are first-class.
+
+The real Cloud Run adapter uses the Cloud Run Admin API v2 for Jobs and Services. It creates and runs jobs, creates services from container images, waits for long-running operations when configured, and records receipts. It does not fake stdout/stderr from Cloud Logging, mutate IAM to make services public, or deploy from source through Cloud Build.

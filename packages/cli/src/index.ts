@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Capsule } from "@capsule/core";
 import { cloudflare } from "@capsule/adapter-cloudflare";
+import { cloudRun } from "@capsule/adapter-cloud-run";
 import { docker, dockerAvailable } from "@capsule/adapter-docker";
 import { e2b } from "@capsule/adapter-e2b";
 import { neon } from "@capsule/adapter-neon";
@@ -20,6 +21,9 @@ interface ParsedArgs {
   entrypoint?: string;
   compatibilityDate?: string;
   workersDevSubdomain?: string;
+  projectId?: string;
+  location?: string;
+  port?: number;
   hardDelete?: boolean;
   rest: string[];
 }
@@ -89,6 +93,21 @@ function parse(argv: string[]): ParsedArgs {
       index += 1;
       continue;
     }
+    if (arg === "--project-id") {
+      parsed.projectId = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--location") {
+      parsed.location = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--port") {
+      parsed.port = Number(args[index + 1]);
+      index += 1;
+      continue;
+    }
     if (arg === "--hard-delete") {
       parsed.hardDelete = true;
       continue;
@@ -111,9 +130,12 @@ Commands:
   capsule capabilities --adapter neon
   capsule capabilities --adapter e2b
   capsule capabilities --adapter cloudflare
+  capsule capabilities --adapter cloud-run --project-id <gcp-project> --location us-central1
   capsule run --image node:22 -- node -e "console.log('hello')"
   capsule sandbox --image node:22
   capsule sandbox --adapter e2b -- node -e "console.log('hello from E2B')"
+  capsule job --adapter cloud-run --project-id <gcp-project> --location us-central1 --name my-job --image us-docker.pkg.dev/project/repo/job:tag
+  capsule service --adapter cloud-run --project-id <gcp-project> --location us-central1 --name api --image us-docker.pkg.dev/project/repo/api:tag --port 8080
   capsule edge --adapter cloudflare --name my-worker --entrypoint worker.js ./dist/worker.js
   capsule neon branch-create --project <project_id> --name pr-42 --database neondb --role neondb_owner --receipt-file .capsule/receipts.jsonl
   capsule neon branch-delete --project <project_id> --branch-id br_xxx --hard-delete
@@ -135,6 +157,13 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   if (parsed.adapter === "cloudflare") {
     return new Capsule({
       adapter: cloudflare({ compatibilityDate: parsed.compatibilityDate, workersDevSubdomain: parsed.workersDevSubdomain }),
+      receipts: true,
+      receiptStore
+    });
+  }
+  if (parsed.adapter === "cloud-run") {
+    return new Capsule({
+      adapter: cloudRun({ projectId: parsed.projectId, location: parsed.location }),
       receipts: true,
       receiptStore
     });
@@ -196,6 +225,39 @@ async function main(argv: string[]): Promise<void> {
         name: parsed.name,
         runtime: "workers",
         source: { path: sourcePath, entrypoint: parsed.entrypoint }
+      });
+      console.log(JSON.stringify(deployment, null, 2));
+      return;
+    }
+    case "job": {
+      if (parsed.adapter !== "cloud-run") {
+        throw new Error("job currently requires --adapter cloud-run");
+      }
+      if (!parsed.image) {
+        throw new Error("Missing --image");
+      }
+      const run = await capsule.job.run({
+        name: parsed.name,
+        image: parsed.image,
+        command: parsed.rest.length > 0 ? parsed.rest : undefined
+      });
+      console.log(JSON.stringify(run, null, 2));
+      return;
+    }
+    case "service": {
+      if (parsed.adapter !== "cloud-run") {
+        throw new Error("service currently requires --adapter cloud-run");
+      }
+      if (!parsed.name) {
+        throw new Error("Missing --name");
+      }
+      if (!parsed.image) {
+        throw new Error("Missing --image");
+      }
+      const deployment = await capsule.service.deploy({
+        name: parsed.name,
+        image: parsed.image,
+        ports: parsed.port ? [{ port: parsed.port, protocol: "http" }] : undefined
       });
       console.log(JSON.stringify(deployment, null, 2));
       return;

@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@capsule/adapter-cloudflare": "workspace:*",
+    "@capsule/adapter-cloud-run": "workspace:*",
     "@capsule/adapter-docker": "workspace:*",
     "@capsule/adapter-e2b": "workspace:*",
     "@capsule/adapter-neon": "workspace:*",

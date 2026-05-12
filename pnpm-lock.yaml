@@ -286,6 +286,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@capsule/adapter-cloud-run':
+        specifier: workspace:*
+        version: link:../adapter-cloud-run
       '@capsule/adapter-cloudflare':
         specifier: workspace:*
         version: link:../adapter-cloudflare
