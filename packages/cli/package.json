@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --banner.js \"#!/usr/bin/env node\"",
+    "build": "tsup src/index.ts --format esm && tsc -p tsconfig.json --emitDeclarationOnly",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
