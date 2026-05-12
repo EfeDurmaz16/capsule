@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { Capsule, runAdapterContract } from "@capsule/core";
 import { liveTest, liveTestGate, type LiveTestGate } from "@capsule/test-utils";
 import { docker, dockerAvailable, runDocker } from "./index.js";
+import { dockerSandboxCreateArgs } from "./docker-adapter.js";
 
 const hasDocker = await dockerAvailable();
 const dockerLiveGate: LiveTestGate = hasDocker ? liveTestGate({ provider: "docker" }) : { enabled: false, skipReason: "Docker is not available." };
@@ -27,8 +28,39 @@ describe("docker adapter", () => {
   test("declares Docker capabilities", () => {
     const capsule = new Capsule({ adapter: docker() });
     expect(capsule.supportLevel("sandbox.exec")).toBe("native");
+    expect(capsule.supportLevel("sandbox.exposePort")).toBe("native");
     expect(capsule.supportLevel("job.run")).toBe("native");
     expect(capsule.supports("service.deploy")).toBe(false);
+  });
+
+  test("maps sandbox exposed ports to local-only Docker publish flags", () => {
+    const args = dockerSandboxCreateArgs({
+      name: "capsule-port-test",
+      workdir: "/workspace",
+      image: "node:22",
+      exposedPorts: [
+        { containerPort: 3000, hostPort: 13000 },
+        { containerPort: 9229, protocol: "tcp" },
+        { containerPort: 5353, hostPort: 15353, protocol: "udp", hostIp: "127.0.0.2" }
+      ]
+    });
+
+    expect(args).toContain("--publish");
+    expect(args).toContain("127.0.0.1:13000:3000/tcp");
+    expect(args).toContain("127.0.0.1::9229/tcp");
+    expect(args).toContain("127.0.0.2:15353:5353/udp");
+  });
+
+  test("keeps sandbox port exposure compatible with network none", () => {
+    const args = dockerSandboxCreateArgs({
+      name: "capsule-port-network-test",
+      workdir: "/workspace",
+      image: "node:22",
+      networkNone: true,
+      exposedPorts: [{ containerPort: 8080, hostPort: 18080 }]
+    });
+
+    expect(args).toEqual(expect.arrayContaining(["--network", "none", "--publish", "127.0.0.1:18080:8080/tcp"]));
   });
 
   runLiveDocker("runs Docker job when live tests and Docker are available", async () => {

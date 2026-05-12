@@ -8,6 +8,8 @@ Policy concerns include network access, filesystem boundaries, secret injection,
 
 Docker local is useful for development and CI, but it is not safe for hostile untrusted code unless configured carefully outside Capsule. Capsule will not claim OS-level isolation when it is only invoking Docker CLI.
 
+Docker sandbox creation supports requested `exposedPorts`. Capsule maps each request to Docker `--publish` flags and binds to `127.0.0.1` by default, so published ports are local-only unless the caller explicitly supplies another `hostIp`. This does not turn Docker into a remote service provider and does not bypass `network.none`; it only describes host-loopback port publishing for local development and CI.
+
 The E2B adapter uses the official E2B SDK for cloud sandbox creation, command execution, file read/write/list, and sandbox destruction. Network `none` maps to E2B's internet-access control for the sandbox; host allowlists and OS-level filesystem policy remain provider-specific or adapter-boundary concerns.
 
 The E2B live integration test is opt-in. It is skipped unless both `CAPSULE_LIVE_TESTS=1` and `E2B_API_KEY` are set. The test creates a real E2B sandbox, executes a command, writes/reads/lists a file, and destroys the sandbox in cleanup. Do not set `CAPSULE_LIVE_TESTS=1` in routine local or CI runs unless live provider operations are intended.
