@@ -45,6 +45,8 @@ jobs:
           pnpm test
           pnpm build
           pnpm release:audit
+          pnpm docs:api
+          git diff --exit-code docs/api-reference.md
 
       - name: Create release PR or publish
         uses: changesets/action@v1
