@@ -10,7 +10,10 @@ import type {
   DeleteDatabaseBranchSpec,
   DeletedService,
   CreateMachineSpec,
+  CleanupPreviewSpec,
   DestroyMachineSpec,
+  DestroyPreviewResult,
+  DestroyPreviewSpec,
   CreatePreviewSpec,
   CreateSandboxSpec,
   DatabaseBranch,
@@ -35,6 +38,13 @@ import type {
   MachineStatusSpec,
   MigrateDatabaseSpec,
   PreviewEnvironment,
+  PreviewCleanupResult,
+  PreviewLogsResult,
+  PreviewLogsSpec,
+  PreviewStatusResult,
+  PreviewStatusSpec,
+  PreviewUrlsResult,
+  PreviewUrlsSpec,
   ResetDatabaseBranch,
   ResetDatabaseBranchSpec,
   RunJobSpec,
@@ -107,6 +117,11 @@ export interface DatabaseAdapter {
 
 export interface PreviewAdapter {
   create(spec: CreatePreviewSpec, context: AdapterContext): Promise<PreviewEnvironment>;
+  destroy?(spec: DestroyPreviewSpec, context: AdapterContext): Promise<DestroyPreviewResult>;
+  status?(spec: PreviewStatusSpec, context: AdapterContext): Promise<PreviewStatusResult>;
+  logs?(spec: PreviewLogsSpec, context: AdapterContext): Promise<PreviewLogsResult>;
+  urls?(spec: PreviewUrlsSpec, context: AdapterContext): Promise<PreviewUrlsResult>;
+  cleanup?(spec: CleanupPreviewSpec, context: AdapterContext): Promise<PreviewCleanupResult>;
 }
 
 export interface MachineAdapter {
