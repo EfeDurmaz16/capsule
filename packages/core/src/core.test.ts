@@ -1,7 +1,15 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { Capsule } from "./capsule.js";
-import { supportLevel, supports } from "./capabilities.js";
+import {
+  capabilityDiff,
+  evaluateCapabilityRequirements,
+  missingCapabilityRequirements,
+  nativeOnlySupportLevels,
+  supportLevel,
+  supports,
+  uniqueCapabilityPaths
+} from "./capabilities.js";
 import { UnsupportedCapabilityError, PolicyViolationError } from "./errors.js";
 import { evaluatePolicy, mergeTimeout, redactLogEntries, redactSecrets } from "./policy.js";
 import { edgeWorkerPreset, httpServicePreset, nodeJobPreset, nodeSandboxPreset, previewDatabaseBranchPreset, previewEnvironmentPreset } from "./presets.js";
@@ -79,6 +87,74 @@ describe("capabilities", () => {
     expect(supportLevel(capabilities, "service.deploy")).toBe("unsupported");
     expect(supports(capabilities, "sandbox.exec")).toBe(true);
     expect(supports(capabilities, "job.run")).toBe(false);
+  });
+
+  test("evaluates required and optional capability sets", () => {
+    expect(
+      evaluateCapabilityRequirements(capabilities, [
+        "sandbox.exec",
+        { path: "sandbox.snapshot", optional: true, reason: "Used only when checkpointing is enabled" },
+        { path: "sandbox.fileWrite", levels: nativeOnlySupportLevels }
+      ])
+    ).toEqual([
+      {
+        path: "sandbox.exec",
+        actualLevel: "native",
+        acceptedLevels: ["native", "emulated", "experimental"],
+        supported: true,
+        optional: false,
+        reason: undefined
+      },
+      {
+        path: "sandbox.snapshot",
+        actualLevel: "unsupported",
+        acceptedLevels: ["native", "emulated", "experimental"],
+        supported: false,
+        optional: true,
+        reason: "Used only when checkpointing is enabled"
+      },
+      {
+        path: "sandbox.fileWrite",
+        actualLevel: "native",
+        acceptedLevels: ["native"],
+        supported: true,
+        optional: false,
+        reason: undefined
+      }
+    ]);
+  });
+
+  test("returns only missing non-optional requirements", () => {
+    expect(missingCapabilityRequirements(capabilities, ["sandbox.exec", "service.deploy", { path: "sandbox.snapshot", optional: true }])).toEqual([
+      {
+        path: "service.deploy",
+        actualLevel: "unsupported",
+        acceptedLevels: ["native", "emulated", "experimental"],
+        supported: false,
+        optional: false,
+        reason: undefined
+      }
+    ]);
+  });
+
+  test("diffs provider capability maps", () => {
+    const other: CapabilityMap = {
+      ...capabilities,
+      sandbox: {
+        ...capabilities.sandbox!,
+        snapshot: "experimental"
+      },
+      job: {
+        ...capabilities.job!,
+        run: "native"
+      }
+    };
+
+    expect(uniqueCapabilityPaths(capabilities, other)).toContain("sandbox.snapshot");
+    expect(capabilityDiff(capabilities, other, ["sandbox.exec", "sandbox.snapshot", "job.run"])).toEqual([
+      { path: "sandbox.snapshot", left: "unsupported", right: "experimental" },
+      { path: "job.run", left: "unsupported", right: "native" }
+    ]);
   });
 
   test("unsupported capability throws", async () => {

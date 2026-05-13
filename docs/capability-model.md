@@ -4,6 +4,28 @@ Capsule capability paths use dot notation, such as `sandbox.exec`, `service.depl
 
 `supportLevel(path)` returns the declared support level. `supports(path)` returns true for `native`, `emulated`, and `experimental`, and false for `unsupported`.
 
+## Requirement Sets
+
+Callers can evaluate a group of required and optional capability paths before choosing an adapter:
+
+```ts
+import { evaluateCapabilityRequirements, missingCapabilityRequirements } from "@capsule/core";
+
+const requirements = [
+  "sandbox.create",
+  "sandbox.exec",
+  "sandbox.fileWrite",
+  { path: "sandbox.snapshot", optional: true, reason: "Used only for checkpointing" }
+];
+
+const results = evaluateCapabilityRequirements(capsule.capabilities(), requirements);
+const missing = missingCapabilityRequirements(capsule.capabilities(), requirements);
+```
+
+By default, `native`, `emulated`, and `experimental` satisfy a requirement. Use `levels: ["native"]` when a workflow must reject emulation or experimental provider behavior.
+
+`capabilityDiff(left, right)` compares two provider maps and returns only paths where support levels differ. This is useful for `capsule compare providers`, preset validation, and generated provider matrices.
+
 Examples:
 
 - Docker: `sandbox.exec` and `sandbox.exposePort` are native, `sandbox.filesystemPolicy` is emulated, `sandbox.networkPolicy` is experimental, `sandbox.snapshot` and `sandbox.restore` are unsupported, and `service.deploy` is unsupported. Docker sandbox port exposure is local-only by default: requested ports are published to `127.0.0.1` unless a caller explicitly supplies another `hostIp`.
