@@ -112,14 +112,23 @@ function eligibleIssues() {
   ], { silent: true });
   return JSON.parse(output)
     .filter((issue) => !issue.labels.some((label) => excludedLabels.has(label.name)))
-    .filter((issue) => !hasOpenPullRequest(issue))
+    .filter((issue) => linkedOpenPullRequests(issue).length === 0)
     .sort((a, b) => issueSortKey(a) - issueSortKey(b));
 }
 
-function hasOpenPullRequest(issue) {
+function linkedOpenPullRequests(issue) {
   const branch = `autopilot/issue-${issue.number}`;
-  const output = gh(["pr", "list", "--repo", repo, "--head", branch, "--state", "open", "--json", "number"], { silent: true });
-  return JSON.parse(output).length > 0;
+  const byBranch = JSON.parse(gh(["pr", "list", "--repo", repo, "--head", branch, "--state", "open", "--json", "number,url,title,headRefName"], { silent: true }));
+  const byBody = JSON.parse(
+    gh(["pr", "list", "--repo", repo, "--state", "open", "--search", `#${issue.number} in:body`, "--json", "number,url,title,headRefName"], {
+      silent: true
+    })
+  );
+  const prs = new Map();
+  for (const pr of [...byBranch, ...byBody]) {
+    prs.set(pr.number, pr);
+  }
+  return [...prs.values()];
 }
 
 function issueSortKey(issue) {
@@ -166,6 +175,10 @@ function ensureBranch(issue) {
   return { branch, workspace };
 }
 
+function commentIssue(issueNumber, body) {
+  gh(["issue", "comment", String(issueNumber), "--repo", repo, "--body", body]);
+}
+
 function runIssue(issue, state) {
   if (dryRun) {
     console.log(`[dry-run] would run issue #${issue.number}: ${issue.title}`);
@@ -207,12 +220,16 @@ function runIssue(issue, state) {
     child.on("exit", (code) => {
       const next = readState();
       delete next.running[issue.number];
+      const openPrs = linkedOpenPullRequests(issue);
+      const prLine = openPrs.length > 0 ? `\n\nOpen PR: ${openPrs.map((pr) => pr.url).join(", ")}` : "\n\nOpen PR: none detected.";
       if (code === 0) {
         next.completed[issue.number] = { branch, workspace, logPath, finishedAt: new Date().toISOString() };
         gh(["issue", "edit", String(issue.number), "--repo", repo, "--remove-label", "autopilot-running"]);
+        commentIssue(issue.number, `Autopilot completed issue #${issue.number} with exit code 0.${prLine}\n\nLog: ${logPath}`);
       } else {
         next.failed[issue.number] = { branch, workspace, logPath, code, finishedAt: new Date().toISOString() };
         gh(["issue", "edit", String(issue.number), "--repo", repo, "--remove-label", "autopilot-running", "--add-label", "autopilot-failed"]);
+        commentIssue(issue.number, `Autopilot failed issue #${issue.number} with exit code ${code}.${prLine}\n\nLog: ${logPath}`);
       }
       writeState(next);
       resolve();
