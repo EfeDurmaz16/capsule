@@ -59,6 +59,8 @@ launchctl bootout "gui/$(id -u)" ~/Library/LaunchAgents/com.capsule.autopilot.pl
 - The runner does not close issues automatically.
 - The runner does not merge PRs automatically.
 - The runner skips issues that already have an open `autopilot/issue-N` pull request.
+- The runner also skips issues with open PRs whose body links the issue, such as `Closes #N`.
+- On child-agent completion or failure, the runner comments on the issue with the detected PR URL and local log path.
 - The runner skips issues labeled `autopilot-running`, `autopilot-failed`, `blocked`, or `needs-design`.
 - `--dry-run` only prints eligible work; it does not create worktrees, labels, or lock state.
 - Stale locks are recovered after `CAPSULE_AUTOPILOT_STALE_LOCK_MS` or `--stale-lock-ms`; the default is six hours.
