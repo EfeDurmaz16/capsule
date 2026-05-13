@@ -9,6 +9,10 @@ describe("ec2 adapter", () => {
 
   it("declares machine create as native", () => {
     expect(ec2Capabilities.machine?.create).toBe("native");
+    expect(ec2Capabilities.machine?.status).toBe("native");
+    expect(ec2Capabilities.machine?.start).toBe("native");
+    expect(ec2Capabilities.machine?.stop).toBe("native");
+    expect(ec2Capabilities.machine?.destroy).toBe("native");
     expect(ec2Capabilities.machine?.exec).toBe("unsupported");
   });
 
@@ -50,5 +54,54 @@ describe("ec2 adapter", () => {
   it("requires image and size", async () => {
     const capsule = new Capsule({ adapter: ec2({ client: { send: async () => ({}) } }) });
     await expect(capsule.machine.create({ name: "bad" })).rejects.toThrow(AdapterExecutionError);
+  });
+
+  it("gets EC2 instance status", async () => {
+    const sent: any[] = [];
+    const client = {
+      send: async (command: any) => {
+        sent.push(command.input);
+        return { Reservations: [{ Instances: [{ InstanceId: "i-123", State: { Name: "running" }, Tags: [{ Key: "Name", Value: "capsule-dev" }] }] }] };
+      }
+    };
+    const capsule = new Capsule({ adapter: ec2({ region: "us-east-1", client }), receipts: true });
+    const status = await capsule.machine.status({ id: "i-123" });
+
+    expect(status).toMatchObject({ id: "i-123", provider: "ec2", name: "capsule-dev", status: "running" });
+    expect(status.receipt?.type).toBe("machine.status");
+    expect(sent[0]).toEqual({ InstanceIds: ["i-123"] });
+  });
+
+  it("starts, stops, and destroys EC2 instances", async () => {
+    const sent: any[] = [];
+    const client = {
+      send: async (command: any) => {
+        sent.push({ name: command.constructor.name, input: command.input });
+        if (command.constructor.name === "StartInstancesCommand") {
+          return { StartingInstances: [{ InstanceId: "i-123", CurrentState: { Name: "pending" } }] };
+        }
+        if (command.constructor.name === "StopInstancesCommand") {
+          return { StoppingInstances: [{ InstanceId: "i-123", CurrentState: { Name: "stopping" } }] };
+        }
+        return { TerminatingInstances: [{ InstanceId: "i-123", CurrentState: { Name: "shutting-down" } }] };
+      }
+    };
+    const capsule = new Capsule({ adapter: ec2({ region: "us-east-1", client }), receipts: true });
+
+    const started = await capsule.machine.start({ id: "i-123", reason: "resume checks" });
+    const stopped = await capsule.machine.stop({ id: "i-123", force: true });
+    const destroyed = await capsule.machine.destroy({ id: "i-123", reason: "ttl expired" });
+
+    expect(started).toMatchObject({ id: "i-123", status: "starting" });
+    expect(stopped).toMatchObject({ id: "i-123", status: "stopping" });
+    expect(destroyed).toMatchObject({ id: "i-123", status: "destroying" });
+    expect(started.receipt?.type).toBe("machine.start");
+    expect(stopped.receipt?.type).toBe("machine.stop");
+    expect(destroyed.receipt?.type).toBe("machine.destroy");
+    expect(sent).toEqual([
+      { name: "StartInstancesCommand", input: { InstanceIds: ["i-123"] } },
+      { name: "StopInstancesCommand", input: { InstanceIds: ["i-123"], Force: true } },
+      { name: "TerminateInstancesCommand", input: { InstanceIds: ["i-123"] } }
+    ]);
   });
 });
