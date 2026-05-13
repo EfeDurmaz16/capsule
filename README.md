@@ -217,6 +217,9 @@ CLI examples:
 capsule doctor
 capsule doctor --adapter cloudflare
 capsule capabilities --adapter neon
+capsule service deploy --adapter cloud-run --project-id "$GOOGLE_CLOUD_PROJECT" --location us-central1 --name api --image us-docker.pkg.dev/project/repo/api:tag --port 8080
+capsule service status --adapter cloud-run --project-id "$GOOGLE_CLOUD_PROJECT" --location us-central1 --id api
+capsule service delete --adapter cloud-run --project-id "$GOOGLE_CLOUD_PROJECT" --location us-central1 --id api --reason cleanup
 capsule neon branch-create --project "$NEON_PROJECT_ID" --name pr-42 --database neondb --role neondb_owner --receipt-file .capsule/receipts.jsonl
 capsule neon branch-delete --project "$NEON_PROJECT_ID" --branch-id br_xxx --hard-delete --receipt-file .capsule/receipts.jsonl
 ```
