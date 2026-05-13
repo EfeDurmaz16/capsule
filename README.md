@@ -166,7 +166,7 @@ Capsule is pre-1.0 OSS infrastructure. The core contracts, real provider adapter
 - `@capsule/adapter-modal`: real Modal JS SDK adapter for sandbox execution.
 - `@capsule/adapter-cloudflare`: real Cloudflare API adapter for Worker module edge deployment.
 - `@capsule/adapter-cloud-run`: real Cloud Run Admin API adapter for jobs and services.
-- `@capsule/adapter-kubernetes`: real Kubernetes client adapter for Jobs, Deployments, and Services.
+- `@capsule/adapter-kubernetes`: real Kubernetes client adapter for Jobs, Deployments, Services, and selector-based pod log reads.
 - `@capsule/adapter-lambda`: real AWS Lambda invoke adapter for existing functions as jobs.
 - `@capsule/adapter-ecs`: real ECS/Fargate adapter for existing task definitions.
 - `@capsule/adapter-ec2`: real EC2 adapter for machine creation.
@@ -228,7 +228,7 @@ Real in this repository:
 - Modal sandbox create/exec/read/write/destroy through the Modal JS SDK;
 - Cloudflare Worker module upload through the Cloudflare API;
 - Cloud Run job run and service deploy through the Cloud Run Admin API;
-- Kubernetes Job, Deployment, and Service creation through the official Kubernetes client;
+- Kubernetes Job, Deployment, Service creation, and selector-based pod log reads through the official Kubernetes client;
 - AWS Lambda invocation through AWS SDK v3;
 - ECS RunTask and CreateService through AWS SDK v3;
 - EC2 RunInstances through AWS SDK v3;
