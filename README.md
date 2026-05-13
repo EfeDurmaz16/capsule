@@ -1,5 +1,12 @@
 # Capsule
 
+[![CI](https://github.com/EfeDurmaz16/capsule/actions/workflows/ci.yml/badge.svg)](https://github.com/EfeDurmaz16/capsule/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
+![ESM](https://img.shields.io/badge/modules-ESM-111111.svg)
+![pnpm](https://img.shields.io/badge/workspace-pnpm-f69220.svg)
+![Package status](https://img.shields.io/badge/npm-not_published_yet-666666.svg)
+
 Capsule is a domain-aware adapter layer for agent execution and cloud runtimes.
 
 It does not pretend every provider is the same.
@@ -17,6 +24,8 @@ Capsule is a TypeScript-first OSS control-plane interface for running code, jobs
 Capsule is not a fake universal cloud abstraction, PaaS clone, Terraform or Pulumi replacement, Nitric or Encore replacement, Docker wrapper only, sandbox provider, deployment provider, or security magic layer.
 
 ## Install
+
+Package names are reserved in the repo contract but not published to npm yet. Until the first release, use the workspace packages from this repository. The install commands below show the intended npm package names after publication.
 
 ```bash
 pnpm add @capsule/core @capsule/adapter-docker
@@ -141,6 +150,10 @@ pnpm build
 pnpm test
 pnpm typecheck
 ```
+
+## Project Status
+
+Capsule is pre-1.0 OSS infrastructure. The core contracts, real provider adapters, CLI, examples, tests, docs, release audit, and automation harness are present in this repository. Packages are not published to npm yet, and live provider operations require explicit credentials plus provider-specific quickstart steps.
 
 ## Packages
 

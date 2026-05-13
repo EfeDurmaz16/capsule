@@ -63,6 +63,33 @@ gh issue list --label capsule --limit 20
 gh pr list --limit 20
 ```
 
+## GitHub Repository Surface
+
+Current public repository description:
+
+> Domain-aware TypeScript adapter layer for agent execution, sandboxes, jobs, services, edge runtimes, database branches, previews, and receipts.
+
+Recommended topics:
+
+- `agents`
+- `cloud-runtime`
+- `deployment`
+- `docker`
+- `edge-runtime`
+- `kubernetes`
+- `open-source`
+- `policy`
+- `receipts`
+- `sandbox`
+- `serverless`
+- `typescript`
+
+Refresh the public surface after major scope changes:
+
+```bash
+gh repo view EfeDurmaz16/capsule --json description,repositoryTopics,homepageUrl,visibility
+```
+
 ## Stop
 
 ```bash
