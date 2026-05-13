@@ -1,1 +1,18 @@
-{"extends":"../../tsconfig.base.json","compilerOptions":{"composite":true,"rootDir":"src","outDir":"dist"},"references":[{"path":"../../packages/core"},{"path":"../../packages/adapter-mock"}],"include":["src"]}
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "references": [
+    { "path": "../../packages/core" },
+    { "path": "../../packages/adapter-mock" },
+    { "path": "../../packages/adapter-neon" },
+    { "path": "../../packages/adapter-vercel" },
+    { "path": "../../packages/adapter-cloud-run" },
+    { "path": "../../packages/preview" },
+    { "path": "../../packages/store-jsonl" }
+  ],
+  "include": ["src"]
+}
