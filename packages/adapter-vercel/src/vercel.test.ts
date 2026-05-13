@@ -9,6 +9,13 @@ function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
 
+function jsonStream(lines: unknown[], status = 200): Response {
+  return new Response(lines.map((line) => JSON.stringify(line)).join("\n"), {
+    status,
+    headers: { "content-type": "application/stream+json" }
+  });
+}
+
 async function sourceFile(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "capsule-vercel-"));
   const file = join(dir, "index.js");
@@ -135,6 +142,25 @@ describe("vercel adapter", () => {
       url: "https://api.vercel.com/v1/projects/prj_123/deployments/dpl_123/runtime-logs?teamId=team_1",
       init: { method: "GET" }
     });
+  });
+
+  it("parses Vercel runtime log stream responses", async () => {
+    const fetchMock = (async () =>
+      jsonStream([
+        { level: "info", message: "request started", timestampInMs: 1_762_905_603_000 },
+        { level: "error", message: "request failed", timestampInMs: 1_762_905_604_000 }
+      ])) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: vercel({ token: "vercel-token", projectId: "prj_123", fetch: fetchMock }),
+      receipts: true
+    });
+
+    const logs = await capsule.edge.logs({ id: "dpl_123", providerOptions: { api: "runtime" } });
+
+    expect(logs.logs).toEqual([
+      { timestamp: "2025-11-12T00:00:03.000Z", stream: "stdout", message: "request started" },
+      { timestamp: "2025-11-12T00:00:04.000Z", stream: "stderr", message: "request failed" }
+    ]);
   });
 
   it("requires project id before using Vercel runtime logs", async () => {

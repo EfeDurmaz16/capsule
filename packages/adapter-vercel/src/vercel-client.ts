@@ -65,6 +65,25 @@ export interface VercelRuntimeLog {
   responseStatusCode?: number;
 }
 
+function parseJsonStream(text: string): unknown {
+  if (!text.trim()) return undefined;
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    const values = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+    if (values.length > 0) return values;
+    throw error;
+  }
+}
+
+function record(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
+}
+
 export class VercelClient {
   private readonly token: string;
   private readonly baseUrl: string;
@@ -155,15 +174,17 @@ export class VercelClient {
       body: input.body === undefined ? undefined : JSON.stringify(input.body)
     });
     const text = await response.text();
-    const data = text ? JSON.parse(text) : undefined;
+    const data = parseJsonStream(text);
+    const dataRecord = record(data);
+    const errorRecord = record(dataRecord?.error);
     if (!response.ok) {
       const message =
-        typeof data?.error?.message === "string"
-          ? data.error.message
-          : typeof data?.message === "string"
-            ? data.message
+        typeof errorRecord?.message === "string"
+          ? errorRecord.message
+          : typeof dataRecord?.message === "string"
+            ? dataRecord.message
             : `Vercel API request failed with status ${response.status}`;
-      throw new AdapterExecutionError(message, { status: response.status, error: data?.error });
+      throw new AdapterExecutionError(message, { status: response.status, error: dataRecord?.error });
     }
     return data as T;
   }
