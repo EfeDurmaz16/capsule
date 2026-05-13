@@ -47,6 +47,7 @@ export const capsuleReceiptJsonSchema = {
     image: { type: "string" },
     source: { type: "object", additionalProperties: true },
     cwd: { type: "string" },
+    providerOptions: { type: "object", additionalProperties: true },
     startedAt: { type: "string" },
     finishedAt: { type: "string" },
     durationMs: { type: "number" },

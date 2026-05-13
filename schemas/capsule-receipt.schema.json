@@ -86,6 +86,10 @@
     "cwd": {
       "type": "string"
     },
+    "providerOptions": {
+      "type": "object",
+      "additionalProperties": true
+    },
     "startedAt": {
       "type": "string"
     },

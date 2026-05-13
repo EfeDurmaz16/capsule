@@ -11,6 +11,10 @@ export type CapsuleDomain =
   | "preview"
   | "resource";
 
+export type ProviderOptionValue = string | number | boolean | null | ProviderOptionValue[] | { [key: string]: ProviderOptionValue };
+
+export type ProviderOptions = Record<string, ProviderOptionValue>;
+
 export interface CapabilityMap {
   sandbox?: {
     create: SupportLevel;
@@ -181,6 +185,7 @@ export interface CapsuleReceipt {
   image?: string;
   source?: Record<string, unknown>;
   cwd?: string;
+  providerOptions?: ProviderOptions;
   startedAt: string;
   finishedAt: string;
   durationMs: number;
@@ -223,6 +228,7 @@ export interface CreateSandboxSpec {
   cwd?: string;
   timeoutMs?: number;
   labels?: Record<string, string>;
+  providerOptions?: ProviderOptions;
   exposedPorts?: Array<{
     containerPort: number;
     hostPort?: number;
@@ -244,6 +250,7 @@ export interface ExecSpec {
   env?: Record<string, string>;
   timeoutMs?: number;
   input?: string;
+  providerOptions?: ProviderOptions;
 }
 
 export interface FileEntry {
@@ -273,6 +280,7 @@ export interface RunJobSpec {
     memoryMb?: number;
   };
   labels?: Record<string, string>;
+  providerOptions?: ProviderOptions;
 }
 
 export type JobRunStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
@@ -287,6 +295,7 @@ export interface JobRun {
 
 export interface JobStatusSpec {
   id: string;
+  providerOptions?: ProviderOptions;
 }
 
 export interface JobStatusResult {
@@ -301,6 +310,7 @@ export interface JobStatusResult {
 export interface CancelJobSpec {
   id: string;
   reason?: string;
+  providerOptions?: ProviderOptions;
 }
 
 export interface CancelJobResult {
@@ -338,6 +348,7 @@ export interface DeployServiceSpec {
     command?: string[] | string;
   };
   labels?: Record<string, string>;
+  providerOptions?: ProviderOptions;
 }
 
 export interface ServiceDeployment {
@@ -353,6 +364,7 @@ export type ServiceStatus = "deploying" | "ready" | "failed" | "deleted";
 
 export interface ServiceStatusSpec {
   id: string;
+  providerOptions?: ProviderOptions;
 }
 
 export interface ServiceStatusResult {
@@ -392,12 +404,14 @@ export interface UpdateServiceSpec {
     command?: string[] | string;
   };
   labels?: Record<string, string>;
+  providerOptions?: ProviderOptions;
 }
 
 export interface DeleteServiceSpec {
   id: string;
   force?: boolean;
   reason?: string;
+  providerOptions?: ProviderOptions;
 }
 
 export interface DeletedService {
@@ -422,6 +436,7 @@ export interface DeployEdgeSpec {
   routes?: string[];
   bindings?: Record<string, unknown>;
   labels?: Record<string, string>;
+  providerOptions?: ProviderOptions;
 }
 
 export interface EdgeDeployment {
@@ -435,6 +450,7 @@ export interface EdgeDeployment {
 
 export interface EdgeStatusSpec {
   id: string;
+  providerOptions?: ProviderOptions;
 }
 
 export interface EdgeStatusResult {
@@ -455,6 +471,7 @@ export interface VersionEdgeSpec {
   env?: Record<string, string>;
   bindings?: Record<string, unknown>;
   labels?: Record<string, string>;
+  providerOptions?: ProviderOptions;
 }
 
 export interface EdgeVersion {
@@ -475,6 +492,7 @@ export interface ReleaseEdgeVersionSpec {
   routes?: string[];
   traffic?: number;
   labels?: Record<string, string>;
+  providerOptions?: ProviderOptions;
 }
 
 export interface EdgeRelease {
@@ -493,6 +511,7 @@ export interface RollbackEdgeSpec {
   deploymentId: string;
   targetVersionId?: string;
   reason?: string;
+  providerOptions?: ProviderOptions;
 }
 
 export interface EdgeRollback {
@@ -511,12 +530,14 @@ export interface CreateDatabaseBranchSpec {
   name: string;
   ttlMs?: number;
   labels?: Record<string, string>;
+  providerOptions?: ProviderOptions;
 }
 
 export interface DeleteDatabaseBranchSpec {
   project: string;
   branchId: string;
   hardDelete?: boolean;
+  providerOptions?: ProviderOptions;
 }
 
 export interface ResetDatabaseBranchSpec {
@@ -529,6 +550,7 @@ export interface ResetDatabaseBranchSpec {
   pointInTime?: string;
   reason?: string;
   labels?: Record<string, string>;
+  providerOptions?: ProviderOptions;
 }
 
 export interface MigrateDatabaseSpec {
@@ -545,6 +567,7 @@ export interface MigrateDatabaseSpec {
   env?: Record<string, string>;
   timeoutMs?: number;
   labels?: Record<string, string>;
+  providerOptions?: ProviderOptions;
 }
 
 export interface DatabaseBranch {
@@ -600,6 +623,7 @@ export interface CreatePreviewSpec {
   databases?: CreateDatabaseBranchSpec[];
   jobs?: RunJobSpec[];
   labels?: Record<string, string>;
+  providerOptions?: ProviderOptions;
 }
 
 export interface PreviewEnvironment {
@@ -624,6 +648,7 @@ export interface CreateMachineSpec {
   size?: string;
   env?: Record<string, string>;
   labels?: Record<string, string>;
+  providerOptions?: ProviderOptions;
 }
 
 export interface Machine {
@@ -636,6 +661,7 @@ export interface Machine {
 
 export interface MachineStatusSpec {
   id: string;
+  providerOptions?: ProviderOptions;
 }
 
 export interface MachineStatusResult {
@@ -650,18 +676,21 @@ export interface MachineStatusResult {
 export interface StartMachineSpec {
   id: string;
   reason?: string;
+  providerOptions?: ProviderOptions;
 }
 
 export interface StopMachineSpec {
   id: string;
   force?: boolean;
   reason?: string;
+  providerOptions?: ProviderOptions;
 }
 
 export interface DestroyMachineSpec {
   id: string;
   force?: boolean;
   reason?: string;
+  providerOptions?: ProviderOptions;
 }
 
 export interface MachineLifecycleResult {
