@@ -287,6 +287,8 @@ Exports:
 - `createPreviewGraph`
 - `createPreviewId`
 - `PreviewCleanupAction`
+- `PreviewCleanupDisposition`
+- `PreviewCleanupDispositionRecord`
 - `PreviewCleanupResult`
 - `PreviewCreationError`
 - `PreviewOrchestrationResult`
