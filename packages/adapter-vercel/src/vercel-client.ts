@@ -25,6 +25,13 @@ export interface VercelDeploymentResponse {
   createdAt?: number;
 }
 
+export interface VercelAliasResponse {
+  uid: string;
+  alias: string;
+  created?: string;
+  oldDeploymentId?: string | null;
+}
+
 export class VercelClient {
   private readonly token: string;
   private readonly baseUrl: string;
@@ -41,23 +48,43 @@ export class VercelClient {
   }
 
   async createDeployment(input: CreateDeploymentInput): Promise<VercelDeploymentResponse> {
-    const url = new URL(`${this.baseUrl}/v13/deployments`);
-    if (this.options.teamId) url.searchParams.set("teamId", this.options.teamId);
-    if (this.options.slug) url.searchParams.set("slug", this.options.slug);
-    const response = await this.fetchImpl(url, {
+    return await this.request<VercelDeploymentResponse>({
       method: "POST",
-      headers: {
-        accept: "application/json",
-        authorization: `Bearer ${this.token}`,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
+      path: "/v13/deployments",
+      body: {
         name: input.name,
         project: input.project,
         target: input.target,
         files: input.files,
         meta: input.meta
-      })
+      }
+    });
+  }
+
+  async getDeployment(idOrUrl: string): Promise<VercelDeploymentResponse> {
+    return await this.request<VercelDeploymentResponse>({ method: "GET", path: `/v13/deployments/${encodeURIComponent(idOrUrl)}` });
+  }
+
+  async assignAlias(id: string, input: { alias: string; redirect?: string | null }): Promise<VercelAliasResponse> {
+    return await this.request<VercelAliasResponse>({
+      method: "POST",
+      path: `/v2/deployments/${encodeURIComponent(id)}/aliases`,
+      body: { alias: input.alias, redirect: input.redirect ?? null }
+    });
+  }
+
+  private async request<T>(input: { method: "GET" | "POST"; path: string; body?: unknown }): Promise<T> {
+    const url = new URL(`${this.baseUrl}${input.path}`);
+    if (this.options.teamId) url.searchParams.set("teamId", this.options.teamId);
+    if (this.options.slug) url.searchParams.set("slug", this.options.slug);
+    const response = await this.fetchImpl(url, {
+      method: input.method,
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${this.token}`,
+        ...(input.body === undefined ? {} : { "content-type": "application/json" })
+      },
+      body: input.body === undefined ? undefined : JSON.stringify(input.body)
     });
     const text = await response.text();
     const data = text ? JSON.parse(text) : undefined;
@@ -70,6 +97,6 @@ export class VercelClient {
             : `Vercel API request failed with status ${response.status}`;
       throw new AdapterExecutionError(message, { status: response.status, error: data?.error });
     }
-    return data as VercelDeploymentResponse;
+    return data as T;
   }
 }

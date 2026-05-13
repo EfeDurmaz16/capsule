@@ -6,7 +6,11 @@ import {
   type CapsuleAdapter,
   type CapabilityMap,
   type DeployEdgeSpec,
-  type EdgeDeployment
+  type EdgeDeployment,
+  type EdgeRelease,
+  type EdgeStatusResult,
+  type EdgeStatusSpec,
+  type ReleaseEdgeVersionSpec
 } from "@capsule/core";
 import { VercelClient, type VercelClientOptions } from "./vercel-client.js";
 
@@ -47,7 +51,8 @@ export const vercelCapabilities: CapabilityMap = {
   edge: {
     deploy: "native",
     version: "unsupported",
-    release: "unsupported",
+    status: "native",
+    release: "native",
     rollback: "unsupported",
     routes: "unsupported",
     bindings: "unsupported",
@@ -144,6 +149,62 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
             })
           : undefined;
         return { id: deployment.id, provider, name: deployment.name ?? spec.name, status, url, receipt };
+      },
+      status: async (spec: EdgeStatusSpec, context: AdapterContext): Promise<EdgeStatusResult> => {
+        const startedAt = new Date();
+        const deployment = await getClient().getDeployment(spec.id);
+        const status = statusFromReadyState(deployment.readyState);
+        const url = deploymentUrl(deployment.url);
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "edge.status",
+              capabilityPath: "edge.status",
+              startedAt,
+              policy: {
+                decision: "allowed",
+                applied: context.policy,
+                notes: ["Vercel deployment status is read from the deployments API."]
+              },
+              resource: { id: deployment.id, name: deployment.name, status, url },
+              metadata: { readyState: deployment.readyState, inspectorUrl: deployment.inspectorUrl, createdAt: deployment.createdAt }
+            })
+          : undefined;
+        return { id: deployment.id, provider, name: deployment.name, status, url, receipt, metadata: { readyState: deployment.readyState, deployment } };
+      },
+      release: async (spec: ReleaseEdgeVersionSpec, context: AdapterContext): Promise<EdgeRelease> => {
+        const startedAt = new Date();
+        const deploymentId = spec.deploymentId ?? spec.versionId;
+        const alias = spec.alias ?? spec.routes?.[0];
+        if (!alias) {
+          throw new AdapterExecutionError("Vercel edge.release requires spec.alias or the first spec.routes entry.");
+        }
+        const result = await getClient().assignAlias(deploymentId, { alias, redirect: spec.redirect });
+        const url = deploymentUrl(result.alias) ?? `https://${result.alias}`;
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "edge.release",
+              capabilityPath: "edge.release",
+              startedAt,
+              policy: {
+                decision: "allowed",
+                applied: context.policy,
+                notes: ["Vercel alias assignment is native and moves the alias from any previous deployment."]
+              },
+              resource: { id: result.uid, name: result.alias, status: "ready", url },
+              metadata: { deploymentId, oldDeploymentId: result.oldDeploymentId, created: result.created }
+            })
+          : undefined;
+        return {
+          id: result.uid,
+          provider,
+          versionId: spec.versionId,
+          deploymentId,
+          alias: result.alias,
+          status: "ready",
+          url,
+          receipt,
+          metadata: { oldDeploymentId: result.oldDeploymentId, created: result.created }
+        };
       }
     }
   };

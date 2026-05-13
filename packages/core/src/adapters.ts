@@ -16,6 +16,8 @@ import type {
   DeployServiceSpec,
   EdgeRelease,
   EdgeRollback,
+  EdgeStatusResult,
+  EdgeStatusSpec,
   EdgeVersion,
   EdgeDeployment,
   JobRun,
@@ -65,6 +67,7 @@ export interface ServiceAdapter {
 
 export interface EdgeAdapter {
   deploy(spec: DeployEdgeSpec, context: AdapterContext): Promise<EdgeDeployment>;
+  status?(spec: EdgeStatusSpec, context: AdapterContext): Promise<EdgeStatusResult>;
   version?(spec: VersionEdgeSpec, context: AdapterContext): Promise<EdgeVersion>;
   release?(spec: ReleaseEdgeVersionSpec, context: AdapterContext): Promise<EdgeRelease>;
   rollback?(spec: RollbackEdgeSpec, context: AdapterContext): Promise<EdgeRollback>;

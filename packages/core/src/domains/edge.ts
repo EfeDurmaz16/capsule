@@ -3,6 +3,8 @@ export type {
   EdgeDeployment,
   EdgeRelease,
   EdgeRollback,
+  EdgeStatusResult,
+  EdgeStatusSpec,
   EdgeVersion,
   ReleaseEdgeVersionSpec,
   RollbackEdgeSpec,

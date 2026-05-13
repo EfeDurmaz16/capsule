@@ -16,6 +16,7 @@ import type {
   DeployEdgeSpec,
   DeployServiceSpec,
   DeleteServiceSpec,
+  EdgeStatusSpec,
   JobStatusSpec,
   ReleaseEdgeVersionSpec,
   RollbackEdgeSpec,
@@ -122,6 +123,13 @@ export class Capsule {
           throw new UnsupportedCapabilityError("edge.deploy");
         }
         return this.options.adapter.edge.deploy(spec, this.context());
+      },
+      status: async (spec: EdgeStatusSpec) => {
+        this.require("edge.status");
+        if (!this.options.adapter.edge?.status) {
+          throw new UnsupportedCapabilityError("edge.status");
+        }
+        return this.options.adapter.edge.status(spec, this.context());
       },
       version: async (spec: VersionEdgeSpec) => {
         this.require("edge.version");

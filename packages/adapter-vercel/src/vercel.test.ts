@@ -23,6 +23,9 @@ describe("vercel adapter", () => {
 
   it("declares edge deploy as native", () => {
     expect(vercelCapabilities.edge?.deploy).toBe("native");
+    expect(vercelCapabilities.edge?.status).toBe("native");
+    expect(vercelCapabilities.edge?.release).toBe("native");
+    expect(vercelCapabilities.edge?.version).toBe("unsupported");
     expect(vercelCapabilities.edge?.rollback).toBe("unsupported");
   });
 
@@ -56,6 +59,54 @@ describe("vercel adapter", () => {
     const capsule = new Capsule({ adapter: vercel({ token: "secret-token", fetch: fetchMock }) });
     await expect(capsule.edge.deploy({ name: "bad", source: { path: await sourceFile() } })).rejects.toThrow(AdapterExecutionError);
     await expect(capsule.edge.deploy({ name: "bad", source: { path: await sourceFile() } })).rejects.not.toThrow("secret-token");
+  });
+
+  it("fetches deployment status with team query parameters", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return response({ id: "dpl_123", name: "capsule-edge", url: "capsule-edge.vercel.app", readyState: "READY", inspectorUrl: "https://inspect.example" });
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: vercel({ token: "vercel-token", teamId: "team_1", fetch: fetchMock }),
+      receipts: true
+    });
+
+    const status = await capsule.edge.status({ id: "dpl_123" });
+
+    expect(status).toMatchObject({ id: "dpl_123", provider: "vercel", name: "capsule-edge", status: "ready", url: "https://capsule-edge.vercel.app" });
+    expect(status.receipt?.type).toBe("edge.status");
+    expect(calls[0]).toMatchObject({ url: "https://api.vercel.com/v13/deployments/dpl_123?teamId=team_1", init: { method: "GET" } });
+  });
+
+  it("assigns an alias through edge.release", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return response({ uid: "alias_123", alias: "preview.example.com", oldDeploymentId: "dpl_old", created: "2026-05-13T00:00:00.000Z" });
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: vercel({ token: "vercel-token", teamId: "team_1", slug: "team-slug", fetch: fetchMock }),
+      receipts: true
+    });
+
+    const release = await capsule.edge.release({ versionId: "dpl_123", alias: "preview.example.com" });
+
+    expect(release).toMatchObject({
+      id: "alias_123",
+      provider: "vercel",
+      versionId: "dpl_123",
+      deploymentId: "dpl_123",
+      alias: "preview.example.com",
+      status: "ready",
+      url: "https://preview.example.com"
+    });
+    expect(release.receipt?.type).toBe("edge.release");
+    expect(calls[0]).toMatchObject({
+      url: "https://api.vercel.com/v2/deployments/dpl_123/aliases?teamId=team_1&slug=team-slug",
+      init: { method: "POST" }
+    });
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({ alias: "preview.example.com", redirect: null });
   });
 
   it("requires a token only when used", async () => {
