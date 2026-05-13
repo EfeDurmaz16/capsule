@@ -3,10 +3,18 @@ import {
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
+  type CancelJobResult,
+  type CancelJobSpec,
+  type DeletedService,
+  type DeleteServiceSpec,
   type DeployServiceSpec,
   type JobRun,
+  type JobStatusResult,
+  type JobStatusSpec,
   type RunJobSpec,
-  type ServiceDeployment
+  type ServiceDeployment,
+  type ServiceStatusResult,
+  type ServiceStatusSpec
 } from "@capsule/core";
 import { AzureContainerAppsClient, type AzureContainerAppsClientOptions } from "./azure-container-apps-client.js";
 
@@ -20,6 +28,7 @@ interface AzureResource {
   id?: string;
   name?: string;
   properties?: {
+    status?: string;
     provisioningState?: string;
     runningStatus?: string;
     configuration?: {
@@ -36,8 +45,8 @@ const adapter = "azure-container-apps";
 export const azureContainerAppsCapabilities: CapabilityMap = {
   job: {
     run: "native",
-    status: "unsupported",
-    cancel: "unsupported",
+    status: "native",
+    cancel: "native",
     logs: "unsupported",
     artifacts: "unsupported",
     timeout: "experimental",
@@ -47,11 +56,12 @@ export const azureContainerAppsCapabilities: CapabilityMap = {
   service: {
     deploy: "native",
     update: "unsupported",
-    delete: "unsupported",
-    status: "unsupported",
+    delete: "native",
+    status: "native",
     logs: "unsupported",
     url: "native",
     scale: "native",
+    rollback: "unsupported",
     healthcheck: "experimental",
     secrets: "unsupported"
   }
@@ -126,10 +136,53 @@ function jobBody(spec: RunJobSpec, options: AzureContainerAppsAdapterOptions) {
 }
 
 function resourceStatus(resource: AzureResource): ServiceDeployment["status"] {
+  if (resource.properties?.runningStatus === "Stopped") return "failed";
   const state = resource.properties?.provisioningState;
   if (state === "Succeeded") return "ready";
   if (state === "Failed") return "failed";
   return "deploying";
+}
+
+function jobStatus(resource: AzureResource): JobRun["status"] {
+  switch (resource.properties?.status ?? resource.properties?.runningStatus ?? resource.properties?.provisioningState) {
+    case "Succeeded":
+    case "Completed":
+      return "succeeded";
+    case "Failed":
+      return "failed";
+    case "Canceled":
+    case "Cancelled":
+    case "Stopped":
+      return "cancelled";
+    case "Pending":
+      return "queued";
+    case "Running":
+    default:
+      return "running";
+  }
+}
+
+function resourceName(id: string, collection: "containerApps" | "jobs" | "executions"): string {
+  const marker = `/${collection}/`;
+  const index = id.indexOf(marker);
+  if (index === -1) return id;
+  return decodeURIComponent(id.slice(index + marker.length).split("/")[0] ?? id);
+}
+
+function stringProviderOption(options: JobStatusSpec["providerOptions"], key: string): string | undefined {
+  const value = options?.[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function jobExecutionIdentity(spec: JobStatusSpec | CancelJobSpec): { jobName: string; executionName: string } {
+  const jobName = spec.id.includes("/jobs/") ? resourceName(spec.id, "jobs") : stringProviderOption(spec.providerOptions, "jobName");
+  const executionName = spec.id.includes("/executions/") ? resourceName(spec.id, "executions") : spec.id;
+  if (!jobName) {
+    throw new AdapterExecutionError(
+      "Azure Container Apps job execution operations require a full ARM execution id or providerOptions.jobName."
+    );
+  }
+  return { jobName, executionName };
 }
 
 export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {}): CapsuleAdapter {
@@ -139,6 +192,94 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
     provider,
     capabilities: azureContainerAppsCapabilities,
     raw: { subscriptionId: options.subscriptionId, resourceGroupName: options.resourceGroupName, location: options.location, environmentId: options.environmentId },
+    job: {
+      run: async (spec: RunJobSpec, context: AdapterContext): Promise<JobRun> => {
+        const startedAt = new Date();
+        const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
+        const client = getClient();
+        const jobName = spec.name ?? `capsule-job-${Date.now().toString(36)}`;
+        const job = await client.request<AzureResource>({ method: "PUT", path: client.resourcePath("jobs", jobName), body: jobBody(spec, options) });
+        const execution = await client.request<AzureResource>({ method: "POST", path: client.resourcePath("jobs", jobName, "/start") });
+        const id = execution.id ?? job.id ?? jobName;
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "job.run",
+              capabilityPath: "job.run",
+              startedAt,
+              image: spec.image,
+              command: Array.isArray(spec.command) ? spec.command : spec.command ? ["sh", "-lc", spec.command] : undefined,
+              policy: {
+                ...policy,
+                notes: [
+                  ...policy.notes,
+                  "Azure Container Apps job.run creates or updates a manual Container Apps Job, then starts an execution.",
+                  "Execution logs and artifact collection are not implemented yet."
+                ]
+              },
+              resource: { id, name: job.name ?? jobName, status: execution.properties?.runningStatus ?? job.properties?.provisioningState ?? "running" },
+              metadata: { jobId: job.id, executionId: execution.id, resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId }
+            })
+          : undefined;
+        return { id, provider, status: "running", receipt };
+      },
+      status: async (spec: JobStatusSpec, context: AdapterContext): Promise<JobStatusResult> => {
+        const startedAt = new Date();
+        const client = getClient();
+        const { jobName, executionName } = jobExecutionIdentity(spec);
+        const execution = await client.request<AzureResource>({ path: client.jobExecutionPath(jobName, executionName) });
+        const status = jobStatus(execution);
+        const id = execution.id ?? spec.id;
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "job.status",
+              capabilityPath: "job.status",
+              startedAt,
+              policy: {
+                decision: "allowed",
+                applied: context.policy,
+                notes: ["Azure Container Apps job status is read from the ARM job execution resource."]
+              },
+              resource: { id, name: execution.name ?? executionName, status },
+              metadata: { jobName, executionName, resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId, execution }
+            })
+          : undefined;
+        return {
+          id,
+          provider,
+          status,
+          receipt,
+          metadata: { jobName, executionName, execution }
+        };
+      },
+      cancel: async (spec: CancelJobSpec, context: AdapterContext): Promise<CancelJobResult> => {
+        const startedAt = new Date();
+        const client = getClient();
+        const { jobName, executionName } = jobExecutionIdentity(spec);
+        await client.request<unknown>({ method: "POST", path: client.jobExecutionPath(jobName, executionName, "/stop") });
+        const id = spec.id;
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "job.cancel",
+              capabilityPath: "job.cancel",
+              startedAt,
+              policy: {
+                decision: "allowed",
+                applied: context.policy,
+                notes: ["Azure Container Apps job cancel maps to the ARM stop execution operation."]
+              },
+              resource: { id, name: executionName, status: "cancelling" },
+              metadata: { jobName, executionName, reason: spec.reason, resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId }
+            })
+          : undefined;
+        return {
+          id,
+          provider,
+          status: "cancelling",
+          receipt,
+          metadata: { jobName, executionName, reason: spec.reason }
+        };
+      }
+    },
     service: {
       deploy: async (spec: DeployServiceSpec, context: AdapterContext): Promise<ServiceDeployment> => {
         const startedAt = new Date();
@@ -163,7 +304,8 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
                 notes: [
                   ...policy.notes,
                   "Azure Container Apps service deploy is native through ARM createOrUpdate.",
-                  "Ingress, revision, registry, identity, secrets, and managed environment behavior remain Azure-specific."
+                  "Ingress, registry, identity, secrets, and managed environment behavior remain Azure-specific.",
+                  "Revision activate/deactivate APIs exist in ARM, but generic Capsule service rollback is not modeled by this adapter."
                 ]
               },
               resource: { id, name: resource.name ?? spec.name, url, status },
@@ -171,37 +313,51 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
             })
           : undefined;
         return { id, provider, name: resource.name ?? spec.name, status, url, receipt };
-      }
-    },
-    job: {
-      run: async (spec: RunJobSpec, context: AdapterContext): Promise<JobRun> => {
+      },
+      status: async (spec: ServiceStatusSpec, context: AdapterContext): Promise<ServiceStatusResult> => {
         const startedAt = new Date();
-        const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
         const client = getClient();
-        const jobName = spec.name ?? `capsule-job-${Date.now().toString(36)}`;
-        const job = await client.request<AzureResource>({ method: "PUT", path: client.resourcePath("jobs", jobName), body: jobBody(spec, options) });
-        const execution = await client.request<AzureResource>({ method: "POST", path: client.resourcePath("jobs", jobName, "/start") });
-        const id = execution.id ?? job.id ?? jobName;
+        const name = resourceName(spec.id, "containerApps");
+        const resource = await client.request<AzureResource>({ path: client.resourcePath("containerApps", name) });
+        const status = resourceStatus(resource);
+        const id = resource.id ?? spec.id;
+        const url = resource.properties?.configuration?.ingress?.fqdn ? `https://${resource.properties.configuration.ingress.fqdn}` : undefined;
         const receipt = context.receipts
           ? context.createReceipt({
-              type: "job.run",
-              capabilityPath: "job.run",
+              type: "service.status",
+              capabilityPath: "service.status",
               startedAt,
-              image: spec.image,
-              command: Array.isArray(spec.command) ? spec.command : spec.command ? ["sh", "-lc", spec.command] : undefined,
               policy: {
-                ...policy,
-                notes: [
-                  ...policy.notes,
-                  "Azure Container Apps job.run creates or updates a manual Container Apps Job, then starts an execution.",
-                  "Execution polling, logs, cancellation, and artifact collection are not implemented yet."
-                ]
+                decision: "allowed",
+                applied: context.policy,
+                notes: ["Azure Container Apps service status is read from the ARM Container App resource."]
               },
-              resource: { id, name: job.name ?? jobName, status: execution.properties?.runningStatus ?? job.properties?.provisioningState ?? "running" },
-              metadata: { jobId: job.id, executionId: execution.id, resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId }
+              resource: { id, name: resource.name ?? name, status, url },
+              metadata: { resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId, resource }
             })
           : undefined;
-        return { id, provider, status: "running", receipt };
+        return { id, provider, name: resource.name ?? name, status, url, receipt, metadata: { resource } };
+      },
+      delete: async (spec: DeleteServiceSpec, context: AdapterContext): Promise<DeletedService> => {
+        const startedAt = new Date();
+        const client = getClient();
+        const name = resourceName(spec.id, "containerApps");
+        await client.request<unknown>({ method: "DELETE", path: client.resourcePath("containerApps", name) });
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "service.delete",
+              capabilityPath: "service.delete",
+              startedAt,
+              policy: {
+                decision: "allowed",
+                applied: context.policy,
+                notes: ["Azure Container Apps service deletion maps to the ARM Container Apps delete operation."]
+              },
+              resource: { id: spec.id, name, status: "deleted" },
+              metadata: { reason: spec.reason, force: spec.force, resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId }
+            })
+          : undefined;
+        return { id: spec.id, provider, name, status: "deleted", receipt, metadata: { reason: spec.reason, force: spec.force } };
       }
     }
   };
