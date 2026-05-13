@@ -93,7 +93,7 @@ describe("vercel adapter", () => {
       calls.push({ url: String(url), init: init ?? {} });
       return response([
         { type: "stdout", created: 1_762_905_600_000, payload: { text: "build started", statusCode: 200 } },
-        { type: "stderr", payload: { text: "build failed", created: 1_762_905_601_000, statusCode: 500 } }
+        { type: "stderr", payload: { text: "build failed secret-token", created: 1_762_905_601_000, statusCode: 500 } }
       ]);
     }) as typeof fetch;
     const capsule = new Capsule({
@@ -111,17 +111,24 @@ describe("vercel adapter", () => {
     });
 
     expect(logs.logs).toEqual([
-      { timestamp: "2025-11-12T00:00:00.000Z", stream: "system", message: "build started" },
-      { timestamp: "2025-11-12T00:00:01.000Z", stream: "stderr", message: "build failed" }
+      { timestamp: "2025-11-12T00:00:00.000Z", stream: "stdout", message: "build started" },
+      { timestamp: "2025-11-12T00:00:01.000Z", stream: "stderr", message: "build failed [REDACTED]" }
     ]);
     expect(logs.receipt?.type).toBe("edge.logs");
     expect(logs.receipt?.providerOptions).toEqual({ api: "deployment-events", token: "[REDACTED]" });
     expect(JSON.stringify(logs.receipt)).not.toContain("secret-token");
     expect(calls[0]).toMatchObject({
-      url: "https://api.vercel.com/v3/deployments/dpl_123/events?since=1762884000000&until=1762887600000&limit=2&follow=0&teamId=team_1&slug=team-slug",
+      url: "https://api.vercel.com/v3/deployments/dpl_123/events?since=1762884000000&until=1762887600000&limit=2&teamId=team_1&slug=team-slug",
       init: { method: "GET" }
     });
     expect(JSON.stringify(logs)).not.toContain("vercel-token");
+    expect(JSON.stringify(logs)).not.toContain("secret-token");
+  });
+
+  it("rejects Vercel follow-mode logs until streaming is explicitly modeled", async () => {
+    const capsule = new Capsule({ adapter: vercel({ token: "vercel-token" }) });
+
+    await expect(capsule.edge.logs({ id: "dpl_123", follow: true })).rejects.toThrow("follow mode is not supported");
   });
 
   it("fetches runtime logs only when a real project id is provided", async () => {
@@ -147,7 +154,7 @@ describe("vercel adapter", () => {
   it("parses Vercel runtime log stream responses", async () => {
     const fetchMock = (async () =>
       jsonStream([
-        { level: "info", message: "request started", timestampInMs: 1_762_905_603_000 },
+        { level: "info", message: "request started secret-token", timestampInMs: 1_762_905_603_000 },
         { level: "error", message: "request failed", timestampInMs: 1_762_905_604_000 }
       ])) as typeof fetch;
     const capsule = new Capsule({
@@ -155,12 +162,13 @@ describe("vercel adapter", () => {
       receipts: true
     });
 
-    const logs = await capsule.edge.logs({ id: "dpl_123", providerOptions: { api: "runtime" } });
+    const logs = await capsule.edge.logs({ id: "dpl_123", providerOptions: { api: "runtime", token: "secret-token" } });
 
     expect(logs.logs).toEqual([
-      { timestamp: "2025-11-12T00:00:03.000Z", stream: "stdout", message: "request started" },
+      { timestamp: "2025-11-12T00:00:03.000Z", stream: "stdout", message: "request started [REDACTED]" },
       { timestamp: "2025-11-12T00:00:04.000Z", stream: "stderr", message: "request failed" }
     ]);
+    expect(JSON.stringify(logs)).not.toContain("secret-token");
   });
 
   it("requires project id before using Vercel runtime logs", async () => {

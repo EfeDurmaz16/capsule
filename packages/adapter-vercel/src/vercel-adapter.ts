@@ -13,6 +13,7 @@ import {
   type EdgeStatusResult,
   type EdgeStatusSpec,
   type LogEntry,
+  type ProviderOptions,
   type ProviderOptionValue,
   type ReleaseEdgeVersionSpec
 } from "@capsule/core";
@@ -130,14 +131,51 @@ function deploymentEventMessage(event: VercelDeploymentEvent): string {
   );
 }
 
+const secretOptionKey = /(api[-_]?key|auth|credential|password|private[-_]?key|secret|token)/i;
+
+function logStreamFromEvent(event: VercelDeploymentEvent): LogEntry["stream"] {
+  const type = event.type?.toLowerCase();
+  if (type === "stdout") return "stdout";
+  if (type === "stderr" || type === "fatal" || type === "error") return "stderr";
+  return logStreamFromStatus(event.payload?.statusCode);
+}
+
 function logStreamFromStatus(statusCode: number | undefined): LogEntry["stream"] {
   return statusCode !== undefined && statusCode >= 400 ? "stderr" : "system";
+}
+
+function collectSensitiveProviderOptionValues(providerOptions: ProviderOptions | undefined): string[] {
+  const values: string[] = [];
+  const visit = (key: string, value: ProviderOptionValue): void => {
+    if (secretOptionKey.test(key) && typeof value === "string" && value.length > 0) {
+      values.push(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) visit(key, item);
+      return;
+    }
+    if (value && typeof value === "object") {
+      for (const [childKey, childValue] of Object.entries(value)) visit(childKey, childValue);
+    }
+  };
+  for (const [key, value] of Object.entries(providerOptions ?? {})) visit(key, value);
+  return values;
+}
+
+function redactProviderOptionValues(logs: LogEntry[], providerOptions: ProviderOptions | undefined): LogEntry[] {
+  const secrets = collectSensitiveProviderOptionValues(providerOptions);
+  if (secrets.length === 0) return logs;
+  return logs.map((entry) => ({
+    ...entry,
+    message: secrets.reduce((message, secret) => message.split(secret).join("[REDACTED]"), entry.message)
+  }));
 }
 
 function logsFromDeploymentEvents(events: VercelDeploymentEvent[]): LogEntry[] {
   return events.map((event) => ({
     timestamp: timestamp(event.payload?.created ?? event.payload?.date ?? event.created),
-    stream: logStreamFromStatus(event.payload?.statusCode),
+    stream: logStreamFromEvent(event),
     message: deploymentEventMessage(event)
   }));
 }
@@ -271,10 +309,13 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
         const api = stringOption(spec.providerOptions?.api) ?? stringOption(spec.providerOptions?.logsApi) ?? "deployment-events";
         const useRuntimeLogs = api === "runtime" || booleanOption(spec.providerOptions?.runtimeLogs) === true;
         const projectId = stringOption(spec.providerOptions?.projectId) ?? options.projectId;
+        if (spec.follow) {
+          throw new AdapterExecutionError("Vercel edge.logs follow mode is not supported yet; call logs again to fetch newer entries.");
+        }
         if (useRuntimeLogs && !projectId) {
           throw new AdapterExecutionError("Vercel runtime logs require providerOptions.projectId or adapter projectId.");
         }
-        const logs =
+        const logs = redactProviderOptionValues(
           useRuntimeLogs && projectId
             ? logsFromRuntimeLogs(await client.getRuntimeLogs({ projectId, deploymentId: spec.id }))
             : logsFromDeploymentEvents(
@@ -282,10 +323,11 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
                   idOrUrl: spec.id,
                   since: millis(spec.since),
                   until: millis(spec.until),
-                  limit: spec.limit,
-                  follow: spec.follow
+                  limit: spec.limit
                 })
-              );
+              ),
+          spec.providerOptions
+        );
         const receipt = context.receipts
           ? context.createReceipt({
               type: "edge.logs",
@@ -298,7 +340,8 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
                 notes: [
                   useRuntimeLogs
                     ? "Vercel runtime logs are read from the project deployment runtime logs API."
-                    : "Vercel deployment logs are read from the deployment events API."
+                    : "Vercel deployment logs are read from the deployment events API.",
+                  "Vercel follow-mode log streaming is intentionally rejected until Capsule exposes bounded streaming semantics."
                 ]
               },
               resource: { id: spec.id },
