@@ -131,6 +131,7 @@ Mock modeling package:
 - [Contributing](docs/contributing.md)
 - [Comparison](docs/comparison.md)
 - [Technical decisions](docs/technical-decisions.md)
+- [Architecture decision records](docs/adr/README.md)
 
 ## Development
 
