@@ -45,6 +45,7 @@ jobs:
           pnpm test
           pnpm build
           pnpm release:audit
+          pnpm release:pack-smoke
           pnpm docs:api
           git diff --exit-code docs/api-reference.md
 
