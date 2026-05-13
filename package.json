@@ -18,9 +18,6 @@
     "release:pack-smoke": "node scripts/package-pack-smoke.mjs",
     "docs:api": "node scripts/generate-api-reference.mjs",
     "capsule:gap": "node scripts/capsule-gap-report.mjs",
-    "capsule:issues": "node scripts/create-github-issues.mjs",
-    "capsule:linear": "node scripts/create-linear-issues.mjs",
-    "capsule:autopilot": "node scripts/capsule-autopilot.mjs",
     "format": "prettier --write ."
   },
   "devDependencies": {

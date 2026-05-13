@@ -17,19 +17,10 @@ Mock adapters remain allowed only for tests, examples, and contract modeling. Th
 
 ## Execution Workflow
 
-1. Add v2 tasks to `.capsule/tasks.json`.
-2. Create GitHub issues from the task graph with `pnpm capsule:issues -- --apply`.
-3. Mirror to Linear when credentials are configured with `pnpm capsule:linear -- --apply`.
-4. Run the GitHub-backed Symphony/autopilot harness:
-
-```bash
-pnpm capsule:autopilot -- --once --dry-run --max-parallel 3
-nohup caffeinate -dimsu node scripts/capsule-autopilot.mjs --max-parallel 3 > .symphony/logs/autopilot-v2.log 2>&1 &
-echo $! > .symphony/autopilot-v2.pid
-```
-
-5. Review each PR, wait for CI, merge only green PRs, and remove `autopilot-running`.
-6. Re-run the final readiness audit after all v2 issues close.
+1. Create a scoped issue for each provider, package, or release surface.
+2. Land each change through an atomic branch, PR, CI check, review, and merge.
+3. Keep live provider verification credential-gated and documented.
+4. Re-run the final readiness audit after all v2 issues close.
 
 ## V2 Workstreams
 

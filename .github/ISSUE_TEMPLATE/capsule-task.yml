@@ -9,7 +9,7 @@ body:
     id: source-task
     attributes:
       label: Source task
-      description: Task identifier from .capsule/tasks.json, if applicable.
+      description: Task identifier from the maintainer plan, if applicable.
       placeholder: CAP-001
     validations:
       required: true

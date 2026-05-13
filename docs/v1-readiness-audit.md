@@ -28,10 +28,9 @@ This is not a hosted product. It has no bundled server, dashboard, auth layer, b
 | AI package | Shipped | `@capsule/ai` with framework-agnostic code execution helper. |
 | CLI package | Shipped | `@capsule/cli` with doctor, capabilities, Docker run/sandbox, provider diagnostics, lifecycle commands. |
 | Examples | Shipped | Ten examples under `examples/`, with mock defaults and env-gated real adapters where applicable. |
-| Serious docs | Shipped | README plus architecture, taxonomy, domain, security, comparison, provider, roadmap, contributing, ADR, runbook docs. |
+| Serious docs | Shipped | README plus architecture, taxonomy, domain, security, comparison, provider, roadmap, contributing, and ADR docs. |
 | Tests | Shipped | 24 test files: 21 passed, 3 skipped; 131 tests total, 123 passed and 8 skipped locally. |
 | Release workflow | Shipped | Changesets, npm provenance workflow, package publish audit, export-map audit. |
-| Symphony/autopilot workflow | Shipped | `WORKFLOW.md`, `.capsule/tasks.json`, GitHub issue creation, Linear mirror, local autopilot runner, stale lock recovery, PR reconciliation. |
 
 ## What Is Real
 
@@ -111,4 +110,3 @@ These should be v2 issues rather than hidden debt:
 4. Add typed provider-specific option bags for advanced deploy routes, aliases, bindings, revisions, and rollbacks.
 5. Publish packages through the Changesets release workflow after final npm ownership/token checks.
 6. Add compatibility badges and npm version badges only after packages are actually published.
-
