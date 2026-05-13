@@ -63,6 +63,8 @@ describe("capabilities", () => {
     await expect(capsule.edge.release({ versionId: "edge_version_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.edge.rollback({ deploymentId: "edge_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.database.branch.delete({ project: "app", branchId: "br_mock" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.database.branch.reset({ project: "app", branchId: "br_mock" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.database.migrate({ project: "app", branchId: "br_mock", dryRun: true })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
   });
 });
 

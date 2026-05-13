@@ -11,7 +11,10 @@ export function capabilities(levels: {
   preview?: SupportLevel;
   machine?: SupportLevel;
   databaseBranchCreate?: SupportLevel;
+  databaseBranchDelete?: SupportLevel;
+  databaseBranchReset?: SupportLevel;
   databaseConnectionString?: SupportLevel;
+  databaseMigrate?: SupportLevel;
 }): CapabilityMap {
   return {
     sandbox: {
@@ -68,10 +71,10 @@ export function capabilities(levels: {
     },
     database: {
       branchCreate: levels.databaseBranchCreate ?? levels.database ?? unsupported,
-      branchDelete: levels.database ?? unsupported,
-      branchReset: levels.database ?? unsupported,
+      branchDelete: levels.databaseBranchDelete ?? levels.database ?? unsupported,
+      branchReset: levels.databaseBranchReset ?? unsupported,
       connectionString: levels.databaseConnectionString ?? levels.database ?? unsupported,
-      migrate: levels.database ?? unsupported,
+      migrate: levels.databaseMigrate ?? unsupported,
       snapshot: levels.database ?? unsupported,
       restore: levels.database ?? unsupported
     },

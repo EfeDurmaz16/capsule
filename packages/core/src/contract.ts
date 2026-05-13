@@ -86,6 +86,16 @@ const publicCapabilities: PublicCapability[] = [
     exercise: (capsule) => capsule.database.branch.delete({ project: "capsule-contract-test", branchId: "capsule-contract-test" })
   },
   {
+    path: "database.branchReset",
+    isImplemented: (adapter) => typeof adapter.database?.branch.reset === "function",
+    exercise: (capsule) => capsule.database.branch.reset({ project: "capsule-contract-test", branchId: "capsule-contract-test" })
+  },
+  {
+    path: "database.migrate",
+    isImplemented: (adapter) => typeof adapter.database?.migrate === "function",
+    exercise: (capsule) => capsule.database.migrate({ project: "capsule-contract-test", branchId: "capsule-contract-test", dryRun: true })
+  },
+  {
     path: "preview.create",
     isImplemented: (adapter) => typeof adapter.preview?.create === "function",
     exercise: (capsule) => capsule.preview.create({ name: "capsule-contract-test" })

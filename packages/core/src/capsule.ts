@@ -18,7 +18,9 @@ import type {
   DeleteServiceSpec,
   EdgeStatusSpec,
   JobStatusSpec,
+  MigrateDatabaseSpec,
   ReleaseEdgeVersionSpec,
+  ResetDatabaseBranchSpec,
   RollbackEdgeSpec,
   RunJobSpec,
   ServiceStatusSpec,
@@ -170,7 +172,22 @@ export class Capsule {
             throw new UnsupportedCapabilityError("database.branchDelete");
           }
           return this.options.adapter.database.branch.delete(spec, this.context());
+        },
+        reset: async (spec: ResetDatabaseBranchSpec) => {
+          this.require("database.branchReset");
+          if (!this.options.adapter.database?.branch.reset) {
+            throw new UnsupportedCapabilityError("database.branchReset");
+          }
+          return this.options.adapter.database.branch.reset(spec, this.context());
         }
+      },
+      migrate: async (spec: MigrateDatabaseSpec) => {
+        this.require("database.migrate");
+        evaluatePolicy(this.options.policy, { env: spec.env, timeoutMs: spec.timeoutMs });
+        if (!this.options.adapter.database?.migrate) {
+          throw new UnsupportedCapabilityError("database.migrate");
+        }
+        return this.options.adapter.database.migrate({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, this.context());
       }
     };
 
