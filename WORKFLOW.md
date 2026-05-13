@@ -16,7 +16,7 @@ workspace:
   root: ".symphony/workspaces"
 hooks:
   after_create: |
-    git status --short --branch
+    git clone --depth 1 https://github.com/EfeDurmaz16/capsule.git .
   before_run: |
     pnpm install --frozen-lockfile
   after_run: |

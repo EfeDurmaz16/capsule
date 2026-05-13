@@ -119,3 +119,18 @@ launchctl bootout "gui/$(id -u)" ~/Library/LaunchAgents/com.capsule.autopilot.pl
 - Each issue runs in a separate worktree under `.symphony/workspaces`.
 - Live provider tests must still be explicitly gated with `CAPSULE_LIVE_TESTS=1`.
 - If Linear is configured later, the same task graph can be mirrored there and the OpenAI Symphony reference implementation can poll Linear directly.
+
+## Real Symphony Reference Runner
+
+The upstream Symphony reference implementation creates one empty workspace per Linear issue, then runs the repository `WORKFLOW.md` hooks. Capsule's workflow clones the public repository in `hooks.after_create`, installs dependencies in `hooks.before_run`, and then launches `codex app-server` inside the per-issue workspace.
+
+Run the reference runner from the Capsule repository root so relative paths resolve under this checkout:
+
+```bash
+LINEAR_API_KEY=... \
+caffeinate -dimsu /Users/efebarandurmaz/symphony/elixir/bin/symphony WORKFLOW.md \
+  --logs-root .symphony/real-symphony-logs \
+  --port 4141
+```
+
+The Capsule Linear project slugId is pinned in `WORKFLOW.md` as `4a792bca0f93`.
