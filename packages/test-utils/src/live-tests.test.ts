@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { liveProviderCredentials, liveProviderRegistry, liveTestGate, providerLiveTestGate } from "./index.js";
+import { liveProviderCredentials, liveProviderRegistry, liveTest, liveTestGate, providerLiveTestGate, type LiveTestApi } from "./index.js";
 
 describe("live test gates", () => {
   test("skips live tests unless CAPSULE_LIVE_TESTS is enabled", () => {
@@ -69,6 +69,20 @@ describe("live test gates", () => {
         );
       }
     }
+  });
+
+  test("skipped live tests include explicit gate reasons in the test name", () => {
+    const names: string[] = [];
+    const api: LiveTestApi = {
+      skipIf: (condition) => (name) => {
+        expect(condition).toBe(true);
+        names.push(name);
+      }
+    };
+
+    liveTest(api, "reads provider state", { provider: "neon", credentials: liveProviderCredentials.neon, env: {} }, () => undefined);
+
+    expect(names).toEqual(["reads provider state (skipped: neon live tests require CAPSULE_LIVE_TESTS=1.)"]);
   });
 
   test("gates Daytona live tests on Daytona credentials", () => {
