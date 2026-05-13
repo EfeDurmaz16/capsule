@@ -51,6 +51,11 @@ const publicCapabilities: PublicCapability[] = [
     exercise: (capsule) => capsule.service.update({ id: "capsule-contract-test", image: "capsule-contract-test" })
   },
   {
+    path: "service.rollback",
+    isImplemented: (adapter) => typeof adapter.service?.rollback === "function",
+    exercise: (capsule) => capsule.service.rollback({ id: "capsule-contract-test", revision: "capsule-contract-revision" })
+  },
+  {
     path: "service.delete",
     isImplemented: (adapter) => typeof adapter.service?.delete === "function",
     exercise: (capsule) => capsule.service.delete({ id: "capsule-contract-test" })

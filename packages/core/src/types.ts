@@ -160,6 +160,7 @@ export interface CapsuleReceipt {
     | "service.deploy"
     | "service.status"
     | "service.update"
+    | "service.rollback"
     | "service.delete"
     | "service.logs"
     | "edge.deploy"
@@ -384,6 +385,7 @@ export interface ServiceDeployment {
   status: ServiceStatus;
   url?: string;
   receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
 }
 
 export type ServiceStatus = "deploying" | "ready" | "failed" | "deleted";
@@ -430,6 +432,12 @@ export interface UpdateServiceSpec {
     command?: string[] | string;
   };
   labels?: Record<string, string>;
+  providerOptions?: ProviderOptions;
+}
+
+export interface RollbackServiceSpec {
+  id: string;
+  revision?: string;
   providerOptions?: ProviderOptions;
 }
 

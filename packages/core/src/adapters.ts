@@ -42,6 +42,7 @@ import type {
   ServiceDeployment,
   ServiceLogsResult,
   ServiceLogsSpec,
+  RollbackServiceSpec,
   ServiceStatusResult,
   ServiceStatusSpec,
   StartMachineSpec,
@@ -79,6 +80,7 @@ export interface ServiceAdapter {
   deploy(spec: DeployServiceSpec, context: AdapterContext): Promise<ServiceDeployment>;
   status?(spec: ServiceStatusSpec, context: AdapterContext): Promise<ServiceStatusResult>;
   update?(spec: UpdateServiceSpec, context: AdapterContext): Promise<ServiceDeployment>;
+  rollback?(spec: RollbackServiceSpec, context: AdapterContext): Promise<ServiceDeployment>;
   delete?(spec: DeleteServiceSpec, context: AdapterContext): Promise<DeletedService>;
   logs?(spec: ServiceLogsSpec, context: AdapterContext): Promise<ServiceLogsResult>;
 }

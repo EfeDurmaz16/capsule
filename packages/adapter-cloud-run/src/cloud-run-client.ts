@@ -48,7 +48,29 @@ export interface CloudRunService {
   conditions?: CloudRunCondition[];
   latestReadyRevision?: string;
   latestCreatedRevision?: string;
+  traffic?: CloudRunTrafficTarget[];
+  trafficStatuses?: CloudRunTrafficTarget[];
   deleteTime?: string;
+}
+
+export interface CloudRunTrafficTarget {
+  type?: "TRAFFIC_TARGET_ALLOCATION_TYPE_UNSPECIFIED" | "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST" | "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION";
+  revision?: string;
+  percent?: number;
+  tag?: string;
+  uri?: string;
+}
+
+export interface CloudRunRevision {
+  name: string;
+  service?: string;
+  createTime?: string;
+  deleteTime?: string;
+}
+
+export interface CloudRunListRevisionsResponse {
+  revisions?: CloudRunRevision[];
+  nextPageToken?: string;
 }
 
 export interface CloudLoggingEntry {
@@ -148,6 +170,19 @@ export class CloudRunClient {
     return await this.request<CloudRunService>({ path: `/${name}` });
   }
 
+  async updateService(name: string, body: unknown, updateMask: string[], options: { forceNewRevision?: boolean } = {}): Promise<CloudRunOperation> {
+    return await this.request<CloudRunOperation>({
+      method: "PATCH",
+      path: `/${name}`,
+      query: { updateMask: updateMask.join(","), forceNewRevision: options.forceNewRevision },
+      body
+    });
+  }
+
+  async listRevisions(serviceName: string): Promise<CloudRunListRevisionsResponse> {
+    return await this.request<CloudRunListRevisionsResponse>({ path: `/${serviceName}/revisions` });
+  }
+
   async deleteService(name: string): Promise<CloudRunOperation> {
     return await this.request<CloudRunOperation>({ method: "DELETE", path: `/${name}` });
   }
@@ -185,11 +220,11 @@ export class CloudRunClient {
     return authorization.slice("Bearer ".length);
   }
 
-  private async request<T>(options: { method?: string; path: string; query?: Record<string, string | undefined>; body?: unknown }): Promise<T> {
+  private async request<T>(options: { method?: string; path: string; query?: Record<string, string | boolean | undefined>; body?: unknown }): Promise<T> {
     const url = new URL(`${this.baseUrl}${options.path}`);
     for (const [key, value] of Object.entries(options.query ?? {})) {
       if (value !== undefined) {
-        url.searchParams.set(key, value);
+        url.searchParams.set(key, String(value));
       }
     }
     const response = await this.fetchImpl(url, {

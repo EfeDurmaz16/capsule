@@ -26,6 +26,7 @@ import type {
   ReleaseEdgeVersionSpec,
   ResetDatabaseBranchSpec,
   RollbackEdgeSpec,
+  RollbackServiceSpec,
   RunJobSpec,
   ServiceLogsSpec,
   ServiceStatusSpec,
@@ -123,6 +124,13 @@ export class Capsule {
           throw new UnsupportedCapabilityError("service.update");
         }
         return this.options.adapter.service.update(spec, this.context());
+      },
+      rollback: async (spec: RollbackServiceSpec) => {
+        this.require("service.rollback");
+        if (!this.options.adapter.service?.rollback) {
+          throw new UnsupportedCapabilityError("service.rollback");
+        }
+        return this.options.adapter.service.rollback(spec, this.context());
       },
       delete: async (spec: DeleteServiceSpec) => {
         this.require("service.delete");

@@ -88,6 +88,7 @@ describe("capabilities", () => {
     await expect(capsule.job.logs({ id: "job_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.service.status({ id: "svc_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.service.update({ id: "svc_123", image: "node:22" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.service.rollback({ id: "svc_123", revision: "svc_123-00001-abc" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.service.delete({ id: "svc_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.service.logs({ id: "svc_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.edge.version({ deploymentId: "edge_123", name: "worker" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);

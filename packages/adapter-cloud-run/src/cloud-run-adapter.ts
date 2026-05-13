@@ -16,12 +16,14 @@ import {
   type JobLogsSpec,
   type JobRun,
   type LogEntry,
+  type RollbackServiceSpec,
   type RunJobSpec,
   type ServiceDeployment,
   type ServiceLogsResult,
   type ServiceLogsSpec,
   type ServiceStatusResult,
-  type ServiceStatusSpec
+  type ServiceStatusSpec,
+  type UpdateServiceSpec
 } from "@capsule/core";
 import {
   CloudRunClient,
@@ -60,13 +62,13 @@ export const cloudRunCapabilities: CapabilityMap = {
   },
   service: {
     deploy: "native",
-    update: "unsupported",
+    update: "native",
     delete: "native",
     status: "native",
     logs: "native",
     url: "native",
     scale: "native",
-    rollback: "unsupported",
+    rollback: "native",
     healthcheck: "experimental",
     secrets: "unsupported"
   },
@@ -161,6 +163,53 @@ function serviceBody(spec: DeployServiceSpec) {
   };
 }
 
+function serviceUpdateBody(name: string, spec: UpdateServiceSpec): { body: Record<string, unknown>; updateMask: string[] } {
+  if (spec.source) {
+    throw new AdapterExecutionError("Cloud Run service.update from source is not implemented. Provide an image for revision updates.");
+  }
+  const limits = resources(spec.resources);
+  const hasContainerUpdate = Boolean(spec.image ?? spec.env ?? spec.resources ?? spec.ports ?? spec.healthcheck);
+  if (hasContainerUpdate && !spec.image) {
+    throw new AdapterExecutionError(
+      "Cloud Run service.update requires image when updating container fields so Capsule does not overwrite the existing container with a partial template."
+    );
+  }
+  const body: Record<string, unknown> = { name };
+  const updateMask: string[] = [];
+
+  if (spec.labels) {
+    body.labels = spec.labels;
+    updateMask.push("labels");
+  }
+
+  if (hasContainerUpdate || spec.scale) {
+    body.template = {
+      ...(spec.scale ? { scaling: { minInstanceCount: spec.scale.min, maxInstanceCount: spec.scale.max } } : {}),
+      ...(hasContainerUpdate
+        ? {
+            containers: [
+              {
+                ...(spec.image ? { image: spec.image } : {}),
+                ...normalizeCommand(spec.healthcheck?.command),
+                ...(spec.env ? { env: env(spec.env) } : {}),
+                ...(limits ? { resources: { limits } } : {}),
+                ...(spec.ports?.[0] ? { ports: [{ containerPort: spec.ports[0].port, name: spec.ports[0].protocol === "tcp" ? "tcp1" : "http1" }] } : {}),
+                ...(spec.healthcheck?.path ? { startupProbe: { httpGet: { path: spec.healthcheck.path } } } : {})
+              }
+            ]
+          }
+        : {})
+    };
+    updateMask.push(...(spec.scale ? ["template.scaling"] : []), ...(hasContainerUpdate ? ["template.containers"] : []));
+  }
+
+  if (updateMask.length === 0) {
+    throw new AdapterExecutionError("Cloud Run service.update requires at least one supported change: labels, image, env, resources, ports, healthcheck, or scale.");
+  }
+
+  return { body, updateMask };
+}
+
 function isExecution(value: unknown): value is CloudRunExecution {
   return Boolean(value && typeof value === "object" && "name" in value && typeof value.name === "string");
 }
@@ -225,13 +274,35 @@ function serviceStatus(service: CloudRunService): ServiceDeployment["status"] {
 
 function serviceOperationStatus(operation: CloudRunOperation): ServiceDeployment["status"] {
   if (operation.error) return "failed";
-  if (isService(operation.response)) return serviceStatus(operation.response);
+  if (isService(operation.response)) {
+    const status = serviceStatus(operation.response);
+    if (operation.done && status === "deploying" && !operation.response.reconciling && !operation.response.terminalCondition) {
+      return "ready";
+    }
+    return status;
+  }
   if (operation.done) return "ready";
   return "deploying";
 }
 
 function serviceName(client: CloudRunClient, id: string): string {
   return id.startsWith("projects/") ? id : client.resource("services", id);
+}
+
+function providerBoolean(options: UpdateServiceSpec["providerOptions"], key: string, fallback: boolean): boolean {
+  const value = options?.[key];
+  return typeof value === "boolean" ? value : fallback;
+}
+
+async function previousRevision(client: CloudRunClient, name: string, service: CloudRunService): Promise<string> {
+  const revisions = (await client.listRevisions(name)).revisions ?? [];
+  const [revision] = revisions
+    .filter((candidate) => !candidate.deleteTime && candidate.name !== service.latestCreatedRevision && candidate.name !== service.latestReadyRevision)
+    .sort((a, b) => (b.createTime ?? "").localeCompare(a.createTime ?? ""));
+  if (!revision?.name) {
+    throw new AdapterExecutionError("Cloud Run rollback requires spec.revision because no previous revision could be selected from the service revision list.");
+  }
+  return revision.name;
 }
 
 function resourceLeaf(id: string, collection: "jobs" | "services" | "executions"): string {
@@ -439,7 +510,7 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
               metadata: { operation: operation.name, labels: spec.labels }
             })
           : undefined;
-        return { id: spec.name, provider, name: spec.name, status, url, receipt };
+        return { id: spec.name, provider, name: spec.name, status, url, receipt, metadata: { operation, service } };
       },
       status: async (spec: ServiceStatusSpec, context: AdapterContext): Promise<ServiceStatusResult> => {
         const startedAt = new Date();
@@ -462,7 +533,83 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
               metadata: { service }
             })
           : undefined;
-        return { id: spec.id, provider, name: service.name, status, url, receipt };
+        return { id: spec.id, provider, name: service.name, status, url, receipt, metadata: { service } };
+      },
+      update: async (spec: UpdateServiceSpec, context: AdapterContext): Promise<ServiceDeployment> => {
+        const startedAt = new Date();
+        const policy = context.evaluatePolicy({ env: spec.env });
+        const client = getClient();
+        const name = serviceName(client, spec.id);
+        const { body, updateMask } = serviceUpdateBody(name, spec);
+        const patch = await client.updateService(name, body, updateMask, {
+          forceNewRevision: providerBoolean(spec.providerOptions, "forceNewRevision", true)
+        });
+        const operation = await client.waitOperation(patch);
+        const status = serviceOperationStatus(operation);
+        const service = status === "ready" ? await client.getService(name) : isService(operation.response) ? operation.response : { name };
+        const url = serviceUrl(service, operation);
+        const revision = service.latestReadyRevision ?? service.latestCreatedRevision;
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "service.update",
+              capabilityPath: "service.update",
+              startedAt,
+              image: spec.image,
+              source: spec.source,
+              policy: {
+                ...policy,
+                notes: [
+                  ...policy.notes,
+                  "Cloud Run service update is native through services.patch.",
+                  "forceNewRevision defaults to true so image tag re-pushes can produce a new revision."
+                ]
+              },
+              resource: { id: spec.id, name, status, url },
+              metadata: { operation: operation.name, operationResource: operation, updateMask, revision }
+            })
+          : undefined;
+        return { id: spec.id, provider, name, status, url, receipt, metadata: { operation, service, updateMask, revision } };
+      },
+      rollback: async (spec: RollbackServiceSpec, context: AdapterContext): Promise<ServiceDeployment> => {
+        const startedAt = new Date();
+        const client = getClient();
+        const name = serviceName(client, spec.id);
+        const service = await client.getService(name);
+        const revision = spec.revision ?? (await previousRevision(client, name, service));
+        const patch = await client.updateService(
+          name,
+          {
+            name,
+            traffic: [
+              {
+                type: "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION",
+                revision,
+                percent: 100
+              }
+            ]
+          },
+          ["traffic"],
+          { forceNewRevision: false }
+        );
+        const operation = await client.waitOperation(patch);
+        const status = serviceOperationStatus(operation);
+        const updated = status === "ready" ? await client.getService(name) : isService(operation.response) ? operation.response : service;
+        const url = serviceUrl(updated, operation);
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "service.rollback",
+              capabilityPath: "service.rollback",
+              startedAt,
+              policy: {
+                decision: "allowed",
+                applied: context.policy,
+                notes: ["Cloud Run service rollback is native traffic migration to an existing revision."]
+              },
+              resource: { id: spec.id, name, status, url },
+              metadata: { operation: operation.name, operationResource: operation, revision }
+            })
+          : undefined;
+        return { id: spec.id, provider, name, status, url, receipt, metadata: { operation, service: updated, revision } };
       },
       delete: async (spec: DeleteServiceSpec, context: AdapterContext): Promise<DeletedService> => {
         const startedAt = new Date();

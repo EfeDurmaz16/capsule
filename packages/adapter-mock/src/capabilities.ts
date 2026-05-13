@@ -54,7 +54,7 @@ export function capabilities(levels: {
       logs: levels.service ?? unsupported,
       url: levels.service ?? unsupported,
       scale: levels.service ?? unsupported,
-      rollback: levels.service ?? unsupported,
+      rollback: unsupported,
       domains: levels.service ?? unsupported,
       healthcheck: levels.service ?? unsupported,
       secrets: levels.service ?? unsupported
