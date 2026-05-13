@@ -26,6 +26,8 @@ By default, `native`, `emulated`, and `experimental` satisfy a requirement. Use 
 
 `capabilityDiff(left, right)` compares two provider maps and returns only paths where support levels differ. This is useful for `capsule compare providers`, preset validation, and generated provider matrices.
 
+`explainSupportLevel(capabilities, path)` returns a human-readable summary and guidance for a declared support level. Use it in CLIs, docs generators, and provider selection UIs instead of inventing per-command wording.
+
 Examples:
 
 - Docker: `sandbox.exec` and `sandbox.exposePort` are native, `sandbox.filesystemPolicy` is emulated, `sandbox.networkPolicy` is experimental, `sandbox.snapshot` and `sandbox.restore` are unsupported, and `service.deploy` is unsupported. Docker sandbox port exposure is local-only by default: requested ports are published to `127.0.0.1` unless a caller explicitly supplies another `hostIp`.

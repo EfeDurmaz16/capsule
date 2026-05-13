@@ -4,6 +4,7 @@ import { Capsule } from "./capsule.js";
 import {
   capabilityDiff,
   evaluateCapabilityRequirements,
+  explainSupportLevel,
   missingCapabilityRequirements,
   nativeOnlySupportLevels,
   supportLevel,
@@ -135,6 +136,23 @@ describe("capabilities", () => {
         reason: undefined
       }
     ]);
+  });
+
+  test("explains support levels with remediation guidance", () => {
+    expect(explainSupportLevel(capabilities, "sandbox.exec")).toEqual({
+      path: "sandbox.exec",
+      level: "native",
+      supported: true,
+      summary: "The adapter/provider declares first-class support for this capability.",
+      guidance: "sandbox.exec can be used without Capsule-side emulation warnings."
+    });
+    expect(explainSupportLevel(capabilities, "service.deploy")).toEqual({
+      path: "service.deploy",
+      level: "unsupported",
+      supported: false,
+      summary: "The adapter/provider does not support this capability.",
+      guidance: "Choose another adapter, change the workflow requirements, or use a provider-specific escape hatch for service.deploy."
+    });
   });
 
   test("diffs provider capability maps", () => {
