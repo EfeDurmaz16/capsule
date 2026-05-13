@@ -186,7 +186,12 @@ describe("kubernetes adapter", () => {
             createNamespacedJob: async () => ({}),
             readNamespacedJob: async () => ({
               metadata: { name: "build-job", uid: "job-uid" },
-              spec: { selector: { matchLabels: { "batch.kubernetes.io/job-name": "build-job", "capsule.dev/run": "abc" } } },
+              spec: {
+                selector: {
+                  matchLabels: { "batch.kubernetes.io/job-name": "build-job", "capsule.dev/run": "abc" },
+                  matchExpressions: [{ key: "capsule.dev/component", operator: "In", values: ["worker", "runner"] }]
+                }
+              },
               status: { active: 1 }
             })
           },
@@ -206,38 +211,24 @@ describe("kubernetes adapter", () => {
             },
             readNamespacedPodLog: async (input) => {
               logReads.push(input);
-              return input.stream === "Stdout"
-                ? "2026-05-13T10:00:00Z stdout shh\n"
-                : "2026-05-13T10:00:01Z stderr shh\n";
+              return "2026-05-13T10:00:00Z stdout shh\n2026-05-13T10:00:01Z stderr shh\n";
             }
           }
         }
       }),
-      policy: { secrets: { allowed: ["SECRET"], redactFromLogs: true } },
+      policy: { secrets: { redactFromLogs: true } },
       receipts: true
     });
 
     const logs = await capsule.job.logs({ id: "build-job", since: "2026-05-13T09:59:50Z", limit: 10, follow: false });
 
-    expect(lists).toEqual([{ namespace: "jobs", labelSelector: "batch.kubernetes.io/job-name=build-job,capsule.dev/run=abc" }]);
+    expect(lists).toEqual([{ namespace: "jobs", labelSelector: "batch.kubernetes.io/job-name=build-job,capsule.dev/run=abc,capsule.dev/component in (worker,runner)" }]);
     expect(logReads).toEqual([
       {
         namespace: "jobs",
         name: "build-job-pod",
         container: "main",
-        follow: false,
         sinceSeconds: expect.any(Number),
-        stream: "Stdout",
-        tailLines: 10,
-        timestamps: true
-      },
-      {
-        namespace: "jobs",
-        name: "build-job-pod",
-        container: "main",
-        follow: false,
-        sinceSeconds: expect.any(Number),
-        stream: "Stderr",
         tailLines: 10,
         timestamps: true
       }
@@ -247,12 +238,12 @@ describe("kubernetes adapter", () => {
       provider: "kubernetes",
       logs: [
         { timestamp: "2026-05-13T10:00:00Z", stream: "stdout", message: "stdout [REDACTED]" },
-        { timestamp: "2026-05-13T10:00:01Z", stream: "stderr", message: "stderr [REDACTED]" }
+        { timestamp: "2026-05-13T10:00:01Z", stream: "stdout", message: "stderr [REDACTED]" }
       ],
       metadata: {
         namespace: "jobs",
-        selector: "batch.kubernetes.io/job-name=build-job,capsule.dev/run=abc",
-        selectorSource: "job.selector.matchLabels",
+        selector: "batch.kubernetes.io/job-name=build-job,capsule.dev/run=abc,capsule.dev/component in (worker,runner)",
+        selectorSource: "job.spec.selector",
         podNames: ["build-job-pod"],
         redactedFromPodEnv: true
       }
@@ -280,6 +271,60 @@ describe("kubernetes adapter", () => {
     });
 
     await expect(capsule.job.logs({ id: "selectorless" })).rejects.toThrow(AdapterExecutionError);
+  });
+
+  it("rejects Kubernetes follow-mode logs until streaming is explicitly modeled", async () => {
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "jobs",
+        clients: {
+          batch: {
+            createNamespacedJob: async () => ({}),
+            readNamespacedJob: async () => ({ metadata: { name: "build-job" }, spec: { selector: { matchLabels: { app: "build" } } }, status: {} })
+          },
+          apps: { createNamespacedDeployment: async () => ({}) },
+          core: {
+            createNamespacedService: async () => ({}),
+            listNamespacedPod: async () => ({ items: [] }),
+            readNamespacedPodLog: async () => ""
+          }
+        }
+      })
+    });
+
+    await expect(capsule.job.logs({ id: "build-job", follow: true })).rejects.toThrow("follow mode is not supported");
+  });
+
+  it("serializes expression-only Job selectors", async () => {
+    const lists: Array<{ namespace: string; labelSelector?: string }> = [];
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "jobs",
+        clients: {
+          batch: {
+            createNamespacedJob: async () => ({}),
+            readNamespacedJob: async () => ({
+              metadata: { name: "expr-job" },
+              spec: { selector: { matchExpressions: [{ key: "job-tier", operator: "Exists" }, { key: "phase", operator: "NotIn", values: ["done"] }] } },
+              status: {}
+            })
+          },
+          apps: { createNamespacedDeployment: async () => ({}) },
+          core: {
+            createNamespacedService: async () => ({}),
+            listNamespacedPod: async (input) => {
+              lists.push(input);
+              return { items: [] };
+            },
+            readNamespacedPodLog: async () => ""
+          }
+        }
+      })
+    });
+
+    await capsule.job.logs({ id: "expr-job" });
+
+    expect(lists).toEqual([{ namespace: "jobs", labelSelector: "job-tier,phase notin (done)" }]);
   });
 
   it("creates a Deployment and Service from DeployServiceSpec", async () => {
@@ -504,7 +549,7 @@ describe("kubernetes adapter", () => {
             },
             readNamespacedPodLog: async (input) => {
               logReads.push(input);
-              return input.stream === "Stdout" ? `2026-05-13T10:01:00.123456789Z ${input.container} ready\n` : "";
+              return `2026-05-13T10:01:00.123456789Z ${input.container} ready\n`;
             }
           }
         }
@@ -515,10 +560,8 @@ describe("kubernetes adapter", () => {
 
     expect(lists).toEqual([{ namespace: "preview", labelSelector: "app.kubernetes.io/managed-by=capsule,app.kubernetes.io/name=api" }]);
     expect(logReads).toEqual([
-      { namespace: "preview", name: "api-pod-a", container: "web", stream: "Stdout", tailLines: 2, timestamps: true },
-      { namespace: "preview", name: "api-pod-a", container: "web", stream: "Stderr", tailLines: 2, timestamps: true },
-      { namespace: "preview", name: "api-pod-a", container: "sidecar", stream: "Stdout", tailLines: 2, timestamps: true },
-      { namespace: "preview", name: "api-pod-a", container: "sidecar", stream: "Stderr", tailLines: 2, timestamps: true }
+      { namespace: "preview", name: "api-pod-a", container: "web", tailLines: 2, timestamps: true },
+      { namespace: "preview", name: "api-pod-a", container: "sidecar", tailLines: 2, timestamps: true }
     ]);
     expect(logs).toMatchObject({
       id: "api",

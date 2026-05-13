@@ -2,7 +2,6 @@ import * as k8s from "@kubernetes/client-node";
 import {
   AdapterExecutionError,
   logsFromOutput,
-  redactLogEntries,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
@@ -335,12 +334,13 @@ function stringRecord(value: unknown): Record<string, string> | undefined {
   return Object.keys(output).length > 0 ? output : undefined;
 }
 
-function matchLabelsFromSelector(spec: Record<string, unknown> | undefined): Record<string, string> | undefined {
-  return stringRecord(record(record(spec?.selector)?.matchLabels));
+function labelSelectorFromJobSpec(spec: Record<string, unknown> | undefined): string | undefined {
+  return labelSelectorFromSelector(record(spec?.selector));
 }
 
-function serviceSelector(service: KubernetesObject): Record<string, string> | undefined {
-  return stringRecord(service.spec?.selector);
+function serviceSelector(service: KubernetesObject): string | undefined {
+  const selector = stringRecord(service.spec?.selector);
+  return selector ? labelSelector(selector) : undefined;
 }
 
 function labelSelector(matchLabels: Record<string, string>): string {
@@ -348,6 +348,38 @@ function labelSelector(matchLabels: Record<string, string>): string {
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([key, value]) => `${key}=${value}`)
     .join(",");
+}
+
+function selectorRequirement(value: unknown): string | undefined {
+  const item = record(value);
+  const key = typeof item?.key === "string" ? item.key : undefined;
+  const operator = typeof item?.operator === "string" ? item.operator : undefined;
+  if (!key || !operator) return undefined;
+  const values = Array.isArray(item?.values) ? item.values.filter((entry): entry is string => typeof entry === "string") : [];
+  switch (operator) {
+    case "In":
+      return `${key} in (${values.join(",")})`;
+    case "NotIn":
+      return `${key} notin (${values.join(",")})`;
+    case "Exists":
+      return key;
+    case "DoesNotExist":
+      return `!${key}`;
+    default:
+      throw new AdapterExecutionError(`Unsupported Kubernetes label selector operator: ${operator}`);
+  }
+}
+
+function labelSelectorFromSelector(selector: Record<string, unknown> | undefined): string | undefined {
+  if (!selector) return undefined;
+  const parts: string[] = [];
+  const matchLabels = stringRecord(selector.matchLabels);
+  if (matchLabels) parts.push(labelSelector(matchLabels));
+  const expressions = selector.matchExpressions;
+  if (Array.isArray(expressions)) {
+    parts.push(...expressions.flatMap((expression) => selectorRequirement(expression) ?? []));
+  }
+  return parts.filter(Boolean).join(",") || undefined;
 }
 
 function containers(pod: KubernetesObject): string[] {
@@ -428,11 +460,21 @@ function limitLogs(logs: LogEntry[], limit: number | undefined): LogEntry[] {
   return logs.slice(-limit);
 }
 
+function redactLiteralEnvValues(logs: LogEntry[], env: Record<string, string>, context: AdapterContext): LogEntry[] {
+  if (!context.policy.secrets?.redactFromLogs) return logs;
+  const secrets = Object.values(env).filter(Boolean);
+  if (secrets.length === 0) return logs;
+  return logs.map((entry) => ({
+    ...entry,
+    message: secrets.reduce((message, secret) => message.split(secret).join("[REDACTED]"), entry.message)
+  }));
+}
+
 async function collectPodLogs(
   core: CoreApi,
   input: {
     namespace: string;
-    selector: Record<string, string> | undefined;
+    selector: string | undefined;
     selectorSource: string;
     id: string;
     since?: string;
@@ -445,10 +487,12 @@ async function collectPodLogs(
   if (!input.selector) {
     throw new AdapterExecutionError(`Kubernetes ${input.selectorSource} logs require a pod selector for ${input.id}.`);
   }
+  if (input.follow) {
+    throw new AdapterExecutionError("Kubernetes logs follow mode is not supported yet; call logs again to fetch newer entries.");
+  }
   const listNamespacedPod = requireCoreMethod(core, "listNamespacedPod");
   const readNamespacedPodLog = requireCoreMethod(core, "readNamespacedPodLog");
-  const selector = labelSelector(input.selector);
-  const podList = await listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: selector });
+  const podList = await listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: input.selector });
   const pods = podList.items ?? [];
   const sinceSeconds = secondsSince(input.since);
   const fallbackTimestamp = new Date().toISOString();
@@ -459,31 +503,24 @@ async function collectPodLogs(
     const podContainers = containers(pod);
     const targets = podContainers.length > 0 ? podContainers : [undefined];
     for (const container of targets) {
-      for (const [stream, kubernetesStream] of [
-        ["stdout", "Stdout"],
-        ["stderr", "Stderr"]
-      ] as const) {
-        const text = await readNamespacedPodLog.call(core, {
-          namespace: input.namespace,
-          name: podName,
-          container,
-          follow: input.follow,
-          sinceSeconds,
-          stream: kubernetesStream,
-          tailLines: input.limit,
-          timestamps: true
-        });
-        logs.push(...parseKubernetesLog(text, stream, fallbackTimestamp));
-      }
+      const text = await readNamespacedPodLog.call(core, {
+        namespace: input.namespace,
+        name: podName,
+        container,
+        sinceSeconds,
+        tailLines: input.limit,
+        timestamps: true
+      });
+      logs.push(...parseKubernetesLog(text, "stdout", fallbackTimestamp));
     }
   }
   const redactionEnv = literalEnv(pods);
-  const redactedLogs = redactLogEntries(filterUntil(logs, input.until), redactionEnv, input.context.policy);
+  const redactedLogs = redactLiteralEnvValues(filterUntil(logs, input.until), redactionEnv, input.context);
   return {
     logs: limitLogs(redactedLogs, input.limit),
     metadata: {
       namespace: input.namespace,
-      selector,
+      selector: input.selector,
       selectorSource: input.selectorSource,
       podNames: pods.map((pod) => pod.metadata?.name).filter(Boolean),
       redactedFromPodEnv: Object.keys(redactionEnv).length > 0
@@ -624,8 +661,8 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
         const name = job.metadata?.name ?? spec.id;
         const result = await collectPodLogs(clients.core, {
           namespace,
-          selector: matchLabelsFromSelector(job.spec),
-          selectorSource: "job.selector.matchLabels",
+          selector: labelSelectorFromJobSpec(job.spec),
+          selectorSource: "job.spec.selector",
           id: name,
           since: spec.since,
           until: spec.until,
@@ -644,7 +681,9 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
                 notes: [
                   ...policy.notes,
                   "Kubernetes Job logs are collected from Pods matched by the Job selector.",
-                  "Capsule redacts literal env values present on selected Pod specs when log redaction policy is enabled."
+                  "Capsule reads combined Pod logs without alpha split-stream parameters.",
+                  "Capsule redacts literal env values present on selected Pod specs when log redaction policy is enabled.",
+                  "Kubernetes follow-mode log streaming is intentionally rejected until Capsule exposes bounded streaming semantics."
                 ]
               },
               resource: { id: name, name, status: jobStatus(job) },
@@ -795,7 +834,9 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
                 notes: [
                   ...policy.notes,
                   "Kubernetes Service logs are collected from Pods matched by the Service selector.",
-                  "Capsule redacts literal env values present on selected Pod specs when log redaction policy is enabled."
+                  "Capsule reads combined Pod logs without alpha split-stream parameters.",
+                  "Capsule redacts literal env values present on selected Pod specs when log redaction policy is enabled.",
+                  "Kubernetes follow-mode log streaming is intentionally rejected until Capsule exposes bounded streaming semantics."
                 ]
               },
               resource: { id: name, name },
