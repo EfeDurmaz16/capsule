@@ -23,6 +23,32 @@ Capsule's Symphony layer has four files:
 
 GitHub Issues can be used as the durable task ledger. Linear can mirror the same task graph when `LINEAR_API_KEY` and a project slug are available. The current repository scaffold avoids publishing either until an operator chooses to run the publish step.
 
+## WORKFLOW.md Mapping
+
+`WORKFLOW.md` is the repository-owned operating contract that a Symphony-style runner injects into each agent run.
+
+The front matter maps to the reference model:
+
+- `tracker`: where the runner should poll work. The reference implementation is Linear-first, so Capsule keeps Linear fields in `WORKFLOW.md`.
+- `polling`: how frequently eligible work should be checked.
+- `workspace`: where isolated workspaces should be created.
+- `hooks`: repository commands that run around each attempt.
+- `agent`: concurrency and retry limits.
+- `codex`: command and timeout settings for the coding agent process.
+
+The markdown body maps to the per-issue agent prompt. It tells each worker to treat the issue as source of truth, keep changes scoped, avoid fake provider support, gate live tests, verify locally, and return a concise handoff.
+
+## Linear-First Limitation
+
+The upstream Symphony reference is shaped around Linear as the tracker. That is a good fit for teams already running Linear states, project slugs, and API tokens. Capsule should not require Linear for OSS maintenance, because GitHub Issues are the public contribution surface.
+
+Capsule therefore has two compatible modes:
+
+- Linear/Symphony mode: mirror `.capsule/tasks.json` into Linear with `pnpm capsule:linear -- --apply`, then let a Symphony-compatible runner poll Linear according to `WORKFLOW.md`.
+- GitHub-only mode: create GitHub issues with `pnpm capsule:issues -- --apply`, then run the local fallback runner with `pnpm capsule:autopilot`.
+
+The two modes use the same task graph and workflow rules. GitHub issue creation remains independent from Linear mirroring.
+
 ## Dispatch Model
 
 1. A maintainer updates `.capsule/tasks.json` or imports tasks into GitHub/Linear.
@@ -60,6 +86,7 @@ The repository has real adapters for Docker, E2B, Daytona, Modal, Neon, Cloudfla
 pnpm capsule:gap
 pnpm capsule:issues
 pnpm capsule:issues -- --apply
+pnpm capsule:linear
 ```
 
 The final command creates GitHub issues through `gh issue create`; use it only after reviewing the generated task list.
@@ -71,3 +98,34 @@ pnpm capsule:autopilot -- --max-parallel 2
 ```
 
 For an overnight run, wrap it in `caffeinate` so macOS does not sleep while agents are running.
+
+## Overnight Operations
+
+Start:
+
+```bash
+mkdir -p .symphony/logs
+nohup caffeinate -dimsu node scripts/capsule-autopilot.mjs --max-parallel 2 > .symphony/logs/autopilot.log 2>&1 &
+echo $! > .symphony/autopilot.pid
+```
+
+Monitor:
+
+```bash
+cat .symphony/autopilot-state.json
+tail -f .symphony/logs/autopilot.log
+gh issue list --label capsule --limit 30
+gh pr list --limit 30
+```
+
+Stop:
+
+```bash
+kill "$(cat .symphony/autopilot.pid)"
+```
+
+If the LaunchAgent path is used, stop it with:
+
+```bash
+launchctl bootout "gui/$(id -u)" ~/Library/LaunchAgents/com.capsule.autopilot.plist
+```
