@@ -45,5 +45,26 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "description": "Command-line interface for inspecting Capsule capabilities and running provider-backed jobs.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EfeDurmaz16/capsule.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/EfeDurmaz16/capsule#readme",
+  "bugs": {
+    "url": "https://github.com/EfeDurmaz16/capsule/issues"
+  },
+  "keywords": [
+    "capsule",
+    "cli",
+    "runtime",
+    "deployment",
+    "sandboxes"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  }
 }
