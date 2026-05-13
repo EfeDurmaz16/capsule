@@ -21,3 +21,30 @@ Capsule should let providers and framework maintainers model their preview orche
 The package records a resource graph containing service, edge, database, and job resources. Cleanup walks that graph in reverse dependency order and reports partial cleanup failures instead of hiding successfully cleaned resources.
 
 `createPreviewEnvironmentWithCleanup(...)` attempts cleanup when creation fails after earlier resources were provisioned. Receipts from the underlying domain operations remain the evidence source; preview orchestration does not claim provider-native preview support unless an adapter exposes it.
+
+## Example
+
+`examples/preview-environment-model` demonstrates both modes without blurring them:
+
+- default mode is demo-only and uses mock adapters;
+- live mode requires `CAPSULE_LIVE_TESTS=1`, `NEON_API_KEY`, `NEON_PROJECT_ID`, and `VERCEL_TOKEN`;
+- Cloud Run service composition is added only when `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_RUN_LOCATION`, and `GOOGLE_OAUTH_ACCESS_TOKEN` are also present;
+- live mode fails instead of falling back to mocks when required credentials are missing.
+
+The example persists receipts to `.capsule/receipts/preview-environment-model.jsonl` by default and prints only receipt summaries: id, type, provider, adapter, capability path, support level, and resource status. It intentionally does not print receipt metadata or provider options, so cleanup output does not expose connection strings or credential-shaped fields.
+
+Run the demo path:
+
+```bash
+pnpm --filter @capsule/example-preview-environment-model start
+```
+
+Run live verification only after choosing the provider resources it will create:
+
+```bash
+export CAPSULE_LIVE_TESTS=1
+export NEON_API_KEY=...
+export NEON_PROJECT_ID=...
+export VERCEL_TOKEN=...
+pnpm --filter @capsule/example-preview-environment-model start
+```

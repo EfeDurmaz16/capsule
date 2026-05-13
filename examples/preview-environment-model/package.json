@@ -1,1 +1,23 @@
-{"name":"@capsule/example-preview-environment-model","private":true,"type":"module","scripts":{"start":"tsx src/index.ts","typecheck":"tsc -p tsconfig.json --noEmit"},"dependencies":{"@capsule/core":"workspace:*","@capsule/adapter-mock":"workspace:*"},"devDependencies":{"tsx":"^4.20.6","typescript":"^5.9.3"}}
+{
+  "name": "@capsule/example-preview-environment-model",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@capsule/adapter-cloud-run": "workspace:*",
+    "@capsule/adapter-mock": "workspace:*",
+    "@capsule/adapter-neon": "workspace:*",
+    "@capsule/adapter-vercel": "workspace:*",
+    "@capsule/core": "workspace:*",
+    "@capsule/preview": "workspace:*",
+    "@capsule/store-jsonl": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.14"
+  }
+}
