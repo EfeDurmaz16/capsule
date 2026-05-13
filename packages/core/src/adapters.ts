@@ -5,6 +5,7 @@ import type {
   CancelJobResult,
   CancelJobSpec,
   CreateDatabaseBranchSpec,
+  DatabaseMigration,
   DeletedDatabaseBranch,
   DeleteDatabaseBranchSpec,
   DeletedService,
@@ -24,7 +25,10 @@ import type {
   JobStatusResult,
   JobStatusSpec,
   Machine,
+  MigrateDatabaseSpec,
   PreviewEnvironment,
+  ResetDatabaseBranch,
+  ResetDatabaseBranchSpec,
   RunJobSpec,
   Sandbox,
   ServiceDeployment,
@@ -76,10 +80,12 @@ export interface EdgeAdapter {
 export interface DatabaseBranchAdapter {
   create(spec: CreateDatabaseBranchSpec, context: AdapterContext): Promise<DatabaseBranch>;
   delete?(spec: DeleteDatabaseBranchSpec, context: AdapterContext): Promise<DeletedDatabaseBranch>;
+  reset?(spec: ResetDatabaseBranchSpec, context: AdapterContext): Promise<ResetDatabaseBranch>;
 }
 
 export interface DatabaseAdapter {
   branch: DatabaseBranchAdapter;
+  migrate?(spec: MigrateDatabaseSpec, context: AdapterContext): Promise<DatabaseMigration>;
 }
 
 export interface PreviewAdapter {

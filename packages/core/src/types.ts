@@ -162,6 +162,8 @@ export interface CapsuleReceipt {
     | "edge.rollback"
     | "database.branch.create"
     | "database.branch.delete"
+    | "database.branch.reset"
+    | "database.migrate"
     | "preview.create"
     | "preview.destroy"
     | "machine.create"
@@ -513,6 +515,31 @@ export interface DeleteDatabaseBranchSpec {
   hardDelete?: boolean;
 }
 
+export interface ResetDatabaseBranchSpec {
+  project: string;
+  branchId: string;
+  parent?: string;
+  pointInTime?: string;
+  reason?: string;
+  labels?: Record<string, string>;
+}
+
+export interface MigrateDatabaseSpec {
+  project: string;
+  branchId: string;
+  command?: string[] | string;
+  migrations?: Array<{
+    id?: string;
+    name?: string;
+    sql?: string;
+    path?: string;
+  }>;
+  dryRun?: boolean;
+  env?: Record<string, string>;
+  timeoutMs?: number;
+  labels?: Record<string, string>;
+}
+
 export interface DatabaseBranch {
   id: string;
   provider: string;
@@ -530,6 +557,27 @@ export interface DeletedDatabaseBranch {
   project: string;
   status: "deleted";
   receipt?: CapsuleReceipt;
+}
+
+export interface ResetDatabaseBranch {
+  id: string;
+  provider: string;
+  project: string;
+  parent?: string;
+  status: "resetting" | "ready" | "failed";
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
+}
+
+export interface DatabaseMigration {
+  id: string;
+  provider: string;
+  project: string;
+  branchId: string;
+  status: "running" | "succeeded" | "failed" | "skipped";
+  logs?: LogEntry[];
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CreatePreviewSpec {
