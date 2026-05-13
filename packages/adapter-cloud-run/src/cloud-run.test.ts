@@ -16,6 +16,8 @@ describe("cloud-run adapter", () => {
     expect(cloudRunCapabilities.job?.status).toBe("native");
     expect(cloudRunCapabilities.job?.cancel).toBe("native");
     expect(cloudRunCapabilities.service?.deploy).toBe("native");
+    expect(cloudRunCapabilities.service?.status).toBe("native");
+    expect(cloudRunCapabilities.service?.delete).toBe("native");
     expect(cloudRunCapabilities.edge?.deploy).toBe("unsupported");
   });
 
@@ -117,6 +119,58 @@ describe("cloud-run adapter", () => {
     expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
       template: { scaling: { minInstanceCount: 0, maxInstanceCount: 3 } }
     });
+  });
+
+  it("maps Cloud Run service status to ready, deploying, and failed states", async () => {
+    const serviceName = "projects/proj/locations/europe-west1/services/api";
+    const states = [
+      { name: serviceName, uri: "https://api.example", reconciling: false, terminalCondition: { state: "CONDITION_SUCCEEDED" } },
+      { name: serviceName, reconciling: true, terminalCondition: { state: "CONDITION_RECONCILING" } },
+      { name: serviceName, reconciling: false, terminalCondition: { state: "CONDITION_FAILED", message: "revision failed" } }
+    ];
+    const fetchMock = (async () => response(states.shift())) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: cloudRun({ projectId: "proj", location: "europe-west1", accessToken: "token", fetch: fetchMock }),
+      receipts: true
+    });
+
+    const ready = await capsule.service.status({ id: "api" });
+    const deploying = await capsule.service.status({ id: "api" });
+    const failed = await capsule.service.status({ id: "api" });
+
+    expect(ready).toMatchObject({ id: "api", provider: "cloud-run", name: serviceName, status: "ready", url: "https://api.example" });
+    expect(ready.receipt).toMatchObject({
+      type: "service.status",
+      capabilityPath: "service.status",
+      resource: { id: "api", name: serviceName, status: "ready", url: "https://api.example" }
+    });
+    expect(deploying.status).toBe("deploying");
+    expect(failed.status).toBe("failed");
+  });
+
+  it("deletes a Cloud Run service through the Admin API and records a resource receipt", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const serviceName = "projects/proj/locations/europe-west1/services/api";
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      if (String(url).endsWith(":wait")) return response({ name: "operations/delete", done: true });
+      return response({ name: "operations/delete", done: false });
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: cloudRun({ projectId: "proj", location: "europe-west1", accessToken: "token", fetch: fetchMock }),
+      receipts: true
+    });
+
+    const deleted = await capsule.service.delete({ id: "api" });
+
+    expect(deleted).toMatchObject({ id: "api", provider: "cloud-run", name: serviceName, status: "deleted" });
+    expect(deleted.receipt).toMatchObject({
+      type: "service.delete",
+      capabilityPath: "service.delete",
+      resource: { id: "api", name: serviceName, status: "deleted" }
+    });
+    expect(calls[0]).toMatchObject({ url: expect.stringContaining(`/v2/${serviceName}`), init: { method: "DELETE" } });
+    expect(calls[1]).toMatchObject({ url: expect.stringContaining("/v2/operations/delete:wait"), init: { method: "POST" } });
   });
 
   it("requires project and location only when used", async () => {

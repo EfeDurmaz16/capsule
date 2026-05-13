@@ -32,6 +32,24 @@ export interface CloudRunExecution {
   deleteTime?: string;
 }
 
+export interface CloudRunCondition {
+  type?: string;
+  state?: "CONDITION_STATE_UNSPECIFIED" | "CONDITION_PENDING" | "CONDITION_RECONCILING" | "CONDITION_FAILED" | "CONDITION_SUCCEEDED";
+  message?: string;
+  reason?: string;
+}
+
+export interface CloudRunService {
+  name: string;
+  uri?: string;
+  reconciling?: boolean;
+  terminalCondition?: CloudRunCondition;
+  conditions?: CloudRunCondition[];
+  latestReadyRevision?: string;
+  latestCreatedRevision?: string;
+  deleteTime?: string;
+}
+
 export class CloudRunClient {
   readonly projectId: string;
   readonly location: string;
@@ -95,8 +113,12 @@ export class CloudRunClient {
     });
   }
 
-  async getService(name: string): Promise<Record<string, unknown>> {
-    return await this.request<Record<string, unknown>>({ path: `/${name}` });
+  async getService(name: string): Promise<CloudRunService> {
+    return await this.request<CloudRunService>({ path: `/${name}` });
+  }
+
+  async deleteService(name: string): Promise<CloudRunOperation> {
+    return await this.request<CloudRunOperation>({ method: "DELETE", path: `/${name}` });
   }
 
   async waitOperation<T>(operation: CloudRunOperation<T>): Promise<CloudRunOperation<T>> {

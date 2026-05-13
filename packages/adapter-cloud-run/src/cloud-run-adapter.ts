@@ -6,14 +6,24 @@ import {
   type CapabilityMap,
   type CancelJobResult,
   type CancelJobSpec,
+  type DeletedService,
+  type DeleteServiceSpec,
   type DeployServiceSpec,
   type JobStatusResult,
   type JobStatusSpec,
   type JobRun,
   type RunJobSpec,
-  type ServiceDeployment
+  type ServiceDeployment,
+  type ServiceStatusResult,
+  type ServiceStatusSpec
 } from "@capsule/core";
-import { CloudRunClient, type CloudRunClientOptions, type CloudRunExecution, type CloudRunOperation } from "./cloud-run-client.js";
+import {
+  CloudRunClient,
+  type CloudRunClientOptions,
+  type CloudRunExecution,
+  type CloudRunOperation,
+  type CloudRunService
+} from "./cloud-run-client.js";
 
 export interface CloudRunAdapterOptions extends CloudRunClientOptions {}
 
@@ -42,8 +52,8 @@ export const cloudRunCapabilities: CapabilityMap = {
   service: {
     deploy: "native",
     update: "unsupported",
-    delete: "unsupported",
-    status: "unsupported",
+    delete: "native",
+    status: "native",
     logs: "unsupported",
     url: "native",
     scale: "native",
@@ -180,12 +190,39 @@ function executionName(operation: CloudRunOperation, fallback: string): string {
   return isExecution(operation.response) ? operation.response.name : fallback;
 }
 
-function serviceUrl(service: Record<string, unknown>, operation: CloudRunOperation): string | undefined {
+function isService(value: unknown): value is CloudRunService {
+  return Boolean(value && typeof value === "object" && "name" in value && typeof value.name === "string");
+}
+
+function serviceUrl(service: Partial<CloudRunService>, operation: CloudRunOperation): string | undefined {
   const uri = service.uri;
   if (typeof uri === "string") return uri;
   const response = operation.response;
   if (response && typeof response === "object" && "uri" in response && typeof response.uri === "string") return response.uri;
   return undefined;
+}
+
+function serviceStatus(service: CloudRunService): ServiceDeployment["status"] {
+  if (service.deleteTime) return "deleted";
+  if (service.reconciling) return "deploying";
+  if (service.terminalCondition?.state === "CONDITION_FAILED") return "failed";
+  if (service.terminalCondition?.state === "CONDITION_SUCCEEDED") return "ready";
+  const readyCondition = service.conditions?.find((condition) => condition.type === "Ready");
+  if (readyCondition?.state === "CONDITION_FAILED") return "failed";
+  if (readyCondition?.state === "CONDITION_SUCCEEDED") return "ready";
+  if (service.latestReadyRevision && service.latestReadyRevision === service.latestCreatedRevision) return "ready";
+  return "deploying";
+}
+
+function serviceOperationStatus(operation: CloudRunOperation): ServiceDeployment["status"] {
+  if (operation.error) return "failed";
+  if (isService(operation.response)) return serviceStatus(operation.response);
+  if (operation.done) return "ready";
+  return "deploying";
+}
+
+function serviceName(client: CloudRunClient, id: string): string {
+  return id.startsWith("projects/") ? id : client.resource("services", id);
 }
 
 export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
@@ -266,9 +303,9 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
         const client = getClient();
         const create = await client.createService(spec.name, serviceBody(spec));
         const operation = await client.waitOperation(create);
-        const status = operation.error ? "failed" : operation.done ? "ready" : "deploying";
+        const status = serviceOperationStatus(operation);
         const serviceName = client.resource("services", spec.name);
-        const service = status === "ready" ? await client.getService(serviceName) : {};
+        const service = status === "ready" ? await client.getService(serviceName) : isService(operation.response) ? operation.response : {};
         const url = serviceUrl(service, operation);
         const receipt = context.receipts
           ? context.createReceipt({
@@ -290,6 +327,54 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
             })
           : undefined;
         return { id: spec.name, provider, name: spec.name, status, url, receipt };
+      },
+      status: async (spec: ServiceStatusSpec, context: AdapterContext): Promise<ServiceStatusResult> => {
+        const startedAt = new Date();
+        const client = getClient();
+        const name = serviceName(client, spec.id);
+        const service = await client.getService(name);
+        const status = serviceStatus(service);
+        const url = service.uri;
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "service.status",
+              capabilityPath: "service.status",
+              startedAt,
+              policy: {
+                decision: "allowed",
+                applied: context.policy,
+                notes: ["Cloud Run service status is read from the Admin API service resource."]
+              },
+              resource: { id: spec.id, name: service.name, status, url },
+              metadata: { service }
+            })
+          : undefined;
+        return { id: spec.id, provider, name: service.name, status, url, receipt };
+      },
+      delete: async (spec: DeleteServiceSpec, context: AdapterContext): Promise<DeletedService> => {
+        const startedAt = new Date();
+        const client = getClient();
+        const name = serviceName(client, spec.id);
+        const operation = await client.deleteService(name);
+        const waited = await client.waitOperation(operation);
+        if (waited.error) {
+          throw new AdapterExecutionError("Cloud Run service deletion failed.", { operation: waited });
+        }
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "service.delete",
+              capabilityPath: "service.delete",
+              startedAt,
+              policy: {
+                decision: "allowed",
+                applied: context.policy,
+                notes: ["Cloud Run service deletion is native through the Admin API."]
+              },
+              resource: { id: spec.id, name, status: "deleted" },
+              metadata: { operation: waited.name, operationResource: waited }
+            })
+          : undefined;
+        return { id: spec.id, provider, name, status: "deleted", receipt };
       }
     }
   };
