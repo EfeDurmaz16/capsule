@@ -606,6 +606,248 @@
         "pnpm capsule:gap, typecheck, test, and build pass",
         "Known limitations and next PRs are documented"
       ]
+    },
+    {
+      "id": "CAP-056",
+      "title": "Add v2 no-mock completion policy and task graph",
+      "labels": ["type:docs", "area:harness", "area:release", "release:v2"],
+      "priority": 1,
+      "successCriteria": [
+        "V2 docs define that mocks cannot close real provider work",
+        "Task graph includes concrete v2 issues with verification requirements",
+        "README links to the v2 plan"
+      ]
+    },
+    {
+      "id": "CAP-057",
+      "title": "Add typed provider option bags to public specs",
+      "labels": ["type:feature", "area:core", "area:providers", "release:v2"],
+      "priority": 1,
+      "successCriteria": [
+        "Core specs include typed providerOptions fields without exposing credentials",
+        "Existing adapters compile without required option changes",
+        "Tests cover provider option propagation into receipts without secret leakage"
+      ]
+    },
+    {
+      "id": "CAP-058",
+      "title": "Add provider request id and idempotency metadata to receipts",
+      "labels": ["type:feature", "area:receipts", "type:security", "release:v2"],
+      "priority": 1,
+      "successCriteria": [
+        "Receipt metadata has documented provider request id and idempotency fields",
+        "Adapters that can observe request ids record them without secrets",
+        "Tests cover metadata redaction and JSON schema updates"
+      ]
+    },
+    {
+      "id": "CAP-059",
+      "title": "Add log collection interfaces across jobs services and edge",
+      "labels": ["type:feature", "area:core", "area:jobs", "area:service", "area:edge", "release:v2"],
+      "priority": 1,
+      "successCriteria": [
+        "Core exposes optional logs methods for job, service, and edge domains",
+        "Unsupported adapters throw UnsupportedCapabilityError",
+        "Contract tests guard against declaring logs support without implementation"
+      ]
+    },
+    {
+      "id": "CAP-060",
+      "title": "Implement Kubernetes job and service log collection",
+      "labels": ["type:feature", "provider:kubernetes", "area:jobs", "area:service", "release:v2"],
+      "priority": 2,
+      "successCriteria": [
+        "Kubernetes adapter reads pod logs for jobs and services where selectors are available",
+        "Logs are normalized into LogEntry records and redacted by policy",
+        "Tests cover request mapping and unsupported selector cases without live cluster access"
+      ]
+    },
+    {
+      "id": "CAP-061",
+      "title": "Implement Cloud Run logs through Cloud Logging",
+      "labels": ["type:feature", "provider:cloud-run", "area:jobs", "area:service", "release:v2"],
+      "priority": 2,
+      "successCriteria": [
+        "Cloud Run adapter can fetch recent job and service logs through a real Cloud Logging API path or official client",
+        "Missing logging configuration fails explicitly without fake logs",
+        "Tests cover query construction and redaction"
+      ]
+    },
+    {
+      "id": "CAP-062",
+      "title": "Implement Vercel deployment logs status and rollback",
+      "labels": ["type:feature", "provider:vercel", "area:edge", "release:v2"],
+      "priority": 2,
+      "successCriteria": [
+        "Vercel adapter implements real status and logs APIs where available",
+        "Rollback or alias rollback is modeled only if backed by real Vercel APIs",
+        "Tests cover team/project query parameters and no token leakage"
+      ]
+    },
+    {
+      "id": "CAP-063",
+      "title": "Implement Cloudflare Worker versions rollback and secret binding policy",
+      "labels": ["type:feature", "provider:cloudflare", "area:edge", "type:security", "release:v2"],
+      "priority": 2,
+      "successCriteria": [
+        "Cloudflare adapter models versions and rollback using real Workers APIs",
+        "Secret bindings are either implemented through real secret APIs or remain unsupported",
+        "Tests prove route/binding/secret behavior is not silently faked"
+      ]
+    },
+    {
+      "id": "CAP-064",
+      "title": "Implement Cloud Run service update and revision rollback",
+      "labels": ["type:feature", "provider:cloud-run", "area:service", "release:v2"],
+      "priority": 2,
+      "successCriteria": [
+        "Cloud Run adapter updates services through real revision-producing APIs",
+        "Rollback targets an explicit or previous revision when Cloud Run supports it",
+        "Tests cover revision metadata status update and rollback request mapping"
+      ]
+    },
+    {
+      "id": "CAP-065",
+      "title": "Implement Azure Container Apps status delete cancel and revisions",
+      "labels": ["type:feature", "provider:azure", "area:service", "area:jobs", "release:v2"],
+      "priority": 2,
+      "successCriteria": [
+        "Azure adapter implements real job status cancel service status and delete APIs",
+        "Revision or rollback support is implemented only where backed by ARM APIs",
+        "Tests cover ARM request mapping receipts and unsupported revision guards"
+      ]
+    },
+    {
+      "id": "CAP-066",
+      "title": "Add real preview environment composition example",
+      "labels": ["type:feature", "area:preview", "area:examples", "release:v2"],
+      "priority": 2,
+      "successCriteria": [
+        "Preview example composes real adapters only when required env credentials are present",
+        "Mock fallback is labeled demo-only and cannot satisfy live verification",
+        "Cleanup receipts are persisted and printed without secrets"
+      ]
+    },
+    {
+      "id": "CAP-067",
+      "title": "Complete preview lifecycle contract beyond create",
+      "labels": ["type:feature", "area:core", "area:preview", "release:v2"],
+      "priority": 1,
+      "successCriteria": [
+        "Core exposes preview destroy status logs urls and cleanup methods where capabilities declare them",
+        "Unsupported preview lifecycle methods throw UnsupportedCapabilityError",
+        "Contract tests guard against declaring preview lifecycle support without implementation"
+      ]
+    },
+    {
+      "id": "CAP-068",
+      "title": "Make receipt persistence semantics explicit",
+      "labels": ["type:feature", "area:receipts", "type:security", "release:v2"],
+      "priority": 1,
+      "successCriteria": [
+        "Core distinguishes best-effort and required receipt persistence",
+        "Required receipt persistence fails closed when the store write fails",
+        "JSONL store tests cover write flush and read behavior without adding a core database"
+      ]
+    },
+    {
+      "id": "CAP-069",
+      "title": "Add preview orchestration receipts and cleanup evidence",
+      "labels": ["type:feature", "area:preview", "area:receipts", "release:v2"],
+      "priority": 1,
+      "successCriteria": [
+        "Preview orchestration emits preview-level receipts for create failure cleanup and partial cleanup",
+        "Every resource has cleanup disposition such as cleaned partial unsupported or leaked",
+        "Tests cover failed and partial cleanup evidence"
+      ]
+    },
+    {
+      "id": "CAP-070",
+      "title": "Prevent mock adapters from satisfying production preview runs",
+      "labels": ["type:security", "area:preview", "area:providers", "release:v2"],
+      "priority": 1,
+      "successCriteria": [
+        "Preview orchestration can require real providers and rejects mock adapters unless explicitly allowed",
+        "Mock adapter receipts and metadata expose mock true",
+        "Docs and examples keep mock-only language and never treat mock success as provider completion"
+      ]
+    },
+    {
+      "id": "CAP-071",
+      "title": "Add complete npm package metadata and enforce it",
+      "labels": ["type:infra", "area:release", "area:oss", "release:v2"],
+      "priority": 1,
+      "successCriteria": [
+        "Every public package has description license repository homepage bugs keywords and engines",
+        "Package publish audit fails when required metadata is missing",
+        "Examples remain private and are excluded from publish metadata requirements"
+      ]
+    },
+    {
+      "id": "CAP-072",
+      "title": "Add pack and install smoke tests for public packages",
+      "labels": ["type:test", "area:release", "release:v2"],
+      "priority": 1,
+      "successCriteria": [
+        "Built packages can be packed and installed into a temporary fixture",
+        "Package-name imports and CLI bin execution work from packed artifacts",
+        "Smoke test is available as a release audit command"
+      ]
+    },
+    {
+      "id": "CAP-073",
+      "title": "Add live smoke tests for deployment providers",
+      "labels": ["type:test", "area:live-tests", "area:providers", "release:v2"],
+      "priority": 2,
+      "successCriteria": [
+        "Cloud Run, Cloudflare, Vercel, Neon, Kubernetes, AWS, Fly, and Azure live tests are gated and skipped by default",
+        "Each live test documents required env vars and cleanup behavior",
+        "CI remains credential-free and green"
+      ]
+    },
+    {
+      "id": "CAP-074",
+      "title": "Expand live-test coverage registry for every real adapter",
+      "labels": ["type:test", "area:live-tests", "area:providers", "release:v2"],
+      "priority": 1,
+      "successCriteria": [
+        "Test utilities define gates for Docker E2B Daytona Modal Cloud Run Cloudflare Vercel Neon Kubernetes Lambda ECS EC2 Fly and Azure",
+        "Skip reasons identify missing CAPSULE_LIVE_TESTS flag and missing provider credentials",
+        "Mock adapter tests are never counted as live provider verification"
+      ]
+    },
+    {
+      "id": "CAP-075",
+      "title": "Publish readiness dry run and package ownership audit",
+      "labels": ["type:infra", "area:release", "release:v2"],
+      "priority": 1,
+      "successCriteria": [
+        "Release audit includes npm pack dry run for every public package",
+        "Docs list required npm org/package ownership checks before publish",
+        "No npm version badge is added before actual publication"
+      ]
+    },
+    {
+      "id": "CAP-076",
+      "title": "Add no unfinished-marker release gate",
+      "labels": ["type:test", "area:release", "type:security", "release:v2"],
+      "priority": 1,
+      "successCriteria": [
+        "CI fails on TODO FIXME stub mock-level or technical-debt markers in shipped source unless allowlisted",
+        "Allowlist is documented and limited to explanatory docs or tests",
+        "Skipped tests include explicit gate reasons"
+      ]
+    },
+    {
+      "id": "CAP-077",
+      "title": "Run final v2 readiness audit",
+      "labels": ["type:audit", "area:release", "release:v2"],
+      "priority": 1,
+      "successCriteria": [
+        "All v2 issues are closed by merged PRs or explicitly marked out of scope",
+        "No shipped-source TODO FIXME stub mock-level or technical-debt markers remain",
+        "Final verification commands pass and results are documented"
+      ]
     }
   ]
 }
