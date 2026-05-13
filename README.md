@@ -227,7 +227,7 @@ Real in this repository:
 - Daytona sandbox create/exec/file/list/destroy through the Daytona SDK;
 - Modal sandbox create/exec/read/write/destroy through the Modal JS SDK;
 - Cloudflare Worker module upload through the Cloudflare API;
-- Cloud Run job run and service deploy through the Cloud Run Admin API;
+- Cloud Run job run, service deploy, and bounded job/service log reads through the Cloud Run Admin API and Cloud Logging;
 - Kubernetes Job, Deployment, and Service creation through the official Kubernetes client;
 - AWS Lambda invocation through AWS SDK v3;
 - ECS RunTask and CreateService through AWS SDK v3;
