@@ -12,6 +12,9 @@ describe("ecs adapter", () => {
     expect(ecsCapabilities.job?.status).toBe("native");
     expect(ecsCapabilities.job?.cancel).toBe("native");
     expect(ecsCapabilities.service?.deploy).toBe("native");
+    expect(ecsCapabilities.service?.status).toBe("native");
+    expect(ecsCapabilities.service?.delete).toBe("native");
+    expect(ecsCapabilities.service?.url).toBe("unsupported");
   });
 
   it("runs an ECS task using an existing task definition", async () => {
@@ -148,5 +151,116 @@ describe("ecs adapter", () => {
     expect(deployment).toMatchObject({ id: "arn:service/api", provider: "ecs", status: "deploying" });
     expect(deployment.receipt?.type).toBe("service.deploy");
     expect(sent[0]).toMatchObject({ cluster: "cluster-a", serviceName: "api", taskDefinition: "api:3", launchType: "EC2", desiredCount: 2 });
+  });
+
+  it("describes ECS service rollout status from DescribeServices", async () => {
+    const sent: any[] = [];
+    const client = {
+      send: async (command: any) => {
+        sent.push(command.input);
+        return {
+          services: [
+            {
+              serviceArn: "arn:service/api",
+              serviceName: "api",
+              status: "ACTIVE",
+              desiredCount: 2,
+              runningCount: 2,
+              pendingCount: 0,
+              deployments: [
+                {
+                  id: "ecs-svc/123",
+                  status: "PRIMARY",
+                  rolloutState: "COMPLETED",
+                  desiredCount: 2,
+                  runningCount: 2,
+                  pendingCount: 0,
+                  taskDefinition: "api:3"
+                }
+              ],
+              events: [{ id: "event-1", message: "service reached a steady state" }]
+            }
+          ]
+        };
+      }
+    };
+    const capsule = new Capsule({
+      adapter: ecs({ cluster: "cluster-a", taskDefinition: "api:3", containerName: "main", client }),
+      receipts: true
+    });
+
+    const status = await capsule.service.status({ id: "api" });
+
+    expect(status).toMatchObject({ id: "arn:service/api", provider: "ecs", name: "api", status: "ready" });
+    expect(status.receipt?.type).toBe("service.status");
+    expect(status.receipt?.resource).toMatchObject({ id: "arn:service/api", name: "api", status: "ready" });
+    expect(status.metadata).toMatchObject({
+      cluster: "cluster-a",
+      serviceArn: "arn:service/api",
+      serviceName: "api",
+      status: "ACTIVE",
+      desiredCount: 2,
+      runningCount: 2,
+      pendingCount: 0,
+      deployments: [{ id: "ecs-svc/123", status: "PRIMARY", rolloutState: "COMPLETED", taskDefinition: "api:3" }]
+    });
+    expect(sent[0]).toMatchObject({ cluster: "cluster-a", services: ["api"] });
+  });
+
+  it("marks ECS service rollout failures as failed", async () => {
+    const client = {
+      send: async () => ({
+        services: [
+          {
+            serviceArn: "arn:service/api",
+            serviceName: "api",
+            status: "ACTIVE",
+            desiredCount: 2,
+            runningCount: 1,
+            pendingCount: 0,
+            deployments: [{ id: "ecs-svc/123", status: "PRIMARY", rolloutState: "FAILED", rolloutStateReason: "deployment failed" }]
+          }
+        ]
+      })
+    };
+    const capsule = new Capsule({
+      adapter: ecs({ cluster: "cluster-a", taskDefinition: "api:3", containerName: "main", client })
+    });
+
+    await expect(capsule.service.status({ id: "api" })).resolves.toMatchObject({ status: "failed" });
+  });
+
+  it("scales ECS services to zero before deleting them", async () => {
+    const sent: any[] = [];
+    const client = {
+      send: async (command: any) => {
+        sent.push({ name: command.constructor.name, input: command.input });
+        if (command.constructor.name === "UpdateServiceCommand") {
+          return { service: { serviceArn: "arn:service/api", serviceName: "api", desiredCount: 0, runningCount: 1, pendingCount: 0 } };
+        }
+        return { service: { serviceArn: "arn:service/api", serviceName: "api", status: "DRAINING", desiredCount: 0, runningCount: 0, pendingCount: 0 } };
+      }
+    };
+    const capsule = new Capsule({
+      adapter: ecs({ cluster: "cluster-a", taskDefinition: "api:3", containerName: "main", client }),
+      receipts: true
+    });
+
+    const deleted = await capsule.service.delete({ id: "api", force: true, reason: "cleanup" });
+
+    expect(deleted).toMatchObject({ id: "arn:service/api", provider: "ecs", name: "api", status: "deleted" });
+    expect(deleted.receipt?.type).toBe("service.delete");
+    expect(deleted.metadata).toMatchObject({
+      cluster: "cluster-a",
+      serviceArn: "arn:service/api",
+      serviceName: "api",
+      semantics: "scale-to-zero-then-delete-service",
+      reason: "cleanup",
+      force: true
+    });
+    expect(sent).toEqual([
+      { name: "UpdateServiceCommand", input: { cluster: "cluster-a", service: "api", desiredCount: 0 } },
+      { name: "DeleteServiceCommand", input: { cluster: "cluster-a", service: "api", force: true } }
+    ]);
   });
 });
