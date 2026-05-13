@@ -14,12 +14,15 @@ const maxParallel = Number(valueAfter("--max-parallel") ?? process.env.CAPSULE_A
 const once = args.has("--once");
 const dryRun = args.has("--dry-run");
 const pollMs = Number(valueAfter("--poll-ms") ?? process.env.CAPSULE_AUTOPILOT_POLL_MS ?? "60000");
+const staleLockMs = Number(valueAfter("--stale-lock-ms") ?? process.env.CAPSULE_AUTOPILOT_STALE_LOCK_MS ?? String(6 * 60 * 60 * 1000));
 const repo = valueAfter("--repo") ?? process.env.GH_REPO ?? gh(["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"], { silent: true }).trim();
 const excludedLabels = new Set(["autopilot-running", "autopilot-failed", "blocked", "needs-design"]);
 
-mkdirSync(workspacesDir, { recursive: true });
-mkdirSync(logsDir, { recursive: true });
-ensureLabels(["autopilot-running", "autopilot-failed"]);
+if (!dryRun) {
+  mkdirSync(workspacesDir, { recursive: true });
+  mkdirSync(logsDir, { recursive: true });
+  ensureLabels(["autopilot-running", "autopilot-failed"]);
+}
 
 function valueAfter(name) {
   const index = process.argv.indexOf(name);
@@ -54,11 +57,40 @@ function git(args, cwd = root, options = {}) {
 
 function readState() {
   if (!existsSync(statePath)) return { running: {}, completed: {}, failed: {} };
-  return JSON.parse(readFileSync(statePath, "utf8"));
+  const state = JSON.parse(readFileSync(statePath, "utf8"));
+  return { running: {}, completed: {}, failed: {}, ...state };
 }
 
 function writeState(state) {
+  if (dryRun) return;
   writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`);
+}
+
+function recoverStaleLocks(state) {
+  if (dryRun) return state;
+  const now = Date.now();
+  let changed = false;
+  for (const [issueNumber, lock] of Object.entries(state.running)) {
+    const startedAt = Date.parse(lock.startedAt ?? "");
+    if (Number.isNaN(startedAt) || now - startedAt < staleLockMs) {
+      continue;
+    }
+    delete state.running[issueNumber];
+    state.failed[issueNumber] = {
+      ...lock,
+      stale: true,
+      finishedAt: new Date().toISOString(),
+      reason: `stale lock exceeded ${staleLockMs}ms`
+    };
+    try {
+      gh(["issue", "edit", String(issueNumber), "--repo", repo, "--remove-label", "autopilot-running", "--add-label", "autopilot-failed"]);
+    } catch (error) {
+      console.error(`Failed to update stale issue #${issueNumber}: ${error.message}`);
+    }
+    changed = true;
+  }
+  if (changed) writeState(state);
+  return state;
 }
 
 function eligibleIssues() {
@@ -144,7 +176,7 @@ function runIssue(issue, state) {
   const logPath = join(logsDir, `issue-${issue.number}.log`);
   gh(["issue", "edit", String(issue.number), "--repo", repo, "--add-label", "autopilot-running"]);
 
-  state.running[issue.number] = { branch, workspace, logPath, startedAt: new Date().toISOString() };
+  state.running[issue.number] = { branch, workspace, logPath, pid: process.pid, startedAt: new Date().toISOString() };
   writeState(state);
 
   const command = [
@@ -189,7 +221,7 @@ function runIssue(issue, state) {
 }
 
 async function tick() {
-  const state = readState();
+  const state = recoverStaleLocks(readState());
   const runningCount = Object.keys(state.running).length;
   const capacity = Math.max(0, maxParallel - runningCount);
   if (capacity === 0) return;
