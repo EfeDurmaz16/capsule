@@ -15,6 +15,18 @@ export interface PolicyInput {
 export function evaluatePolicy(policy: CapsulePolicy = {}, input: PolicyInput = {}): PolicyDecision {
   const notes: string[] = [];
 
+  if (policy.network?.mode === "none") {
+    notes.push("Network policy requested mode=none; enforcement is native only when the adapter/provider explicitly supports network isolation.");
+  }
+
+  if (policy.network?.mode === "allowlist") {
+    notes.push("Network allowlist policy requested; enforcement is adapter/provider-specific and may be unsupported or best-effort.");
+  }
+
+  if (policy.filesystem) {
+    notes.push("Filesystem policy requested; enforcement may be native, emulated at the adapter boundary, or unsupported depending on the runtime.");
+  }
+
   if (policy.approvals?.required) {
     notes.push(`Approval required: ${policy.approvals.reason ?? "no reason provided"}`);
   }
@@ -25,14 +37,25 @@ export function evaluatePolicy(policy: CapsulePolicy = {}, input: PolicyInput = 
     if (denied.length > 0) {
       throw new PolicyViolationError(`Environment keys denied by secrets policy: ${denied.join(", ")}`, denied);
     }
+    if (policy.secrets.redactFromLogs) {
+      notes.push("Secret redaction is applied to Capsule-observed stdout, stderr, and log entries; provider-side logs may need separate controls.");
+    }
   }
 
   if (policy.limits?.timeoutMs !== undefined && input.timeoutMs !== undefined && input.timeoutMs > policy.limits.timeoutMs) {
     notes.push(`Requested timeout ${input.timeoutMs}ms reduced to policy maximum ${policy.limits.timeoutMs}ms`);
   }
 
-  if (policy.network?.mode === "allowlist") {
-    notes.push("Network allowlist enforcement depends on adapter/provider support");
+  if (policy.limits?.memoryMb !== undefined || policy.limits?.cpu !== undefined) {
+    notes.push("CPU and memory limits are delegated to adapter/provider support; Capsule does not claim OS-level enforcement by itself.");
+  }
+
+  if (policy.cost?.maxUsd !== undefined) {
+    notes.push("Cost policy is a control-plane constraint; provider billing enforcement is not guaranteed by Capsule.");
+  }
+
+  if (policy.ttl?.maxMs !== undefined) {
+    notes.push("TTL policy is a control-plane cleanup constraint; cleanup depends on adapter/provider lifecycle support.");
   }
 
   return {
