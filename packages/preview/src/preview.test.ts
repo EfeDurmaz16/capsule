@@ -195,6 +195,14 @@ describe("preview orchestration", () => {
       const previewError = error as PreviewCreationError;
       expect(previewError.cleanup?.status).toBe("partial");
       expect(previewError.cleanup?.failed).toHaveLength(1);
+      expect(previewError.cleanup?.receipt.type).toBe("preview.cleanup");
+      expect(previewError.cleanup?.receipt.metadata?.cleanupStatus).toBe("partial");
+      expect(previewError.cleanup?.dispositions).toMatchObject([
+        {
+          disposition: "leaked",
+          resource: { id: "db-pr-42-db", cleanupDisposition: "leaked" }
+        }
+      ]);
     }
     expect(events).toEqual(["database.create:pr-42-db", "service.deploy:api", "database.delete:db-pr-42-db"]);
   });
@@ -204,7 +212,38 @@ describe("preview orchestration", () => {
     const result = await createPreviewGraph(plan(fakeCapsule(events)));
     const cleanup = await cleanupPreviewEnvironment(result.preview, result.resources);
 
-    expect(cleanup.status).toBe("cleaned");
+    expect(cleanup.status).toBe("partial");
+    expect(cleanup.receipt.type).toBe("preview.cleanup");
+    expect(cleanup.receipts.map((receipt) => receipt.type)).toEqual(["service.delete", "database.branch.delete", "preview.cleanup"]);
+    expect(cleanup.dispositions.map((entry) => [entry.resource.kind, entry.disposition])).toEqual([
+      ["job", "unsupported"],
+      ["edge", "unsupported"],
+      ["service", "cleaned"],
+      ["database", "cleaned"]
+    ]);
     expect(events.slice(4)).toEqual(["service.delete:svc-api", "database.delete:db-pr-42-db"]);
+  });
+
+  test("emits preview cleanup receipt after create failure cleanup succeeds", async () => {
+    const events: string[] = [];
+
+    try {
+      await createPreviewEnvironmentWithCleanup(plan(fakeCapsule(events, { failServiceDeploy: true })));
+      throw new Error("expected preview creation to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(PreviewCreationError);
+      const previewError = error as PreviewCreationError;
+      expect(previewError.cleanup?.status).toBe("cleaned");
+      expect(previewError.cleanup?.receipts.map((receipt) => receipt.type)).toEqual(["database.branch.delete", "preview.cleanup"]);
+      expect(previewError.cleanup?.dispositions.map((entry) => entry.disposition)).toEqual(["cleaned"]);
+      expect(previewError.cleanup?.receipt).toMatchObject({
+        provider: "capsule-preview",
+        adapter: "@capsule/preview",
+        capabilityPath: "preview.cleanup",
+        supportLevel: "emulated",
+        resource: { status: "cleaned" },
+        policy: { decision: "allowed" }
+      });
+    }
   });
 });
