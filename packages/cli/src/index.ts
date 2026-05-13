@@ -384,9 +384,16 @@ Commands:
   capsule sandbox --adapter daytona --image node:22 -- node -e "console.log('hello from Daytona')"
   capsule sandbox --adapter modal --app-name capsule --image debian:bookworm-slim -- bash -lc "echo hello"
   capsule job --adapter cloud-run --project-id <gcp-project> --location us-central1 --name my-job --image us-docker.pkg.dev/project/repo/job:tag
+  capsule job run --adapter cloud-run --project-id <gcp-project> --location us-central1 --name my-job --image us-docker.pkg.dev/project/repo/job:tag
+  capsule job status --adapter cloud-run --project-id <gcp-project> --location us-central1 --id projects/<project>/locations/<region>/jobs/<job>/executions/<execution>
+  capsule job cancel --adapter cloud-run --project-id <gcp-project> --location us-central1 --id projects/<project>/locations/<region>/jobs/<job>/executions/<execution> --reason cleanup
   capsule job --adapter kubernetes --namespace default --name my-job --image node:22 -- node -e "console.log('hi')"
+  capsule job status --adapter kubernetes --namespace default --id my-job
+  capsule job cancel --adapter kubernetes --namespace default --id my-job --reason cleanup
   capsule job --adapter lambda --region us-east-1 --function-name my-function --image ignored
   capsule job --adapter ecs --region us-east-1 --cluster default --task-definition task:1 --container-name main --subnet subnet-123 --security-group sg-123 --image intent -- node job.js
+  capsule job status --adapter ecs --region us-east-1 --cluster default --task-definition task:1 --container-name main --id <task-arn>
+  capsule job cancel --adapter ecs --region us-east-1 --cluster default --task-definition task:1 --container-name main --id <task-arn> --reason cleanup
   capsule job --adapter fly --app-name my-fly-app --name smoke --image node:22 -- node smoke.js
   capsule job --adapter azure-container-apps --subscription-id <sub> --resource-group <rg> --location eastus --environment-id <env_id> --name smoke --image node:22 -- node smoke.js
   capsule service --adapter cloud-run --project-id <gcp-project> --location us-central1 --name api --image us-docker.pkg.dev/project/repo/api:tag --port 8080
@@ -584,16 +591,37 @@ export async function main(argv: string[]): Promise<void> {
     }
     case "job": {
       const capsule = createCapsule(parsed);
+      const action = parsed.rest[0] === "run" || parsed.rest[0] === "status" || parsed.rest[0] === "cancel" ? parsed.rest[0] : "run";
       if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes" && parsed.adapter !== "lambda" && parsed.adapter !== "ecs" && parsed.adapter !== "fly" && parsed.adapter !== "azure-container-apps") {
         throw new Error("job currently requires --adapter cloud-run, --adapter kubernetes, --adapter lambda, --adapter ecs, --adapter fly, or --adapter azure-container-apps");
+      }
+      if (action === "status") {
+        const id = parsed.id ?? parsed.name ?? parsed.rest[1];
+        if (!id) {
+          throw new Error("Missing --id");
+        }
+        requireCapability(capsule, parsed.adapter, "job.status");
+        console.log(JSON.stringify(await capsule.job.status({ id }), null, 2));
+        return;
+      }
+      if (action === "cancel") {
+        const id = parsed.id ?? parsed.name ?? parsed.rest[1];
+        if (!id) {
+          throw new Error("Missing --id");
+        }
+        requireCapability(capsule, parsed.adapter, "job.cancel");
+        console.log(JSON.stringify(await capsule.job.cancel({ id, reason: parsed.reason }), null, 2));
+        return;
       }
       if (!parsed.image) {
         throw new Error("Missing --image");
       }
+      const command = action === "run" && parsed.rest[0] === "run" ? parsed.rest.slice(1) : parsed.rest;
+      requireCapability(capsule, parsed.adapter, "job.run");
       const run = await capsule.job.run({
         name: parsed.name,
         image: parsed.image,
-        command: parsed.rest.length > 0 ? parsed.rest : undefined
+        command: command.length > 0 ? command : undefined
       });
       console.log(JSON.stringify(run, null, 2));
       return;
