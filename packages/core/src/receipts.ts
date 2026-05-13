@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { sha256 } from "./artifacts.js";
-import type { Artifact, CapsulePolicy, CapsuleReceipt, SupportLevel } from "./types.js";
+import type { Artifact, CapsulePolicy, CapsuleReceipt, ProviderOptions, ProviderOptionValue, SupportLevel } from "./types.js";
 
 export interface CreateReceiptInput {
   type: CapsuleReceipt["type"];
@@ -14,6 +14,7 @@ export interface CreateReceiptInput {
   image?: string;
   source?: Record<string, unknown>;
   cwd?: string;
+  providerOptions?: ProviderOptions;
   exitCode?: number;
   stdout?: string;
   stderr?: string;
@@ -33,6 +34,28 @@ export interface ReceiptSigner {
   sign(receipt: Omit<CapsuleReceipt, "signature">): string;
 }
 
+const secretOptionKey = /(api[-_]?key|auth|credential|password|private[-_]?key|secret|token)/i;
+
+function sanitizeProviderOptionValue(key: string, value: ProviderOptionValue): ProviderOptionValue {
+  if (secretOptionKey.test(key)) {
+    return "[REDACTED]";
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeProviderOptionValue(key, item));
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(Object.entries(value).map(([childKey, childValue]) => [childKey, sanitizeProviderOptionValue(childKey, childValue)]));
+  }
+  return value;
+}
+
+export function sanitizeProviderOptions(providerOptions: ProviderOptions | undefined): ProviderOptions | undefined {
+  if (!providerOptions) {
+    return undefined;
+  }
+  return Object.fromEntries(Object.entries(providerOptions).map(([key, value]) => [key, sanitizeProviderOptionValue(key, value)]));
+}
+
 export function createReceipt(input: CreateReceiptInput, signer?: ReceiptSigner): CapsuleReceipt {
   const finishedAt = input.finishedAt ?? new Date();
   const artifactHashes = input.artifacts?.map((artifact) => artifact.sha256).filter((hash): hash is string => Boolean(hash));
@@ -47,6 +70,7 @@ export function createReceipt(input: CreateReceiptInput, signer?: ReceiptSigner)
     image: input.image,
     source: input.source,
     cwd: input.cwd,
+    providerOptions: sanitizeProviderOptions(input.providerOptions),
     startedAt: input.startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),
     durationMs: finishedAt.getTime() - input.startedAt.getTime(),

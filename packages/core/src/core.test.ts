@@ -206,6 +206,39 @@ describe("receipts", () => {
     });
   });
 
+  test("records sanitized provider options on receipts", () => {
+    const receipt = createReceipt({
+      type: "job.run",
+      provider: "test",
+      adapter: "test",
+      capabilityPath: "job.run",
+      supportLevel: "native",
+      startedAt: new Date("2026-01-01T00:00:00.000Z"),
+      finishedAt: new Date("2026-01-01T00:00:00.500Z"),
+      providerOptions: {
+        region: "us-east-1",
+        retryCount: 2,
+        nested: {
+          placement: "spot",
+          apiToken: "secret-token"
+        },
+        env: [{ name: "VISIBLE", value: "safe" }, { name: "PRIVATE", secret: "secret-value" }]
+      }
+    });
+
+    expect(receipt.providerOptions).toEqual({
+      region: "us-east-1",
+      retryCount: 2,
+      nested: {
+        placement: "spot",
+        apiToken: "[REDACTED]"
+      },
+      env: [{ name: "VISIBLE", value: "safe" }, { name: "PRIVATE", secret: "[REDACTED]" }]
+    });
+    expect(JSON.stringify(receipt)).not.toContain("secret-token");
+    expect(JSON.stringify(receipt)).not.toContain("secret-value");
+  });
+
   test("records receipts into a configured store", async () => {
     const receiptStore = new MemoryReceiptStore();
     const receiptAdapter: CapsuleAdapter = {
@@ -220,6 +253,49 @@ describe("receipts", () => {
     const capsule = new Capsule({ adapter: receiptAdapter, receipts: true, receiptStore });
     await capsule.sandbox.create({});
     expect(receiptStore.receipts[0]?.type).toBe("sandbox.create");
+  });
+
+  test("lets adapters propagate typed provider options into receipts without leaking secrets", async () => {
+    const receiptStore = new MemoryReceiptStore();
+    const receiptAdapter: CapsuleAdapter = {
+      ...adapter,
+      capabilities: {
+        ...capabilities,
+        job: {
+          ...capabilities.job!,
+          run: "native"
+        }
+      },
+      job: {
+        run: async (spec, context) => {
+          const receipt = context.createReceipt({
+            type: "job.run",
+            capabilityPath: "job.run",
+            startedAt: new Date("2026-01-01T00:00:00.000Z"),
+            finishedAt: new Date("2026-01-01T00:00:00.500Z"),
+            image: spec.image,
+            providerOptions: spec.providerOptions
+          });
+          return { id: "job_123", provider: "test", status: "queued", receipt };
+        }
+      }
+    };
+    const capsule = new Capsule({ adapter: receiptAdapter, receipts: true, receiptStore });
+    await capsule.job.run({
+      image: "node:22",
+      providerOptions: {
+        region: "iad",
+        concurrency: 1,
+        bearerToken: "do-not-store"
+      }
+    });
+
+    expect(receiptStore.receipts[0]?.providerOptions).toEqual({
+      region: "iad",
+      concurrency: 1,
+      bearerToken: "[REDACTED]"
+    });
+    expect(JSON.stringify(receiptStore.receipts[0])).not.toContain("do-not-store");
   });
 
   test("signs receipts created through Capsule context", async () => {
@@ -265,6 +341,7 @@ describe("receipts", () => {
         image: "node:22",
         stdout: "ok",
         stderr: "",
+        providerOptions: { region: "test" },
         policy: { decision: "allowed", applied: { network: { mode: "none" } }, notes: ["observed"] },
         resource: { id: "box", status: "ready" },
         metadata: { example: true }
