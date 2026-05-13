@@ -133,6 +133,7 @@ pnpm typecheck
 - `@capsule/adapter-lambda`: real AWS Lambda invoke adapter for existing functions as jobs.
 - `@capsule/adapter-ecs`: real ECS/Fargate adapter for existing task definitions.
 - `@capsule/adapter-ec2`: real EC2 adapter for machine creation.
+- `@capsule/adapter-fly`: real Fly Machines API adapter for machine lifecycle and one-shot job machines.
 - `@capsule/adapter-neon`: real Neon API adapter for database branch create/delete/reset and connection URI retrieval.
 - `@capsule/adapter-vercel`: real Vercel REST adapter for inline deployment creation.
 - `@capsule/adapter-mock`: mock E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models.

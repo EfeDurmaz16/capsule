@@ -20,6 +20,7 @@ Status legend:
 | Lambda | real | unsupported | native | unsupported | unsupported | unsupported | unsupported | unsupported | Existing Lambda function invocation is implemented as `job.run`; function deployment/env mutation is not faked. |
 | ECS/Fargate | real | unsupported | native | native | unsupported | unsupported | unsupported | unsupported | RunTask and CreateService are implemented for existing task definitions; task-definition registration, previews, and load balancers are future work. |
 | EC2 | real | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | native | `machine.create/status/start/stop/destroy` are implemented through EC2 APIs; job/service wrappers, exec, and snapshot remain explicit future work. |
+| Fly Machines | real | unsupported | native | unsupported | unsupported | unsupported | unsupported | native | Fly Machines API supports machine create/status/start/stop/destroy and one-shot job machines; services, logs, volumes, and app networking remain explicit future work. |
 | Daytona | real | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Workspace-oriented sandbox model implemented by `@capsule/adapter-daytona`; jobs/previews are unsupported until public wrappers exist. |
 | Modal | real | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Sandbox primitive implemented by `@capsule/adapter-modal`; broader functions/services are future work. |
 | Cloudflare Sandbox | mock/planned | experimental | experimental | experimental | native | experimental | experimental | unsupported | Bindings and runtime semantics matter. |
@@ -34,5 +35,5 @@ Status legend:
 | Cloudflare Workers | mock/planned | unsupported | experimental | experimental | native | experimental | experimental | unsupported | Broader bindings/resource lifecycle remains modeled in mocks until implemented by real adapters. |
 | Cloudflare Containers | mock/planned | experimental | experimental | experimental | native | experimental | experimental | unsupported | Hybrid runtime model. |
 | EC2 | real | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | native | Low-level machine creation and lifecycle operations are implemented by `@capsule/adapter-ec2`; job/service wrappers are unsupported. |
-| Fly Machines | planned | experimental | native | native | unsupported | unsupported | experimental | experimental | Machine and app semantics overlap. |
+| Fly Machines | real | unsupported | native | unsupported | unsupported | unsupported | unsupported | native | `@capsule/adapter-fly` maps Fly Machines to lower-level machines and one-shot jobs; Fly Apps service semantics remain future work. |
 | Azure Container Apps | planned | unsupported | native | native | unsupported | unsupported | experimental | unsupported | Jobs and services fit. |
