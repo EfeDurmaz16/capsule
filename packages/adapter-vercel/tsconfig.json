@@ -5,6 +5,15 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "references": [{ "path": "../core" }],
-  "include": ["src"]
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../test-utils"
+    }
+  ],
+  "include": [
+    "src"
+  ]
 }

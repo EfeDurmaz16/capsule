@@ -5,6 +5,15 @@
     "rootDir": "src",
     "composite": true
   },
-  "references": [{ "path": "../core" }],
-  "include": ["src/**/*.ts"]
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../test-utils"
+    }
+  ],
+  "include": [
+    "src/**/*.ts"
+  ]
 }
