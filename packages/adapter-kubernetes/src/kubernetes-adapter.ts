@@ -10,12 +10,17 @@ import {
   type DeletedService,
   type DeleteServiceSpec,
   type DeployServiceSpec,
+  type JobLogsResult,
+  type JobLogsSpec,
   type JobRun,
   type JobRunStatus,
   type JobStatusResult,
   type JobStatusSpec,
+  type LogEntry,
   type RunJobSpec,
   type ServiceDeployment,
+  type ServiceLogsResult,
+  type ServiceLogsSpec,
   type ServiceStatusResult,
   type ServiceStatusSpec
 } from "@capsule/core";
@@ -30,6 +35,11 @@ interface KubernetesObject {
   };
   spec?: Record<string, unknown>;
   status?: Record<string, unknown>;
+}
+
+interface KubernetesPodList {
+  items?: KubernetesObject[];
+  metadata?: Record<string, unknown>;
 }
 
 interface BatchApi {
@@ -48,6 +58,17 @@ interface CoreApi {
   createNamespacedService(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
   readNamespacedService?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
   deleteNamespacedService?(input: { namespace: string; name: string; gracePeriodSeconds?: number; propagationPolicy?: string; body?: unknown }): Promise<KubernetesObject>;
+  listNamespacedPod?(input: { namespace: string; labelSelector?: string }): Promise<KubernetesPodList>;
+  readNamespacedPodLog?(input: {
+    namespace: string;
+    name: string;
+    container?: string;
+    follow?: boolean;
+    sinceSeconds?: number;
+    stream?: "Stdout" | "Stderr";
+    tailLines?: number;
+    timestamps?: boolean;
+  }): Promise<string>;
 }
 
 interface KubernetesClients {
@@ -79,7 +100,7 @@ export const kubernetesCapabilities: CapabilityMap = {
     run: "native",
     status: "native",
     cancel: "native",
-    logs: "unsupported",
+    logs: "native",
     artifacts: "unsupported",
     timeout: "native",
     env: "native",
@@ -90,7 +111,7 @@ export const kubernetesCapabilities: CapabilityMap = {
     update: "unsupported",
     delete: "native",
     status: "native",
-    logs: "unsupported",
+    logs: "native",
     url: "experimental",
     scale: "native",
     rollback: "unsupported",
@@ -298,6 +319,215 @@ function serviceStatus(deployment: KubernetesObject): ServiceStatusResult["statu
   return "deploying";
 }
 
+function record(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
+}
+
+function stringRecord(value: unknown): Record<string, string> | undefined {
+  const input = record(value);
+  if (!input) return undefined;
+  const output: Record<string, string> = {};
+  for (const [key, item] of Object.entries(input)) {
+    if (typeof item !== "string" || item.length === 0) return undefined;
+    output[key] = item;
+  }
+  return Object.keys(output).length > 0 ? output : undefined;
+}
+
+function labelSelectorFromJobSpec(spec: Record<string, unknown> | undefined): string | undefined {
+  return labelSelectorFromSelector(record(spec?.selector));
+}
+
+function serviceSelector(service: KubernetesObject): string | undefined {
+  const selector = stringRecord(service.spec?.selector);
+  return selector ? labelSelector(selector) : undefined;
+}
+
+function labelSelector(matchLabels: Record<string, string>): string {
+  return Object.entries(matchLabels)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}=${value}`)
+    .join(",");
+}
+
+function selectorRequirement(value: unknown): string | undefined {
+  const item = record(value);
+  const key = typeof item?.key === "string" ? item.key : undefined;
+  const operator = typeof item?.operator === "string" ? item.operator : undefined;
+  if (!key || !operator) return undefined;
+  const values = Array.isArray(item?.values) ? item.values.filter((entry): entry is string => typeof entry === "string") : [];
+  switch (operator) {
+    case "In":
+      return `${key} in (${values.join(",")})`;
+    case "NotIn":
+      return `${key} notin (${values.join(",")})`;
+    case "Exists":
+      return key;
+    case "DoesNotExist":
+      return `!${key}`;
+    default:
+      throw new AdapterExecutionError(`Unsupported Kubernetes label selector operator: ${operator}`);
+  }
+}
+
+function labelSelectorFromSelector(selector: Record<string, unknown> | undefined): string | undefined {
+  if (!selector) return undefined;
+  const parts: string[] = [];
+  const matchLabels = stringRecord(selector.matchLabels);
+  if (matchLabels) parts.push(labelSelector(matchLabels));
+  const expressions = selector.matchExpressions;
+  if (Array.isArray(expressions)) {
+    parts.push(...expressions.flatMap((expression) => selectorRequirement(expression) ?? []));
+  }
+  return parts.filter(Boolean).join(",") || undefined;
+}
+
+function containers(pod: KubernetesObject): string[] {
+  const values = record(pod.spec)?.containers;
+  if (!Array.isArray(values)) return [];
+  return values.flatMap((container) => {
+    const name = record(container)?.name;
+    return typeof name === "string" && name.length > 0 ? [name] : [];
+  });
+}
+
+function literalEnv(pods: KubernetesObject[]): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const pod of pods) {
+    const podContainers = record(pod.spec)?.containers;
+    if (!Array.isArray(podContainers)) continue;
+    for (const container of podContainers) {
+      const envVars = record(container)?.env;
+      if (!Array.isArray(envVars)) continue;
+      for (const envVar of envVars) {
+        const item = record(envVar);
+        if (typeof item?.name === "string" && typeof item.value === "string") {
+          values[item.name] = item.value;
+        }
+      }
+    }
+  }
+  return values;
+}
+
+function secondsSince(value: string | undefined, now = new Date()): number | undefined {
+  if (!value) return undefined;
+  const timestamp = parseTimestamp(value);
+  if (Number.isNaN(timestamp)) {
+    throw new AdapterExecutionError(`Invalid Kubernetes log since timestamp: ${value}`);
+  }
+  return Math.max(0, Math.ceil((now.getTime() - timestamp) / 1000));
+}
+
+function parseTimestamp(value: string): number {
+  const timestamp = Date.parse(value);
+  if (!Number.isNaN(timestamp)) return timestamp;
+  const normalized = value.replace(/(\.\d{3})\d+(Z|[+-]\d{2}:\d{2})$/, "$1$2");
+  return Date.parse(normalized);
+}
+
+function parseKubernetesLog(text: string, stream: LogEntry["stream"], fallbackTimestamp: string): LogEntry[] {
+  return text
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => {
+      const match = line.match(/^(\d{4}-\d{2}-\d{2}T\S+)\s(.*)$/);
+      if (match && !Number.isNaN(parseTimestamp(match[1]))) {
+        return { timestamp: match[1], stream, message: match[2] };
+      }
+      return { timestamp: fallbackTimestamp, stream, message: line };
+    });
+}
+
+function filterUntil(logs: LogEntry[], until: string | undefined): LogEntry[] {
+  if (!until) return logs;
+  const cutoff = parseTimestamp(until);
+  if (Number.isNaN(cutoff)) {
+    throw new AdapterExecutionError(`Invalid Kubernetes log until timestamp: ${until}`);
+  }
+  return logs.filter((entry) => {
+    const timestamp = parseTimestamp(entry.timestamp);
+    return Number.isNaN(timestamp) || timestamp <= cutoff;
+  });
+}
+
+function limitLogs(logs: LogEntry[], limit: number | undefined): LogEntry[] {
+  if (limit === undefined) return logs;
+  if (!Number.isInteger(limit) || limit < 0) {
+    throw new AdapterExecutionError("Kubernetes log limit must be a non-negative integer.");
+  }
+  if (limit === 0) return [];
+  return logs.slice(-limit);
+}
+
+function redactLiteralEnvValues(logs: LogEntry[], env: Record<string, string>, context: AdapterContext): LogEntry[] {
+  if (!context.policy.secrets?.redactFromLogs) return logs;
+  const secrets = Object.values(env).filter(Boolean);
+  if (secrets.length === 0) return logs;
+  return logs.map((entry) => ({
+    ...entry,
+    message: secrets.reduce((message, secret) => message.split(secret).join("[REDACTED]"), entry.message)
+  }));
+}
+
+async function collectPodLogs(
+  core: CoreApi,
+  input: {
+    namespace: string;
+    selector: string | undefined;
+    selectorSource: string;
+    id: string;
+    since?: string;
+    until?: string;
+    limit?: number;
+    follow?: boolean;
+    context: AdapterContext;
+  }
+): Promise<{ logs: LogEntry[]; metadata: Record<string, unknown> }> {
+  if (!input.selector) {
+    throw new AdapterExecutionError(`Kubernetes ${input.selectorSource} logs require a pod selector for ${input.id}.`);
+  }
+  if (input.follow) {
+    throw new AdapterExecutionError("Kubernetes logs follow mode is not supported yet; call logs again to fetch newer entries.");
+  }
+  const listNamespacedPod = requireCoreMethod(core, "listNamespacedPod");
+  const readNamespacedPodLog = requireCoreMethod(core, "readNamespacedPodLog");
+  const podList = await listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: input.selector });
+  const pods = podList.items ?? [];
+  const sinceSeconds = secondsSince(input.since);
+  const fallbackTimestamp = new Date().toISOString();
+  const logs: LogEntry[] = [];
+  for (const pod of pods) {
+    const podName = pod.metadata?.name;
+    if (!podName) continue;
+    const podContainers = containers(pod);
+    const targets = podContainers.length > 0 ? podContainers : [undefined];
+    for (const container of targets) {
+      const text = await readNamespacedPodLog.call(core, {
+        namespace: input.namespace,
+        name: podName,
+        container,
+        sinceSeconds,
+        tailLines: input.limit,
+        timestamps: true
+      });
+      logs.push(...parseKubernetesLog(text, "stdout", fallbackTimestamp));
+    }
+  }
+  const redactionEnv = literalEnv(pods);
+  const redactedLogs = redactLiteralEnvValues(filterUntil(logs, input.until), redactionEnv, input.context);
+  return {
+    logs: limitLogs(redactedLogs, input.limit),
+    metadata: {
+      namespace: input.namespace,
+      selector: input.selector,
+      selectorSource: input.selectorSource,
+      podNames: pods.map((pod) => pod.metadata?.name).filter(Boolean),
+      redactedFromPodEnv: Object.keys(redactionEnv).length > 0
+    }
+  };
+}
+
 function requireBatchMethod<K extends keyof BatchApi>(batch: BatchApi, method: K): NonNullable<BatchApi[K]> {
   const value = batch[method];
   if (typeof value !== "function") {
@@ -422,6 +652,45 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
             deletion
           }
         };
+      },
+      logs: async (spec: JobLogsSpec, context: AdapterContext): Promise<JobLogsResult> => {
+        const startedAt = new Date();
+        const clients = getClients();
+        const readNamespacedJob = requireBatchMethod(clients.batch, "readNamespacedJob");
+        const job = await readNamespacedJob.call(clients.batch, { namespace, name: spec.id });
+        const name = job.metadata?.name ?? spec.id;
+        const result = await collectPodLogs(clients.core, {
+          namespace,
+          selector: labelSelectorFromJobSpec(job.spec),
+          selectorSource: "job.spec.selector",
+          id: name,
+          since: spec.since,
+          until: spec.until,
+          limit: spec.limit,
+          follow: spec.follow,
+          context
+        });
+        const policy = context.evaluatePolicy();
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "job.logs",
+              capabilityPath: "job.logs",
+              startedAt,
+              policy: {
+                ...policy,
+                notes: [
+                  ...policy.notes,
+                  "Kubernetes Job logs are collected from Pods matched by the Job selector.",
+                  "Capsule reads combined Pod logs without alpha split-stream parameters.",
+                  "Capsule redacts literal env values present on selected Pod specs when log redaction policy is enabled.",
+                  "Kubernetes follow-mode log streaming is intentionally rejected until Capsule exposes bounded streaming semantics."
+                ]
+              },
+              resource: { id: name, name, status: jobStatus(job) },
+              metadata: { ...result.metadata, kubernetesName: name, uid: job.metadata?.uid }
+            })
+          : undefined;
+        return { id: name, provider, logs: result.logs, metadata: result.metadata, receipt };
       }
     },
     service: {
@@ -536,6 +805,45 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
           metadata: { namespace, deployment, service, reason: spec.reason },
           receipt
         };
+      },
+      logs: async (spec: ServiceLogsSpec, context: AdapterContext): Promise<ServiceLogsResult> => {
+        const startedAt = new Date();
+        const clients = getClients();
+        const readNamespacedService = requireCoreMethod(clients.core, "readNamespacedService");
+        const service = await readNamespacedService.call(clients.core, { namespace, name: spec.id });
+        const name = service.metadata?.name ?? spec.id;
+        const result = await collectPodLogs(clients.core, {
+          namespace,
+          selector: serviceSelector(service),
+          selectorSource: "service.spec.selector",
+          id: name,
+          since: spec.since,
+          until: spec.until,
+          limit: spec.limit,
+          follow: spec.follow,
+          context
+        });
+        const policy = context.evaluatePolicy();
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "service.logs",
+              capabilityPath: "service.logs",
+              startedAt,
+              policy: {
+                ...policy,
+                notes: [
+                  ...policy.notes,
+                  "Kubernetes Service logs are collected from Pods matched by the Service selector.",
+                  "Capsule reads combined Pod logs without alpha split-stream parameters.",
+                  "Capsule redacts literal env values present on selected Pod specs when log redaction policy is enabled.",
+                  "Kubernetes follow-mode log streaming is intentionally rejected until Capsule exposes bounded streaming semantics."
+                ]
+              },
+              resource: { id: name, name },
+              metadata: { ...result.metadata, serviceName: name, uid: service.metadata?.uid }
+            })
+          : undefined;
+        return { id: name, provider, name, logs: result.logs, metadata: result.metadata, receipt };
       }
     }
   };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Capsule, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule/core";
 import { kubernetes, kubernetesCapabilities } from "./index.js";
 
 describe("kubernetes adapter", () => {
@@ -11,9 +11,11 @@ describe("kubernetes adapter", () => {
     expect(kubernetesCapabilities.job?.run).toBe("native");
     expect(kubernetesCapabilities.job?.status).toBe("native");
     expect(kubernetesCapabilities.job?.cancel).toBe("native");
+    expect(kubernetesCapabilities.job?.logs).toBe("native");
     expect(kubernetesCapabilities.service?.deploy).toBe("native");
     expect(kubernetesCapabilities.service?.status).toBe("native");
     expect(kubernetesCapabilities.service?.delete).toBe("native");
+    expect(kubernetesCapabilities.service?.logs).toBe("native");
     expect(kubernetesCapabilities.service?.url).toBe("experimental");
   });
 
@@ -162,6 +164,167 @@ describe("kubernetes adapter", () => {
         }
       }
     ]);
+  });
+
+  it("reads Job pod logs through the selector and redacts literal pod env values", async () => {
+    const lists: Array<{ namespace: string; labelSelector?: string }> = [];
+    const logReads: Array<{
+      namespace: string;
+      name: string;
+      container?: string;
+      follow?: boolean;
+      sinceSeconds?: number;
+      stream?: "Stdout" | "Stderr";
+      tailLines?: number;
+      timestamps?: boolean;
+    }> = [];
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "jobs",
+        clients: {
+          batch: {
+            createNamespacedJob: async () => ({}),
+            readNamespacedJob: async () => ({
+              metadata: { name: "build-job", uid: "job-uid" },
+              spec: {
+                selector: {
+                  matchLabels: { "batch.kubernetes.io/job-name": "build-job", "capsule.dev/run": "abc" },
+                  matchExpressions: [{ key: "capsule.dev/component", operator: "In", values: ["worker", "runner"] }]
+                }
+              },
+              status: { active: 1 }
+            })
+          },
+          apps: { createNamespacedDeployment: async () => ({}) },
+          core: {
+            createNamespacedService: async () => ({}),
+            listNamespacedPod: async (input) => {
+              lists.push(input);
+              return {
+                items: [
+                  {
+                    metadata: { name: "build-job-pod" },
+                    spec: { containers: [{ name: "main", env: [{ name: "SECRET", value: "shh" }] }] }
+                  }
+                ]
+              };
+            },
+            readNamespacedPodLog: async (input) => {
+              logReads.push(input);
+              return "2026-05-13T10:00:00Z stdout shh\n2026-05-13T10:00:01Z stderr shh\n";
+            }
+          }
+        }
+      }),
+      policy: { secrets: { redactFromLogs: true } },
+      receipts: true
+    });
+
+    const logs = await capsule.job.logs({ id: "build-job", since: "2026-05-13T09:59:50Z", limit: 10, follow: false });
+
+    expect(lists).toEqual([{ namespace: "jobs", labelSelector: "batch.kubernetes.io/job-name=build-job,capsule.dev/run=abc,capsule.dev/component in (worker,runner)" }]);
+    expect(logReads).toEqual([
+      {
+        namespace: "jobs",
+        name: "build-job-pod",
+        container: "main",
+        sinceSeconds: expect.any(Number),
+        tailLines: 10,
+        timestamps: true
+      }
+    ]);
+    expect(logs).toMatchObject({
+      id: "build-job",
+      provider: "kubernetes",
+      logs: [
+        { timestamp: "2026-05-13T10:00:00Z", stream: "stdout", message: "stdout [REDACTED]" },
+        { timestamp: "2026-05-13T10:00:01Z", stream: "stdout", message: "stderr [REDACTED]" }
+      ],
+      metadata: {
+        namespace: "jobs",
+        selector: "batch.kubernetes.io/job-name=build-job,capsule.dev/run=abc,capsule.dev/component in (worker,runner)",
+        selectorSource: "job.spec.selector",
+        podNames: ["build-job-pod"],
+        redactedFromPodEnv: true
+      }
+    });
+    expect(logs.receipt?.type).toBe("job.logs");
+  });
+
+  it("rejects Job logs when the Job has no selector", async () => {
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "jobs",
+        clients: {
+          batch: {
+            createNamespacedJob: async () => ({}),
+            readNamespacedJob: async () => ({ metadata: { name: "selectorless" }, spec: {}, status: {} })
+          },
+          apps: { createNamespacedDeployment: async () => ({}) },
+          core: {
+            createNamespacedService: async () => ({}),
+            listNamespacedPod: async () => ({ items: [] }),
+            readNamespacedPodLog: async () => ""
+          }
+        }
+      })
+    });
+
+    await expect(capsule.job.logs({ id: "selectorless" })).rejects.toThrow(AdapterExecutionError);
+  });
+
+  it("rejects Kubernetes follow-mode logs until streaming is explicitly modeled", async () => {
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "jobs",
+        clients: {
+          batch: {
+            createNamespacedJob: async () => ({}),
+            readNamespacedJob: async () => ({ metadata: { name: "build-job" }, spec: { selector: { matchLabels: { app: "build" } } }, status: {} })
+          },
+          apps: { createNamespacedDeployment: async () => ({}) },
+          core: {
+            createNamespacedService: async () => ({}),
+            listNamespacedPod: async () => ({ items: [] }),
+            readNamespacedPodLog: async () => ""
+          }
+        }
+      })
+    });
+
+    await expect(capsule.job.logs({ id: "build-job", follow: true })).rejects.toThrow("follow mode is not supported");
+  });
+
+  it("serializes expression-only Job selectors", async () => {
+    const lists: Array<{ namespace: string; labelSelector?: string }> = [];
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "jobs",
+        clients: {
+          batch: {
+            createNamespacedJob: async () => ({}),
+            readNamespacedJob: async () => ({
+              metadata: { name: "expr-job" },
+              spec: { selector: { matchExpressions: [{ key: "job-tier", operator: "Exists" }, { key: "phase", operator: "NotIn", values: ["done"] }] } },
+              status: {}
+            })
+          },
+          apps: { createNamespacedDeployment: async () => ({}) },
+          core: {
+            createNamespacedService: async () => ({}),
+            listNamespacedPod: async (input) => {
+              lists.push(input);
+              return { items: [] };
+            },
+            readNamespacedPodLog: async () => ""
+          }
+        }
+      })
+    });
+
+    await capsule.job.logs({ id: "expr-job" });
+
+    expect(lists).toEqual([{ namespace: "jobs", labelSelector: "job-tier,phase notin (done)" }]);
   });
 
   it("creates a Deployment and Service from DeployServiceSpec", async () => {
@@ -356,5 +519,84 @@ describe("kubernetes adapter", () => {
     expect(deletions.services).toEqual([
       { namespace: "preview", name: "api", gracePeriodSeconds: 0, propagationPolicy: "Foreground", body: expectedDeleteOptions }
     ]);
+  });
+
+  it("reads Service pod logs through service.spec.selector", async () => {
+    const lists: Array<{ namespace: string; labelSelector?: string }> = [];
+    const logReads: Array<{ namespace: string; name: string; container?: string; stream?: "Stdout" | "Stderr"; tailLines?: number; timestamps?: boolean }> = [];
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "preview",
+        clients: {
+          batch: { createNamespacedJob: async () => ({}) },
+          apps: { createNamespacedDeployment: async () => ({}) },
+          core: {
+            createNamespacedService: async () => ({}),
+            readNamespacedService: async () => ({
+              metadata: { name: "api", uid: "service-uid" },
+              spec: { selector: { "app.kubernetes.io/name": "api", "app.kubernetes.io/managed-by": "capsule" } }
+            }),
+            listNamespacedPod: async (input) => {
+              lists.push(input);
+              return {
+                items: [
+                  {
+                    metadata: { name: "api-pod-a" },
+                    spec: { containers: [{ name: "web" }, { name: "sidecar" }] }
+                  }
+                ]
+              };
+            },
+            readNamespacedPodLog: async (input) => {
+              logReads.push(input);
+              return `2026-05-13T10:01:00.123456789Z ${input.container} ready\n`;
+            }
+          }
+        }
+      })
+    });
+
+    const logs = await capsule.service.logs({ id: "api", limit: 2 });
+
+    expect(lists).toEqual([{ namespace: "preview", labelSelector: "app.kubernetes.io/managed-by=capsule,app.kubernetes.io/name=api" }]);
+    expect(logReads).toEqual([
+      { namespace: "preview", name: "api-pod-a", container: "web", tailLines: 2, timestamps: true },
+      { namespace: "preview", name: "api-pod-a", container: "sidecar", tailLines: 2, timestamps: true }
+    ]);
+    expect(logs).toMatchObject({
+      id: "api",
+      provider: "kubernetes",
+      name: "api",
+      logs: [
+        { timestamp: "2026-05-13T10:01:00.123456789Z", stream: "stdout", message: "web ready" },
+        { timestamp: "2026-05-13T10:01:00.123456789Z", stream: "stdout", message: "sidecar ready" }
+      ],
+      metadata: {
+        namespace: "preview",
+        selector: "app.kubernetes.io/managed-by=capsule,app.kubernetes.io/name=api",
+        selectorSource: "service.spec.selector",
+        podNames: ["api-pod-a"]
+      }
+    });
+  });
+
+  it("rejects Service logs when the Service has no pod selector", async () => {
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "preview",
+        clients: {
+          batch: { createNamespacedJob: async () => ({}) },
+          apps: { createNamespacedDeployment: async () => ({}) },
+          core: {
+            createNamespacedService: async () => ({}),
+            readNamespacedService: async () => ({ metadata: { name: "external" }, spec: { type: "ExternalName" } }),
+            listNamespacedPod: async () => ({ items: [] }),
+            readNamespacedPodLog: async () => ""
+          }
+        }
+      })
+    });
+
+    await expect(capsule.service.logs({ id: "external" })).rejects.toThrow(AdapterExecutionError);
   });
 });
