@@ -20,6 +20,7 @@ export const capsuleReceiptJsonSchema = {
         "service.deploy",
         "service.status",
         "service.update",
+        "service.rollback",
         "service.delete",
         "service.logs",
         "edge.deploy",

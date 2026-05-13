@@ -17,9 +17,11 @@ describe("cloud-run adapter", () => {
     expect(cloudRunCapabilities.job?.cancel).toBe("native");
     expect(cloudRunCapabilities.job?.logs).toBe("native");
     expect(cloudRunCapabilities.service?.deploy).toBe("native");
+    expect(cloudRunCapabilities.service?.update).toBe("native");
     expect(cloudRunCapabilities.service?.status).toBe("native");
     expect(cloudRunCapabilities.service?.delete).toBe("native");
     expect(cloudRunCapabilities.service?.logs).toBe("native");
+    expect(cloudRunCapabilities.service?.rollback).toBe("native");
     expect(cloudRunCapabilities.edge?.deploy).toBe("unsupported");
   });
 
@@ -229,7 +231,14 @@ describe("cloud-run adapter", () => {
   it("maps Cloud Run service status to ready, deploying, and failed states", async () => {
     const serviceName = "projects/proj/locations/europe-west1/services/api";
     const states = [
-      { name: serviceName, uri: "https://api.example", reconciling: false, terminalCondition: { state: "CONDITION_SUCCEEDED" } },
+      {
+        name: serviceName,
+        uri: "https://api.example",
+        reconciling: false,
+        terminalCondition: { state: "CONDITION_SUCCEEDED" },
+        latestReadyRevision: `${serviceName}/revisions/api-00002-def`,
+        latestCreatedRevision: `${serviceName}/revisions/api-00002-def`
+      },
       { name: serviceName, reconciling: true, terminalCondition: { state: "CONDITION_RECONCILING" } },
       { name: serviceName, reconciling: false, terminalCondition: { state: "CONDITION_FAILED", message: "revision failed" } }
     ];
@@ -249,8 +258,115 @@ describe("cloud-run adapter", () => {
       capabilityPath: "service.status",
       resource: { id: "api", name: serviceName, status: "ready", url: "https://api.example" }
     });
+    expect(ready.metadata?.service).toMatchObject({ latestReadyRevision: `${serviceName}/revisions/api-00002-def` });
     expect(deploying.status).toBe("deploying");
     expect(failed.status).toBe("failed");
+  });
+
+  it("updates a Cloud Run service through services.patch with revision metadata", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const serviceName = "projects/proj/locations/europe-west1/services/api";
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      if (String(url).endsWith(":wait")) {
+        return response({ name: "operations/update", done: true, response: { name: serviceName, uri: "https://api.example", latestReadyRevision: `${serviceName}/revisions/api-00003-ghi` } });
+      }
+      if (init?.method === "GET") {
+        return response({ name: serviceName, uri: "https://api.example", latestReadyRevision: `${serviceName}/revisions/api-00003-ghi` });
+      }
+      return response({ name: "operations/update", done: false });
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: cloudRun({ projectId: "proj", location: "europe-west1", accessToken: "token", fetch: fetchMock }),
+      receipts: true
+    });
+
+    const deployment = await capsule.service.update({
+      id: "api",
+      image: "europe-docker.pkg.dev/proj/repo/api:v2",
+      env: { VERSION: "v2" },
+      scale: { min: 1, max: 4 }
+    });
+
+    expect(deployment).toMatchObject({
+      id: "api",
+      provider: "cloud-run",
+      name: serviceName,
+      status: "ready",
+      url: "https://api.example",
+      metadata: { revision: `${serviceName}/revisions/api-00003-ghi`, updateMask: ["template.scaling", "template.containers"] }
+    });
+    const updateUrl = new URL(calls[0]?.url ?? "");
+    expect(updateUrl.pathname).toBe(`/v2/${serviceName}`);
+    expect(updateUrl.searchParams.get("updateMask")).toBe("template.scaling,template.containers");
+    expect(updateUrl.searchParams.get("forceNewRevision")).toBe("true");
+    expect(calls[0]?.init).toMatchObject({ method: "PATCH" });
+    expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
+      name: serviceName,
+      template: {
+        scaling: { minInstanceCount: 1, maxInstanceCount: 4 },
+        containers: [{ image: "europe-docker.pkg.dev/proj/repo/api:v2", env: [{ name: "VERSION", value: "v2" }] }]
+      }
+    });
+    expect(deployment.receipt).toMatchObject({ type: "service.update", capabilityPath: "service.update" });
+  });
+
+  it("rolls back Cloud Run service traffic to an explicit revision", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const serviceName = "projects/proj/locations/europe-west1/services/api";
+    const revision = `${serviceName}/revisions/api-00001-abc`;
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      if (String(url).endsWith(":wait")) return response({ name: "operations/rollback", done: true, response: { name: serviceName, uri: "https://api.example" } });
+      if (init?.method === "GET") return response({ name: serviceName, uri: "https://api.example", latestReadyRevision: `${serviceName}/revisions/api-00002-def` });
+      return response({ name: "operations/rollback", done: false });
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: cloudRun({ projectId: "proj", location: "europe-west1", accessToken: "token", fetch: fetchMock }),
+      receipts: true
+    });
+
+    const deployment = await capsule.service.rollback({ id: "api", revision });
+
+    expect(deployment).toMatchObject({ id: "api", provider: "cloud-run", name: serviceName, status: "ready", metadata: { revision } });
+    const patchUrl = new URL(calls[1]?.url ?? "");
+    expect(calls[0]).toMatchObject({ url: expect.stringContaining(`/v2/${serviceName}`), init: { method: "GET" } });
+    expect(calls[1]?.init).toMatchObject({ method: "PATCH" });
+    expect(patchUrl.searchParams.get("updateMask")).toBe("traffic");
+    expect(patchUrl.searchParams.get("forceNewRevision")).toBe("false");
+    expect(JSON.parse(String(calls[1]?.init.body))).toEqual({
+      name: serviceName,
+      traffic: [{ type: "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION", revision, percent: 100 }]
+    });
+    expect(deployment.receipt).toMatchObject({ type: "service.rollback", capabilityPath: "service.rollback" });
+  });
+
+  it("selects the previous Cloud Run revision when rollback revision is omitted", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const serviceName = "projects/proj/locations/europe-west1/services/api";
+    const previous = `${serviceName}/revisions/api-00001-abc`;
+    const current = `${serviceName}/revisions/api-00002-def`;
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      if (String(url).endsWith("/revisions")) {
+        return response({
+          revisions: [
+            { name: current, createTime: "2026-01-02T00:00:00.000Z" },
+            { name: previous, createTime: "2026-01-01T00:00:00.000Z" }
+          ]
+        });
+      }
+      if (String(url).endsWith(":wait")) return response({ name: "operations/rollback", done: true, response: { name: serviceName } });
+      if (init?.method === "GET") return response({ name: serviceName, latestReadyRevision: current, latestCreatedRevision: current });
+      return response({ name: "operations/rollback", done: false });
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: cloudRun({ projectId: "proj", location: "europe-west1", accessToken: "token", fetch: fetchMock })
+    });
+
+    await expect(capsule.service.rollback({ id: "api" })).resolves.toMatchObject({ metadata: { revision: previous } });
+    expect(calls[1]).toMatchObject({ url: expect.stringContaining(`/v2/${serviceName}/revisions`), init: { method: "GET" } });
+    expect(JSON.parse(String(calls[2]?.init.body))).toMatchObject({ traffic: [{ revision: previous, percent: 100 }] });
   });
 
   it("deletes a Cloud Run service through the Admin API and records a resource receipt", async () => {

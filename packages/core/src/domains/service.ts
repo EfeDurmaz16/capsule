@@ -6,5 +6,6 @@ export type {
   ServiceStatus,
   ServiceStatusResult,
   ServiceStatusSpec,
+  RollbackServiceSpec,
   UpdateServiceSpec
 } from "../types.js";
