@@ -33,6 +33,7 @@ Exports:
 - `CloudRunClient`
 - `CloudRunClientOptions`
 - `CloudRunExecution`
+- `CloudRunRevision`
 
 ## @capsule/adapter-cloudflare
 
