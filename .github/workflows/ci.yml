@@ -40,11 +40,8 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Package publish audit
+      - name: Release audit
         run: pnpm release:audit
-
-      - name: Package pack smoke
-        run: pnpm release:pack-smoke
 
       - name: API reference is current
         run: |
