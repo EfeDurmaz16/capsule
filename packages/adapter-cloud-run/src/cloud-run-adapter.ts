@@ -1,6 +1,7 @@
 import {
   AdapterExecutionError,
   logsFromOutput,
+  redactLogEntries,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
@@ -11,9 +12,14 @@ import {
   type DeployServiceSpec,
   type JobStatusResult,
   type JobStatusSpec,
+  type JobLogsResult,
+  type JobLogsSpec,
   type JobRun,
+  type LogEntry,
   type RunJobSpec,
   type ServiceDeployment,
+  type ServiceLogsResult,
+  type ServiceLogsSpec,
   type ServiceStatusResult,
   type ServiceStatusSpec
 } from "@capsule/core";
@@ -21,11 +27,14 @@ import {
   CloudRunClient,
   type CloudRunClientOptions,
   type CloudRunExecution,
+  type CloudLoggingEntry,
   type CloudRunOperation,
   type CloudRunService
 } from "./cloud-run-client.js";
 
-export interface CloudRunAdapterOptions extends CloudRunClientOptions {}
+export interface CloudRunAdapterOptions extends CloudRunClientOptions {
+  logRedactionEnv?: Record<string, string>;
+}
 
 const provider = "cloud-run";
 const adapter = "cloud-run";
@@ -43,7 +52,7 @@ export const cloudRunCapabilities: CapabilityMap = {
     run: "native",
     status: "native",
     cancel: "native",
-    logs: "unsupported",
+    logs: "native",
     artifacts: "unsupported",
     timeout: "native",
     env: "native",
@@ -54,7 +63,7 @@ export const cloudRunCapabilities: CapabilityMap = {
     update: "unsupported",
     delete: "native",
     status: "native",
-    logs: "unsupported",
+    logs: "native",
     url: "native",
     scale: "native",
     rollback: "unsupported",
@@ -225,6 +234,89 @@ function serviceName(client: CloudRunClient, id: string): string {
   return id.startsWith("projects/") ? id : client.resource("services", id);
 }
 
+function resourceLeaf(id: string, collection: "jobs" | "services" | "executions"): string {
+  const marker = `/${collection}/`;
+  const index = id.indexOf(marker);
+  if (index === -1) return id;
+  return id.slice(index + marker.length).split("/")[0] ?? id;
+}
+
+function loggingValue(value: string): string {
+  return JSON.stringify(value);
+}
+
+function loggingTimeRange(spec: { since?: string; until?: string }): string[] {
+  return [
+    ...(spec.since ? [`timestamp>=${loggingValue(spec.since)}`] : []),
+    ...(spec.until ? [`timestamp<=${loggingValue(spec.until)}`] : [])
+  ];
+}
+
+function jobLogFilter(client: CloudRunClient, spec: JobLogsSpec): string {
+  const jobName = resourceLeaf(spec.id, "jobs");
+  const executionName = spec.id.includes("/executions/") ? resourceLeaf(spec.id, "executions") : undefined;
+  return [
+    'resource.type="cloud_run_job"',
+    `resource.labels.project_id=${loggingValue(client.projectId)}`,
+    `resource.labels.location=${loggingValue(client.location)}`,
+    `resource.labels.job_name=${loggingValue(jobName)}`,
+    ...(executionName ? [`labels."run.googleapis.com/execution_name"=${loggingValue(executionName)}`] : []),
+    ...loggingTimeRange(spec)
+  ].join(" AND ");
+}
+
+function serviceLogFilter(client: CloudRunClient, spec: ServiceLogsSpec): string {
+  const name = resourceLeaf(spec.id, "services");
+  return [
+    'resource.type="cloud_run_revision"',
+    `resource.labels.project_id=${loggingValue(client.projectId)}`,
+    `resource.labels.location=${loggingValue(client.location)}`,
+    `resource.labels.service_name=${loggingValue(name)}`,
+    ...loggingTimeRange(spec)
+  ].join(" AND ");
+}
+
+function logEntryMessage(entry: CloudLoggingEntry): string {
+  if (typeof entry.textPayload === "string") return entry.textPayload;
+  if (entry.jsonPayload !== undefined) return typeof entry.jsonPayload === "string" ? entry.jsonPayload : JSON.stringify(entry.jsonPayload);
+  if (entry.protoPayload !== undefined) return typeof entry.protoPayload === "string" ? entry.protoPayload : JSON.stringify(entry.protoPayload);
+  return "";
+}
+
+function logEntryStream(entry: CloudLoggingEntry): LogEntry["stream"] {
+  const logName = entry.logName ?? "";
+  if (logName.endsWith("/logs/run.googleapis.com%2Fstdout") || logName.endsWith("/logs/stdout")) return "stdout";
+  if (logName.endsWith("/logs/run.googleapis.com%2Fstderr") || logName.endsWith("/logs/stderr")) return "stderr";
+  return "system";
+}
+
+function normalizeLogEntries(entries: CloudLoggingEntry[] | undefined): LogEntry[] {
+  return (entries ?? []).map((entry) => ({
+    timestamp: entry.timestamp ?? entry.receiveTimestamp ?? new Date(0).toISOString(),
+    stream: logEntryStream(entry),
+    message: logEntryMessage(entry)
+  }));
+}
+
+async function fetchLogs(
+  client: CloudRunClient,
+  spec: JobLogsSpec | ServiceLogsSpec,
+  context: AdapterContext,
+  filter: string,
+  redactionEnv: Record<string, string> | undefined
+): Promise<LogEntry[]> {
+  if (spec.follow) {
+    throw new AdapterExecutionError("Cloud Run logs follow is not supported by Cloud Logging entries:list. Call logs again to fetch newer entries.");
+  }
+  const response = await client.listLogEntries({
+    resourceNames: [`projects/${client.projectId}`],
+    filter,
+    orderBy: "timestamp desc",
+    pageSize: spec.limit
+  });
+  return redactLogEntries(normalizeLogEntries(response.entries), redactionEnv, context.policy);
+}
+
 export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
   const getClient = () => new CloudRunClient(options);
   return {
@@ -294,6 +386,27 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
           status,
           metadata: { execution, reason: spec.reason }
         };
+      },
+      logs: async (spec: JobLogsSpec, context: AdapterContext): Promise<JobLogsResult> => {
+        const startedAt = new Date();
+        const client = getClient();
+        const filter = jobLogFilter(client, spec);
+        const logs = await fetchLogs(client, spec, context, filter, options.logRedactionEnv);
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "job.logs",
+              capabilityPath: "job.logs",
+              startedAt,
+              policy: {
+                decision: "allowed",
+                applied: context.policy,
+                notes: ["Cloud Run job logs are read through Cloud Logging entries:list."]
+              },
+              resource: { id: spec.id, name: resourceLeaf(spec.id, "jobs") },
+              metadata: { filter, resourceNames: [`projects/${client.projectId}`], orderBy: "timestamp desc", pageSize: spec.limit }
+            })
+          : undefined;
+        return { id: spec.id, provider, logs, receipt, metadata: { filter } };
       }
     },
     service: {
@@ -375,6 +488,28 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
             })
           : undefined;
         return { id: spec.id, provider, name, status: "deleted", receipt };
+      },
+      logs: async (spec: ServiceLogsSpec, context: AdapterContext): Promise<ServiceLogsResult> => {
+        const startedAt = new Date();
+        const client = getClient();
+        const filter = serviceLogFilter(client, spec);
+        const logs = await fetchLogs(client, spec, context, filter, options.logRedactionEnv);
+        const name = serviceName(client, spec.id);
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "service.logs",
+              capabilityPath: "service.logs",
+              startedAt,
+              policy: {
+                decision: "allowed",
+                applied: context.policy,
+                notes: ["Cloud Run service logs are read through Cloud Logging entries:list."]
+              },
+              resource: { id: spec.id, name },
+              metadata: { filter, resourceNames: [`projects/${client.projectId}`], orderBy: "timestamp desc", pageSize: spec.limit }
+            })
+          : undefined;
+        return { id: spec.id, provider, name, logs, receipt, metadata: { filter } };
       }
     }
   };
