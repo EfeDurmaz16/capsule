@@ -131,6 +131,7 @@ Mock modeling package:
 - [Execution receipts](docs/execution-receipts.md)
 - [Provider matrix](docs/provider-matrix.md)
 - [Real provider quickstarts](docs/real-provider-quickstarts.md)
+- [Live provider tests](docs/live-tests.md)
 - [API reference](docs/api-reference.md) (`pnpm docs:api`)
 - [Security model](docs/security-model.md)
 - [Roadmap](docs/roadmap.md)
