@@ -1,5 +1,5 @@
 import { PolicyViolationError } from "./errors.js";
-import type { CapsulePolicy } from "./types.js";
+import type { CapsulePolicy, LogEntry } from "./types.js";
 
 export interface PolicyDecision {
   decision: "allowed" | "denied";
@@ -65,4 +65,11 @@ export function redactSecrets(value: string, env: Record<string, string> | undef
     }
   }
   return output;
+}
+
+export function redactLogEntries(logs: LogEntry[], env: Record<string, string> | undefined, policy: CapsulePolicy = {}): LogEntry[] {
+  return logs.map((entry) => ({
+    ...entry,
+    message: redactSecrets(entry.message, env, policy)
+  }));
 }

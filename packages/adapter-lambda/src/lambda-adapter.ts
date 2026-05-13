@@ -1,6 +1,7 @@
 import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
 import {
   logsFromOutput,
+  redactLogEntries,
   redactSecrets,
   type AdapterContext,
   type CapsuleAdapter,
@@ -166,6 +167,7 @@ export function lambda(options: LambdaAdapterOptions = {}): CapsuleAdapter {
         const stdout = redactSecrets(decode(response.Payload), spec.env, context.policy);
         const stderr = response.FunctionError ?? "";
         const logs = decodeLog(response.LogResult);
+        const logText = redactSecrets(logs || stderr, spec.env, context.policy);
         const runStatus = status(response.StatusCode, response.FunctionError, invocationType);
         const receipt = context.receipts
           ? context.createReceipt({
@@ -189,14 +191,14 @@ export function lambda(options: LambdaAdapterOptions = {}): CapsuleAdapter {
                 executedVersion: response.ExecutedVersion ?? null,
                 functionError: response.FunctionError ?? null,
                 asyncStatusSupport: invocationType === "Event" ? "unsupported" : undefined,
-                logTail: logs || undefined
+                logTail: logText || undefined
               }
             })
           : undefined;
         const result: ExecResult | undefined =
           runStatus === "queued"
             ? undefined
-            : { exitCode: runStatus === "succeeded" ? 0 : 1, stdout, stderr, logs: logsFromOutput(stdout, logs || stderr), artifacts: [], receipt };
+            : { exitCode: runStatus === "succeeded" ? 0 : 1, stdout, stderr, logs: redactLogEntries(logsFromOutput(stdout, logText), spec.env, context.policy), artifacts: [], receipt };
         return { id: functionName, provider, status: runStatus, result, receipt };
       }
     }
