@@ -1,4 +1,15 @@
-import { CreateServiceCommand, DescribeTasksCommand, ECSClient, RunTaskCommand, StopTaskCommand, type Task } from "@aws-sdk/client-ecs";
+import {
+  CreateServiceCommand,
+  DeleteServiceCommand,
+  DescribeServicesCommand,
+  DescribeTasksCommand,
+  ECSClient,
+  RunTaskCommand,
+  StopTaskCommand,
+  UpdateServiceCommand,
+  type Service,
+  type Task
+} from "@aws-sdk/client-ecs";
 import {
   logsFromOutput,
   type AdapterContext,
@@ -6,17 +17,31 @@ import {
   type CapabilityMap,
   type CancelJobResult,
   type CancelJobSpec,
+  type DeletedService,
+  type DeleteServiceSpec,
   type DeployServiceSpec,
   type JobStatusResult,
   type JobStatusSpec,
   type JobRun,
   type JobRunStatus,
   type RunJobSpec,
-  type ServiceDeployment
+  type ServiceDeployment,
+  type ServiceStatus,
+  type ServiceStatusResult,
+  type ServiceStatusSpec
 } from "@capsule/core";
 
 interface ECSClientLike {
-  send(command: RunTaskCommand | CreateServiceCommand | DescribeTasksCommand | StopTaskCommand): Promise<any>;
+  send(
+    command:
+      | RunTaskCommand
+      | CreateServiceCommand
+      | DescribeTasksCommand
+      | StopTaskCommand
+      | DescribeServicesCommand
+      | UpdateServiceCommand
+      | DeleteServiceCommand
+  ): Promise<any>;
 }
 
 export interface ECSAdapterOptions {
@@ -56,8 +81,8 @@ export const ecsCapabilities: CapabilityMap = {
   service: {
     deploy: "native",
     update: "unsupported",
-    delete: "unsupported",
-    status: "unsupported",
+    delete: "native",
+    status: "native",
     logs: "unsupported",
     url: "unsupported",
     scale: "native",
@@ -146,6 +171,47 @@ function taskMetadata(task: Task | undefined, extra: Record<string, unknown> = {
     stoppedReason: task?.stoppedReason,
     startedAt: task?.startedAt?.toISOString(),
     stoppedAt: task?.stoppedAt?.toISOString(),
+    ...extra
+  };
+}
+
+function serviceStatus(service?: Service): ServiceStatus {
+  if (!service) return "failed";
+  if (service.status === "INACTIVE") return "deleted";
+  if (service.deployments?.some((deployment) => deployment.rolloutState === "FAILED")) return "failed";
+  if (service.status === "DRAINING") return "deploying";
+
+  const desired = service.desiredCount ?? 0;
+  const running = service.runningCount ?? 0;
+  const pending = service.pendingCount ?? 0;
+  const primary = service.deployments?.find((deployment) => deployment.status === "PRIMARY");
+  if (pending === 0 && running >= desired && (!primary || primary.rolloutState === "COMPLETED")) return "ready";
+  return "deploying";
+}
+
+function serviceMetadata(service: Service | undefined, extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    serviceArn: service?.serviceArn,
+    serviceName: service?.serviceName,
+    status: service?.status,
+    desiredCount: service?.desiredCount,
+    runningCount: service?.runningCount,
+    pendingCount: service?.pendingCount,
+    deployments: service?.deployments?.map((deployment) => ({
+      id: deployment.id,
+      status: deployment.status,
+      rolloutState: deployment.rolloutState,
+      rolloutStateReason: deployment.rolloutStateReason,
+      desiredCount: deployment.desiredCount,
+      runningCount: deployment.runningCount,
+      pendingCount: deployment.pendingCount,
+      taskDefinition: deployment.taskDefinition
+    })),
+    events: service?.events?.map((event) => ({
+      id: event.id,
+      message: event.message,
+      createdAt: event.createdAt?.toISOString()
+    })),
     ...extra
   };
 }
@@ -297,10 +363,84 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
                 ]
               },
               resource: { id: service?.serviceArn ?? spec.name, name: spec.name, status: "deploying" },
-              metadata: { cluster: options.cluster, taskDefinition: options.taskDefinition }
+              metadata: serviceMetadata(service, { cluster: options.cluster, taskDefinition: options.taskDefinition })
             })
           : undefined;
         return { id: service?.serviceArn ?? spec.name, provider, name: spec.name, status: "deploying", receipt };
+      },
+      status: async (spec: ServiceStatusSpec, context: AdapterContext): Promise<ServiceStatusResult> => {
+        const startedAt = new Date();
+        const response = await getClient().send(new DescribeServicesCommand({ cluster: options.cluster, services: [spec.id] }));
+        const service = response.services?.[0];
+        const failure = response.failures?.[0];
+        const status = serviceStatus(service);
+        const id = service?.serviceArn ?? failure?.arn ?? spec.id;
+        const name = service?.serviceName ?? spec.id;
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "service.status",
+              capabilityPath: "service.status",
+              startedAt,
+              policy: {
+                decision: "allowed",
+                applied: context.policy,
+                notes: ["ECS service status is read from DescribeServices rollout and count fields."]
+              },
+              resource: { id, name, status },
+              metadata: serviceMetadata(service, { cluster: options.cluster, failures: response.failures })
+            })
+          : undefined;
+        return {
+          id,
+          provider,
+          name,
+          status,
+          receipt,
+          metadata: serviceMetadata(service, { cluster: options.cluster, failures: response.failures })
+        };
+      },
+      delete: async (spec: DeleteServiceSpec, context: AdapterContext): Promise<DeletedService> => {
+        const startedAt = new Date();
+        const client = getClient();
+        const scale = await client.send(new UpdateServiceCommand({ cluster: options.cluster, service: spec.id, desiredCount: 0 }));
+        const response = await client.send(new DeleteServiceCommand({ cluster: options.cluster, service: spec.id, force: spec.force }));
+        const service = response.service ?? scale.service;
+        const id = service?.serviceArn ?? spec.id;
+        const name = service?.serviceName ?? spec.id;
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "service.delete",
+              capabilityPath: "service.delete",
+              startedAt,
+              policy: {
+                decision: "allowed",
+                applied: context.policy,
+                notes: ["ECS service deletion first scales desiredCount to zero, then calls DeleteService."]
+              },
+              resource: { id, name, status: "deleted" },
+              metadata: serviceMetadata(service, {
+                cluster: options.cluster,
+                reason: spec.reason,
+                semantics: "scale-to-zero-then-delete-service",
+                scaleServiceArn: scale.service?.serviceArn,
+                force: spec.force
+              })
+            })
+          : undefined;
+        return {
+          id,
+          provider,
+          name,
+          status: "deleted",
+          receipt,
+          metadata: serviceMetadata(service, {
+            cluster: options.cluster,
+            reason: spec.reason,
+            semantics: "scale-to-zero-then-delete-service",
+            scaleServiceArn: scale.service?.serviceArn,
+            force: spec.force
+          })
+        };
       }
     }
   };
