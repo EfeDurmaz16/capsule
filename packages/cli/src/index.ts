@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "node:url";
-import { Capsule, type CapabilityPath } from "@capsule/core";
+import { Capsule, explainSupportLevel, uniqueCapabilityPaths, type CapabilityMap, type CapabilityPath, type SupportLevelExplanation } from "@capsule/core";
 import { azureContainerApps } from "@capsule/adapter-azure-container-apps";
 import { cloudflare } from "@capsule/adapter-cloudflare";
 import { cloudRun } from "@capsule/adapter-cloud-run";
@@ -59,6 +59,7 @@ interface ParsedArgs {
   port?: number;
   force?: boolean;
   hardDelete?: boolean;
+  explain?: boolean;
   reason?: string;
   rest: string[];
 }
@@ -312,6 +313,10 @@ export function parse(argv: string[]): ParsedArgs {
       parsed.hardDelete = true;
       continue;
     }
+    if (arg === "--explain") {
+      parsed.explain = true;
+      continue;
+    }
     if (arg === "--force") {
       parsed.force = true;
       continue;
@@ -359,12 +364,17 @@ export async function createDoctorReport(options: { env?: NodeJS.ProcessEnv; ada
   };
 }
 
+export function capabilityExplanations(capabilities: CapabilityMap): SupportLevelExplanation[] {
+  return uniqueCapabilityPaths(capabilities).map((path) => explainSupportLevel(capabilities, path));
+}
+
 function printHelp(): void {
   console.log(`Capsule CLI
 
 Commands:
   capsule doctor
   capsule capabilities
+  capsule capabilities --explain
   capsule capabilities --adapter neon
   capsule capabilities --adapter e2b
   capsule capabilities --adapter daytona
@@ -565,7 +575,8 @@ export async function main(argv: string[]): Promise<void> {
     }
     case "capabilities": {
       const capsule = createCapsule(parsed);
-      console.log(JSON.stringify(capsule.capabilities(), null, 2));
+      const capabilities = capsule.capabilities();
+      console.log(JSON.stringify(parsed.explain ? capabilityExplanations(capabilities) : capabilities, null, 2));
       return;
     }
     case "edge": {

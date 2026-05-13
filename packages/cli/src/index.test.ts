@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { createDoctorReport, main, parse, providerCredentialDiagnostics } from "./index.js";
+import { capabilityExplanations, createDoctorReport, main, parse, providerCredentialDiagnostics } from "./index.js";
 
 describe("CLI doctor credential diagnostics", () => {
   test("reports configured and missing providers without secret values", () => {
@@ -46,6 +46,38 @@ describe("CLI doctor credential diagnostics", () => {
           configuredEnv: ["NEON_API_KEY"]
         })
       ]
+    });
+  });
+});
+
+describe("CLI capability explanations", () => {
+  test("parses the explain flag", () => {
+    expect(parse(["capabilities", "--adapter", "neon", "--explain"])).toMatchObject({
+      command: "capabilities",
+      adapter: "neon",
+      explain: true
+    });
+  });
+
+  test("formats capabilities as support-level explanations", () => {
+    expect(
+      capabilityExplanations({
+        sandbox: {
+          create: "native",
+          exec: "native",
+          fileRead: "native",
+          fileWrite: "native",
+          fileList: "native",
+          destroy: "native",
+          snapshot: "experimental"
+        }
+      })
+    ).toContainEqual({
+      path: "sandbox.snapshot",
+      level: "experimental",
+      supported: true,
+      summary: "The adapter/provider exposes this capability, but behavior may still change or be incomplete.",
+      guidance: "sandbox.snapshot should be gated behind explicit opt-in, tests, or provider-specific checks."
     });
   });
 });
