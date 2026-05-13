@@ -7,15 +7,26 @@ import {
   type CapabilityMap,
   type DeployEdgeSpec,
   type EdgeDeployment,
+  type EdgeLogsResult,
+  type EdgeLogsSpec,
   type EdgeRelease,
   type EdgeStatusResult,
   type EdgeStatusSpec,
+  type LogEntry,
+  type ProviderOptions,
+  type ProviderOptionValue,
   type ReleaseEdgeVersionSpec
 } from "@capsule/core";
-import { VercelClient, type VercelClientOptions } from "./vercel-client.js";
+import {
+  VercelClient,
+  type VercelClientOptions,
+  type VercelDeploymentEvent,
+  type VercelRuntimeLog
+} from "./vercel-client.js";
 
 export interface VercelAdapterOptions extends VercelClientOptions {
   project?: string;
+  projectId?: string;
   target?: "production" | "staging" | "preview" | string;
 }
 
@@ -56,7 +67,7 @@ export const vercelCapabilities: CapabilityMap = {
     rollback: "unsupported",
     routes: "unsupported",
     bindings: "unsupported",
-    logs: "unsupported",
+    logs: "native",
     url: "native"
   },
   database: {
@@ -89,6 +100,92 @@ function statusFromReadyState(readyState: string | undefined): EdgeDeployment["s
 function deploymentUrl(url: string | undefined): string | undefined {
   if (!url) return undefined;
   return url.startsWith("http://") || url.startsWith("https://") ? url : `https://${url}`;
+}
+
+function millis(input: string | undefined): number | undefined {
+  if (!input) return undefined;
+  const parsed = Date.parse(input);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function stringOption(value: ProviderOptionValue | undefined): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function booleanOption(value: ProviderOptionValue | undefined): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function timestamp(ms: number | undefined): string {
+  return new Date(ms ?? Date.now()).toISOString();
+}
+
+function deploymentEventMessage(event: VercelDeploymentEvent): string {
+  return (
+    event.payload?.text ??
+    event.payload?.message ??
+    event.payload?.info?.step ??
+    event.payload?.info?.readyState ??
+    event.type ??
+    "Vercel deployment event"
+  );
+}
+
+const secretOptionKey = /(api[-_]?key|auth|credential|password|private[-_]?key|secret|token)/i;
+
+function logStreamFromEvent(event: VercelDeploymentEvent): LogEntry["stream"] {
+  const type = event.type?.toLowerCase();
+  if (type === "stdout") return "stdout";
+  if (type === "stderr" || type === "fatal" || type === "error") return "stderr";
+  return logStreamFromStatus(event.payload?.statusCode);
+}
+
+function logStreamFromStatus(statusCode: number | undefined): LogEntry["stream"] {
+  return statusCode !== undefined && statusCode >= 400 ? "stderr" : "system";
+}
+
+function collectSensitiveProviderOptionValues(providerOptions: ProviderOptions | undefined): string[] {
+  const values: string[] = [];
+  const visit = (key: string, value: ProviderOptionValue): void => {
+    if (secretOptionKey.test(key) && typeof value === "string" && value.length > 0) {
+      values.push(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) visit(key, item);
+      return;
+    }
+    if (value && typeof value === "object") {
+      for (const [childKey, childValue] of Object.entries(value)) visit(childKey, childValue);
+    }
+  };
+  for (const [key, value] of Object.entries(providerOptions ?? {})) visit(key, value);
+  return values;
+}
+
+function redactProviderOptionValues(logs: LogEntry[], providerOptions: ProviderOptions | undefined): LogEntry[] {
+  const secrets = collectSensitiveProviderOptionValues(providerOptions);
+  if (secrets.length === 0) return logs;
+  return logs.map((entry) => ({
+    ...entry,
+    message: secrets.reduce((message, secret) => message.split(secret).join("[REDACTED]"), entry.message)
+  }));
+}
+
+function logsFromDeploymentEvents(events: VercelDeploymentEvent[]): LogEntry[] {
+  return events.map((event) => ({
+    timestamp: timestamp(event.payload?.created ?? event.payload?.date ?? event.created),
+    stream: logStreamFromEvent(event),
+    message: deploymentEventMessage(event)
+  }));
+}
+
+function logsFromRuntimeLogs(logs: VercelRuntimeLog[]): LogEntry[] {
+  return logs.map((log) => ({
+    timestamp: timestamp(log.timestampInMs),
+    stream: log.level === "error" ? "stderr" : "stdout",
+    message: log.message ?? log.source ?? "Vercel runtime log"
+  }));
 }
 
 async function inlineFile(spec: DeployEdgeSpec): Promise<{ file: string; data: string; encoding: "utf-8" }> {
@@ -205,6 +302,59 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
           receipt,
           metadata: { oldDeploymentId: result.oldDeploymentId, created: result.created }
         };
+      },
+      logs: async (spec: EdgeLogsSpec, context: AdapterContext): Promise<EdgeLogsResult> => {
+        const startedAt = new Date();
+        const client = getClient();
+        const api = stringOption(spec.providerOptions?.api) ?? stringOption(spec.providerOptions?.logsApi) ?? "deployment-events";
+        const useRuntimeLogs = api === "runtime" || booleanOption(spec.providerOptions?.runtimeLogs) === true;
+        const projectId = stringOption(spec.providerOptions?.projectId) ?? options.projectId;
+        if (spec.follow) {
+          throw new AdapterExecutionError("Vercel edge.logs follow mode is not supported yet; call logs again to fetch newer entries.");
+        }
+        if (useRuntimeLogs && !projectId) {
+          throw new AdapterExecutionError("Vercel runtime logs require providerOptions.projectId or adapter projectId.");
+        }
+        const logs = redactProviderOptionValues(
+          useRuntimeLogs && projectId
+            ? logsFromRuntimeLogs(await client.getRuntimeLogs({ projectId, deploymentId: spec.id }))
+            : logsFromDeploymentEvents(
+                await client.getDeploymentEvents({
+                  idOrUrl: spec.id,
+                  since: millis(spec.since),
+                  until: millis(spec.until),
+                  limit: spec.limit
+                })
+              ),
+          spec.providerOptions
+        );
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "edge.logs",
+              capabilityPath: "edge.logs",
+              startedAt,
+              providerOptions: spec.providerOptions,
+              policy: {
+                decision: "allowed",
+                applied: context.policy,
+                notes: [
+                  useRuntimeLogs
+                    ? "Vercel runtime logs are read from the project deployment runtime logs API."
+                    : "Vercel deployment logs are read from the deployment events API.",
+                  "Vercel follow-mode log streaming is intentionally rejected until Capsule exposes bounded streaming semantics."
+                ]
+              },
+              resource: { id: spec.id },
+              metadata: {
+                api: useRuntimeLogs ? "runtime" : "deployment-events",
+                since: spec.since,
+                until: spec.until,
+                limit: spec.limit,
+                follow: spec.follow
+              }
+            })
+          : undefined;
+        return { id: spec.id, provider, logs, receipt, metadata: { api: useRuntimeLogs ? "runtime" : "deployment-events" } };
       }
     }
   };
