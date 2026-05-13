@@ -36,10 +36,44 @@ export interface CloudflareWorkerRoute {
   script?: string;
 }
 
+export interface CloudflareWorkerVersion {
+  id?: string;
+  number?: number;
+  metadata?: Record<string, unknown>;
+  resources?: Record<string, unknown>;
+}
+
+export interface CloudflareWorkerDeployment {
+  id?: string;
+  created_on?: string;
+  source?: string;
+  strategy?: "percentage";
+  versions?: Array<{ percentage: number; version_id: string }>;
+  annotations?: Record<string, string>;
+  author_email?: string;
+}
+
+export interface CloudflareWorkerDeploymentList {
+  deployments?: CloudflareWorkerDeployment[];
+}
+
 export interface CreateWorkerRouteInput {
   pattern: string;
   scriptName: string;
   zoneId?: string;
+}
+
+export interface UploadWorkerVersionInput {
+  scriptName: string;
+  entrypoint: string;
+  source: string | Uint8Array;
+  metadata: Record<string, unknown>;
+}
+
+export interface CreateWorkerDeploymentInput {
+  scriptName: string;
+  versionId: string;
+  message?: string;
 }
 
 export class CloudflareClient {
@@ -94,6 +128,51 @@ export class CloudflareClient {
         "content-type": "application/json"
       },
       body: JSON.stringify({ pattern: input.pattern, script: input.scriptName })
+    });
+  }
+
+  async uploadWorkerVersion(input: UploadWorkerVersionInput): Promise<CloudflareWorkerVersion> {
+    const url = `${this.baseUrl}/accounts/${encodeURIComponent(this.accountId)}/workers/scripts/${encodeURIComponent(input.scriptName)}/versions`;
+    const form = new FormData();
+    form.set("metadata", JSON.stringify(input.metadata));
+    const moduleSource = typeof input.source === "string" ? input.source : new Uint8Array(input.source).buffer;
+    form.set(input.entrypoint, new Blob([moduleSource], { type: "application/javascript+module" }), input.entrypoint);
+
+    return await this.request<CloudflareWorkerVersion>(url, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${this.apiToken}`
+      },
+      body: form
+    });
+  }
+
+  async listWorkerDeployments(scriptName: string): Promise<CloudflareWorkerDeploymentList> {
+    const url = `${this.baseUrl}/accounts/${encodeURIComponent(this.accountId)}/workers/scripts/${encodeURIComponent(scriptName)}/deployments`;
+    return await this.request<CloudflareWorkerDeploymentList>(url, {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${this.apiToken}`
+      }
+    });
+  }
+
+  async createWorkerDeployment(input: CreateWorkerDeploymentInput): Promise<CloudflareWorkerDeployment> {
+    const url = `${this.baseUrl}/accounts/${encodeURIComponent(this.accountId)}/workers/scripts/${encodeURIComponent(input.scriptName)}/deployments`;
+    return await this.request<CloudflareWorkerDeployment>(url, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${this.apiToken}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        strategy: "percentage",
+        versions: [{ version_id: input.versionId, percentage: 100 }],
+        annotations: {
+          "workers/message": input.message ?? `Capsule rollback to Worker version ${input.versionId}`,
+          "workers/triggered_by": "capsule.rollback"
+        }
+      })
     });
   }
 
