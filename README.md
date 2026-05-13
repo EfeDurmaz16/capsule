@@ -133,7 +133,7 @@ pnpm typecheck
 - `@capsule/adapter-lambda`: real AWS Lambda invoke adapter for existing functions as jobs.
 - `@capsule/adapter-ecs`: real ECS/Fargate adapter for existing task definitions.
 - `@capsule/adapter-ec2`: real EC2 adapter for machine creation.
-- `@capsule/adapter-neon`: real Neon API adapter for database branch create/delete and connection URI retrieval.
+- `@capsule/adapter-neon`: real Neon API adapter for database branch create/delete/reset and connection URI retrieval.
 - `@capsule/adapter-vercel`: real Vercel REST adapter for inline deployment creation.
 - `@capsule/adapter-mock`: mock E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models.
 - `@capsule/ai`: framework-agnostic code execution tool helper.
@@ -192,7 +192,7 @@ Real in this repository:
 - AWS Lambda invocation through AWS SDK v3;
 - ECS RunTask and CreateService through AWS SDK v3;
 - EC2 RunInstances through AWS SDK v3;
-- Neon database branch create/delete through the Neon API;
+- Neon database branch create/delete/reset through the Neon API;
 - Vercel inline deployment creation through the Vercel REST API;
 - Neon connection URI retrieval when `databaseName` and `roleName` are configured;
 - local JSONL receipt persistence through `@capsule/store-jsonl`;

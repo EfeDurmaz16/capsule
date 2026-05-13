@@ -14,7 +14,7 @@ Examples:
 - Vercel: edge deployment is native through the real Vercel REST adapter; service/preview semantics, aliases, env, logs, and rollback are not faked.
 - Cloudflare: real Worker upload is native through `edge.deploy`; sandbox, job, service, database, and preview are unsupported until implemented by the real adapter.
 - Real Cloudflare adapter: `edge.deploy` is native for Worker module upload; routes, logs, secrets, versions, and rollback are unsupported until modeled as explicit operations.
-- Neon: database branch creation and connection strings are native.
+- Neon: database branch creation, deletion, reset, and connection strings are native.
 - Lambda: existing function invoke is native for `job.run`; deployment, environment mutation, and Lambda@Edge remain future explicit capabilities.
 - ECS/Fargate: existing task definitions can be run as jobs and services natively; task definition registration, load balancers, logs, and service discovery remain future explicit capabilities.
 - Kubernetes: jobs and services are native through the real Kubernetes adapter. Service deploy creates a Deployment and Service, service status reads both resources, service delete removes both resources in the configured namespace, and URLs prefer assigned LoadBalancer ingress before falling back to in-cluster DNS. Sandbox, preview, and machine support remain unsupported until explicit public wrappers exist.

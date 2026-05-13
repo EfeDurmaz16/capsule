@@ -31,7 +31,7 @@ Vercel, Cloudflare Workers/Pages/Containers, Lambda, Netlify-style functions, an
 
 Neon, Cloudflare D1/KV/R2, Supabase branching, PlanetScale-style branching, and managed resource receipts.
 
-Neon branch create/delete and connection URI retrieval are implemented. Reset, migrations, snapshots, and restore remain planned.
+Neon branch create/delete/reset and connection URI retrieval are implemented. Migrations, snapshots, and broader restore workflows remain planned.
 
 ## Preview Orchestration
 

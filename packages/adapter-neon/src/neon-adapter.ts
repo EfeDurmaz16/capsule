@@ -1,11 +1,14 @@
 import {
   type AdapterContext,
+  AdapterExecutionError,
   type CapsuleAdapter,
   type CapabilityMap,
   type CreateDatabaseBranchSpec,
   type DatabaseBranch,
+  type ResetDatabaseBranch,
   type DeletedDatabaseBranch,
-  type DeleteDatabaseBranchSpec
+  type DeleteDatabaseBranchSpec,
+  type ResetDatabaseBranchSpec
 } from "@capsule/core";
 import { NeonClient, type NeonClientOptions } from "./neon-client.js";
 
@@ -38,7 +41,7 @@ export const neonCapabilities: CapabilityMap = {
   database: {
     branchCreate: "native",
     branchDelete: "native",
-    branchReset: "unsupported",
+    branchReset: "native",
     connectionString: "native",
     migrate: "unsupported",
     snapshot: "unsupported",
@@ -66,6 +69,25 @@ function createBranchBody(spec: CreateDatabaseBranchSpec, options: NeonAdapterOp
       : {
           endpoints: [{ type: "read_write" }]
         })
+  };
+}
+
+function resetBranchBody(spec: ResetDatabaseBranchSpec) {
+  const sourceBranchId = spec.sourceBranchId ?? spec.parent;
+  if (!sourceBranchId) {
+    throw new AdapterExecutionError("Neon branch reset requires sourceBranchId or parent.");
+  }
+  if (sourceBranchId === spec.branchId && !spec.pointInTime && !spec.sourceLsn) {
+    throw new AdapterExecutionError("Neon self-restore requires pointInTime or sourceLsn.");
+  }
+  if (sourceBranchId === spec.branchId && !spec.preserveUnderName) {
+    throw new AdapterExecutionError("Neon self-restore requires preserveUnderName so the previous branch state can be retained.");
+  }
+  return {
+    source_branch_id: sourceBranchId,
+    ...(spec.pointInTime ? { source_timestamp: spec.pointInTime } : {}),
+    ...(spec.sourceLsn ? { source_lsn: spec.sourceLsn } : {}),
+    ...(spec.preserveUnderName ? { preserve_under_name: spec.preserveUnderName } : {})
   };
 }
 
@@ -171,6 +193,60 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
               })
             : undefined;
           return { id: spec.branchId, provider, project: spec.project, status: "deleted", receipt };
+        },
+        reset: async (spec: ResetDatabaseBranchSpec, context: AdapterContext): Promise<ResetDatabaseBranch> => {
+          const client = getClient();
+          const startedAt = new Date();
+          const body = resetBranchBody(spec);
+          const response = await client.request<NeonBranchResponse>({
+            method: "POST",
+            path: `/projects/${encodeURIComponent(spec.project)}/branches/${encodeURIComponent(spec.branchId)}/restore`,
+            body
+          });
+          const receipt = context.receipts
+            ? context.createReceipt({
+                type: "database.branch.reset",
+                capabilityPath: "database.branchReset",
+                startedAt,
+                policy: {
+                  decision: "allowed",
+                  applied: context.policy,
+                  notes: [
+                    "Neon branch reset is mapped to the native branch restore API.",
+                    spec.pointInTime || spec.sourceLsn ? "Point-in-time restore input was delegated to Neon." : "Reset uses the head of the source branch.",
+                    "Connection strings are not fetched by reset; call branch create or provider APIs when connection metadata is needed."
+                  ]
+                },
+                resource: {
+                  id: response.branch.id,
+                  name: response.branch.name,
+                  status: response.branch.current_state ?? "ready"
+                },
+                metadata: {
+                  project: spec.project,
+                  sourceBranchId: body.source_branch_id,
+                  sourceTimestamp: spec.pointInTime,
+                  sourceLsn: spec.sourceLsn,
+                  preserveUnderName: spec.preserveUnderName,
+                  parent: response.branch.parent_id,
+                  reason: spec.reason,
+                  labels: spec.labels
+                }
+              })
+            : undefined;
+          return {
+            id: response.branch.id,
+            provider,
+            project: spec.project,
+            parent: response.branch.parent_id,
+            status: response.branch.current_state === "failed" ? "failed" : "ready",
+            receipt,
+            metadata: {
+              name: response.branch.name,
+              sourceBranchId: body.source_branch_id,
+              preserveUnderName: spec.preserveUnderName
+            }
+          };
         }
       }
     }
