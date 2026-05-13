@@ -132,6 +132,7 @@ Mock modeling package:
 - [Provider matrix](docs/provider-matrix.md)
 - [Real provider quickstarts](docs/real-provider-quickstarts.md)
 - [Live provider tests](docs/live-tests.md)
+- [Publish readiness](docs/publish-readiness.md)
 - [API reference](docs/api-reference.md) (`pnpm docs:api`)
 - [Security model](docs/security-model.md)
 - [Roadmap](docs/roadmap.md)
