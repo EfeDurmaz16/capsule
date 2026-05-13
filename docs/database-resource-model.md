@@ -11,4 +11,4 @@ Capsule models reset and migration as optional database capabilities:
 - `database.branchReset` is exposed as `capsule.database.branch.reset(...)`.
 - `database.migrate` is exposed as `capsule.database.migrate(...)`.
 
-Adapters must declare unsupported until they implement the corresponding operation. The Neon adapter currently supports branch create/delete and connection URI retrieval only; reset and migration remain unsupported.
+Adapters must declare unsupported until they implement the corresponding operation. The Neon adapter supports branch create/delete, connection URI retrieval, and branch reset through Neon's branch restore API. Migration remains unsupported because Capsule does not yet define a provider-safe migration runner.

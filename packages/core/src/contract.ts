@@ -88,7 +88,12 @@ const publicCapabilities: PublicCapability[] = [
   {
     path: "database.branchReset",
     isImplemented: (adapter) => typeof adapter.database?.branch.reset === "function",
-    exercise: (capsule) => capsule.database.branch.reset({ project: "capsule-contract-test", branchId: "capsule-contract-test" })
+    exercise: (capsule) =>
+      capsule.database.branch.reset({
+        project: "capsule-contract-test",
+        branchId: "capsule-contract-test",
+        sourceBranchId: "capsule-contract-source"
+      })
   },
   {
     path: "database.migrate",

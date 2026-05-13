@@ -518,6 +518,9 @@ export interface DeleteDatabaseBranchSpec {
 export interface ResetDatabaseBranchSpec {
   project: string;
   branchId: string;
+  sourceBranchId?: string;
+  sourceLsn?: string;
+  preserveUnderName?: string;
   parent?: string;
   pointInTime?: string;
   reason?: string;
