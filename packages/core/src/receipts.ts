@@ -27,10 +27,16 @@ export interface CreateReceiptInput {
   metadata?: Record<string, unknown>;
 }
 
-export function createReceipt(input: CreateReceiptInput): CapsuleReceipt {
+export interface ReceiptSigner {
+  algorithm: string;
+  keyId?: string;
+  sign(receipt: Omit<CapsuleReceipt, "signature">): string;
+}
+
+export function createReceipt(input: CreateReceiptInput, signer?: ReceiptSigner): CapsuleReceipt {
   const finishedAt = input.finishedAt ?? new Date();
   const artifactHashes = input.artifacts?.map((artifact) => artifact.sha256).filter((hash): hash is string => Boolean(hash));
-  return {
+  const receipt: Omit<CapsuleReceipt, "signature"> = {
     id: randomUUID(),
     type: input.type,
     provider: input.provider,
@@ -51,5 +57,16 @@ export function createReceipt(input: CreateReceiptInput): CapsuleReceipt {
     policy: input.policy ?? { decision: "allowed", applied: {} },
     resource: input.resource,
     metadata: input.metadata
+  };
+  if (!signer) {
+    return receipt;
+  }
+  return {
+    ...receipt,
+    signature: {
+      algorithm: signer.algorithm,
+      value: signer.sign(receipt),
+      keyId: signer.keyId
+    }
   };
 }

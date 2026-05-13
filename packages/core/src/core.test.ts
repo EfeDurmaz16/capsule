@@ -148,6 +148,34 @@ describe("receipts", () => {
     expect(receipt.stdoutHash).toBe("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
     expect(receipt.policy.decision).toBe("allowed");
     expect(receipt.durationMs).toBe(1000);
+    expect(receipt.signature).toBeUndefined();
+  });
+
+  test("optionally signs receipts with a provided signer", () => {
+    const receipt = createReceipt(
+      {
+        type: "job.run",
+        provider: "test",
+        adapter: "test",
+        capabilityPath: "job.run",
+        supportLevel: "native",
+        startedAt: new Date("2026-01-01T00:00:00.000Z"),
+        finishedAt: new Date("2026-01-01T00:00:00.500Z"),
+        policy: { decision: "allowed", applied: {} },
+        resource: { id: "job_123" }
+      },
+      {
+        algorithm: "test-signature",
+        keyId: "test-key",
+        sign: (unsigned) => `${unsigned.type}:${unsigned.resource?.id}:${unsigned.durationMs}`
+      }
+    );
+
+    expect(receipt.signature).toEqual({
+      algorithm: "test-signature",
+      keyId: "test-key",
+      value: "job.run:job_123:500"
+    });
   });
 
   test("records receipts into a configured store", async () => {
@@ -164,5 +192,32 @@ describe("receipts", () => {
     const capsule = new Capsule({ adapter: receiptAdapter, receipts: true, receiptStore });
     await capsule.sandbox.create({});
     expect(receiptStore.receipts[0]?.type).toBe("sandbox.create");
+  });
+
+  test("signs receipts created through Capsule context", async () => {
+    const receiptStore = new MemoryReceiptStore();
+    const receiptAdapter: CapsuleAdapter = {
+      ...adapter,
+      sandbox: {
+        create: async (_spec, context) => {
+          context.createReceipt({ type: "sandbox.create", capabilityPath: "sandbox.create", startedAt: new Date("2026-01-01T00:00:00.000Z") });
+          return adapter.sandbox!.create({}, context);
+        }
+      }
+    };
+    const capsule = new Capsule({
+      adapter: receiptAdapter,
+      receipts: true,
+      receiptStore,
+      receiptSigner: {
+        algorithm: "test-signature",
+        sign: (unsigned) => `signed:${unsigned.type}:${unsigned.provider}`
+      }
+    });
+    await capsule.sandbox.create({});
+    expect(receiptStore.receipts[0]?.signature).toMatchObject({
+      algorithm: "test-signature",
+      value: "signed:sandbox.create:test"
+    });
   });
 });
