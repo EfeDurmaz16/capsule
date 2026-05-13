@@ -6,7 +6,6 @@ Capsule now has real adapters for Docker, E2B, Daytona, Modal, Neon, Cloudflare 
 
 | Provider | Target package | First real primitive | Required provider config | Notes |
 | --- | --- | --- | --- | --- |
-| Fly Machines | `@capsule/adapter-fly` | `machine.create`, `job.run` | Fly token, org/app/region | Machines overlap with service/job; capability map must distinguish one-shot machine runs. |
 | Azure Container Apps | `@capsule/adapter-azure-container-apps` | `job.run`, `service.deploy` | Azure tenant/subscription/resource group/environment | Use Azure identity/client libraries only where auth complexity justifies it. |
 
 ## Rule For Removing A Mock Gap
@@ -23,5 +22,5 @@ A provider leaves this register only when:
 ## Near-Term Order
 
 1. Add deeper lifecycle operations to existing real adapters: logs, status polling, cancel/delete, rollback, route/alias management, and teardown.
-2. Add Fly Machines and Azure Container Apps as extra roadmap providers beyond the original mocked package set.
+2. Add Azure Container Apps as an extra roadmap provider beyond the original mocked package set.
 3. Add provider contract test suites that adapter authors can run against fake clients and optional live credentials.

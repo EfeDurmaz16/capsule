@@ -25,6 +25,7 @@
     "@capsule/adapter-e2b": "workspace:*",
     "@capsule/adapter-ec2": "workspace:*",
     "@capsule/adapter-ecs": "workspace:*",
+    "@capsule/adapter-fly": "workspace:*",
     "@capsule/adapter-kubernetes": "workspace:*",
     "@capsule/adapter-lambda": "workspace:*",
     "@capsule/adapter-modal": "workspace:*",

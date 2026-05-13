@@ -5,6 +5,22 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "references": [{ "path": "../core" }, { "path": "../adapter-docker" }, { "path": "../adapter-neon" }, { "path": "../store-jsonl" }],
+  "references": [
+    { "path": "../core" },
+    { "path": "../adapter-cloudflare" },
+    { "path": "../adapter-cloud-run" },
+    { "path": "../adapter-daytona" },
+    { "path": "../adapter-docker" },
+    { "path": "../adapter-e2b" },
+    { "path": "../adapter-ec2" },
+    { "path": "../adapter-ecs" },
+    { "path": "../adapter-fly" },
+    { "path": "../adapter-kubernetes" },
+    { "path": "../adapter-lambda" },
+    { "path": "../adapter-modal" },
+    { "path": "../adapter-neon" },
+    { "path": "../adapter-vercel" },
+    { "path": "../store-jsonl" }
+  ],
   "include": ["src"]
 }
