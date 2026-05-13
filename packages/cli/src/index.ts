@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { pathToFileURL } from "node:url";
 import { Capsule } from "@capsule/core";
 import { azureContainerApps } from "@capsule/adapter-azure-container-apps";
 import { cloudflare } from "@capsule/adapter-cloudflare";
@@ -59,7 +60,57 @@ interface ParsedArgs {
   rest: string[];
 }
 
-function parse(argv: string[]): ParsedArgs {
+interface CredentialRequirement {
+  provider: string;
+  requiredAll?: string[];
+  requiredAny?: string[];
+  notes?: string[];
+}
+
+interface ProviderCredentialDiagnostic {
+  provider: string;
+  status: "configured" | "missing";
+  configuredEnv: string[];
+  missingEnv: string[];
+  requiredEnv: string[];
+  notes: string[];
+}
+
+interface DoctorReport {
+  docker: "available" | "unavailable";
+  providers: ProviderCredentialDiagnostic[];
+}
+
+const credentialRequirements: CredentialRequirement[] = [
+  { provider: "e2b", requiredAll: ["E2B_API_KEY"] },
+  { provider: "daytona", requiredAll: ["DAYTONA_API_KEY"] },
+  { provider: "modal", requiredAll: ["MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"], notes: ["MODAL_ENVIRONMENT is optional."] },
+  { provider: "neon", requiredAll: ["NEON_API_KEY"] },
+  { provider: "cloudflare", requiredAll: ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"], notes: ["CLOUDFLARE_ZONE_ID is required only for route creation."] },
+  { provider: "vercel", requiredAll: ["VERCEL_TOKEN"], notes: ["VERCEL_TEAM_ID or slug-style scoping is optional."] },
+  {
+    provider: "cloud-run",
+    requiredAny: ["GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_APPLICATION_CREDENTIALS_JSON", "GOOGLE_OAUTH_ACCESS_TOKEN"],
+    notes: ["Cloud Run uses Google ADC; an already-authenticated gcloud environment can also satisfy credentials at runtime."]
+  },
+  {
+    provider: "kubernetes",
+    requiredAny: ["KUBECONFIG"],
+    notes: ["Kubernetes can also use the default kubeconfig path or in-cluster configuration."]
+  },
+  {
+    provider: "aws",
+    requiredAny: ["AWS_PROFILE", "AWS_ACCESS_KEY_ID", "AWS_WEB_IDENTITY_TOKEN_FILE"],
+    notes: ["Lambda, ECS/Fargate, and EC2 use the AWS SDK default credential chain."]
+  },
+  { provider: "fly", requiredAll: ["FLY_API_TOKEN"], notes: ["FLY_APP_NAME is required for Fly Machines calls unless passed through CLI options."] },
+  {
+    provider: "azure-container-apps",
+    requiredAll: ["AZURE_ACCESS_TOKEN", "AZURE_SUBSCRIPTION_ID", "AZURE_RESOURCE_GROUP", "AZURE_LOCATION", "AZURE_CONTAINERAPPS_ENVIRONMENT_ID"]
+  }
+];
+
+export function parse(argv: string[]): ParsedArgs {
   const [command, ...args] = argv;
   const parsed: ParsedArgs = { command, rest: [] };
   for (let index = 0; index < args.length; index += 1) {
@@ -262,6 +313,35 @@ function parse(argv: string[]): ParsedArgs {
   return parsed;
 }
 
+function credentialDiagnostic(requirement: CredentialRequirement, env: NodeJS.ProcessEnv): ProviderCredentialDiagnostic {
+  const all = requirement.requiredAll ?? [];
+  const any = requirement.requiredAny ?? [];
+  const configuredAll = all.filter((name) => Boolean(env[name]));
+  const missingAll = all.filter((name) => !env[name]);
+  const configuredAny = any.filter((name) => Boolean(env[name]));
+  const hasRequiredAny = any.length === 0 || configuredAny.length > 0;
+  return {
+    provider: requirement.provider,
+    status: missingAll.length === 0 && hasRequiredAny ? "configured" : "missing",
+    configuredEnv: [...configuredAll, ...configuredAny],
+    missingEnv: [...missingAll, ...(hasRequiredAny ? [] : any)],
+    requiredEnv: [...all, ...any],
+    notes: requirement.notes ?? []
+  };
+}
+
+export function providerCredentialDiagnostics(env: NodeJS.ProcessEnv = process.env, adapter?: string): ProviderCredentialDiagnostic[] {
+  return credentialRequirements.filter((requirement) => !adapter || requirement.provider === adapter || (adapter === "lambda" || adapter === "ecs" || adapter === "ec2" ? requirement.provider === "aws" : false)).map((requirement) => credentialDiagnostic(requirement, env));
+}
+
+export async function createDoctorReport(options: { env?: NodeJS.ProcessEnv; adapter?: string; dockerCheck?: () => Promise<boolean> } = {}): Promise<DoctorReport> {
+  const dockerOk = await (options.dockerCheck ?? dockerAvailable)();
+  return {
+    docker: dockerOk ? "available" : "unavailable",
+    providers: providerCredentialDiagnostics(options.env ?? process.env, options.adapter)
+  };
+}
+
 function printHelp(): void {
   console.log(`Capsule CLI
 
@@ -410,12 +490,12 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   return new Capsule({ adapter: docker(), receipts: true, receiptStore });
 }
 
-async function main(argv: string[]): Promise<void> {
+export async function main(argv: string[]): Promise<void> {
   const parsed = parse(argv);
-  const capsule = createCapsule(parsed);
 
   switch (parsed.command) {
     case "neon": {
+      const capsule = createCapsule(parsed);
       const action = parsed.rest[0];
       const project = parsed.project;
       if (!project) {
@@ -440,16 +520,18 @@ async function main(argv: string[]): Promise<void> {
       throw new Error("Unknown neon command. Use branch-create or branch-delete.");
     }
     case "doctor": {
-      const ok = await dockerAvailable();
-      console.log(JSON.stringify({ docker: ok ? "available" : "unavailable" }, null, 2));
-      process.exitCode = ok ? 0 : 1;
+      const report = await createDoctorReport({ adapter: parsed.adapter });
+      console.log(JSON.stringify(report, null, 2));
+      process.exitCode = report.docker === "available" ? 0 : 1;
       return;
     }
     case "capabilities": {
+      const capsule = createCapsule(parsed);
       console.log(JSON.stringify(capsule.capabilities(), null, 2));
       return;
     }
     case "edge": {
+      const capsule = createCapsule(parsed);
       if (parsed.adapter !== "cloudflare" && parsed.adapter !== "vercel") {
         throw new Error("edge currently requires --adapter cloudflare or --adapter vercel");
       }
@@ -470,6 +552,7 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "job": {
+      const capsule = createCapsule(parsed);
       if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes" && parsed.adapter !== "lambda" && parsed.adapter !== "ecs" && parsed.adapter !== "fly" && parsed.adapter !== "azure-container-apps") {
         throw new Error("job currently requires --adapter cloud-run, --adapter kubernetes, --adapter lambda, --adapter ecs, --adapter fly, or --adapter azure-container-apps");
       }
@@ -485,6 +568,7 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "service": {
+      const capsule = createCapsule(parsed);
       if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes" && parsed.adapter !== "ecs" && parsed.adapter !== "azure-container-apps") {
         throw new Error("service currently requires --adapter cloud-run, --adapter kubernetes, --adapter ecs, or --adapter azure-container-apps");
       }
@@ -503,6 +587,7 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "machine": {
+      const capsule = createCapsule(parsed);
       if (parsed.adapter !== "ec2" && parsed.adapter !== "fly") {
         throw new Error("machine currently requires --adapter ec2 or --adapter fly");
       }
@@ -519,6 +604,7 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "run": {
+      const capsule = createCapsule(parsed);
       const image = parsed.image ?? "node:22";
       const command = parsed.rest.length > 0 ? parsed.rest : ["node", "-e", "console.log('hello from capsule')"];
       const result = await capsule.job.run({ image, command });
@@ -530,6 +616,7 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "sandbox": {
+      const capsule = createCapsule(parsed);
       const image = parsed.image ?? "node:22";
       const sandbox = await capsule.sandbox.create({ image });
       try {
@@ -549,7 +636,9 @@ async function main(argv: string[]): Promise<void> {
   }
 }
 
-main(process.argv.slice(2)).catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main(process.argv.slice(2)).catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}
