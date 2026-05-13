@@ -31,4 +31,8 @@ Receipt signing is optional and disabled by default. `@capsule/core` exposes a s
 
 Signatures cover Capsule's receipt object before the `signature` field is attached. They are not provider attestations unless the caller's signer explicitly binds provider evidence.
 
+Receipt persistence is explicit. `receiptPersistence: "best-effort"` is the default and keeps provider operations moving if an optional store write fails. Use `receiptPersistence: "required"` when the caller must know that every receipt created during a Capsule operation was durably accepted by the configured `receiptStore`; in required mode, a missing store or failed store write rejects the Capsule operation instead of returning a result with uncertain evidence.
+
+`@capsule/store-jsonl` is the local file store. Its writes create parent directories, append one receipt per line, and flush by default before `write` resolves. It is intentionally an optional package, not a core database.
+
 The receipt JSON Schema is published at [`schemas/capsule-receipt.schema.json`](../schemas/capsule-receipt.schema.json) and exported from `@capsule/core` as `capsuleReceiptJsonSchema`.
