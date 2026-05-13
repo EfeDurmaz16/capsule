@@ -20,7 +20,14 @@ Capsule should let providers and framework maintainers model their preview orche
 
 The package records a resource graph containing service, edge, database, and job resources. Cleanup walks that graph in reverse dependency order and reports partial cleanup failures instead of hiding successfully cleaned resources.
 
-`createPreviewEnvironmentWithCleanup(...)` attempts cleanup when creation fails after earlier resources were provisioned. Receipts from the underlying domain operations remain the evidence source; preview orchestration does not claim provider-native preview support unless an adapter exposes it.
+Cleanup evidence is explicit. Every resource gets a cleanup disposition:
+
+- `cleaned`: Capsule invoked a cleanup action and the provider receipt reported deletion or did not expose a conflicting status.
+- `partial`: Capsule invoked cleanup, but the provider receipt did not confirm a deleted terminal state.
+- `unsupported`: the resource has no cleanup action in the current preview graph.
+- `leaked`: Capsule attempted cleanup and the provider operation failed, so the resource may still exist.
+
+`createPreviewEnvironmentWithCleanup(...)` attempts cleanup when creation fails after earlier resources were provisioned. The cleanup result includes underlying provider receipts plus an orchestration-level `preview.cleanup` receipt from `@capsule/preview`. That receipt summarizes the cleanup status and per-resource dispositions. Provider receipts remain the strongest evidence for what happened at each provider; preview orchestration does not claim provider-native preview support unless an adapter exposes it.
 
 ## Example
 

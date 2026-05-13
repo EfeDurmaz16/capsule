@@ -14,8 +14,18 @@ import type {
   RunJobSpec,
   ServiceDeployment
 } from "@capsule/core";
+import { createReceipt } from "@capsule/core";
 
 export type PreviewResourceKind = "database" | "service" | "edge" | "job";
+export type PreviewCleanupDisposition = "cleaned" | "partial" | "unsupported" | "leaked";
+
+export interface PreviewCleanupDispositionRecord {
+  resource: PreviewResourceRecord;
+  disposition: PreviewCleanupDisposition;
+  receipt?: CapsuleReceipt;
+  error?: string;
+  notes?: string[];
+}
 
 export interface PreviewResourceRecord {
   type: CapsuleDomain;
@@ -27,6 +37,7 @@ export interface PreviewResourceRecord {
   status?: string;
   receipt?: CapsuleReceipt;
   cleanup?: PreviewCleanupAction;
+  cleanupDisposition?: PreviewCleanupDisposition;
 }
 
 export interface PreviewCleanupAction {
@@ -60,7 +71,9 @@ export interface PreviewCleanupResult {
     resource: PreviewResourceRecord;
     error: unknown;
   }>;
+  dispositions: PreviewCleanupDispositionRecord[];
   receipts: CapsuleReceipt[];
+  receipt: CapsuleReceipt;
 }
 
 export interface PreviewOrchestrationResult {
@@ -90,6 +103,66 @@ export function createPreviewId(name: string): string {
 
 function receiptOf(value: { receipt?: CapsuleReceipt } | undefined): CapsuleReceipt | undefined {
   return value?.receipt;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function cloneWithDisposition(resource: PreviewResourceRecord, disposition: PreviewCleanupDisposition): PreviewResourceRecord {
+  return {
+    ...resource,
+    cleanupDisposition: disposition
+  };
+}
+
+function dispositionFromReceipt(receipt: CapsuleReceipt | undefined): PreviewCleanupDisposition {
+  if (!receipt?.resource?.status) {
+    return "cleaned";
+  }
+  return receipt.resource.status === "deleted" ? "cleaned" : "partial";
+}
+
+function createCleanupReceipt(
+  preview: PreviewEnvironment,
+  status: PreviewCleanupResult["status"],
+  dispositions: PreviewCleanupDispositionRecord[],
+  startedAt: Date
+): CapsuleReceipt {
+  return createReceipt({
+    type: "preview.cleanup",
+    provider: "capsule-preview",
+    adapter: "@capsule/preview",
+    capabilityPath: "preview.cleanup",
+    supportLevel: "emulated",
+    startedAt,
+    resource: {
+      id: preview.id,
+      name: preview.name,
+      status
+    },
+    metadata: {
+      cleanupStatus: status,
+      resources: dispositions.map((entry) => ({
+        id: entry.resource.id,
+        kind: entry.resource.kind,
+        provider: entry.resource.provider,
+        name: entry.resource.name,
+        disposition: entry.disposition,
+        receiptId: entry.receipt?.id,
+        error: entry.error,
+        notes: entry.notes
+      }))
+    },
+    policy: {
+      decision: "allowed",
+      applied: {},
+      notes: [
+        "Preview cleanup receipt is emitted by @capsule/preview orchestration.",
+        "Provider cleanup evidence is limited to the receipts returned by each resource adapter."
+      ]
+    }
+  });
 }
 
 function serviceRecord(resource: ServiceDeployment, capsule: Capsule): PreviewResourceRecord {
@@ -203,32 +276,58 @@ export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrch
 }
 
 export async function cleanupPreviewEnvironment(preview: PreviewEnvironment, resources: PreviewResourceRecord[]): Promise<PreviewCleanupResult> {
+  const startedAt = new Date();
   const cleaned: PreviewResourceRecord[] = [];
   const failed: PreviewCleanupResult["failed"] = [];
   const receipts: CapsuleReceipt[] = [];
+  const dispositions: PreviewCleanupDispositionRecord[] = [];
 
   for (const resource of [...resources].reverse()) {
-    if (!resource.cleanup) continue;
+    if (!resource.cleanup) {
+      const unsupported = cloneWithDisposition(resource, "unsupported");
+      dispositions.push({
+        resource: unsupported,
+        disposition: "unsupported",
+        notes: ["No cleanup action is available for this preview resource."]
+      });
+      continue;
+    }
     try {
+      let receipt: CapsuleReceipt | undefined;
       if (resource.cleanup.kind === "database") {
         const result = await resource.cleanup.capsule.database.branch.delete(resource.cleanup.spec as { project: string; branchId: string; hardDelete?: boolean });
-        if (result.receipt) receipts.push(result.receipt);
+        receipt = result.receipt;
       } else if (resource.cleanup.kind === "service") {
         const result = await resource.cleanup.capsule.service.delete(resource.cleanup.spec as { id: string; name?: string });
-        if (result.receipt) receipts.push(result.receipt);
+        receipt = result.receipt;
       }
-      cleaned.push(resource);
+      if (receipt) receipts.push(receipt);
+      const disposition = dispositionFromReceipt(receipt);
+      const cleanedResource = cloneWithDisposition(resource, disposition);
+      cleaned.push(cleanedResource);
+      dispositions.push({ resource: cleanedResource, disposition, receipt });
     } catch (error) {
-      failed.push({ resource, error });
+      const leakedResource = cloneWithDisposition(resource, "leaked");
+      failed.push({ resource: leakedResource, error });
+      dispositions.push({
+        resource: leakedResource,
+        disposition: "leaked",
+        error: errorMessage(error),
+        notes: ["Cleanup was attempted and failed; the resource may still exist at the provider."]
+      });
     }
   }
 
+  const status = dispositions.every((entry) => entry.disposition === "cleaned") ? "cleaned" : "partial";
+  const receipt = createCleanupReceipt(preview, status, dispositions, startedAt);
   return {
     previewId: preview.id,
-    status: failed.length > 0 ? "partial" : "cleaned",
+    status,
     cleaned,
     failed,
-    receipts
+    dispositions,
+    receipts: [...receipts, receipt],
+    receipt
   };
 }
 
