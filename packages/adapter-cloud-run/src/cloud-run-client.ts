@@ -6,6 +6,7 @@ export interface CloudRunClientOptions {
   location?: string;
   accessToken?: string;
   baseUrl?: string;
+  loggingBaseUrl?: string;
   fetch?: typeof fetch;
   waitForOperations?: boolean;
   operationTimeoutMs?: number;
@@ -50,10 +51,39 @@ export interface CloudRunService {
   deleteTime?: string;
 }
 
+export interface CloudLoggingEntry {
+  logName?: string;
+  resource?: {
+    type?: string;
+    labels?: Record<string, string>;
+  };
+  timestamp?: string;
+  receiveTimestamp?: string;
+  severity?: string;
+  textPayload?: string;
+  jsonPayload?: unknown;
+  protoPayload?: unknown;
+  labels?: Record<string, string>;
+}
+
+export interface CloudLoggingListEntriesRequest {
+  resourceNames: string[];
+  filter: string;
+  orderBy?: string;
+  pageSize?: number;
+  pageToken?: string;
+}
+
+export interface CloudLoggingListEntriesResponse {
+  entries?: CloudLoggingEntry[];
+  nextPageToken?: string;
+}
+
 export class CloudRunClient {
   readonly projectId: string;
   readonly location: string;
   private readonly baseUrl: string;
+  private readonly loggingBaseUrl: string;
   private readonly fetchImpl: typeof fetch;
   private readonly accessToken?: string;
 
@@ -67,6 +97,7 @@ export class CloudRunClient {
     this.projectId = options.projectId;
     this.location = options.location;
     this.baseUrl = options.baseUrl ?? "https://run.googleapis.com/v2";
+    this.loggingBaseUrl = options.loggingBaseUrl ?? "https://logging.googleapis.com/v2";
     this.fetchImpl = options.fetch ?? globalThis.fetch;
     this.accessToken = options.accessToken;
   }
@@ -132,6 +163,14 @@ export class CloudRunClient {
     });
   }
 
+  async listLogEntries(request: CloudLoggingListEntriesRequest): Promise<CloudLoggingListEntriesResponse> {
+    return await this.loggingRequest<CloudLoggingListEntriesResponse>({
+      method: "POST",
+      path: "/entries:list",
+      body: request
+    });
+  }
+
   private async token(): Promise<string> {
     if (this.accessToken) {
       return this.accessToken;
@@ -171,6 +210,31 @@ export class CloudRunClient {
           : typeof data?.message === "string"
             ? data.message
             : `Cloud Run API request failed with status ${response.status}`;
+      throw new AdapterExecutionError(message, { status: response.status, error: data?.error });
+    }
+    return data as T;
+  }
+
+  private async loggingRequest<T>(options: { method?: string; path: string; body?: unknown }): Promise<T> {
+    const url = new URL(`${this.loggingBaseUrl}${options.path}`);
+    const response = await this.fetchImpl(url, {
+      method: options.method ?? "GET",
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${await this.token()}`,
+        ...(options.body === undefined ? {} : { "content-type": "application/json" })
+      },
+      body: options.body === undefined ? undefined : JSON.stringify(options.body)
+    });
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : undefined;
+    if (!response.ok) {
+      const message =
+        typeof data?.error?.message === "string"
+          ? data.error.message
+          : typeof data?.message === "string"
+            ? data.message
+            : `Cloud Logging API request failed with status ${response.status}`;
       throw new AdapterExecutionError(message, { status: response.status, error: data?.error });
     }
     return data as T;
