@@ -7,3 +7,7 @@ coverage/
 *.log
 .agent-progress.json
 .symphony/
+
+.projects/
+.env
+.env.local
