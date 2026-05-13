@@ -74,3 +74,27 @@ describe("CLI service lifecycle parsing", () => {
     );
   });
 });
+
+describe("CLI job lifecycle parsing", () => {
+  test("parses job status and cancel flags", () => {
+    expect(parse(["job", "status", "--adapter", "cloud-run", "--id", "exec-1"])).toMatchObject({
+      command: "job",
+      adapter: "cloud-run",
+      id: "exec-1",
+      rest: ["status"]
+    });
+    expect(parse(["job", "cancel", "--adapter", "ecs", "--id", "task-1", "--reason", "cleanup"])).toMatchObject({
+      command: "job",
+      adapter: "ecs",
+      id: "task-1",
+      reason: "cleanup",
+      rest: ["cancel"]
+    });
+  });
+
+  test("fails clearly when a provider does not support job cancel", async () => {
+    await expect(main(["job", "cancel", "--adapter", "azure-container-apps", "--id", "job-execution"])).rejects.toThrow(
+      'azure-container-apps does not support job.cancel. Run "capsule capabilities --adapter azure-container-apps" to inspect supported operations.'
+    );
+  });
+});
