@@ -31,12 +31,14 @@ import type {
   UpdateServiceSpec,
   VersionEdgeSpec
 } from "./types.js";
+import type { ReceiptSigner } from "./receipts.js";
 
 export interface CapsuleOptions {
   adapter: CapsuleAdapter;
   policy?: CapsulePolicy;
   receipts?: boolean;
   receiptStore?: ReceiptStore;
+  receiptSigner?: ReceiptSigner;
 }
 
 export class Capsule {
@@ -278,12 +280,15 @@ export class Capsule {
       supportLevel: (path: string) => supportLevel(adapter.capabilities, path as CapabilityPath),
       evaluatePolicy: (input = {}) => evaluatePolicy(this.options.policy, input),
       createReceipt: (input) => {
-        const receipt = createReceipt({
-          ...input,
-          provider: adapter.provider,
-          adapter: adapter.name,
-          supportLevel: input.supportLevel ?? supportLevel(adapter.capabilities, input.capabilityPath as CapabilityPath)
-        });
+        const receipt = createReceipt(
+          {
+            ...input,
+            provider: adapter.provider,
+            adapter: adapter.name,
+            supportLevel: input.supportLevel ?? supportLevel(adapter.capabilities, input.capabilityPath as CapabilityPath)
+          },
+          this.options.receiptSigner
+        );
         void this.options.receiptStore?.write(receipt);
         return receipt;
       },

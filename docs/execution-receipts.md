@@ -15,8 +15,10 @@ The schema includes:
 - policy decision, applied policy, and notes
 - resource id, name, URL, and status
 - metadata
-- future signature fields
+- optional signature fields
 
 Receipts prove what Capsule observed. They do not prove absolute provider truth or complete runtime isolation.
 
-Future signing can add FIDES-style attestations, key IDs, and tamper-evident logs without changing the core contract.
+Receipt signing is optional and disabled by default. `@capsule/core` exposes a small synchronous `ReceiptSigner` interface that receives the unsigned receipt and returns a signature value plus algorithm/key metadata. This keeps v1 dependency-free while allowing tests, CI systems, or future FIDES-style integrations to attach deterministic signatures.
+
+Signatures cover Capsule's receipt object before the `signature` field is attached. They are not provider attestations unless the caller's signer explicitly binds provider evidence.
