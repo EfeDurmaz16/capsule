@@ -4,6 +4,8 @@ Capsule live tests are skipped by default. They run only when `CAPSULE_LIVE_TEST
 
 Do not enable these tests in routine CI without dedicated test accounts, quotas, and cleanup monitoring. Several tests create real provider resources.
 
+`@capsule/test-utils` exports `liveProviderRegistry` and `liveProviderCredentials` for all real adapters: Docker, E2B, Daytona, Modal, Cloud Run, Cloudflare, Vercel, Neon, Kubernetes, Lambda, ECS, EC2, Fly, and Azure Container Apps. `@capsule/adapter-mock` is deliberately excluded because mock success is not live provider verification.
+
 | Provider | Test path | Required environment | Operation | Cleanup |
 | --- | --- | --- | --- | --- |
 | Cloud Run | `packages/adapter-cloud-run/src/cloud-run.live.test.ts` | `CAPSULE_LIVE_TESTS`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_RUN_LOCATION`, `GOOGLE_OAUTH_ACCESS_TOKEN`, `CAPSULE_CLOUD_RUN_SERVICE_ID` | Reads an existing service status. | No resource is created. |
