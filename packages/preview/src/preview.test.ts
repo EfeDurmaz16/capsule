@@ -28,7 +28,7 @@ const capabilities: CapabilityMap = {
     run: "native",
     status: "unsupported",
     cancel: "unsupported",
-    logs: "native",
+    logs: "unsupported",
     artifacts: "unsupported",
     timeout: "native",
     env: "native"

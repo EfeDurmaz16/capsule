@@ -156,15 +156,18 @@ export interface CapsuleReceipt {
     | "job.run"
     | "job.status"
     | "job.cancel"
+    | "job.logs"
     | "service.deploy"
     | "service.status"
     | "service.update"
     | "service.delete"
+    | "service.logs"
     | "edge.deploy"
     | "edge.status"
     | "edge.version"
     | "edge.release"
     | "edge.rollback"
+    | "edge.logs"
     | "database.branch.create"
     | "database.branch.delete"
     | "database.branch.reset"
@@ -327,6 +330,23 @@ export interface CancelJobResult {
   metadata?: Record<string, unknown>;
 }
 
+export interface JobLogsSpec {
+  id: string;
+  since?: string;
+  until?: string;
+  limit?: number;
+  follow?: boolean;
+  providerOptions?: ProviderOptions;
+}
+
+export interface JobLogsResult {
+  id: string;
+  provider: string;
+  logs: LogEntry[];
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
+}
+
 export interface DeployServiceSpec {
   name: string;
   image?: string;
@@ -429,6 +449,24 @@ export interface DeletedService {
   metadata?: Record<string, unknown>;
 }
 
+export interface ServiceLogsSpec {
+  id: string;
+  since?: string;
+  until?: string;
+  limit?: number;
+  follow?: boolean;
+  providerOptions?: ProviderOptions;
+}
+
+export interface ServiceLogsResult {
+  id: string;
+  provider: string;
+  name?: string;
+  logs: LogEntry[];
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
+}
+
 export interface DeployEdgeSpec {
   name: string;
   source?: {
@@ -526,6 +564,24 @@ export interface EdgeRollback {
   deploymentId: string;
   targetVersionId?: string;
   status: "rolling_back" | "ready" | "failed";
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
+}
+
+export interface EdgeLogsSpec {
+  id: string;
+  since?: string;
+  until?: string;
+  limit?: number;
+  follow?: boolean;
+  providerOptions?: ProviderOptions;
+}
+
+export interface EdgeLogsResult {
+  id: string;
+  provider: string;
+  name?: string;
+  logs: LogEntry[];
   receipt?: CapsuleReceipt;
   metadata?: Record<string, unknown>;
 }

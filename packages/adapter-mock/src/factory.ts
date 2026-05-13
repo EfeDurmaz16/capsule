@@ -13,6 +13,9 @@ import {
   type ExecResult,
   type ExecSpec,
   type FileEntry,
+  type EdgeLogsSpec,
+  type JobLogsSpec,
+  type ServiceLogsSpec,
   type RunJobSpec,
   type Sandbox,
   type SandboxHandle
@@ -37,6 +40,10 @@ function hasDomain(capabilities: CapabilityMap, domain: keyof CapabilityMap): bo
 
 function receiptNotes(provider: string): string[] {
   return [`${provider} adapter is a mock and did not call a real provider API.`];
+}
+
+function mockLogs(provider: string, id: string, limit?: number) {
+  return logsFromOutput(`mock:${provider}: logs for ${id}\n`, "").slice(0, limit);
 }
 
 class MockSandbox implements Sandbox {
@@ -159,6 +166,21 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
           result: { exitCode: 0, stdout, stderr, logs: logsFromOutput(stdout, stderr), artifacts: [], receipt },
           receipt
         };
+      },
+      logs: async (spec: JobLogsSpec, context: AdapterContext) => {
+        const startedAt = new Date();
+        const logs = mockLogs(provider, spec.id, spec.limit);
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "job.logs",
+              capabilityPath: "job.logs",
+              startedAt,
+              policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
+              resource: { id: spec.id },
+              metadata: { since: spec.since, until: spec.until, limit: spec.limit, follow: spec.follow }
+            })
+          : undefined;
+        return { id: spec.id, provider, logs, receipt };
       }
     };
   }
@@ -182,6 +204,21 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
             })
           : undefined;
         return { id: deploymentId, provider, name: spec.name, status: "ready", url, receipt };
+      },
+      logs: async (spec: ServiceLogsSpec, context: AdapterContext) => {
+        const startedAt = new Date();
+        const logs = mockLogs(provider, spec.id, spec.limit);
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "service.logs",
+              capabilityPath: "service.logs",
+              startedAt,
+              policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
+              resource: { id: spec.id },
+              metadata: { since: spec.since, until: spec.until, limit: spec.limit, follow: spec.follow }
+            })
+          : undefined;
+        return { id: spec.id, provider, logs, receipt };
       }
     };
   }
@@ -205,6 +242,21 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
             })
           : undefined;
         return { id: deploymentId, provider, name: spec.name, status: "ready", url, receipt };
+      },
+      logs: async (spec: EdgeLogsSpec, context: AdapterContext) => {
+        const startedAt = new Date();
+        const logs = mockLogs(provider, spec.id, spec.limit);
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "edge.logs",
+              capabilityPath: "edge.logs",
+              startedAt,
+              policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
+              resource: { id: spec.id },
+              metadata: { since: spec.since, until: spec.until, limit: spec.limit, follow: spec.follow }
+            })
+          : undefined;
+        return { id: spec.id, provider, logs, receipt };
       }
     };
   }

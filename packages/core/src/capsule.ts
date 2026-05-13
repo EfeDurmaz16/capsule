@@ -17,7 +17,9 @@ import type {
   DeployEdgeSpec,
   DeployServiceSpec,
   DeleteServiceSpec,
+  EdgeLogsSpec,
   EdgeStatusSpec,
+  JobLogsSpec,
   JobStatusSpec,
   MigrateDatabaseSpec,
   MachineStatusSpec,
@@ -25,6 +27,7 @@ import type {
   ResetDatabaseBranchSpec,
   RollbackEdgeSpec,
   RunJobSpec,
+  ServiceLogsSpec,
   ServiceStatusSpec,
   StartMachineSpec,
   StopMachineSpec,
@@ -87,6 +90,13 @@ export class Capsule {
           throw new UnsupportedCapabilityError("job.cancel");
         }
         return this.options.adapter.job.cancel(spec, this.context());
+      },
+      logs: async (spec: JobLogsSpec) => {
+        this.require("job.logs");
+        if (!this.options.adapter.job?.logs) {
+          throw new UnsupportedCapabilityError("job.logs");
+        }
+        return this.options.adapter.job.logs(spec, this.context());
       }
     };
 
@@ -120,6 +130,13 @@ export class Capsule {
           throw new UnsupportedCapabilityError("service.delete");
         }
         return this.options.adapter.service.delete(spec, this.context());
+      },
+      logs: async (spec: ServiceLogsSpec) => {
+        this.require("service.logs");
+        if (!this.options.adapter.service?.logs) {
+          throw new UnsupportedCapabilityError("service.logs");
+        }
+        return this.options.adapter.service.logs(spec, this.context());
       }
     };
 
@@ -160,6 +177,13 @@ export class Capsule {
           throw new UnsupportedCapabilityError("edge.rollback");
         }
         return this.options.adapter.edge.rollback(spec, this.context());
+      },
+      logs: async (spec: EdgeLogsSpec) => {
+        this.require("edge.logs");
+        if (!this.options.adapter.edge?.logs) {
+          throw new UnsupportedCapabilityError("edge.logs");
+        }
+        return this.options.adapter.edge.logs(spec, this.context());
       }
     };
 
