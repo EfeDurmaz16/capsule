@@ -1,6 +1,7 @@
 import { Capsule } from "@capsule/core";
 import { docker } from "@capsule/adapter-docker";
 
+console.log("Example mode: live local Docker CLI. This calls Docker on this machine, not a cloud provider API.");
 const capsule = new Capsule({ adapter: docker(), receipts: true, policy: { network: { mode: "none" }, limits: { timeoutMs: 60_000 } } });
 const box = await capsule.sandbox.create({ image: "node:22" });
 try {

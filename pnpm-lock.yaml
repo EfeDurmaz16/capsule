@@ -26,6 +26,9 @@ importers:
 
   examples/agent-code-execution:
     dependencies:
+      '@capsule/adapter-e2b':
+        specifier: workspace:*
+        version: link:../../packages/adapter-e2b
       '@capsule/adapter-mock':
         specifier: workspace:*
         version: link:../../packages/adapter-mock
@@ -64,6 +67,9 @@ importers:
       '@capsule/adapter-mock':
         specifier: workspace:*
         version: link:../../packages/adapter-mock
+      '@capsule/adapter-neon':
+        specifier: workspace:*
+        version: link:../../packages/adapter-neon
       '@capsule/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -96,6 +102,9 @@ importers:
       '@capsule/adapter-mock':
         specifier: workspace:*
         version: link:../../packages/adapter-mock
+      '@capsule/adapter-vercel':
+        specifier: workspace:*
+        version: link:../../packages/adapter-vercel
       '@capsule/core':
         specifier: workspace:*
         version: link:../../packages/core
