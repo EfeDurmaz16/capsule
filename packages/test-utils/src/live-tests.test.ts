@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { liveProviderCredentials, liveTestGate, providerLiveTestGate } from "./index.js";
+import { liveProviderCredentials, liveProviderRegistry, liveTestGate, providerLiveTestGate } from "./index.js";
 
 describe("live test gates", () => {
   test("skips live tests unless CAPSULE_LIVE_TESTS is enabled", () => {
@@ -35,6 +35,40 @@ describe("live test gates", () => {
     expect(providerLiveTestGate("aws", { env: { CAPSULE_LIVE_TESTS: "1", AWS_REGION: "us-east-1", CAPSULE_LAMBDA_FUNCTION_NAME: "fn" } })).toEqual({
       enabled: true
     });
+  });
+
+  test("registers every real adapter live-test gate and excludes mocks", () => {
+    expect(liveProviderRegistry.map((entry) => entry.packageName).sort()).toEqual([
+      "@capsule/adapter-azure-container-apps",
+      "@capsule/adapter-cloud-run",
+      "@capsule/adapter-cloudflare",
+      "@capsule/adapter-daytona",
+      "@capsule/adapter-docker",
+      "@capsule/adapter-e2b",
+      "@capsule/adapter-ec2",
+      "@capsule/adapter-ecs",
+      "@capsule/adapter-fly",
+      "@capsule/adapter-kubernetes",
+      "@capsule/adapter-lambda",
+      "@capsule/adapter-modal",
+      "@capsule/adapter-neon",
+      "@capsule/adapter-vercel"
+    ]);
+    const packageNames = liveProviderRegistry.map((entry) => String(entry.packageName));
+    expect(packageNames.includes("@capsule/adapter-mock")).toBe(false);
+  });
+
+  test("registry entries have deterministic skip reasons", () => {
+    for (const entry of liveProviderRegistry) {
+      expect(liveTestGate({ provider: entry.provider, credentials: entry.credentials, env: {} }).skipReason).toBe(
+        `${entry.provider} live tests require CAPSULE_LIVE_TESTS=1.`
+      );
+      if (entry.credentials.length > 0) {
+        expect(liveTestGate({ provider: entry.provider, credentials: entry.credentials, env: { CAPSULE_LIVE_TESTS: "1" } }).skipReason).toContain(
+          entry.credentials.join(", ")
+        );
+      }
+    }
   });
 
   test("gates Daytona live tests on Daytona credentials", () => {
