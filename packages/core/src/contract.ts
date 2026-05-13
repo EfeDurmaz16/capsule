@@ -31,6 +31,11 @@ const publicCapabilities: PublicCapability[] = [
     exercise: (capsule) => capsule.job.cancel({ id: "capsule-contract-test" })
   },
   {
+    path: "job.logs",
+    isImplemented: (adapter) => typeof adapter.job?.logs === "function",
+    exercise: (capsule) => capsule.job.logs({ id: "capsule-contract-test" })
+  },
+  {
     path: "service.deploy",
     isImplemented: (adapter) => typeof adapter.service?.deploy === "function",
     exercise: (capsule) => capsule.service.deploy({ name: "capsule-contract-test", image: "capsule-contract-test" })
@@ -49,6 +54,11 @@ const publicCapabilities: PublicCapability[] = [
     path: "service.delete",
     isImplemented: (adapter) => typeof adapter.service?.delete === "function",
     exercise: (capsule) => capsule.service.delete({ id: "capsule-contract-test" })
+  },
+  {
+    path: "service.logs",
+    isImplemented: (adapter) => typeof adapter.service?.logs === "function",
+    exercise: (capsule) => capsule.service.logs({ id: "capsule-contract-test" })
   },
   {
     path: "edge.deploy",
@@ -74,6 +84,11 @@ const publicCapabilities: PublicCapability[] = [
     path: "edge.rollback",
     isImplemented: (adapter) => typeof adapter.edge?.rollback === "function",
     exercise: (capsule) => capsule.edge.rollback({ deploymentId: "capsule-contract-test" })
+  },
+  {
+    path: "edge.logs",
+    isImplemented: (adapter) => typeof adapter.edge?.logs === "function",
+    exercise: (capsule) => capsule.edge.logs({ id: "capsule-contract-test" })
   },
   {
     path: "database.branchCreate",

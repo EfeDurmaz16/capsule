@@ -7,6 +7,7 @@ import { evaluatePolicy, mergeTimeout, redactLogEntries, redactSecrets } from ".
 import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
 import { createReceipt } from "./receipts.js";
 import { MemoryReceiptStore } from "./stores.js";
+import { assertAdapterContract } from "./contract.js";
 import type { CapsuleAdapter, CapabilityMap } from "./index.js";
 
 const capabilities: CapabilityMap = {
@@ -84,12 +85,15 @@ describe("capabilities", () => {
     await expect(capsule.job.run({ image: "node:22" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.job.status({ id: "job_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.job.cancel({ id: "job_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.job.logs({ id: "job_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.service.status({ id: "svc_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.service.update({ id: "svc_123", image: "node:22" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.service.delete({ id: "svc_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.service.logs({ id: "svc_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.edge.version({ deploymentId: "edge_123", name: "worker" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.edge.release({ versionId: "edge_version_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.edge.rollback({ deploymentId: "edge_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.edge.logs({ id: "edge_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.database.branch.delete({ project: "app", branchId: "br_mock" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.database.branch.reset({ project: "app", branchId: "br_mock" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.database.migrate({ project: "app", branchId: "br_mock", dryRun: true })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
@@ -97,6 +101,25 @@ describe("capabilities", () => {
     await expect(capsule.machine.start({ id: "machine_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.machine.stop({ id: "machine_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.machine.destroy({ id: "machine_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+  });
+
+  test("contract rejects declared log support without implementation", () => {
+    const dishonestAdapter: CapsuleAdapter = {
+      ...adapter,
+      capabilities: {
+        ...capabilities,
+        job: {
+          ...capabilities.job!,
+          run: "native",
+          logs: "native"
+        }
+      },
+      job: {
+        run: async () => ({ id: "job_123", provider: "test", status: "succeeded" })
+      }
+    };
+
+    expect(() => assertAdapterContract(dishonestAdapter)).toThrow("declares job.logs as native but does not implement the public contract");
   });
 });
 

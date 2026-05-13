@@ -18,10 +18,14 @@ import type {
   DeployServiceSpec,
   EdgeRelease,
   EdgeRollback,
+  EdgeLogsResult,
+  EdgeLogsSpec,
   EdgeStatusResult,
   EdgeStatusSpec,
   EdgeVersion,
   EdgeDeployment,
+  JobLogsResult,
+  JobLogsSpec,
   JobRun,
   JobStatusResult,
   JobStatusSpec,
@@ -36,6 +40,8 @@ import type {
   RunJobSpec,
   Sandbox,
   ServiceDeployment,
+  ServiceLogsResult,
+  ServiceLogsSpec,
   ServiceStatusResult,
   ServiceStatusSpec,
   StartMachineSpec,
@@ -66,6 +72,7 @@ export interface JobAdapter {
   run(spec: RunJobSpec, context: AdapterContext): Promise<JobRun>;
   status?(spec: JobStatusSpec, context: AdapterContext): Promise<JobStatusResult>;
   cancel?(spec: CancelJobSpec, context: AdapterContext): Promise<CancelJobResult>;
+  logs?(spec: JobLogsSpec, context: AdapterContext): Promise<JobLogsResult>;
 }
 
 export interface ServiceAdapter {
@@ -73,6 +80,7 @@ export interface ServiceAdapter {
   status?(spec: ServiceStatusSpec, context: AdapterContext): Promise<ServiceStatusResult>;
   update?(spec: UpdateServiceSpec, context: AdapterContext): Promise<ServiceDeployment>;
   delete?(spec: DeleteServiceSpec, context: AdapterContext): Promise<DeletedService>;
+  logs?(spec: ServiceLogsSpec, context: AdapterContext): Promise<ServiceLogsResult>;
 }
 
 export interface EdgeAdapter {
@@ -81,6 +89,7 @@ export interface EdgeAdapter {
   version?(spec: VersionEdgeSpec, context: AdapterContext): Promise<EdgeVersion>;
   release?(spec: ReleaseEdgeVersionSpec, context: AdapterContext): Promise<EdgeRelease>;
   rollback?(spec: RollbackEdgeSpec, context: AdapterContext): Promise<EdgeRollback>;
+  logs?(spec: EdgeLogsSpec, context: AdapterContext): Promise<EdgeLogsResult>;
 }
 
 export interface DatabaseBranchAdapter {

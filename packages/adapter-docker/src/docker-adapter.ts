@@ -53,7 +53,7 @@ export const dockerCapabilities: CapabilityMap = {
     run: "native",
     status: "unsupported",
     cancel: "unsupported",
-    logs: "native",
+    logs: "unsupported",
     artifacts: "emulated",
     timeout: "native",
     env: "native",

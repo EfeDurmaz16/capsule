@@ -49,7 +49,7 @@ export const lambdaCapabilities: CapabilityMap = {
     run: "native",
     status: "unsupported",
     cancel: "unsupported",
-    logs: "experimental",
+    logs: "unsupported",
     artifacts: "unsupported",
     timeout: "unsupported",
     env: "emulated",
