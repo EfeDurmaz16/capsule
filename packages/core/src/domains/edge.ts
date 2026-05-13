@@ -1,1 +1,10 @@
-export type { DeployEdgeSpec, EdgeDeployment } from "../types.js";
+export type {
+  DeployEdgeSpec,
+  EdgeDeployment,
+  EdgeRelease,
+  EdgeRollback,
+  EdgeVersion,
+  ReleaseEdgeVersionSpec,
+  RollbackEdgeSpec,
+  VersionEdgeSpec
+} from "../types.js";

@@ -46,8 +46,8 @@ export const vercelCapabilities: CapabilityMap = {
   },
   edge: {
     deploy: "native",
-    version: "experimental",
-    release: "experimental",
+    version: "unsupported",
+    release: "unsupported",
     rollback: "unsupported",
     routes: "unsupported",
     bindings: "unsupported",

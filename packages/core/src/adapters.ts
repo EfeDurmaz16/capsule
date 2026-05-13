@@ -14,6 +14,9 @@ import type {
   DatabaseBranch,
   DeployEdgeSpec,
   DeployServiceSpec,
+  EdgeRelease,
+  EdgeRollback,
+  EdgeVersion,
   EdgeDeployment,
   JobRun,
   JobStatusResult,
@@ -26,7 +29,10 @@ import type {
   ServiceStatusResult,
   ServiceStatusSpec,
   UpdateServiceSpec,
-  DeleteServiceSpec
+  DeleteServiceSpec,
+  ReleaseEdgeVersionSpec,
+  RollbackEdgeSpec,
+  VersionEdgeSpec
 } from "./types.js";
 import type { CreateReceiptInput } from "./receipts.js";
 import type { PolicyDecision, PolicyInput } from "./policy.js";
@@ -59,6 +65,9 @@ export interface ServiceAdapter {
 
 export interface EdgeAdapter {
   deploy(spec: DeployEdgeSpec, context: AdapterContext): Promise<EdgeDeployment>;
+  version?(spec: VersionEdgeSpec, context: AdapterContext): Promise<EdgeVersion>;
+  release?(spec: ReleaseEdgeVersionSpec, context: AdapterContext): Promise<EdgeRelease>;
+  rollback?(spec: RollbackEdgeSpec, context: AdapterContext): Promise<EdgeRollback>;
 }
 
 export interface DatabaseBranchAdapter {

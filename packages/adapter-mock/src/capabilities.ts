@@ -58,9 +58,9 @@ export function capabilities(levels: {
     },
     edge: {
       deploy: levels.edge ?? unsupported,
-      version: levels.edge ?? unsupported,
-      release: levels.edge ?? unsupported,
-      rollback: levels.edge ?? unsupported,
+      version: unsupported,
+      release: unsupported,
+      rollback: unsupported,
       routes: levels.edge ?? unsupported,
       bindings: levels.edge ?? unsupported,
       logs: levels.edge ?? unsupported,
