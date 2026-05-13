@@ -184,8 +184,9 @@ const version = await capsule.edge.version({
 });
 
 await capsule.edge.rollback({
-  deploymentId: "capsule-worker",
-  targetVersionId: version.id
+  deploymentId: deployment.id,
+  targetVersionId: version.id,
+  providerOptions: { scriptName: "capsule-worker" }
 });
 ```
 
@@ -193,7 +194,7 @@ Credentials: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`; `CLOUDFLARE_ZONE_I
 
 Cleanup: remove the Worker, routes, and bindings in Cloudflare or through future lifecycle APIs once implemented.
 
-Caveat: routes, versions, and rollback use real Workers APIs. Secret bindings, provider-specific bindings, logs, and gradual traffic-split release are still unsupported rather than faked. Plain `env` values are uploaded as Worker vars, not Cloudflare encrypted secrets.
+Caveat: routes, versions, and rollback use real Workers APIs. Rollback needs the Worker script name in `providerOptions.scriptName` because Cloudflare scopes deployments by script name rather than Capsule deployment id. Secret bindings, provider-specific bindings, logs, and gradual traffic-split release are still unsupported rather than faked. Plain `env` values are uploaded as Worker vars, not Cloudflare encrypted secrets.
 
 ## Cloud Run
 

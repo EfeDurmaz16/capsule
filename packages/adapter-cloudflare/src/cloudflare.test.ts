@@ -139,9 +139,14 @@ describe("cloudflare adapter", () => {
     }) as typeof fetch;
     const capsule = new Capsule({ adapter: cloudflare({ apiToken: "cf-token", accountId: "acct", fetch: fetchMock }), receipts: true });
 
-    const rollback = await capsule.edge.rollback({ deploymentId: "capsule-test", targetVersionId: "version-old", reason: "bad deploy" });
+    const rollback = await capsule.edge.rollback({
+      deploymentId: "deployment-current",
+      targetVersionId: "version-old",
+      reason: "bad deploy",
+      providerOptions: { scriptName: "capsule-test" }
+    });
 
-    expect(rollback).toMatchObject({ id: "deployment-rollback", provider: "cloudflare", deploymentId: "capsule-test", targetVersionId: "version-old", status: "ready" });
+    expect(rollback).toMatchObject({ id: "deployment-rollback", provider: "cloudflare", deploymentId: "deployment-current", targetVersionId: "version-old", status: "ready" });
     expect(rollback.receipt?.type).toBe("edge.rollback");
     expect(rollback.receipt?.supportLevel).toBe("native");
     expect(calls).toHaveLength(1);
@@ -191,9 +196,23 @@ describe("cloudflare adapter", () => {
     }) as typeof fetch;
     const capsule = new Capsule({ adapter: cloudflare({ apiToken: "cf-token", accountId: "acct", fetch: fetchMock }) });
 
-    await expect(capsule.edge.rollback({ deploymentId: "capsule-test" })).rejects.toThrow("requires targetVersionId");
+    await expect(capsule.edge.rollback({ deploymentId: "deployment-current", providerOptions: { scriptName: "capsule-test" } })).rejects.toThrow("requires targetVersionId");
     expect(calls).toHaveLength(1);
     expect(calls[0]?.init.method).toBe("GET");
+  });
+
+  it("requires a Cloudflare Worker script name for rollback", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return response({ success: true, result: {} });
+    }) as typeof fetch;
+    const capsule = new Capsule({ adapter: cloudflare({ apiToken: "cf-token", accountId: "acct", fetch: fetchMock }) });
+
+    await expect(capsule.edge.rollback({ deploymentId: "deployment-current", targetVersionId: "version-old" })).rejects.toThrow(
+      "requires providerOptions.scriptName"
+    );
+    expect(calls).toHaveLength(0);
   });
 
   it("requires a zone id before uploading when routes are provided", async () => {

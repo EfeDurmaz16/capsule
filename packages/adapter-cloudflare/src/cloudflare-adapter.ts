@@ -146,9 +146,11 @@ function stringProviderOption(value: unknown): string | undefined {
 }
 
 function rollbackScriptName(spec: RollbackEdgeSpec): string {
-  const scriptName = stringProviderOption(spec.providerOptions?.scriptName) ?? stringProviderOption(spec.providerOptions?.name) ?? spec.deploymentId;
+  const scriptName = stringProviderOption(spec.providerOptions?.scriptName) ?? stringProviderOption(spec.providerOptions?.name);
   if (!scriptName) {
-    throw new AdapterExecutionError("Cloudflare edge.rollback requires deploymentId or providerOptions.scriptName for the Worker script name.");
+    throw new AdapterExecutionError(
+      "Cloudflare edge.rollback requires providerOptions.scriptName because Cloudflare Workers Deployments are scoped by script name, not Capsule deployment id."
+    );
   }
   return scriptName;
 }
