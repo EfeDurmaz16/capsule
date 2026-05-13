@@ -204,12 +204,18 @@ export interface CapsuleReceipt {
     url?: string;
     status?: string;
   };
-  metadata?: Record<string, unknown>;
+  metadata?: CapsuleReceiptMetadata;
   signature?: {
     algorithm: string;
     value: string;
     keyId?: string;
   };
+}
+
+export interface CapsuleReceiptMetadata extends Record<string, unknown> {
+  providerRequestId?: string;
+  idempotencyKey?: string;
+  idempotencyScope?: string;
 }
 
 export interface ExecResult {

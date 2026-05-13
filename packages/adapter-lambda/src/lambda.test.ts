@@ -40,6 +40,7 @@ describe("lambda adapter", () => {
     expect(run.receipt?.metadata).toMatchObject({
       invocationType: "RequestResponse",
       statusCode: 200,
+      providerRequestId: "req-123",
       requestId: "req-123",
       executedVersion: "$LATEST",
       functionError: null,
@@ -73,6 +74,7 @@ describe("lambda adapter", () => {
     expect(run.status).toBe("failed");
     expect(run.result?.exitCode).toBe(1);
     expect(run.receipt?.metadata).toMatchObject({
+      providerRequestId: "req-failed",
       requestId: "req-failed",
       executedVersion: "42",
       functionError: "Unhandled"
@@ -118,6 +120,7 @@ describe("lambda adapter", () => {
     expect(run.receipt?.metadata).toMatchObject({
       invocationType: "Event",
       statusCode: 202,
+      providerRequestId: "req-event",
       requestId: "req-event",
       executedVersion: "7",
       functionError: null,
@@ -141,6 +144,7 @@ describe("lambda adapter", () => {
     expect(run.status).toBe("succeeded");
     expect(run.result?.stdout).toBe("{not-json");
     expect(run.receipt?.metadata).toMatchObject({
+      providerRequestId: "req-malformed",
       requestId: "req-malformed",
       executedVersion: "$LATEST",
       functionError: null

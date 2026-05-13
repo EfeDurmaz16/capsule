@@ -17,6 +17,14 @@ The schema includes:
 - metadata
 - optional signature fields
 
+Receipt metadata uses these common provider fields when an adapter can observe them:
+
+- `providerRequestId`: opaque provider control-plane request id for the API call Capsule observed. This is for correlation and support/debugging only; it must not contain credentials, bearer tokens, signed URLs, or other secrets.
+- `idempotencyKey`: opaque idempotency key supplied to or observed from the provider request when the adapter can safely record it. Callers should generate non-secret keys and avoid embedding user data or credentials.
+- `idempotencyScope`: provider-specific operation or resource scope where the idempotency key applies, such as `job.run` or a provider resource path.
+
+Adapters may include additional provider-specific metadata, but receipt creation redacts known secret-bearing metadata keys before signing or storing a receipt. Adapters should still avoid placing secrets in metadata at all; redaction is a last boundary check, not a substitute for careful provider mapping.
+
 Receipts prove what Capsule observed. They do not prove absolute provider truth or complete runtime isolation.
 
 Receipt signing is optional and disabled by default. `@capsule/core` exposes a small synchronous `ReceiptSigner` interface that receives the unsigned receipt and returns a signature value plus algorithm/key metadata. This keeps v1 dependency-free while allowing tests, CI systems, or future FIDES-style integrations to attach deterministic signatures.
