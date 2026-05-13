@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "./packages/core" },
+    { "path": "./packages/adapter-azure-container-apps" },
     { "path": "./packages/adapter-docker" },
     { "path": "./packages/adapter-cloudflare" },
     { "path": "./packages/adapter-cloud-run" },

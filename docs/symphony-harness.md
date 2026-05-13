@@ -42,7 +42,7 @@ The repository has real adapters for Docker, E2B, Daytona, Modal, Neon, Cloudfla
 - reusable adapter contract tests for provider authors;
 - mock-first examples upgraded to env-gated real-adapter examples;
 - release automation, publishing metadata, and CI;
-- extra roadmap adapters such as Fly Machines and Azure Container Apps;
+- extra lifecycle depth for real adapters such as Fly Machines and Azure Container Apps;
 - stronger policy notes, secret redaction coverage, and receipt evidence tests.
 
 ## Guardrails

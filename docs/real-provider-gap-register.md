@@ -1,12 +1,10 @@
 # Real Provider Gap Register
 
-Capsule now has real adapters for Docker, E2B, Daytona, Modal, Neon, Cloudflare Workers, Cloud Run, Vercel, Kubernetes, Lambda, ECS/Fargate, and EC2. The mock adapter remains valuable for contract examples, but no original provider family is represented only by mocks.
+Capsule now has real adapters for Docker, E2B, Daytona, Modal, Neon, Cloudflare Workers, Cloud Run, Vercel, Kubernetes, Lambda, ECS/Fargate, EC2, Fly Machines, and Azure Container Apps. The mock adapter remains valuable for contract examples, but no original provider family is represented only by mocks.
 
 ## Remaining Mock/Planned Providers
 
-| Provider | Target package | First real primitive | Required provider config | Notes |
-| --- | --- | --- | --- | --- |
-| Azure Container Apps | `@capsule/adapter-azure-container-apps` | `job.run`, `service.deploy` | Azure tenant/subscription/resource group/environment | Use Azure identity/client libraries only where auth complexity justifies it. |
+No original provider family is currently represented only by mocks. Remaining work is lifecycle depth, live tests, and optional provider families.
 
 ## Rule For Removing A Mock Gap
 
@@ -22,5 +20,5 @@ A provider leaves this register only when:
 ## Near-Term Order
 
 1. Add deeper lifecycle operations to existing real adapters: logs, status polling, cancel/delete, rollback, route/alias management, and teardown.
-2. Add Azure Container Apps as an extra roadmap provider beyond the original mocked package set.
+2. Add optional live-provider smoke tests gated by provider credentials and `CAPSULE_LIVE_TESTS=1`.
 3. Add provider contract test suites that adapter authors can run against fake clients and optional live credentials.

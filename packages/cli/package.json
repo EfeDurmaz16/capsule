@@ -18,6 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@capsule/adapter-azure-container-apps": "workspace:*",
     "@capsule/adapter-cloudflare": "workspace:*",
     "@capsule/adapter-cloud-run": "workspace:*",
     "@capsule/adapter-daytona": "workspace:*",
