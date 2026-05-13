@@ -82,6 +82,30 @@ describe("policy", () => {
     expect(mergeTimeout({ limits: { timeoutMs: 1000 } }, 500)).toBe(500);
   });
 
+  test("records policy enforcement notes without claiming universal OS enforcement", () => {
+    expect(
+      evaluatePolicy(
+        {
+          network: { mode: "none" },
+          filesystem: { read: ["/workspace"], write: ["/workspace"] },
+          secrets: { allowed: ["SECRET"], redactFromLogs: true },
+          limits: { timeoutMs: 1000, memoryMb: 512, cpu: 1 },
+          cost: { maxUsd: 1 },
+          ttl: { maxMs: 60_000 }
+        },
+        { env: { SECRET: "value" }, timeoutMs: 2000 }
+      ).notes
+    ).toEqual([
+      "Network policy requested mode=none; enforcement is native only when the adapter/provider explicitly supports network isolation.",
+      "Filesystem policy requested; enforcement may be native, emulated at the adapter boundary, or unsupported depending on the runtime.",
+      "Secret redaction is applied to Capsule-observed stdout, stderr, and log entries; provider-side logs may need separate controls.",
+      "Requested timeout 2000ms reduced to policy maximum 1000ms",
+      "CPU and memory limits are delegated to adapter/provider support; Capsule does not claim OS-level enforcement by itself.",
+      "Cost policy is a control-plane constraint; provider billing enforcement is not guaranteed by Capsule.",
+      "TTL policy is a control-plane cleanup constraint; cleanup depends on adapter/provider lifecycle support."
+    ]);
+  });
+
   test("redacts exact secret values from output repeatedly", () => {
     expect(redactSecrets("token=abc token=abc suffix", { SECRET: "abc" }, { secrets: { allowed: ["SECRET"], redactFromLogs: true } })).toBe("token=[REDACTED] token=[REDACTED] suffix");
   });
