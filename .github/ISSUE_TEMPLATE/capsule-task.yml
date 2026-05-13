@@ -31,6 +31,52 @@ body:
         - [ ] Docs/examples updated
     validations:
       required: true
+  - type: dropdown
+    id: task-type
+    attributes:
+      label: Task type
+      description: Select the closest taxonomy label.
+      options:
+        - type:feature
+        - type:test
+        - type:docs
+        - type:infra
+        - type:security
+        - type:audit
+    validations:
+      required: true
+  - type: input
+    id: area
+    attributes:
+      label: Area labels
+      description: Suggested area/provider/release labels.
+      placeholder: area:adapter, provider:docker, release:v1
+    validations:
+      required: true
+  - type: textarea
+    id: contract-expectations
+    attributes:
+      label: Contract expectations
+      description: Capability, policy, receipt, and adapter-contract expectations for this task.
+      placeholder: |
+        - Capabilities stay explicit and unsupported paths throw.
+        - Policy notes distinguish native, delegated, best-effort, and unsupported enforcement.
+        - Receipts include provider, adapter, capability path, support level, and policy decision.
+    validations:
+      required: false
+  - type: textarea
+    id: official-adapter
+    attributes:
+      label: Official adapter notes
+      description: If this concerns a provider-maintained adapter, name maintainers, provider docs, live-test gates, and compatibility risks.
+      placeholder: |
+        - Provider maintainer:
+        - Source docs:
+        - Required credentials:
+        - Live test gate:
+        - API compatibility notes:
+    validations:
+      required: false
   - type: textarea
     id: verification
     attributes:

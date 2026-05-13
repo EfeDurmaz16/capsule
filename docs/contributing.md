@@ -23,17 +23,64 @@ Live provider tests must use `@capsule/test-utils` and remain skipped by default
 6. Add contract tests.
 7. Add docs and examples.
 
+Adapter PRs are expected to explain:
+
+- which runtime domains are implemented;
+- which capabilities are `native`, `emulated`, `experimental`, or `unsupported`;
+- which policy controls are provider-native, delegated, best-effort, or not supported;
+- how credentials are loaded without printing secret values;
+- which live tests are gated by `CAPSULE_LIVE_TESTS=1`;
+- which provider-specific fields are exposed through `raw` or typed options.
+
+## Official Provider Adapters
+
+Provider teams are welcome to propose official adapters. An official adapter should have a named maintainer, provider-reviewed capability map, public quickstart, contract tests, skipped-by-default live tests, and compatibility notes for provider API changes.
+
+Official ownership does not mean Capsule hides provider differences. It means the provider helps keep support levels, docs, examples, and security caveats accurate.
+
 ## Propose A Primitive
 
 Open an issue describing the domain, operations, provider examples, abstraction risks, policy concerns, receipt fields, and why existing domains are insufficient.
 
+## Issue Taxonomy
+
+Use labels to make the task graph inspectable:
+
+| Label family | Meaning |
+| --- | --- |
+| `type:feature` | New capability, adapter behavior, CLI command, or package surface. |
+| `type:test` | Contract, unit, live-gated, fixture, or regression coverage. |
+| `type:docs` | README, docs, examples, ADRs, runbooks, or release notes. |
+| `type:infra` | CI, release, package metadata, automation, scripts, or repo maintenance. |
+| `type:security` | Policy enforcement, secrets handling, receipt integrity, auth, or provider credential risk. |
+| `type:audit` | Gap analysis, readiness review, matrix verification, or compliance check. |
+| `area:core` | `@capsule/core` contracts, facades, policy, receipts, errors, capabilities. |
+| `area:adapter` | Provider adapter implementation or adapter-specific docs/tests. |
+| `area:cli` | `@capsule/cli` command behavior and diagnostics. |
+| `area:docs` | Public documentation and examples. |
+| `area:oss` | Repository polish, comparison, contribution model, public GitHub surface. |
+| `provider:*` | Provider-specific work such as `provider:docker`, `provider:vercel`, or `provider:neon`. |
+| `release:v1` / `release:v2` | Release layer the issue is targeting. |
+| `needs-verification` | Work is not done until verification evidence is posted. |
+| `needs-design` | Contract or architecture shape is not ready for implementation. |
+| `blocked` | External dependency or missing decision prevents progress. |
+| `autopilot-running` | Automation or a maintainer branch is actively working the issue. |
+| `autopilot-failed` | Automation attempted the issue and left logs or failure notes. |
+
+Task issues should include a source task ID when possible, success criteria, required verification, and explicit guardrails. Large features should be split by package or domain so each PR can stay reviewable and atomic.
+
 ## Good First Issues
 
-- Add contract tests for an existing mock adapter.
-- Improve provider matrix notes.
-- Add a focused example for a domain.
-- Improve policy notes for an adapter.
-- Add documentation for a provider-specific escape hatch.
+Good first issues should produce real project value without requiring broad architecture changes:
+
+- add contract tests for an existing mock adapter;
+- improve provider matrix notes with a source link;
+- add a focused example for one domain;
+- improve policy notes for an adapter;
+- document one provider-specific escape hatch;
+- add a skipped-by-default live test fixture for one provider operation.
+
+Avoid shallow issues such as typo-only churn, cosmetic badge changes without release value, or broad "research this provider" tickets without a concrete output.
 
 ## Ownership Model
 
