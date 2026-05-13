@@ -173,7 +173,7 @@ Capsule is pre-1.0 OSS infrastructure. The core contracts, real provider adapter
 - `@capsule/adapter-fly`: real Fly Machines API adapter for machine lifecycle and one-shot job machines.
 - `@capsule/adapter-azure-container-apps`: real Azure Container Apps ARM adapter for service deploys and manual jobs.
 - `@capsule/adapter-neon`: real Neon API adapter for database branch create/delete/reset and connection URI retrieval.
-- `@capsule/adapter-vercel`: real Vercel REST adapter for inline deployment creation.
+- `@capsule/adapter-vercel`: real Vercel REST adapter for inline deployment creation, bounded deployment event logs, project runtime logs, and alias release.
 - `@capsule/adapter-mock`: mock E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models.
 - `@capsule/ai`: framework-agnostic code execution tool helper.
 - `@capsule/preview`: preview environment composition helpers for Capsule-backed services, edges, database branches, and jobs.
@@ -227,7 +227,7 @@ Real in this repository:
 - Daytona sandbox create/exec/file/list/destroy through the Daytona SDK;
 - Modal sandbox create/exec/read/write/destroy through the Modal JS SDK;
 - Cloudflare Worker module upload through the Cloudflare API;
-- Cloud Run job run and service deploy through the Cloud Run Admin API;
+- Cloud Run job run, service deploy, and bounded job/service log reads through the Cloud Run Admin API and Cloud Logging;
 - Kubernetes Job, Deployment, Service creation, and selector-based combined Pod log reads through the official Kubernetes client;
 - AWS Lambda invocation through AWS SDK v3;
 - ECS RunTask and CreateService through AWS SDK v3;
@@ -235,7 +235,7 @@ Real in this repository:
 - Fly Machines create/start/status/stop/destroy and auto-destroy one-shot job machines through the Fly Machines API;
 - Azure Container Apps service create/update and manual job create/start through ARM REST APIs;
 - Neon database branch create/delete/reset through the Neon API;
-- Vercel inline deployment creation through the Vercel REST API;
+- Vercel inline deployment creation, bounded deployment event logs, project runtime logs, and alias release through the Vercel REST API;
 - Neon connection URI retrieval when `databaseName` and `roleName` are configured;
 - local JSONL receipt persistence through `@capsule/store-jsonl`;
 - mock provider adapters;

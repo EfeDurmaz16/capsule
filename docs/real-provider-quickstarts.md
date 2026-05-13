@@ -245,7 +245,7 @@ Credentials: `VERCEL_TOKEN`; optional team/project scoping through `VERCEL_TEAM_
 
 Cleanup: remove preview deployments and aliases in Vercel. The example creates an inline preview deployment and does not auto-delete it.
 
-Caveat: Capsule's first Vercel adapter uses inline deployment files. Large file upload/SHA flow, env mutation, aliases, domains, logs, and rollback are explicit future capabilities.
+Caveat: Capsule's first Vercel adapter uses inline deployment files. It supports bounded deployment event log reads and project runtime log reads when `projectId` is supplied; `follow` streaming is rejected. Large file upload/SHA flow, env mutation, domains, routes, and rollback are explicit future capabilities.
 
 ## Kubernetes
 

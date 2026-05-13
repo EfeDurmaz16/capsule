@@ -15,9 +15,11 @@ describe("cloud-run adapter", () => {
     expect(cloudRunCapabilities.job?.run).toBe("native");
     expect(cloudRunCapabilities.job?.status).toBe("native");
     expect(cloudRunCapabilities.job?.cancel).toBe("native");
+    expect(cloudRunCapabilities.job?.logs).toBe("native");
     expect(cloudRunCapabilities.service?.deploy).toBe("native");
     expect(cloudRunCapabilities.service?.status).toBe("native");
     expect(cloudRunCapabilities.service?.delete).toBe("native");
+    expect(cloudRunCapabilities.service?.logs).toBe("native");
     expect(cloudRunCapabilities.edge?.deploy).toBe("unsupported");
   });
 
@@ -90,6 +92,109 @@ describe("cloud-run adapter", () => {
 
     await expect(client.deleteExecution(execution)).resolves.toMatchObject({ name: "operations/delete", done: true });
     expect(calls[0]).toMatchObject({ url: expect.stringContaining(`/v2/${execution}`), init: { method: "DELETE" } });
+  });
+
+  it("fetches Cloud Run job logs through Cloud Logging and redacts configured secrets", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const execution = "projects/proj/locations/us-central1/jobs/capsule-job/executions/execution-1";
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return response({
+        entries: [
+          {
+            logName: "projects/proj/logs/run.googleapis.com%2Fstdout",
+            timestamp: "2026-01-01T00:00:02.000Z",
+            textPayload: "ready secret-value"
+          },
+          {
+            logName: "projects/proj/logs/run.googleapis.com%2Fstderr",
+            timestamp: "2026-01-01T00:00:01.000Z",
+            jsonPayload: { error: "bad secret-value" }
+          }
+        ]
+      });
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: cloudRun({
+        projectId: "proj",
+        location: "us-central1",
+        accessToken: "token",
+        fetch: fetchMock,
+        logRedactionEnv: { TOKEN: "secret-value" }
+      }),
+      policy: { secrets: { allowed: ["TOKEN"], redactFromLogs: true } },
+      receipts: true
+    });
+
+    const logs = await capsule.job.logs({
+      id: execution,
+      since: "2026-01-01T00:00:00.000Z",
+      until: "2026-01-01T00:05:00.000Z",
+      limit: 25
+    });
+
+    expect(logs.logs).toEqual([
+      { timestamp: "2026-01-01T00:00:02.000Z", stream: "stdout", message: "ready [REDACTED]" },
+      { timestamp: "2026-01-01T00:00:01.000Z", stream: "stderr", message: '{"error":"bad [REDACTED]"}' }
+    ]);
+    expect(logs.receipt).toMatchObject({ type: "job.logs", capabilityPath: "job.logs" });
+    expect(calls[0]).toMatchObject({ url: "https://logging.googleapis.com/v2/entries:list", init: { method: "POST" } });
+    expect(calls[0]?.init.headers).toMatchObject({ authorization: "Bearer token", "content-type": "application/json" });
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
+      resourceNames: ["projects/proj"],
+      filter:
+        'resource.type="cloud_run_job" AND resource.labels.project_id="proj" AND resource.labels.location="us-central1" AND resource.labels.job_name="capsule-job" AND labels.execution_name="execution-1" AND timestamp>="2026-01-01T00:00:00.000Z" AND timestamp<="2026-01-01T00:05:00.000Z"',
+      orderBy: "timestamp desc",
+      pageSize: 25
+    });
+  });
+
+  it("fetches Cloud Run service logs through Cloud Logging", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return response({
+        entries: [
+          {
+            logName: "projects/proj/logs/run.googleapis.com%2Fvarlog%2Fsystem",
+            receiveTimestamp: "2026-01-01T00:00:01.000Z",
+            textPayload: "started"
+          }
+        ]
+      });
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: cloudRun({ projectId: "proj", location: "europe-west1", accessToken: "token", fetch: fetchMock }),
+      receipts: true
+    });
+
+    const logs = await capsule.service.logs({ id: "projects/proj/locations/europe-west1/services/api", limit: 10 });
+
+    expect(logs).toMatchObject({
+      id: "projects/proj/locations/europe-west1/services/api",
+      provider: "cloud-run",
+      name: "projects/proj/locations/europe-west1/services/api",
+      logs: [{ timestamp: "2026-01-01T00:00:01.000Z", stream: "system", message: "started" }]
+    });
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
+      resourceNames: ["projects/proj"],
+      filter:
+        'resource.type="cloud_run_revision" AND resource.labels.project_id="proj" AND resource.labels.location="europe-west1" AND resource.labels.service_name="api"',
+      orderBy: "timestamp desc",
+      pageSize: 10
+    });
+  });
+
+  it("fails explicitly instead of returning fake logs when Cloud Logging configuration is missing", async () => {
+    const capsule = new Capsule({ adapter: cloudRun({ projectId: "", location: "us-central1", accessToken: "token" }) });
+
+    await expect(capsule.service.logs({ id: "api" })).rejects.toThrow("Cloud Run adapter requires projectId");
+  });
+
+  it("rejects follow mode because Cloud Logging entries:list is a bounded read", async () => {
+    const capsule = new Capsule({ adapter: cloudRun({ projectId: "proj", location: "us-central1", accessToken: "token" }) });
+
+    await expect(capsule.job.logs({ id: "capsule-job", follow: true })).rejects.toThrow("Cloud Run logs follow is not supported");
   });
 
   it("deploys a Cloud Run service and returns URL", async () => {
