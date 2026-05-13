@@ -42,6 +42,14 @@ function auditPackage(packageDir) {
     }
   }
 
+  const rootExport = pkg.exports?.["."];
+  if (rootExport?.import !== pkg.main) {
+    errors.push(`${pkg.name}: exports["."].import must match main.`);
+  }
+  if (rootExport?.types !== pkg.types) {
+    errors.push(`${pkg.name}: exports["."].types must match types.`);
+  }
+
   if (pkg.bin) {
     for (const [name, value] of Object.entries(pkg.bin)) {
       if (!value.startsWith("./dist/")) {
