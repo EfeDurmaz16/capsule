@@ -24,7 +24,17 @@ describe("live test gates", () => {
   });
 
   test("enables provider live tests when the flag and credentials are present", () => {
-    expect(providerLiveTestGate("neon", { env: { CAPSULE_LIVE_TESTS: "1", NEON_API_KEY: "key" } })).toEqual({ enabled: true });
+    expect(providerLiveTestGate("neon", { env: { CAPSULE_LIVE_TESTS: "1", NEON_API_KEY: "key", NEON_PROJECT_ID: "project" } })).toEqual({ enabled: true });
+  });
+
+  test("gates deployment providers behind provider-specific resource env", () => {
+    expect(providerLiveTestGate("cloud-run", { env: { CAPSULE_LIVE_TESTS: "1", GOOGLE_CLOUD_PROJECT: "project" } })).toEqual({
+      enabled: false,
+      skipReason: "cloud-run live tests require credential env vars: GOOGLE_CLOUD_RUN_LOCATION, GOOGLE_OAUTH_ACCESS_TOKEN."
+    });
+    expect(providerLiveTestGate("aws", { env: { CAPSULE_LIVE_TESTS: "1", AWS_REGION: "us-east-1", CAPSULE_LAMBDA_FUNCTION_NAME: "fn" } })).toEqual({
+      enabled: true
+    });
   });
 
   test("gates Daytona live tests on Daytona credentials", () => {

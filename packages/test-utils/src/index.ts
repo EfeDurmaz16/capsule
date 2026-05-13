@@ -18,10 +18,15 @@ export interface LiveTestApi {
 const liveFlag = "CAPSULE_LIVE_TESTS";
 
 export const liveProviderCredentials = {
+  aws: ["AWS_REGION", "CAPSULE_LAMBDA_FUNCTION_NAME"],
+  azure: ["AZURE_ACCESS_TOKEN", "AZURE_SUBSCRIPTION_ID", "AZURE_RESOURCE_GROUP", "AZURE_LOCATION", "AZURE_CONTAINERAPPS_ENVIRONMENT_ID"],
+  "cloud-run": ["GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_RUN_LOCATION", "GOOGLE_OAUTH_ACCESS_TOKEN"],
   cloudflare: ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"],
   daytona: ["DAYTONA_API_KEY"],
+  fly: ["FLY_API_TOKEN", "FLY_APP_NAME"],
+  kubernetes: ["CAPSULE_KUBERNETES_NAMESPACE"],
   modal: ["MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"],
-  neon: ["NEON_API_KEY"],
+  neon: ["NEON_API_KEY", "NEON_PROJECT_ID"],
   vercel: ["VERCEL_TOKEN"]
 } as const;
 
