@@ -27,5 +27,26 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "description": "Amazon EC2 adapter for Capsule machine lifecycle primitives.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EfeDurmaz16/capsule.git",
+    "directory": "packages/adapter-ec2"
+  },
+  "homepage": "https://github.com/EfeDurmaz16/capsule#readme",
+  "bugs": {
+    "url": "https://github.com/EfeDurmaz16/capsule/issues"
+  },
+  "keywords": [
+    "capsule",
+    "ec2",
+    "adapter",
+    "runtime",
+    "deployment"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  }
 }

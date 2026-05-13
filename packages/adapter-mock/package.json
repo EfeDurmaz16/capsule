@@ -26,5 +26,26 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "description": "Mock Capsule adapters for modeling provider capabilities without calling real provider APIs.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EfeDurmaz16/capsule.git",
+    "directory": "packages/adapter-mock"
+  },
+  "homepage": "https://github.com/EfeDurmaz16/capsule#readme",
+  "bugs": {
+    "url": "https://github.com/EfeDurmaz16/capsule/issues"
+  },
+  "keywords": [
+    "capsule",
+    "mock",
+    "testing",
+    "adapter",
+    "providers"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  }
 }

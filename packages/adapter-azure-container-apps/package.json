@@ -27,5 +27,26 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "description": "Azure Container Apps adapter for Capsule jobs and services.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EfeDurmaz16/capsule.git",
+    "directory": "packages/adapter-azure-container-apps"
+  },
+  "homepage": "https://github.com/EfeDurmaz16/capsule#readme",
+  "bugs": {
+    "url": "https://github.com/EfeDurmaz16/capsule/issues"
+  },
+  "keywords": [
+    "capsule",
+    "azure-container-apps",
+    "adapter",
+    "runtime",
+    "deployment"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  }
 }

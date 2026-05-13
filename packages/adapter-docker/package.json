@@ -27,5 +27,26 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "description": "Docker CLI adapter for Capsule sandbox and job execution.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EfeDurmaz16/capsule.git",
+    "directory": "packages/adapter-docker"
+  },
+  "homepage": "https://github.com/EfeDurmaz16/capsule#readme",
+  "bugs": {
+    "url": "https://github.com/EfeDurmaz16/capsule/issues"
+  },
+  "keywords": [
+    "capsule",
+    "docker",
+    "sandbox",
+    "jobs",
+    "adapter"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  }
 }

@@ -23,5 +23,27 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "description": "Domain-aware TypeScript contracts, policies, capabilities, receipts, and facade APIs for Capsule runtime adapters.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EfeDurmaz16/capsule.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/EfeDurmaz16/capsule#readme",
+  "bugs": {
+    "url": "https://github.com/EfeDurmaz16/capsule/issues"
+  },
+  "keywords": [
+    "capsule",
+    "agents",
+    "runtime",
+    "adapter",
+    "policy",
+    "receipts"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  }
 }

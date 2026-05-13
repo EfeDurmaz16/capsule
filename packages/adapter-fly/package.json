@@ -27,5 +27,26 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "description": "Fly Machines adapter for Capsule job and service runtime primitives.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EfeDurmaz16/capsule.git",
+    "directory": "packages/adapter-fly"
+  },
+  "homepage": "https://github.com/EfeDurmaz16/capsule#readme",
+  "bugs": {
+    "url": "https://github.com/EfeDurmaz16/capsule/issues"
+  },
+  "keywords": [
+    "capsule",
+    "fly",
+    "adapter",
+    "runtime",
+    "deployment"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  }
 }

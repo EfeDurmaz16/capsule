@@ -28,5 +28,26 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "description": "Daytona adapter for Capsule sandbox execution workflows.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EfeDurmaz16/capsule.git",
+    "directory": "packages/adapter-daytona"
+  },
+  "homepage": "https://github.com/EfeDurmaz16/capsule#readme",
+  "bugs": {
+    "url": "https://github.com/EfeDurmaz16/capsule/issues"
+  },
+  "keywords": [
+    "capsule",
+    "daytona",
+    "adapter",
+    "runtime",
+    "deployment"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  }
 }
