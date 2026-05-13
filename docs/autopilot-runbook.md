@@ -14,6 +14,12 @@ git pull --ff-only
 caffeinate -dimsu node scripts/capsule-autopilot.mjs --max-parallel 2
 ```
 
+Dry run does not create labels, worktrees, or state files:
+
+```bash
+node scripts/capsule-autopilot.mjs --once --dry-run --max-parallel 2
+```
+
 For a detached run:
 
 ```bash
@@ -54,6 +60,8 @@ launchctl bootout "gui/$(id -u)" ~/Library/LaunchAgents/com.capsule.autopilot.pl
 - The runner does not merge PRs automatically.
 - The runner skips issues that already have an open `autopilot/issue-N` pull request.
 - The runner skips issues labeled `autopilot-running`, `autopilot-failed`, `blocked`, or `needs-design`.
+- `--dry-run` only prints eligible work; it does not create worktrees, labels, or lock state.
+- Stale locks are recovered after `CAPSULE_AUTOPILOT_STALE_LOCK_MS` or `--stale-lock-ms`; the default is six hours.
 - Each issue runs in a separate worktree under `.symphony/workspaces`.
 - Live provider tests must still be explicitly gated with `CAPSULE_LIVE_TESTS=1`.
 - If Linear is configured later, the same task graph can be mirrored there and the OpenAI Symphony reference implementation can poll Linear directly.
