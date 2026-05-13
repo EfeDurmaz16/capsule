@@ -6,7 +6,7 @@ Capsule is a pnpm monorepo with focused packages:
 - `@capsule/adapter-docker`: Docker CLI sandbox and one-shot job adapter.
 - `@capsule/adapter-mock`: realistic mock providers for examples, tests, and future adapter design.
 - `@capsule/ai`: framework-agnostic code execution tool helper.
-- `@capsule/cli`: small CLI for capabilities, Docker runs, sandbox smoke tests, and doctor checks.
+- `@capsule/cli`: small CLI for capabilities, Docker runs, sandbox smoke tests, and doctor checks. `capsule doctor` checks Docker availability and reports provider credential env-var presence without printing secret values.
 
 The `Capsule` class receives an adapter, optional policy, and receipt setting. Domain APIs such as `capsule.sandbox.create` and `capsule.job.run` validate capability paths, evaluate policy, call the adapter, and attach receipts where the domain result supports them.
 

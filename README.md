@@ -214,10 +214,14 @@ Mocked:
 CLI examples:
 
 ```bash
+capsule doctor
+capsule doctor --adapter cloudflare
 capsule capabilities --adapter neon
 capsule neon branch-create --project "$NEON_PROJECT_ID" --name pr-42 --database neondb --role neondb_owner --receipt-file .capsule/receipts.jsonl
 capsule neon branch-delete --project "$NEON_PROJECT_ID" --branch-id br_xxx --hard-delete --receipt-file .capsule/receipts.jsonl
 ```
+
+`capsule doctor` reports Docker daemon availability plus provider credential env-var status without printing secret values.
 
 Known limitations:
 
