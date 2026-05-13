@@ -28,7 +28,8 @@ function exportedSymbols(source) {
     }
   }
   while ((match = starExportDecl.exec(source))) {
-    symbols.add(`* from ${match[1]}`);
+    const moduleName = match[1].replace(/^\.\//, "").replace(/\.js$/, "");
+    symbols.add(`barrel: ${moduleName}`);
   }
 
   return [...symbols].sort((a, b) => a.localeCompare(b));
@@ -58,8 +59,9 @@ for (const { dir, pkg } of publicPackages()) {
   const symbols = exportedSymbols(source);
   lines.push(`## ${pkg.name}`, "");
   lines.push(`- Package: \`${pkg.name}\``);
-  lines.push(`- Entrypoint: \`${pkg.exports?.["."]?.import ?? pkg.main ?? "./dist/index.js"}\``);
-  lines.push(`- Types: \`${pkg.exports?.["."]?.types ?? pkg.types ?? "./dist/index.d.ts"}\``);
+  lines.push(`- Import: \`import { ... } from "${pkg.name}"\``);
+  lines.push(`- Runtime entrypoint: \`${pkg.exports?.["."]?.import ?? pkg.main ?? "./dist/index.js"}\``);
+  lines.push(`- Type declarations: \`${pkg.exports?.["."]?.types ?? pkg.types ?? "./dist/index.d.ts"}\``);
   lines.push(`- Source: \`${relative(root, sourcePath)}\``);
   lines.push("");
   if (symbols.length === 0) {

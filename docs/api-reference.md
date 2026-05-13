@@ -7,8 +7,9 @@ This is a lightweight reference for maintainers and adapter authors. It lists pa
 ## @capsule/adapter-azure-container-apps
 
 - Package: `@capsule/adapter-azure-container-apps`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/adapter-azure-container-apps"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/adapter-azure-container-apps/src/index.ts`
 
 Exports:
@@ -22,8 +23,9 @@ Exports:
 ## @capsule/adapter-cloud-run
 
 - Package: `@capsule/adapter-cloud-run`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/adapter-cloud-run"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/adapter-cloud-run/src/index.ts`
 
 Exports:
@@ -38,8 +40,9 @@ Exports:
 ## @capsule/adapter-cloudflare
 
 - Package: `@capsule/adapter-cloudflare`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/adapter-cloudflare"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/adapter-cloudflare/src/index.ts`
 
 Exports:
@@ -52,8 +55,9 @@ Exports:
 ## @capsule/adapter-daytona
 
 - Package: `@capsule/adapter-daytona`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/adapter-daytona"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/adapter-daytona/src/index.ts`
 
 Exports:
@@ -64,8 +68,9 @@ Exports:
 ## @capsule/adapter-docker
 
 - Package: `@capsule/adapter-docker`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/adapter-docker"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/adapter-docker/src/index.ts`
 
 Exports:
@@ -80,8 +85,9 @@ Exports:
 ## @capsule/adapter-e2b
 
 - Package: `@capsule/adapter-e2b`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/adapter-e2b"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/adapter-e2b/src/index.ts`
 
 Exports:
@@ -92,8 +98,9 @@ Exports:
 ## @capsule/adapter-ec2
 
 - Package: `@capsule/adapter-ec2`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/adapter-ec2"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/adapter-ec2/src/index.ts`
 
 Exports:
@@ -104,8 +111,9 @@ Exports:
 ## @capsule/adapter-ecs
 
 - Package: `@capsule/adapter-ecs`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/adapter-ecs"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/adapter-ecs/src/index.ts`
 
 Exports:
@@ -116,8 +124,9 @@ Exports:
 ## @capsule/adapter-fly
 
 - Package: `@capsule/adapter-fly`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/adapter-fly"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/adapter-fly/src/index.ts`
 
 Exports:
@@ -131,8 +140,9 @@ Exports:
 ## @capsule/adapter-kubernetes
 
 - Package: `@capsule/adapter-kubernetes`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/adapter-kubernetes"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/adapter-kubernetes/src/index.ts`
 
 Exports:
@@ -143,8 +153,9 @@ Exports:
 ## @capsule/adapter-lambda
 
 - Package: `@capsule/adapter-lambda`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/adapter-lambda"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/adapter-lambda/src/index.ts`
 
 Exports:
@@ -155,8 +166,9 @@ Exports:
 ## @capsule/adapter-mock
 
 - Package: `@capsule/adapter-mock`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/adapter-mock"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/adapter-mock/src/index.ts`
 
 Exports:
@@ -187,8 +199,9 @@ Exports:
 ## @capsule/adapter-modal
 
 - Package: `@capsule/adapter-modal`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/adapter-modal"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/adapter-modal/src/index.ts`
 
 Exports:
@@ -199,8 +212,9 @@ Exports:
 ## @capsule/adapter-neon
 
 - Package: `@capsule/adapter-neon`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/adapter-neon"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/adapter-neon/src/index.ts`
 
 Exports:
@@ -214,8 +228,9 @@ Exports:
 ## @capsule/adapter-vercel
 
 - Package: `@capsule/adapter-vercel`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/adapter-vercel"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/adapter-vercel/src/index.ts`
 
 Exports:
@@ -228,8 +243,9 @@ Exports:
 ## @capsule/ai
 
 - Package: `@capsule/ai`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/ai"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/ai/src/index.ts`
 
 Exports:
@@ -242,8 +258,9 @@ Exports:
 ## @capsule/cli
 
 - Package: `@capsule/cli`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/cli"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/cli/src/index.ts`
 
 Exports:
@@ -255,29 +272,32 @@ Exports:
 ## @capsule/core
 
 - Package: `@capsule/core`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/core"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/core/src/index.ts`
 
 Exports:
-- `* from ./adapters.js`
-- `* from ./artifacts.js`
-- `* from ./capabilities.js`
-- `* from ./capsule.js`
-- `* from ./contract.js`
-- `* from ./errors.js`
-- `* from ./logs.js`
-- `* from ./policy.js`
-- `* from ./receipt-schema.js`
-- `* from ./receipts.js`
-- `* from ./stores.js`
-- `* from ./types.js`
+- `barrel: adapters`
+- `barrel: artifacts`
+- `barrel: capabilities`
+- `barrel: capsule`
+- `barrel: contract`
+- `barrel: errors`
+- `barrel: logs`
+- `barrel: policy`
+- `barrel: presets`
+- `barrel: receipt-schema`
+- `barrel: receipts`
+- `barrel: stores`
+- `barrel: types`
 
 ## @capsule/preview
 
 - Package: `@capsule/preview`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/preview"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/preview/src/index.ts`
 
 Exports:
@@ -301,8 +321,9 @@ Exports:
 ## @capsule/store-jsonl
 
 - Package: `@capsule/store-jsonl`
-- Entrypoint: `./dist/index.js`
-- Types: `./dist/index.d.ts`
+- Import: `import { ... } from "@capsule/store-jsonl"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
 - Source: `packages/store-jsonl/src/index.ts`
 
 Exports:

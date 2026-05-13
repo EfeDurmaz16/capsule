@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 import { Capsule, runAdapterContract } from "@capsule/core";
 import { liveTest, liveTestGate, type LiveTestGate } from "@capsule/test-utils";
 import { docker, dockerAvailable, runDocker } from "./index.js";
@@ -6,6 +6,15 @@ import { dockerSandboxCreateArgs } from "./docker-adapter.js";
 
 const hasDocker = await dockerAvailable();
 const dockerLiveGate: LiveTestGate = hasDocker ? liveTestGate({ provider: "docker" }) : { enabled: false, skipReason: "Docker is not available." };
+const dockerLiveEnabled = dockerLiveGate.enabled;
+
+beforeAll(async () => {
+  if (!dockerLiveEnabled) {
+    return;
+  }
+  const pulled = await runDocker(["pull", "node:22"], { timeoutMs: 120_000 });
+  expect(pulled.exitCode).toBe(0);
+}, 130_000);
 
 function uniqueName(label: string): string {
   return `capsule-test-${label}-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
