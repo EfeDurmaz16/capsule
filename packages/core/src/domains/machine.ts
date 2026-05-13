@@ -1,1 +1,10 @@
-export type { CreateMachineSpec, Machine } from "../types.js";
+export type {
+  CreateMachineSpec,
+  DestroyMachineSpec,
+  Machine,
+  MachineLifecycleResult,
+  MachineStatusResult,
+  MachineStatusSpec,
+  StartMachineSpec,
+  StopMachineSpec
+} from "../types.js";

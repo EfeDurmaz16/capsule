@@ -85,6 +85,7 @@ export interface CapabilityMap {
   };
   machine?: {
     create: SupportLevel;
+    status?: SupportLevel;
     exec: SupportLevel;
     start: SupportLevel;
     stop: SupportLevel;
@@ -167,6 +168,9 @@ export interface CapsuleReceipt {
     | "preview.create"
     | "preview.destroy"
     | "machine.create"
+    | "machine.status"
+    | "machine.start"
+    | "machine.stop"
     | "machine.exec"
     | "machine.destroy";
   provider: string;
@@ -628,4 +632,42 @@ export interface Machine {
   name: string;
   status: "creating" | "running" | "stopped" | "failed" | "deleted";
   receipt?: CapsuleReceipt;
+}
+
+export interface MachineStatusSpec {
+  id: string;
+}
+
+export interface MachineStatusResult {
+  id: string;
+  provider: string;
+  name?: string;
+  status: Machine["status"];
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
+}
+
+export interface StartMachineSpec {
+  id: string;
+  reason?: string;
+}
+
+export interface StopMachineSpec {
+  id: string;
+  force?: boolean;
+  reason?: string;
+}
+
+export interface DestroyMachineSpec {
+  id: string;
+  force?: boolean;
+  reason?: string;
+}
+
+export interface MachineLifecycleResult {
+  id: string;
+  provider: string;
+  status: "running" | "stopped" | "deleted" | "stopping" | "starting" | "destroying";
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
 }

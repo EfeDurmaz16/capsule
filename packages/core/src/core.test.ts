@@ -65,6 +65,10 @@ describe("capabilities", () => {
     await expect(capsule.database.branch.delete({ project: "app", branchId: "br_mock" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.database.branch.reset({ project: "app", branchId: "br_mock" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.database.migrate({ project: "app", branchId: "br_mock", dryRun: true })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.machine.status({ id: "machine_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.machine.start({ id: "machine_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.machine.stop({ id: "machine_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.machine.destroy({ id: "machine_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
   });
 });
 

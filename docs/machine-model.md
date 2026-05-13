@@ -6,4 +6,6 @@ Machines are leakier than sandboxes, jobs, services, or edge deployments. Image 
 
 Use the machine primitive when the user needs lower-level control. Do not hide provider-specific security, networking, volume, or lifecycle details behind false portability.
 
-The real EC2 adapter implements the first machine primitive through `RunInstances`. It can create one instance from an AMI and instance type with optional subnet, security groups, key, IAM profile, tags, and user data. Capsule does not hide SSH, patching, IAM, network exposure, disk lifecycle, startup script security, or teardown.
+The core machine facade models create, status, start, stop, and destroy as separate capabilities. Adapters must mark each lifecycle action honestly because VM lifecycle APIs differ in state transitions, billing semantics, termination protection, data persistence, and network identity.
+
+The real EC2 adapter implements machine creation through `RunInstances` and lifecycle operations through `DescribeInstances`, `StartInstances`, `StopInstances`, and `TerminateInstances`. It can create one instance from an AMI and instance type with optional subnet, security groups, key, IAM profile, tags, and user data. Capsule does not hide SSH, patching, IAM, network exposure, disk lifecycle, startup script security, or teardown.

@@ -10,6 +10,7 @@ import type {
   DeleteDatabaseBranchSpec,
   DeletedService,
   CreateMachineSpec,
+  DestroyMachineSpec,
   CreatePreviewSpec,
   CreateSandboxSpec,
   DatabaseBranch,
@@ -25,6 +26,9 @@ import type {
   JobStatusResult,
   JobStatusSpec,
   Machine,
+  MachineLifecycleResult,
+  MachineStatusResult,
+  MachineStatusSpec,
   MigrateDatabaseSpec,
   PreviewEnvironment,
   ResetDatabaseBranch,
@@ -34,6 +38,8 @@ import type {
   ServiceDeployment,
   ServiceStatusResult,
   ServiceStatusSpec,
+  StartMachineSpec,
+  StopMachineSpec,
   UpdateServiceSpec,
   DeleteServiceSpec,
   ReleaseEdgeVersionSpec,
@@ -94,6 +100,10 @@ export interface PreviewAdapter {
 
 export interface MachineAdapter {
   create(spec: CreateMachineSpec, context: AdapterContext): Promise<Machine>;
+  status?(spec: MachineStatusSpec, context: AdapterContext): Promise<MachineStatusResult>;
+  start?(spec: StartMachineSpec, context: AdapterContext): Promise<MachineLifecycleResult>;
+  stop?(spec: StopMachineSpec, context: AdapterContext): Promise<MachineLifecycleResult>;
+  destroy?(spec: DestroyMachineSpec, context: AdapterContext): Promise<MachineLifecycleResult>;
 }
 
 export interface CapsuleAdapter {
