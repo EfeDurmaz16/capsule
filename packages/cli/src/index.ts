@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "node:url";
-import { Capsule } from "@capsule/core";
+import { Capsule, type CapabilityPath } from "@capsule/core";
 import { azureContainerApps } from "@capsule/adapter-azure-container-apps";
 import { cloudflare } from "@capsule/adapter-cloudflare";
 import { cloudRun } from "@capsule/adapter-cloud-run";
@@ -22,6 +22,7 @@ interface ParsedArgs {
   image?: string;
   adapter?: string;
   receiptFile?: string;
+  id?: string;
   project?: string;
   name?: string;
   parent?: string;
@@ -56,7 +57,9 @@ interface ParsedArgs {
   apiUrl?: string;
   appName?: string;
   port?: number;
+  force?: boolean;
   hardDelete?: boolean;
+  reason?: string;
   rest: string[];
 }
 
@@ -127,6 +130,11 @@ export function parse(argv: string[]): ParsedArgs {
     }
     if (arg === "--receipt-file") {
       parsed.receiptFile = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--id") {
+      parsed.id = args[index + 1];
       index += 1;
       continue;
     }
@@ -304,6 +312,15 @@ export function parse(argv: string[]): ParsedArgs {
       parsed.hardDelete = true;
       continue;
     }
+    if (arg === "--force") {
+      parsed.force = true;
+      continue;
+    }
+    if (arg === "--reason") {
+      parsed.reason = args[index + 1];
+      index += 1;
+      continue;
+    }
     if (arg === "--") {
       parsed.rest.push(...args.slice(index + 1));
       break;
@@ -373,8 +390,15 @@ Commands:
   capsule job --adapter fly --app-name my-fly-app --name smoke --image node:22 -- node smoke.js
   capsule job --adapter azure-container-apps --subscription-id <sub> --resource-group <rg> --location eastus --environment-id <env_id> --name smoke --image node:22 -- node smoke.js
   capsule service --adapter cloud-run --project-id <gcp-project> --location us-central1 --name api --image us-docker.pkg.dev/project/repo/api:tag --port 8080
+  capsule service deploy --adapter cloud-run --project-id <gcp-project> --location us-central1 --name api --image us-docker.pkg.dev/project/repo/api:tag --port 8080
+  capsule service status --adapter cloud-run --project-id <gcp-project> --location us-central1 --id api
+  capsule service delete --adapter cloud-run --project-id <gcp-project> --location us-central1 --id api --reason cleanup
   capsule service --adapter ecs --region us-east-1 --cluster default --task-definition api:1 --container-name main --name api --image intent
+  capsule service status --adapter ecs --region us-east-1 --cluster default --task-definition api:1 --container-name main --id api
+  capsule service delete --adapter ecs --region us-east-1 --cluster default --task-definition api:1 --container-name main --id api --force
   capsule service --adapter kubernetes --namespace default --name api --image ghcr.io/acme/api:latest --port 8080
+  capsule service status --adapter kubernetes --namespace default --id api
+  capsule service delete --adapter kubernetes --namespace default --id api
   capsule service --adapter azure-container-apps --subscription-id <sub> --resource-group <rg> --location eastus --environment-id <env_id> --name api --image ghcr.io/acme/api:latest --port 8080
   capsule machine --adapter ec2 --region us-east-1 --name dev --image-id ami-123 --instance-type t3.micro --subnet-id subnet-123 --security-group sg-123
   capsule machine --adapter fly --app-name my-fly-app --name dev --image ghcr.io/acme/dev:latest
@@ -490,6 +514,13 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   return new Capsule({ adapter: docker(), receipts: true, receiptStore });
 }
 
+function requireCapability(capsule: Capsule, adapter: string | undefined, path: CapabilityPath): void {
+  if (!capsule.supports(path)) {
+    const adapterName = adapter ?? capsule.adapterName();
+    throw new Error(`${adapterName} does not support ${path}. Run "capsule capabilities --adapter ${adapterName}" to inspect supported operations.`);
+  }
+}
+
 export async function main(argv: string[]): Promise<void> {
   const parsed = parse(argv);
 
@@ -569,8 +600,27 @@ export async function main(argv: string[]): Promise<void> {
     }
     case "service": {
       const capsule = createCapsule(parsed);
+      const action = parsed.rest[0] === "deploy" || parsed.rest[0] === "status" || parsed.rest[0] === "delete" ? parsed.rest[0] : "deploy";
       if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes" && parsed.adapter !== "ecs" && parsed.adapter !== "azure-container-apps") {
         throw new Error("service currently requires --adapter cloud-run, --adapter kubernetes, --adapter ecs, or --adapter azure-container-apps");
+      }
+      if (action === "status") {
+        const id = parsed.id ?? parsed.name ?? parsed.rest[1];
+        if (!id) {
+          throw new Error("Missing --id");
+        }
+        requireCapability(capsule, parsed.adapter, "service.status");
+        console.log(JSON.stringify(await capsule.service.status({ id }), null, 2));
+        return;
+      }
+      if (action === "delete") {
+        const id = parsed.id ?? parsed.name ?? parsed.rest[1];
+        if (!id) {
+          throw new Error("Missing --id");
+        }
+        requireCapability(capsule, parsed.adapter, "service.delete");
+        console.log(JSON.stringify(await capsule.service.delete({ id, force: parsed.force, reason: parsed.reason }), null, 2));
+        return;
       }
       if (!parsed.name) {
         throw new Error("Missing --name");
@@ -578,6 +628,7 @@ export async function main(argv: string[]): Promise<void> {
       if (!parsed.image) {
         throw new Error("Missing --image");
       }
+      requireCapability(capsule, parsed.adapter, "service.deploy");
       const deployment = await capsule.service.deploy({
         name: parsed.name,
         image: parsed.image,
