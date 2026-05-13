@@ -4,8 +4,24 @@ Capsule has two orchestration modes:
 
 1. Symphony-compatible planning through `WORKFLOW.md`.
 2. A GitHub-backed local autopilot runner in `scripts/capsule-autopilot.mjs`.
+3. Optional Linear mirroring from `.capsule/tasks.json` through `scripts/create-linear-issues.mjs`.
 
 The second mode is practical when Linear is not configured. It reads open GitHub issues labeled `capsule` and `needs-verification`, creates one git worktree per issue, runs `codex exec`, and asks the agent to push a branch and open a PR.
+
+GitHub issue creation remains independent:
+
+```bash
+pnpm capsule:issues -- --apply
+```
+
+Linear mirroring is opt-in and dry-run by default:
+
+```bash
+pnpm capsule:linear
+LINEAR_API_KEY=... LINEAR_TEAM_ID=... pnpm capsule:linear -- --apply
+```
+
+Set `LINEAR_PROJECT_ID` to attach mirrored issues to a Linear project. The script uses Linear's GraphQL API directly and does not add a Linear SDK dependency.
 
 ## Start Overnight
 
