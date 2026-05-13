@@ -141,6 +141,7 @@ Mock modeling package:
 - [Comparison](docs/comparison.md)
 - [Technical decisions](docs/technical-decisions.md)
 - [Architecture decision records](docs/adr/README.md)
+- [V1 readiness audit](docs/v1-readiness-audit.md)
 
 ## Development
 
