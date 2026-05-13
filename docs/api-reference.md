@@ -264,6 +264,7 @@ Exports:
 - Source: `packages/cli/src/index.ts`
 
 Exports:
+- `capabilityExplanations`
 - `createDoctorReport`
 - `main`
 - `parse`
