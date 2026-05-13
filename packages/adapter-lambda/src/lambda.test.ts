@@ -79,6 +79,28 @@ describe("lambda adapter", () => {
     });
   });
 
+  it("redacts secrets from Lambda payloads, log entries, and receipt log metadata", async () => {
+    const client = {
+      send: async () => ({
+        $metadata: { requestId: "req-secret" },
+        StatusCode: 200,
+        Payload: new TextEncoder().encode("payload token-123 token-123"),
+        LogResult: Buffer.from("log token-123\n").toString("base64")
+      })
+    };
+    const capsule = new Capsule({
+      adapter: lambda({ functionName: "secret-worker", client }),
+      receipts: true,
+      policy: { secrets: { allowed: ["SECRET"], redactFromLogs: true } }
+    });
+    const run = await capsule.job.run({ image: "ignored", env: { SECRET: "token-123" } });
+
+    expect(run.result?.stdout).toBe("payload [REDACTED] [REDACTED]");
+    expect(run.result?.logs.map((entry) => entry.message)).toEqual(["payload [REDACTED] [REDACTED]", "log [REDACTED]"]);
+    expect(run.receipt?.metadata?.logTail).toBe("log [REDACTED]\n");
+    expect(JSON.stringify(run)).not.toContain("token-123");
+  });
+
   it("keeps unsupported async status semantics explicit for Event invocations", async () => {
     const client = {
       send: async () => ({

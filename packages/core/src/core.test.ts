@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { Capsule } from "./capsule.js";
 import { supportLevel, supports } from "./capabilities.js";
 import { UnsupportedCapabilityError, PolicyViolationError } from "./errors.js";
-import { evaluatePolicy, mergeTimeout } from "./policy.js";
+import { evaluatePolicy, mergeTimeout, redactLogEntries, redactSecrets } from "./policy.js";
 import { createReceipt } from "./receipts.js";
 import { MemoryReceiptStore } from "./stores.js";
 import type { CapsuleAdapter, CapabilityMap } from "./index.js";
@@ -80,6 +80,30 @@ describe("policy", () => {
   test("merges timeout against policy maximum", () => {
     expect(mergeTimeout({ limits: { timeoutMs: 1000 } }, 2000)).toBe(1000);
     expect(mergeTimeout({ limits: { timeoutMs: 1000 } }, 500)).toBe(500);
+  });
+
+  test("redacts exact secret values from output repeatedly", () => {
+    expect(redactSecrets("token=abc token=abc suffix", { SECRET: "abc" }, { secrets: { allowed: ["SECRET"], redactFromLogs: true } })).toBe("token=[REDACTED] token=[REDACTED] suffix");
+  });
+
+  test("does not redact when log redaction policy is absent", () => {
+    expect(redactSecrets("token=abc", { SECRET: "abc" }, { secrets: { allowed: ["SECRET"] } })).toBe("token=abc");
+  });
+
+  test("redacts secret values from log entries", () => {
+    expect(
+      redactLogEntries(
+        [
+          { timestamp: "2026-01-01T00:00:00.000Z", stream: "stdout", message: "first abc" },
+          { timestamp: "2026-01-01T00:00:00.001Z", stream: "stderr", message: "second abc abc" }
+        ],
+        { SECRET: "abc" },
+        { secrets: { allowed: ["SECRET"], redactFromLogs: true } }
+      )
+    ).toEqual([
+      { timestamp: "2026-01-01T00:00:00.000Z", stream: "stdout", message: "first [REDACTED]" },
+      { timestamp: "2026-01-01T00:00:00.001Z", stream: "stderr", message: "second [REDACTED] [REDACTED]" }
+    ]);
   });
 });
 
