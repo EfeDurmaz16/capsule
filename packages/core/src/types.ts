@@ -56,6 +56,7 @@ export interface CapabilityMap {
   };
   edge?: {
     deploy: SupportLevel;
+    status?: SupportLevel;
     version?: SupportLevel;
     release?: SupportLevel;
     rollback: SupportLevel;
@@ -155,6 +156,7 @@ export interface CapsuleReceipt {
     | "service.update"
     | "service.delete"
     | "edge.deploy"
+    | "edge.status"
     | "edge.version"
     | "edge.release"
     | "edge.rollback"
@@ -425,6 +427,20 @@ export interface EdgeDeployment {
   receipt?: CapsuleReceipt;
 }
 
+export interface EdgeStatusSpec {
+  id: string;
+}
+
+export interface EdgeStatusResult {
+  id: string;
+  provider: string;
+  name?: string;
+  status: EdgeDeployment["status"];
+  url?: string;
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
+}
+
 export interface VersionEdgeSpec {
   deploymentId?: string;
   name: string;
@@ -448,6 +464,8 @@ export interface EdgeVersion {
 export interface ReleaseEdgeVersionSpec {
   versionId: string;
   deploymentId?: string;
+  alias?: string;
+  redirect?: string | null;
   routes?: string[];
   traffic?: number;
   labels?: Record<string, string>;
@@ -458,6 +476,7 @@ export interface EdgeRelease {
   provider: string;
   versionId: string;
   deploymentId?: string;
+  alias?: string;
   status: "releasing" | "ready" | "failed";
   url?: string;
   receipt?: CapsuleReceipt;
