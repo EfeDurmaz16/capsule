@@ -17,9 +17,12 @@ import type {
   DeployServiceSpec,
   DeleteServiceSpec,
   JobStatusSpec,
+  ReleaseEdgeVersionSpec,
+  RollbackEdgeSpec,
   RunJobSpec,
   ServiceStatusSpec,
-  UpdateServiceSpec
+  UpdateServiceSpec,
+  VersionEdgeSpec
 } from "./types.js";
 
 export interface CapsuleOptions {
@@ -119,6 +122,28 @@ export class Capsule {
           throw new UnsupportedCapabilityError("edge.deploy");
         }
         return this.options.adapter.edge.deploy(spec, this.context());
+      },
+      version: async (spec: VersionEdgeSpec) => {
+        this.require("edge.version");
+        evaluatePolicy(this.options.policy, { env: spec.env });
+        if (!this.options.adapter.edge?.version) {
+          throw new UnsupportedCapabilityError("edge.version");
+        }
+        return this.options.adapter.edge.version(spec, this.context());
+      },
+      release: async (spec: ReleaseEdgeVersionSpec) => {
+        this.require("edge.release");
+        if (!this.options.adapter.edge?.release) {
+          throw new UnsupportedCapabilityError("edge.release");
+        }
+        return this.options.adapter.edge.release(spec, this.context());
+      },
+      rollback: async (spec: RollbackEdgeSpec) => {
+        this.require("edge.rollback");
+        if (!this.options.adapter.edge?.rollback) {
+          throw new UnsupportedCapabilityError("edge.rollback");
+        }
+        return this.options.adapter.edge.rollback(spec, this.context());
       }
     };
 

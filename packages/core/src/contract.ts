@@ -56,6 +56,21 @@ const publicCapabilities: PublicCapability[] = [
     exercise: (capsule) => capsule.edge.deploy({ name: "capsule-contract-test", source: { path: "/tmp/capsule-contract-test.js" } })
   },
   {
+    path: "edge.version",
+    isImplemented: (adapter) => typeof adapter.edge?.version === "function",
+    exercise: (capsule) => capsule.edge.version({ name: "capsule-contract-test", source: { path: "/tmp/capsule-contract-test.js" } })
+  },
+  {
+    path: "edge.release",
+    isImplemented: (adapter) => typeof adapter.edge?.release === "function",
+    exercise: (capsule) => capsule.edge.release({ versionId: "capsule-contract-test" })
+  },
+  {
+    path: "edge.rollback",
+    isImplemented: (adapter) => typeof adapter.edge?.rollback === "function",
+    exercise: (capsule) => capsule.edge.rollback({ deploymentId: "capsule-contract-test" })
+  },
+  {
     path: "database.branchCreate",
     isImplemented: (adapter) => typeof adapter.database?.branch.create === "function",
     exercise: (capsule) => capsule.database.branch.create({ project: "capsule-contract-test", name: "capsule-contract-test" })

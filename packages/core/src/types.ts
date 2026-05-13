@@ -155,6 +155,9 @@ export interface CapsuleReceipt {
     | "service.update"
     | "service.delete"
     | "edge.deploy"
+    | "edge.version"
+    | "edge.release"
+    | "edge.rollback"
     | "database.branch.create"
     | "database.branch.delete"
     | "preview.create"
@@ -420,6 +423,61 @@ export interface EdgeDeployment {
   status: "deploying" | "ready" | "failed" | "deleted";
   url?: string;
   receipt?: CapsuleReceipt;
+}
+
+export interface VersionEdgeSpec {
+  deploymentId?: string;
+  name: string;
+  source?: DeployEdgeSpec["source"];
+  runtime?: DeployEdgeSpec["runtime"];
+  env?: Record<string, string>;
+  bindings?: Record<string, unknown>;
+  labels?: Record<string, string>;
+}
+
+export interface EdgeVersion {
+  id: string;
+  provider: string;
+  name: string;
+  deploymentId?: string;
+  status: "created" | "building" | "ready" | "failed";
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ReleaseEdgeVersionSpec {
+  versionId: string;
+  deploymentId?: string;
+  routes?: string[];
+  traffic?: number;
+  labels?: Record<string, string>;
+}
+
+export interface EdgeRelease {
+  id: string;
+  provider: string;
+  versionId: string;
+  deploymentId?: string;
+  status: "releasing" | "ready" | "failed";
+  url?: string;
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
+}
+
+export interface RollbackEdgeSpec {
+  deploymentId: string;
+  targetVersionId?: string;
+  reason?: string;
+}
+
+export interface EdgeRollback {
+  id: string;
+  provider: string;
+  deploymentId: string;
+  targetVersionId?: string;
+  status: "rolling_back" | "ready" | "failed";
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CreateDatabaseBranchSpec {

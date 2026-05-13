@@ -45,8 +45,8 @@ export const cloudflareCapabilities: CapabilityMap = {
   },
   edge: {
     deploy: "native",
-    version: "experimental",
-    release: "experimental",
+    version: "unsupported",
+    release: "unsupported",
     rollback: "unsupported",
     routes: "unsupported",
     bindings: "experimental",
