@@ -1,8 +1,10 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { Capsule } from "./capsule.js";
 import { supportLevel, supports } from "./capabilities.js";
 import { UnsupportedCapabilityError, PolicyViolationError } from "./errors.js";
 import { evaluatePolicy, mergeTimeout, redactLogEntries, redactSecrets } from "./policy.js";
+import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
 import { createReceipt } from "./receipts.js";
 import { MemoryReceiptStore } from "./stores.js";
 import type { CapsuleAdapter, CapabilityMap } from "./index.js";
@@ -42,6 +44,32 @@ const adapter: CapsuleAdapter = {
     })
   }
 };
+
+function validateAgainstSimpleSchema(schema: any, value: any, path = "$"): string[] {
+  const errors: string[] = [];
+  if (schema.type === "object") {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return [`${path} must be object`];
+    for (const key of schema.required ?? []) {
+      if (!(key in value)) errors.push(`${path}.${key} is required`);
+    }
+    if (schema.additionalProperties === false) {
+      for (const key of Object.keys(value)) {
+        if (!schema.properties?.[key]) errors.push(`${path}.${key} is not allowed`);
+      }
+    }
+    for (const [key, childSchema] of Object.entries(schema.properties ?? {})) {
+      if (key in value) errors.push(...validateAgainstSimpleSchema(childSchema, value[key], `${path}.${key}`));
+    }
+  }
+  if (schema.type === "array") {
+    if (!Array.isArray(value)) return [`${path} must be array`];
+    value.forEach((item, index) => errors.push(...validateAgainstSimpleSchema(schema.items, item, `${path}[${index}]`)));
+  }
+  if (schema.type === "string" && typeof value !== "string") errors.push(`${path} must be string`);
+  if (schema.type === "number" && typeof value !== "number") errors.push(`${path} must be number`);
+  if (schema.enum && !schema.enum.includes(value)) errors.push(`${path} must be one of ${schema.enum.join(", ")}`);
+  return errors;
+}
 
 describe("capabilities", () => {
   test("looks up capability paths", () => {
@@ -219,5 +247,30 @@ describe("receipts", () => {
       algorithm: "test-signature",
       value: "signed:sandbox.create:test"
     });
+  });
+
+  test("exports a JSON Schema artifact for receipts", () => {
+    const artifact = JSON.parse(readFileSync(new URL("../../../schemas/capsule-receipt.schema.json", import.meta.url), "utf8"));
+    expect(artifact).toEqual(capsuleReceiptJsonSchema);
+    const receipt = createReceipt(
+      {
+        type: "sandbox.exec",
+        provider: "test",
+        adapter: "test",
+        capabilityPath: "sandbox.exec",
+        supportLevel: "native",
+        startedAt: new Date("2026-01-01T00:00:00.000Z"),
+        finishedAt: new Date("2026-01-01T00:00:01.000Z"),
+        command: ["node", "index.js"],
+        image: "node:22",
+        stdout: "ok",
+        stderr: "",
+        policy: { decision: "allowed", applied: { network: { mode: "none" } }, notes: ["observed"] },
+        resource: { id: "box", status: "ready" },
+        metadata: { example: true }
+      },
+      { algorithm: "test-signature", sign: (unsigned) => `signed:${unsigned.id}` }
+    );
+    expect(validateAgainstSimpleSchema(capsuleReceiptJsonSchema, JSON.parse(JSON.stringify(receipt)))).toEqual([]);
   });
 });
