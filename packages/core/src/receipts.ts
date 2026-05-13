@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { sha256 } from "./artifacts.js";
-import type { Artifact, CapsulePolicy, CapsuleReceipt, ProviderOptions, ProviderOptionValue, SupportLevel } from "./types.js";
+import type { Artifact, CapsulePolicy, CapsuleReceipt, CapsuleReceiptMetadata, ProviderOptions, ProviderOptionValue, SupportLevel } from "./types.js";
 
 export interface CreateReceiptInput {
   type: CapsuleReceipt["type"];
@@ -25,7 +25,7 @@ export interface CreateReceiptInput {
     notes?: string[];
   };
   resource?: CapsuleReceipt["resource"];
-  metadata?: Record<string, unknown>;
+  metadata?: CapsuleReceiptMetadata;
 }
 
 export interface ReceiptSigner {
@@ -49,11 +49,35 @@ function sanitizeProviderOptionValue(key: string, value: ProviderOptionValue): P
   return value;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sanitizeMetadataValue(key: string, value: unknown): unknown {
+  if (secretOptionKey.test(key)) {
+    return "[REDACTED]";
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => (isPlainObject(item) ? sanitizeReceiptMetadata(item) : item));
+  }
+  if (isPlainObject(value)) {
+    return sanitizeReceiptMetadata(value);
+  }
+  return value;
+}
+
 export function sanitizeProviderOptions(providerOptions: ProviderOptions | undefined): ProviderOptions | undefined {
   if (!providerOptions) {
     return undefined;
   }
   return Object.fromEntries(Object.entries(providerOptions).map(([key, value]) => [key, sanitizeProviderOptionValue(key, value)]));
+}
+
+export function sanitizeReceiptMetadata(metadata: Record<string, unknown> | undefined): CapsuleReceiptMetadata | undefined {
+  if (!metadata) {
+    return undefined;
+  }
+  return Object.fromEntries(Object.entries(metadata).map(([key, value]) => [key, sanitizeMetadataValue(key, value)]));
 }
 
 export function createReceipt(input: CreateReceiptInput, signer?: ReceiptSigner): CapsuleReceipt {
@@ -80,7 +104,7 @@ export function createReceipt(input: CreateReceiptInput, signer?: ReceiptSigner)
     artifactHashes,
     policy: input.policy ?? { decision: "allowed", applied: {} },
     resource: input.resource,
-    metadata: input.metadata
+    metadata: sanitizeReceiptMetadata(input.metadata)
   };
   if (!signer) {
     return receipt;

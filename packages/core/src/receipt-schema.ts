@@ -75,7 +75,24 @@ export const capsuleReceiptJsonSchema = {
         status: { type: "string" }
       }
     },
-    metadata: { type: "object", additionalProperties: true },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        providerRequestId: {
+          type: "string",
+          description: "Opaque request id returned by the provider control plane for the API call Capsule observed. This must not contain credentials or bearer tokens."
+        },
+        idempotencyKey: {
+          type: "string",
+          description: "Opaque idempotency key supplied to or observed from the provider request, when the adapter can safely record it."
+        },
+        idempotencyScope: {
+          type: "string",
+          description: "Provider-specific operation or resource scope where the idempotency key applies."
+        }
+      }
+    },
     signature: {
       type: "object",
       additionalProperties: false,

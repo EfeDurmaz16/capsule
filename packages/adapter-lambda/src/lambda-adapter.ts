@@ -187,6 +187,7 @@ export function lambda(options: LambdaAdapterOptions = {}): CapsuleAdapter {
               metadata: {
                 invocationType,
                 statusCode: response.StatusCode,
+                providerRequestId: response.$metadata?.requestId,
                 requestId: response.$metadata?.requestId,
                 executedVersion: response.ExecutedVersion ?? null,
                 functionError: response.FunctionError ?? null,

@@ -239,6 +239,66 @@ describe("receipts", () => {
     expect(JSON.stringify(receipt)).not.toContain("secret-value");
   });
 
+  test("redacts sensitive receipt metadata before signing or storing", () => {
+    const receipt = createReceipt(
+      {
+        type: "job.run",
+        provider: "test",
+        adapter: "test",
+        capabilityPath: "job.run",
+        supportLevel: "native",
+        startedAt: new Date("2026-01-01T00:00:00.000Z"),
+        finishedAt: new Date("2026-01-01T00:00:00.500Z"),
+        policy: { decision: "allowed", applied: {} },
+        metadata: {
+          providerRequestId: "req_123",
+          idempotencyKey: "idem_123",
+          idempotencyScope: "job.run",
+          authorization: "Bearer secret-token",
+          Authorization: "Bearer uppercase-secret",
+          xApiKey: "header-api-key",
+          bearerToken: "bearer-secret",
+          authToken: "auth-secret",
+          nested: {
+            apiKey: "provider-api-key",
+            apiToken: "provider-api-token",
+            safe: "visible"
+          },
+          attempts: [{ session_token: "session-secret", providerRequestId: "req_retry" }]
+        }
+      },
+      {
+        algorithm: "test-signature",
+        sign: (unsigned) => JSON.stringify(unsigned.metadata)
+      }
+    );
+
+    expect(receipt.metadata).toEqual({
+      providerRequestId: "req_123",
+      idempotencyKey: "idem_123",
+      idempotencyScope: "job.run",
+      authorization: "[REDACTED]",
+      Authorization: "[REDACTED]",
+      xApiKey: "[REDACTED]",
+      bearerToken: "[REDACTED]",
+      authToken: "[REDACTED]",
+      nested: {
+        apiKey: "[REDACTED]",
+        apiToken: "[REDACTED]",
+        safe: "visible"
+      },
+      attempts: [{ session_token: "[REDACTED]", providerRequestId: "req_retry" }]
+    });
+    expect(receipt.signature?.value).not.toContain("secret-token");
+    expect(receipt.signature?.value).not.toContain("uppercase-secret");
+    expect(JSON.stringify(receipt)).not.toContain("header-api-key");
+    expect(JSON.stringify(receipt)).not.toContain("bearer-secret");
+    expect(JSON.stringify(receipt)).not.toContain("auth-secret");
+    expect(JSON.stringify(receipt)).not.toContain("provider-api-key");
+    expect(JSON.stringify(receipt)).not.toContain("provider-api-token");
+    expect(JSON.stringify(receipt)).not.toContain("session-secret");
+  });
+
   test("records receipts into a configured store", async () => {
     const receiptStore = new MemoryReceiptStore();
     const receiptAdapter: CapsuleAdapter = {
@@ -344,10 +404,15 @@ describe("receipts", () => {
         providerOptions: { region: "test" },
         policy: { decision: "allowed", applied: { network: { mode: "none" } }, notes: ["observed"] },
         resource: { id: "box", status: "ready" },
-        metadata: { example: true }
+        metadata: { example: true, providerRequestId: "req_123", idempotencyKey: "idem_123", idempotencyScope: "sandbox.exec" }
       },
       { algorithm: "test-signature", sign: (unsigned) => `signed:${unsigned.id}` }
     );
+    expect(capsuleReceiptJsonSchema.properties.metadata.properties).toMatchObject({
+      providerRequestId: { type: "string" },
+      idempotencyKey: { type: "string" },
+      idempotencyScope: { type: "string" }
+    });
     expect(validateAgainstSimpleSchema(capsuleReceiptJsonSchema, JSON.parse(JSON.stringify(receipt)))).toEqual([]);
   });
 });
