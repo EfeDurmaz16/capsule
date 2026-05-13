@@ -28,6 +28,8 @@ interface ParsedArgs {
   entrypoint?: string;
   compatibilityDate?: string;
   workersDevSubdomain?: string;
+  zoneId?: string;
+  routes?: string[];
   projectId?: string;
   location?: string;
   projectName?: string;
@@ -114,6 +116,16 @@ function parse(argv: string[]): ParsedArgs {
     }
     if (arg === "--workers-dev-subdomain") {
       parsed.workersDevSubdomain = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--zone-id") {
+      parsed.zoneId = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--route") {
+      parsed.routes = [...(parsed.routes ?? []), args[index + 1]];
       index += 1;
       continue;
     }
@@ -260,7 +272,7 @@ Commands:
   capsule service --adapter ecs --region us-east-1 --cluster default --task-definition api:1 --container-name main --name api --image intent
   capsule service --adapter kubernetes --namespace default --name api --image ghcr.io/acme/api:latest --port 8080
   capsule machine --adapter ec2 --region us-east-1 --name dev --image-id ami-123 --instance-type t3.micro --subnet-id subnet-123 --security-group sg-123
-  capsule edge --adapter cloudflare --name my-worker --entrypoint worker.js ./dist/worker.js
+  capsule edge --adapter cloudflare --name my-worker --entrypoint worker.js --zone-id <zone> --route example.com/* ./dist/worker.js
   capsule edge --adapter vercel --name my-deployment --project-name my-project --entrypoint index.js ./index.js
   capsule neon branch-create --project <project_id> --name pr-42 --database neondb --role neondb_owner --receipt-file .capsule/receipts.jsonl
   capsule neon branch-delete --project <project_id> --branch-id br_xxx --hard-delete
@@ -287,7 +299,7 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   }
   if (parsed.adapter === "cloudflare") {
     return new Capsule({
-      adapter: cloudflare({ compatibilityDate: parsed.compatibilityDate, workersDevSubdomain: parsed.workersDevSubdomain }),
+      adapter: cloudflare({ compatibilityDate: parsed.compatibilityDate, workersDevSubdomain: parsed.workersDevSubdomain, zoneId: parsed.zoneId }),
       receipts: true,
       receiptStore
     });
@@ -406,7 +418,8 @@ async function main(argv: string[]): Promise<void> {
       const deployment = await capsule.edge.deploy({
         name: parsed.name,
         runtime: "workers",
-        source: { path: sourcePath, entrypoint: parsed.entrypoint }
+        source: { path: sourcePath, entrypoint: parsed.entrypoint },
+        routes: parsed.routes
       });
       console.log(JSON.stringify(deployment, null, 2));
       return;

@@ -23,13 +23,17 @@ describe("cloudflare adapter", () => {
 
   it("declares edge deploy as native", () => {
     expect(cloudflareCapabilities.edge?.deploy).toBe("native");
-    expect(cloudflareCapabilities.edge?.routes).toBe("unsupported");
+    expect(cloudflareCapabilities.edge?.routes).toBe("native");
+    expect(cloudflareCapabilities.edge?.bindings).toBe("unsupported");
   });
 
-  it("uploads a Worker module and creates a receipt", async () => {
+  it("uploads a Worker module, configures routes, and creates a receipt", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(url), init: init ?? {} });
+      if (String(url).endsWith("/workers/routes")) {
+        return response({ success: true, result: { id: "route-1", pattern: "example.com/*", script: "capsule-test" } });
+      }
       return response({ success: true, result: { id: "script-1", entry_point: "worker.js", compatibility_date: "2026-05-12" } });
     }) as typeof fetch;
     const file = await workerFile();
@@ -37,6 +41,7 @@ describe("cloudflare adapter", () => {
       adapter: cloudflare({
         apiToken: "cf-token",
         accountId: "acct",
+        zoneId: "zone",
         fetch: fetchMock,
         compatibilityDate: "2026-05-12",
         workersDevSubdomain: "example"
@@ -55,7 +60,7 @@ describe("cloudflare adapter", () => {
     expect(deployment).toMatchObject({ id: "script-1", provider: "cloudflare", status: "ready", url: "https://capsule-test.example.workers.dev" });
     expect(deployment.receipt?.type).toBe("edge.deploy");
     expect(deployment.receipt?.supportLevel).toBe("native");
-    expect(deployment.receipt?.policy.notes?.join(" ")).toContain("Routes were recorded");
+    expect(deployment.receipt?.policy.notes?.join(" ")).toContain("Routes were configured");
     expect(calls[0]?.url).toBe("https://api.cloudflare.com/client/v4/accounts/acct/workers/scripts/capsule-test");
     expect(calls[0]?.init.method).toBe("PUT");
     expect(calls[0]?.init.headers).toMatchObject({ authorization: "Bearer cf-token" });
@@ -67,6 +72,41 @@ describe("cloudflare adapter", () => {
       bindings: [{ type: "plain_text", name: "MESSAGE", text: "hello" }]
     });
     expect(form.get("worker.js")).toBeInstanceOf(File);
+    expect(calls[1]?.url).toBe("https://api.cloudflare.com/client/v4/zones/zone/workers/routes");
+    expect(calls[1]?.init.method).toBe("POST");
+    expect(calls[1]?.init.headers).toMatchObject({ authorization: "Bearer cf-token", "content-type": "application/json" });
+    expect(JSON.parse(String(calls[1]?.init.body))).toEqual({ pattern: "example.com/*", script: "capsule-test" });
+    expect(deployment.receipt?.metadata?.routes).toEqual([{ id: "route-1", pattern: "example.com/*", script: "capsule-test" }]);
+  });
+
+  it("requires a zone id before uploading when routes are provided", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return response({ success: true, result: {} });
+    }) as typeof fetch;
+    const file = await workerFile();
+    const capsule = new Capsule({ adapter: cloudflare({ apiToken: "cf-token", accountId: "acct", fetch: fetchMock }) });
+
+    await expect(capsule.edge.deploy({ name: "missing-zone", source: { path: file, entrypoint: "worker.js" }, routes: ["example.com/*"] })).rejects.toThrow(
+      "requires zoneId or CLOUDFLARE_ZONE_ID"
+    );
+    expect(calls).toHaveLength(0);
+  });
+
+  it("keeps provider-specific bindings unsupported", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return response({ success: true, result: {} });
+    }) as typeof fetch;
+    const file = await workerFile();
+    const capsule = new Capsule({ adapter: cloudflare({ apiToken: "cf-token", accountId: "acct", fetch: fetchMock }) });
+
+    await expect(capsule.edge.deploy({ name: "with-bindings", source: { path: file, entrypoint: "worker.js" }, bindings: { KV: { type: "kv_namespace" } } })).rejects.toThrow(
+      "does not support provider-specific bindings"
+    );
+    expect(calls).toHaveLength(0);
   });
 
   it("maps Cloudflare API errors without leaking the token", async () => {
