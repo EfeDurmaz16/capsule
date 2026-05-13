@@ -23,6 +23,8 @@ describe("cloudflare adapter", () => {
 
   it("declares edge deploy as native", () => {
     expect(cloudflareCapabilities.edge?.deploy).toBe("native");
+    expect(cloudflareCapabilities.edge?.version).toBe("native");
+    expect(cloudflareCapabilities.edge?.rollback).toBe("native");
     expect(cloudflareCapabilities.edge?.routes).toBe("native");
     expect(cloudflareCapabilities.edge?.bindings).toBe("unsupported");
   });
@@ -77,6 +79,121 @@ describe("cloudflare adapter", () => {
     expect(calls[1]?.init.headers).toMatchObject({ authorization: "Bearer cf-token", "content-type": "application/json" });
     expect(JSON.parse(String(calls[1]?.init.body))).toEqual({ pattern: "example.com/*", script: "capsule-test" });
     expect(deployment.receipt?.metadata?.routes).toEqual([{ id: "route-1", pattern: "example.com/*", script: "capsule-test" }]);
+    expect(calls.map((call) => call.url).some((url) => url.includes("/secrets"))).toBe(false);
+  });
+
+  it("uploads a Worker version without configuring routes or secrets", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return response({ success: true, result: { id: "version-1", number: 7, metadata: { compatibility_date: "2026-05-12" }, resources: { script: { etag: "abc" } } } });
+    }) as typeof fetch;
+    const file = await workerFile();
+    const capsule = new Capsule({
+      adapter: cloudflare({
+        apiToken: "cf-token",
+        accountId: "acct",
+        fetch: fetchMock,
+        compatibilityDate: "2026-05-12"
+      }),
+      receipts: true
+    });
+
+    const version = await capsule.edge.version({
+      name: "capsule-test",
+      runtime: "workers",
+      source: { path: file, entrypoint: "worker.js" },
+      env: { MESSAGE: "hello" }
+    });
+
+    expect(version).toMatchObject({ id: "version-1", provider: "cloudflare", name: "capsule-test", status: "ready", metadata: { versionNumber: 7 } });
+    expect(version.receipt?.type).toBe("edge.version");
+    expect(version.receipt?.supportLevel).toBe("native");
+    expect(version.receipt?.policy.notes?.join(" ")).toContain("does not deploy traffic by itself");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toBe("https://api.cloudflare.com/client/v4/accounts/acct/workers/scripts/capsule-test/versions");
+    expect(calls[0]?.init.method).toBe("POST");
+    expect(calls[0]?.init.headers).toMatchObject({ authorization: "Bearer cf-token" });
+    const form = calls[0]?.init.body as FormData;
+    expect(JSON.parse(String(form.get("metadata")))).toMatchObject({
+      main_module: "worker.js",
+      compatibility_date: "2026-05-12",
+      bindings: [{ type: "plain_text", name: "MESSAGE", text: "hello" }]
+    });
+    expect(calls.map((call) => call.url).some((url) => url.includes("/workers/routes") || url.includes("/secrets"))).toBe(false);
+  });
+
+  it("rolls back by creating a 100 percent deployment for a target Worker version", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return response({
+        success: true,
+        result: {
+          id: "deployment-rollback",
+          strategy: "percentage",
+          versions: [{ version_id: "version-old", percentage: 100 }],
+          annotations: { "workers/triggered_by": "capsule.rollback" }
+        }
+      });
+    }) as typeof fetch;
+    const capsule = new Capsule({ adapter: cloudflare({ apiToken: "cf-token", accountId: "acct", fetch: fetchMock }), receipts: true });
+
+    const rollback = await capsule.edge.rollback({ deploymentId: "capsule-test", targetVersionId: "version-old", reason: "bad deploy" });
+
+    expect(rollback).toMatchObject({ id: "deployment-rollback", provider: "cloudflare", deploymentId: "capsule-test", targetVersionId: "version-old", status: "ready" });
+    expect(rollback.receipt?.type).toBe("edge.rollback");
+    expect(rollback.receipt?.supportLevel).toBe("native");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toBe("https://api.cloudflare.com/client/v4/accounts/acct/workers/scripts/capsule-test/deployments");
+    expect(calls[0]?.init.method).toBe("POST");
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
+      strategy: "percentage",
+      versions: [{ version_id: "version-old", percentage: 100 }],
+      annotations: { "workers/message": "bad deploy", "workers/triggered_by": "capsule.rollback" }
+    });
+  });
+
+  it("can infer a rollback target from the previous Worker deployment", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      if (init?.method === "GET") {
+        return response({
+          success: true,
+          result: {
+            deployments: [
+              { id: "deployment-current", versions: [{ version_id: "version-current", percentage: 100 }] },
+              { id: "deployment-previous", versions: [{ version_id: "version-previous", percentage: 100 }] }
+            ]
+          }
+        });
+      }
+      return response({ success: true, result: { id: "deployment-rollback", versions: [{ version_id: "version-previous", percentage: 100 }] } });
+    }) as typeof fetch;
+    const capsule = new Capsule({ adapter: cloudflare({ apiToken: "cf-token", accountId: "acct", fetch: fetchMock }), receipts: true });
+
+    const rollback = await capsule.edge.rollback({ deploymentId: "deployment-current", providerOptions: { scriptName: "capsule-test" } });
+
+    expect(rollback.targetVersionId).toBe("version-previous");
+    expect(calls[0]?.url).toBe("https://api.cloudflare.com/client/v4/accounts/acct/workers/scripts/capsule-test/deployments");
+    expect(calls[0]?.init.method).toBe("GET");
+    expect(calls[1]?.init.method).toBe("POST");
+    expect(JSON.parse(String(calls[1]?.init.body)).versions).toEqual([{ version_id: "version-previous", percentage: 100 }]);
+    expect(rollback.receipt?.providerOptions).toEqual({ scriptName: "capsule-test" });
+  });
+
+  it("requires a target version when previous Worker deployment cannot be inferred", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return response({ success: true, result: { deployments: [{ id: "deployment-current", versions: [{ version_id: "version-current", percentage: 100 }] }] } });
+    }) as typeof fetch;
+    const capsule = new Capsule({ adapter: cloudflare({ apiToken: "cf-token", accountId: "acct", fetch: fetchMock }) });
+
+    await expect(capsule.edge.rollback({ deploymentId: "capsule-test" })).rejects.toThrow("requires targetVersionId");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.init.method).toBe("GET");
   });
 
   it("requires a zone id before uploading when routes are provided", async () => {
@@ -94,7 +211,7 @@ describe("cloudflare adapter", () => {
     expect(calls).toHaveLength(0);
   });
 
-  it("keeps provider-specific bindings unsupported", async () => {
+  it("keeps provider-specific and secret bindings unsupported", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(url), init: init ?? {} });
@@ -104,7 +221,12 @@ describe("cloudflare adapter", () => {
     const capsule = new Capsule({ adapter: cloudflare({ apiToken: "cf-token", accountId: "acct", fetch: fetchMock }) });
 
     await expect(capsule.edge.deploy({ name: "with-bindings", source: { path: file, entrypoint: "worker.js" }, bindings: { KV: { type: "kv_namespace" } } })).rejects.toThrow(
-      "does not support provider-specific bindings"
+      "does not support provider-specific bindings or secret bindings"
+    );
+    await expect(
+      capsule.edge.version({ name: "with-secret-binding", source: { path: file, entrypoint: "worker.js" }, bindings: { API_TOKEN: { type: "secret_text", text: "secret" } } })
+    ).rejects.toThrow(
+      "does not support provider-specific bindings or secret bindings"
     );
     expect(calls).toHaveLength(0);
   });
