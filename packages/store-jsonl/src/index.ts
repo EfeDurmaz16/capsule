@@ -1,9 +1,10 @@
-import { mkdir, readFile, appendFile } from "node:fs/promises";
+import { mkdir, open, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { CapsuleReceipt, ReceiptStore } from "@capsule/core";
 
 export interface JsonlReceiptStoreOptions {
   path: string;
+  flush?: boolean;
 }
 
 export class JsonlReceiptStore implements ReceiptStore {
@@ -11,7 +12,15 @@ export class JsonlReceiptStore implements ReceiptStore {
 
   async write(receipt: CapsuleReceipt): Promise<void> {
     await mkdir(dirname(this.options.path), { recursive: true });
-    await appendFile(this.options.path, `${JSON.stringify(receipt)}\n`, "utf8");
+    const file = await open(this.options.path, "a");
+    try {
+      await file.writeFile(`${JSON.stringify(receipt)}\n`, "utf8");
+      if (this.options.flush ?? true) {
+        await file.sync();
+      }
+    } finally {
+      await file.close();
+    }
   }
 
   async readAll(): Promise<CapsuleReceipt[]> {
@@ -30,6 +39,6 @@ export class JsonlReceiptStore implements ReceiptStore {
   }
 }
 
-export function jsonlReceiptStore(path: string): JsonlReceiptStore {
-  return new JsonlReceiptStore({ path });
+export function jsonlReceiptStore(path: string, options: Omit<JsonlReceiptStoreOptions, "path"> = {}): JsonlReceiptStore {
+  return new JsonlReceiptStore({ path, ...options });
 }

@@ -373,6 +373,71 @@ describe("receipts", () => {
     expect(receiptStore.receipts[0]?.type).toBe("sandbox.create");
   });
 
+  test("continues when best-effort receipt persistence fails", async () => {
+    const receiptAdapter: CapsuleAdapter = {
+      ...adapter,
+      sandbox: {
+        create: async (_spec, context) => {
+          context.createReceipt({ type: "sandbox.create", capabilityPath: "sandbox.create", startedAt: new Date("2026-01-01T00:00:00.000Z") });
+          return adapter.sandbox!.create({}, context);
+        }
+      }
+    };
+    const capsule = new Capsule({
+      adapter: receiptAdapter,
+      receipts: true,
+      receiptPersistence: "best-effort",
+      receiptStore: {
+        write: async () => {
+          throw new Error("disk full");
+        }
+      }
+    });
+
+    await expect(capsule.sandbox.create({})).resolves.toMatchObject({
+      handle: { id: "box", provider: "test" }
+    });
+  });
+
+  test("fails closed when required receipt persistence fails", async () => {
+    const receiptAdapter: CapsuleAdapter = {
+      ...adapter,
+      sandbox: {
+        create: async (_spec, context) => {
+          context.createReceipt({ type: "sandbox.create", capabilityPath: "sandbox.create", startedAt: new Date("2026-01-01T00:00:00.000Z") });
+          return adapter.sandbox!.create({}, context);
+        }
+      }
+    };
+    const capsule = new Capsule({
+      adapter: receiptAdapter,
+      receipts: true,
+      receiptPersistence: "required",
+      receiptStore: {
+        write: async () => {
+          throw new Error("disk full");
+        }
+      }
+    });
+
+    await expect(capsule.sandbox.create({})).rejects.toThrow("disk full");
+  });
+
+  test("required receipt persistence rejects when no store is configured", async () => {
+    const receiptAdapter: CapsuleAdapter = {
+      ...adapter,
+      sandbox: {
+        create: async (_spec, context) => {
+          context.createReceipt({ type: "sandbox.create", capabilityPath: "sandbox.create", startedAt: new Date("2026-01-01T00:00:00.000Z") });
+          return adapter.sandbox!.create({}, context);
+        }
+      }
+    };
+    const capsule = new Capsule({ adapter: receiptAdapter, receipts: true, receiptPersistence: "required" });
+
+    await expect(capsule.sandbox.create({})).rejects.toThrow("Receipt persistence is required but no receiptStore is configured");
+  });
+
   test("lets adapters propagate typed provider options into receipts without leaking secrets", async () => {
     const receiptStore = new MemoryReceiptStore();
     const receiptAdapter: CapsuleAdapter = {

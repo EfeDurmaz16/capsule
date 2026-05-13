@@ -1,5 +1,7 @@
 import type { CapsuleReceipt } from "./types.js";
 
+export type ReceiptPersistenceMode = "best-effort" | "required";
+
 export interface ReceiptStore {
   write(receipt: CapsuleReceipt): Promise<void> | void;
 }
