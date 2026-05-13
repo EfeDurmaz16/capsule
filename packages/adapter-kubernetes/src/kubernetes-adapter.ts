@@ -80,7 +80,7 @@ export const kubernetesCapabilities: CapabilityMap = {
     deploy: "native",
     update: "unsupported",
     delete: "unsupported",
-    status: "experimental",
+    status: "unsupported",
     logs: "unsupported",
     url: "experimental",
     scale: "native",

@@ -45,9 +45,9 @@ export function capabilities(levels: {
     },
     service: {
       deploy: levels.service ?? unsupported,
-      update: levels.service ?? unsupported,
-      delete: levels.service ?? unsupported,
-      status: levels.service ?? unsupported,
+      update: unsupported,
+      delete: unsupported,
+      status: unsupported,
       logs: levels.service ?? unsupported,
       url: levels.service ?? unsupported,
       scale: levels.service ?? unsupported,

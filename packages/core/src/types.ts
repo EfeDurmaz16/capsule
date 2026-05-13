@@ -151,6 +151,9 @@ export interface CapsuleReceipt {
     | "job.status"
     | "job.cancel"
     | "service.deploy"
+    | "service.status"
+    | "service.update"
+    | "service.delete"
     | "edge.deploy"
     | "database.branch.create"
     | "database.branch.delete"
@@ -330,9 +333,69 @@ export interface ServiceDeployment {
   id: string;
   provider: string;
   name: string;
-  status: "deploying" | "ready" | "failed" | "deleted";
+  status: ServiceStatus;
   url?: string;
   receipt?: CapsuleReceipt;
+}
+
+export type ServiceStatus = "deploying" | "ready" | "failed" | "deleted";
+
+export interface ServiceStatusSpec {
+  id: string;
+}
+
+export interface ServiceStatusResult {
+  id: string;
+  provider: string;
+  name?: string;
+  status: ServiceStatus;
+  url?: string;
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateServiceSpec {
+  id: string;
+  image?: string;
+  source?: {
+    path?: string;
+    repo?: string;
+    ref?: string;
+  };
+  ports?: Array<{
+    port: number;
+    public?: boolean;
+    protocol?: "http" | "tcp";
+  }>;
+  env?: Record<string, string>;
+  resources?: {
+    cpu?: number;
+    memoryMb?: number;
+  };
+  scale?: {
+    min?: number;
+    max?: number;
+  };
+  healthcheck?: {
+    path?: string;
+    command?: string[] | string;
+  };
+  labels?: Record<string, string>;
+}
+
+export interface DeleteServiceSpec {
+  id: string;
+  force?: boolean;
+  reason?: string;
+}
+
+export interface DeletedService {
+  id: string;
+  provider: string;
+  name?: string;
+  status: "deleted";
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
 }
 
 export interface DeployEdgeSpec {

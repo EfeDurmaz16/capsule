@@ -7,6 +7,7 @@ import type {
   CreateDatabaseBranchSpec,
   DeletedDatabaseBranch,
   DeleteDatabaseBranchSpec,
+  DeletedService,
   CreateMachineSpec,
   CreatePreviewSpec,
   CreateSandboxSpec,
@@ -21,7 +22,11 @@ import type {
   PreviewEnvironment,
   RunJobSpec,
   Sandbox,
-  ServiceDeployment
+  ServiceDeployment,
+  ServiceStatusResult,
+  ServiceStatusSpec,
+  UpdateServiceSpec,
+  DeleteServiceSpec
 } from "./types.js";
 import type { CreateReceiptInput } from "./receipts.js";
 import type { PolicyDecision, PolicyInput } from "./policy.js";
@@ -47,6 +52,9 @@ export interface JobAdapter {
 
 export interface ServiceAdapter {
   deploy(spec: DeployServiceSpec, context: AdapterContext): Promise<ServiceDeployment>;
+  status?(spec: ServiceStatusSpec, context: AdapterContext): Promise<ServiceStatusResult>;
+  update?(spec: UpdateServiceSpec, context: AdapterContext): Promise<ServiceDeployment>;
+  delete?(spec: DeleteServiceSpec, context: AdapterContext): Promise<DeletedService>;
 }
 
 export interface EdgeAdapter {

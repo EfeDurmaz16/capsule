@@ -43,7 +43,7 @@ export const cloudRunCapabilities: CapabilityMap = {
     deploy: "native",
     update: "unsupported",
     delete: "unsupported",
-    status: "native",
+    status: "unsupported",
     logs: "unsupported",
     url: "native",
     scale: "native",

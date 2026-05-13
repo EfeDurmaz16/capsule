@@ -57,7 +57,7 @@ export const ecsCapabilities: CapabilityMap = {
     deploy: "native",
     update: "unsupported",
     delete: "unsupported",
-    status: "experimental",
+    status: "unsupported",
     logs: "unsupported",
     url: "unsupported",
     scale: "native",

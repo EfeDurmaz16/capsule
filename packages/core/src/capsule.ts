@@ -15,8 +15,11 @@ import type {
   CreateSandboxSpec,
   DeployEdgeSpec,
   DeployServiceSpec,
+  DeleteServiceSpec,
   JobStatusSpec,
-  RunJobSpec
+  RunJobSpec,
+  ServiceStatusSpec,
+  UpdateServiceSpec
 } from "./types.js";
 
 export interface CapsuleOptions {
@@ -83,6 +86,28 @@ export class Capsule {
           throw new UnsupportedCapabilityError("service.deploy");
         }
         return this.options.adapter.service.deploy(spec, this.context());
+      },
+      status: async (spec: ServiceStatusSpec) => {
+        this.require("service.status");
+        if (!this.options.adapter.service?.status) {
+          throw new UnsupportedCapabilityError("service.status");
+        }
+        return this.options.adapter.service.status(spec, this.context());
+      },
+      update: async (spec: UpdateServiceSpec) => {
+        this.require("service.update");
+        evaluatePolicy(this.options.policy, { env: spec.env });
+        if (!this.options.adapter.service?.update) {
+          throw new UnsupportedCapabilityError("service.update");
+        }
+        return this.options.adapter.service.update(spec, this.context());
+      },
+      delete: async (spec: DeleteServiceSpec) => {
+        this.require("service.delete");
+        if (!this.options.adapter.service?.delete) {
+          throw new UnsupportedCapabilityError("service.delete");
+        }
+        return this.options.adapter.service.delete(spec, this.context());
       }
     };
 
