@@ -1,0 +1,23 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": [
+    "@capsule/test-utils",
+    "@capsule/example-agent-code-execution",
+    "@capsule/example-capability-check",
+    "@capsule/example-database-branch-model",
+    "@capsule/example-deployment-model",
+    "@capsule/example-edge-model",
+    "@capsule/example-job-docker",
+    "@capsule/example-machine-model",
+    "@capsule/example-policy-receipts",
+    "@capsule/example-preview-environment-model",
+    "@capsule/example-sandbox-docker"
+  ]
+}
