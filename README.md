@@ -125,6 +125,21 @@ const sandbox = await capsule.sandbox.create(preset.spec);
 
 Available core presets include `nodeSandboxPreset`, `nodeJobPreset`, `httpServicePreset`, `edgeWorkerPreset`, `previewDatabaseBranchPreset`, and `previewEnvironmentPreset`.
 
+Provider-oriented presets live in `@capsule/presets`. They are still spec factories, not hidden deployments. For example, `flyVercelNeonPreviewPreset` composes a common preview shape across a Fly-style API service, Vercel web or edge deployment, Neon database branch, and optional check jobs while preserving the capability paths callers must verify.
+
+```ts
+import { flyVercelNeonPreviewPreset } from "@capsule/presets";
+
+const preset = flyVercelNeonPreviewPreset({
+  name: "pr-42",
+  web: { name: "web-pr-42", sourcePath: "dist/vercel/index.js" },
+  api: { name: "api-pr-42", image: "registry.example.com/acme/api:pr-42" },
+  database: { project: "neon-project-id", name: "pr-42", parent: "main" }
+});
+
+console.log(preset.preview.capabilityPaths);
+```
+
 ## Provider Matrix
 
 `native`, `experimental`, `emulated`, and `unsupported` are adapter-declared support levels. This short table covers real adapters in this repo; mock-only modeling is listed separately below.

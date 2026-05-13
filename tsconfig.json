@@ -20,6 +20,7 @@
     { "path": "./packages/test-utils" },
     { "path": "./packages/ai" },
     { "path": "./packages/preview" },
+    { "path": "./packages/presets" },
     { "path": "./packages/cli" },
     { "path": "./packages/store-jsonl" },
     { "path": "./examples/sandbox-docker" },
@@ -31,6 +32,7 @@
     { "path": "./examples/edge-model" },
     { "path": "./examples/database-branch-model" },
     { "path": "./examples/preview-environment-model" },
+    { "path": "./examples/provider-presets" },
     { "path": "./examples/machine-model" }
   ]
 }

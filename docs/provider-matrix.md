@@ -25,6 +25,12 @@ Status legend:
 | Fly Machines | `@capsule/adapter-fly` | unsupported | native | unsupported | unsupported | unsupported | unsupported | native | Fly Machines API supports machine create/status/start/stop/destroy and one-shot job machines; services, logs, volumes, and app networking remain explicit future work. |
 | Azure Container Apps | `@capsule/adapter-azure-container-apps` | unsupported | native | native | unsupported | unsupported | unsupported | unsupported | ARM APIs support Container App service create/status/delete and manual job create/start/status/stop; logs, secrets, registries, and generic service rollback remain explicit future work. |
 
+## Preset Packages
+
+`@capsule/core` includes generic spec and policy factories such as Node sandboxes, one-shot jobs, HTTP services, edge workers, database branches, and preview environments.
+
+`@capsule/presets` adds provider-oriented composition helpers. These helpers are intentionally not adapter shortcuts: they produce typed specs, policies, notes, and capability paths for common shapes such as Fly + Vercel + Neon previews. Callers still instantiate the provider adapters, check support levels, execute through Capsule, and keep receipts for each action.
+
 ## Mock And Planned Modeling
 
 | Provider/model | Adapter status | Sandbox | Job | Service | Edge/function | Database/resource | Preview | Machine | Support notes |

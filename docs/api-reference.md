@@ -292,6 +292,29 @@ Exports:
 - `barrel: stores`
 - `barrel: types`
 
+## @capsule/presets
+
+- Package: `@capsule/presets`
+- Import: `import { ... } from "@capsule/presets"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
+- Source: `packages/presets/src/index.ts`
+
+Exports:
+- `cloudflareWorkerPreset`
+- `CloudflareWorkerPresetOptions`
+- `flyHttpServicePreset`
+- `FlyHttpServicePresetOptions`
+- `flyMachinePreset`
+- `FlyMachinePresetOptions`
+- `flyVercelNeonPreviewPreset`
+- `neonPreviewBranchPreset`
+- `NeonPreviewBranchPresetOptions`
+- `ProviderPreviewPreset`
+- `ProviderPreviewPresetOptions`
+- `vercelWebPreset`
+- `VercelWebPresetOptions`
+
 ## @capsule/preview
 
 - Package: `@capsule/preview`
