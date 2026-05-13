@@ -18,6 +18,8 @@ Capsule should let providers and framework maintainers model their preview orche
 
 `@capsule/preview` is the composition package for the second case. It accepts explicit `Capsule` instances per resource, so an environment can combine a Neon branch, a Cloud Run service, a Cloudflare Worker, and a smoke-test job without pretending they share one provider model.
 
+Production preview plans should set `requireRealProviders: true`. When that flag is enabled, `@capsule/preview` rejects adapters whose `raw()` escape hatch declares `{ mock: true }`. Demo and documentation flows can opt in to mock composition with `allowMockProviders: true`, but that mode is explicit and should never be treated as provider completion.
+
 The package records a resource graph containing service, edge, database, and job resources. Cleanup walks that graph in reverse dependency order and reports partial cleanup failures instead of hiding successfully cleaned resources.
 
 Cleanup evidence is explicit. Every resource gets a cleanup disposition:
@@ -34,6 +36,7 @@ Cleanup evidence is explicit. Every resource gets a cleanup disposition:
 `examples/preview-environment-model` demonstrates both modes without blurring them:
 
 - default mode is demo-only and uses mock adapters;
+- demo mode sets `allowMockProviders: true`;
 - live mode requires `CAPSULE_LIVE_TESTS=1`, `NEON_API_KEY`, `NEON_PROJECT_ID`, and `VERCEL_TOKEN`;
 - Cloud Run service composition is added only when `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_RUN_LOCATION`, and `GOOGLE_OAUTH_ACCESS_TOKEN` are also present;
 - live mode fails instead of falling back to mocks when required credentials are missing.

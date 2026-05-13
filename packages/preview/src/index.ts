@@ -56,6 +56,8 @@ export interface PreviewPlan {
   name: string;
   source?: CreatePreviewSpec["source"];
   ttlMs?: number;
+  requireRealProviders?: boolean;
+  allowMockProviders?: boolean;
   databases?: Array<PreviewResourceGroup<CreateDatabaseBranchSpec>>;
   services?: Array<PreviewResourceGroup<DeployServiceSpec>>;
   edges?: Array<PreviewResourceGroup<DeployEdgeSpec>>;
@@ -96,6 +98,18 @@ export class PreviewCreationError extends Error {
   }
 }
 
+export class MockProviderNotAllowedError extends Error {
+  readonly provider: string;
+  readonly adapter: string;
+
+  constructor(provider: string, adapter: string) {
+    super(`Preview plan requires real providers, but adapter ${adapter} for provider ${provider} is marked as mock.`);
+    this.name = "MockProviderNotAllowedError";
+    this.provider = provider;
+    this.adapter = adapter;
+  }
+}
+
 export function createPreviewId(name: string): string {
   const safeName = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "preview";
   return `preview_${safeName}_${Date.now().toString(36)}`;
@@ -103,6 +117,23 @@ export function createPreviewId(name: string): string {
 
 function receiptOf(value: { receipt?: CapsuleReceipt } | undefined): CapsuleReceipt | undefined {
   return value?.receipt;
+}
+
+function isMockCapsule(capsule: Capsule): boolean {
+  const raw = capsule.raw();
+  return typeof raw === "object" && raw !== null && "mock" in raw && (raw as { mock?: unknown }).mock === true;
+}
+
+function assertRealProviders(plan: PreviewPlan): void {
+  if (!plan.requireRealProviders || plan.allowMockProviders) {
+    return;
+  }
+  const entries: PreviewResourceGroup<unknown>[] = [...(plan.databases ?? []), ...(plan.services ?? []), ...(plan.edges ?? []), ...(plan.jobs ?? [])];
+  for (const entry of entries) {
+    if (isMockCapsule(entry.capsule)) {
+      throw new MockProviderNotAllowedError(String((entry.capsule.raw() as { provider?: unknown } | undefined)?.provider ?? "unknown"), entry.capsule.adapterName());
+    }
+  }
 }
 
 function errorMessage(error: unknown): string {
@@ -247,6 +278,7 @@ export async function createPreviewEnvironment(plan: PreviewPlan): Promise<Previ
 }
 
 export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrchestrationResult> {
+  assertRealProviders(plan);
   const id = createPreviewId(plan.name);
   const resources: PreviewResourceRecord[] = [];
 
@@ -332,6 +364,7 @@ export async function cleanupPreviewEnvironment(preview: PreviewEnvironment, res
 }
 
 export async function createPreviewEnvironmentWithCleanup(plan: PreviewPlan): Promise<PreviewEnvironment> {
+  assertRealProviders(plan);
   const id = createPreviewId(plan.name);
   const resources: PreviewResourceRecord[] = [];
 

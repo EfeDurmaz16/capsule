@@ -35,4 +35,15 @@ describe("mock adapters", () => {
     const machine = await capsule.machine.create({ name: "runner" });
     expect(machine.receipt?.supportLevel).toBe("experimental");
   });
+
+  test("mock receipts expose mock metadata", async () => {
+    const capsule = new Capsule({ adapter: mockCloudRun(), receipts: true });
+    const service = await capsule.service.deploy({ name: "api", image: "ghcr.io/acme/api:latest" });
+
+    expect(service.receipt?.metadata).toMatchObject({
+      mock: true,
+      mockProvider: "cloud-run",
+      mockAdapter: "mock-cloud-run"
+    });
+  });
 });
