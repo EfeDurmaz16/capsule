@@ -1,1 +1,1 @@
-{"extends":"../../tsconfig.base.json","compilerOptions":{"composite":true,"rootDir":"src","outDir":"dist"},"references":[{"path":"../../packages/core"},{"path":"../../packages/ai"},{"path":"../../packages/adapter-mock"}],"include":["src"]}
+{"extends":"../../tsconfig.base.json","compilerOptions":{"composite":true,"rootDir":"src","outDir":"dist"},"references":[{"path":"../../packages/core"},{"path":"../../packages/ai"},{"path":"../../packages/adapter-e2b"},{"path":"../../packages/adapter-mock"}],"include":["src"]}

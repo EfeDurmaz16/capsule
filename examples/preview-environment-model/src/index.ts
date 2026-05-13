@@ -1,7 +1,7 @@
 import { Capsule } from "@capsule/core";
 import { mockCloudflare } from "@capsule/adapter-mock";
 
-console.log("Mock preview orchestration; this models future composition.");
+console.log("Example mode: mock preview orchestration. No real provider APIs are called; this models future composition.");
 const capsule = new Capsule({ adapter: mockCloudflare(), receipts: true, policy: { ttl: { maxMs: 86_400_000 }, cost: { maxUsd: 5 } } });
 console.log(await capsule.preview.create({
   name: "pr-42",

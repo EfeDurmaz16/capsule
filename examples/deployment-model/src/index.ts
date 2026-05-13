@@ -1,7 +1,7 @@
 import { Capsule } from "@capsule/core";
 import { mockCloudRun, mockCloudflare, mockVercel } from "@capsule/adapter-mock";
 
-console.log("Mock deployment model only; no real provider APIs are called.");
+console.log("Example mode: mock deployment model only. No real provider APIs are called.");
 for (const adapter of [mockCloudRun(), mockVercel(), mockCloudflare()]) {
   const capsule = new Capsule({ adapter, receipts: true });
   if (capsule.supports("service.deploy")) console.log(await capsule.service.deploy({ name: "api", image: "example/api:latest" }));
