@@ -134,6 +134,7 @@ pnpm typecheck
 - `@capsule/adapter-ecs`: real ECS/Fargate adapter for existing task definitions.
 - `@capsule/adapter-ec2`: real EC2 adapter for machine creation.
 - `@capsule/adapter-fly`: real Fly Machines API adapter for machine lifecycle and one-shot job machines.
+- `@capsule/adapter-azure-container-apps`: real Azure Container Apps ARM adapter for service deploys and manual jobs.
 - `@capsule/adapter-neon`: real Neon API adapter for database branch create/delete/reset and connection URI retrieval.
 - `@capsule/adapter-vercel`: real Vercel REST adapter for inline deployment creation.
 - `@capsule/adapter-mock`: mock E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models.
@@ -194,6 +195,8 @@ Real in this repository:
 - AWS Lambda invocation through AWS SDK v3;
 - ECS RunTask and CreateService through AWS SDK v3;
 - EC2 RunInstances through AWS SDK v3;
+- Fly Machines create/start/status/stop/destroy and auto-destroy one-shot job machines through the Fly Machines API;
+- Azure Container Apps service create/update and manual job create/start through ARM REST APIs;
 - Neon database branch create/delete/reset through the Neon API;
 - Vercel inline deployment creation through the Vercel REST API;
 - Neon connection URI retrieval when `databaseName` and `roleName` are configured;

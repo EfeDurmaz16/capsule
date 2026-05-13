@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Capsule } from "@capsule/core";
+import { azureContainerApps } from "@capsule/adapter-azure-container-apps";
 import { cloudflare } from "@capsule/adapter-cloudflare";
 import { cloudRun } from "@capsule/adapter-cloud-run";
 import { daytona } from "@capsule/adapter-daytona";
@@ -40,6 +41,9 @@ interface ParsedArgs {
   kubeconfig?: string;
   region?: string;
   functionName?: string;
+  subscriptionId?: string;
+  resourceGroup?: string;
+  environmentId?: string;
   cluster?: string;
   taskDefinition?: string;
   containerName?: string;
@@ -175,6 +179,21 @@ function parse(argv: string[]): ParsedArgs {
       index += 1;
       continue;
     }
+    if (arg === "--subscription-id") {
+      parsed.subscriptionId = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--resource-group") {
+      parsed.resourceGroup = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--environment-id") {
+      parsed.environmentId = args[index + 1];
+      index += 1;
+      continue;
+    }
     if (arg === "--cluster") {
       parsed.cluster = args[index + 1];
       index += 1;
@@ -260,6 +279,7 @@ Commands:
   capsule capabilities --adapter ecs --region us-east-1 --cluster default --task-definition task:1 --container-name main
   capsule capabilities --adapter ec2 --region us-east-1 --image-id ami-123 --instance-type t3.micro
   capsule capabilities --adapter fly --app-name my-fly-app
+  capsule capabilities --adapter azure-container-apps --subscription-id <sub> --resource-group <rg> --location eastus --environment-id <env_id>
   capsule capabilities --adapter cloud-run --project-id <gcp-project> --location us-central1
   capsule run --image node:22 -- node -e "console.log('hello')"
   capsule sandbox --image node:22
@@ -271,9 +291,11 @@ Commands:
   capsule job --adapter lambda --region us-east-1 --function-name my-function --image ignored
   capsule job --adapter ecs --region us-east-1 --cluster default --task-definition task:1 --container-name main --subnet subnet-123 --security-group sg-123 --image intent -- node job.js
   capsule job --adapter fly --app-name my-fly-app --name smoke --image node:22 -- node smoke.js
+  capsule job --adapter azure-container-apps --subscription-id <sub> --resource-group <rg> --location eastus --environment-id <env_id> --name smoke --image node:22 -- node smoke.js
   capsule service --adapter cloud-run --project-id <gcp-project> --location us-central1 --name api --image us-docker.pkg.dev/project/repo/api:tag --port 8080
   capsule service --adapter ecs --region us-east-1 --cluster default --task-definition api:1 --container-name main --name api --image intent
   capsule service --adapter kubernetes --namespace default --name api --image ghcr.io/acme/api:latest --port 8080
+  capsule service --adapter azure-container-apps --subscription-id <sub> --resource-group <rg> --location eastus --environment-id <env_id> --name api --image ghcr.io/acme/api:latest --port 8080
   capsule machine --adapter ec2 --region us-east-1 --name dev --image-id ami-123 --instance-type t3.micro --subnet-id subnet-123 --security-group sg-123
   capsule machine --adapter fly --app-name my-fly-app --name dev --image ghcr.io/acme/dev:latest
   capsule edge --adapter cloudflare --name my-worker --entrypoint worker.js --zone-id <zone> --route example.com/* ./dist/worker.js
@@ -373,6 +395,18 @@ function createCapsule(parsed: ParsedArgs): Capsule {
       receiptStore
     });
   }
+  if (parsed.adapter === "azure-container-apps") {
+    return new Capsule({
+      adapter: azureContainerApps({
+        subscriptionId: parsed.subscriptionId,
+        resourceGroupName: parsed.resourceGroup,
+        location: parsed.location,
+        environmentId: parsed.environmentId
+      }),
+      receipts: true,
+      receiptStore
+    });
+  }
   return new Capsule({ adapter: docker(), receipts: true, receiptStore });
 }
 
@@ -436,8 +470,8 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "job": {
-      if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes" && parsed.adapter !== "lambda" && parsed.adapter !== "ecs" && parsed.adapter !== "fly") {
-        throw new Error("job currently requires --adapter cloud-run, --adapter kubernetes, --adapter lambda, --adapter ecs, or --adapter fly");
+      if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes" && parsed.adapter !== "lambda" && parsed.adapter !== "ecs" && parsed.adapter !== "fly" && parsed.adapter !== "azure-container-apps") {
+        throw new Error("job currently requires --adapter cloud-run, --adapter kubernetes, --adapter lambda, --adapter ecs, --adapter fly, or --adapter azure-container-apps");
       }
       if (!parsed.image) {
         throw new Error("Missing --image");
@@ -451,8 +485,8 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "service": {
-      if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes" && parsed.adapter !== "ecs") {
-        throw new Error("service currently requires --adapter cloud-run, --adapter kubernetes, or --adapter ecs");
+      if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes" && parsed.adapter !== "ecs" && parsed.adapter !== "azure-container-apps") {
+        throw new Error("service currently requires --adapter cloud-run, --adapter kubernetes, --adapter ecs, or --adapter azure-container-apps");
       }
       if (!parsed.name) {
         throw new Error("Missing --name");
