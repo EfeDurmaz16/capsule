@@ -27,6 +27,7 @@ describe("vercel adapter", () => {
     expect(vercelCapabilities.edge?.release).toBe("native");
     expect(vercelCapabilities.edge?.version).toBe("unsupported");
     expect(vercelCapabilities.edge?.rollback).toBe("unsupported");
+    expect(vercelCapabilities.edge?.logs).toBe("native");
   });
 
   it("creates an inline deployment", async () => {
@@ -77,6 +78,69 @@ describe("vercel adapter", () => {
     expect(status).toMatchObject({ id: "dpl_123", provider: "vercel", name: "capsule-edge", status: "ready", url: "https://capsule-edge.vercel.app" });
     expect(status.receipt?.type).toBe("edge.status");
     expect(calls[0]).toMatchObject({ url: "https://api.vercel.com/v13/deployments/dpl_123?teamId=team_1", init: { method: "GET" } });
+  });
+
+  it("fetches deployment event logs with team and slug query parameters", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return response([
+        { type: "stdout", created: 1_762_905_600_000, payload: { text: "build started", statusCode: 200 } },
+        { type: "stderr", payload: { text: "build failed", created: 1_762_905_601_000, statusCode: 500 } }
+      ]);
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: vercel({ token: "vercel-token", teamId: "team_1", slug: "team-slug", fetch: fetchMock }),
+      receipts: true
+    });
+
+    const logs = await capsule.edge.logs({
+      id: "dpl_123",
+      since: "2025-11-11T18:00:00.000Z",
+      until: "2025-11-11T19:00:00.000Z",
+      limit: 2,
+      follow: false,
+      providerOptions: { api: "deployment-events", token: "secret-token" }
+    });
+
+    expect(logs.logs).toEqual([
+      { timestamp: "2025-11-12T00:00:00.000Z", stream: "system", message: "build started" },
+      { timestamp: "2025-11-12T00:00:01.000Z", stream: "stderr", message: "build failed" }
+    ]);
+    expect(logs.receipt?.type).toBe("edge.logs");
+    expect(logs.receipt?.providerOptions).toEqual({ api: "deployment-events", token: "[REDACTED]" });
+    expect(JSON.stringify(logs.receipt)).not.toContain("secret-token");
+    expect(calls[0]).toMatchObject({
+      url: "https://api.vercel.com/v3/deployments/dpl_123/events?since=1762884000000&until=1762887600000&limit=2&follow=0&teamId=team_1&slug=team-slug",
+      init: { method: "GET" }
+    });
+    expect(JSON.stringify(logs)).not.toContain("vercel-token");
+  });
+
+  it("fetches runtime logs only when a real project id is provided", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return response([{ level: "error", message: "runtime failed", timestampInMs: 1_762_905_602_000 }]);
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: vercel({ token: "vercel-token", projectId: "prj_123", teamId: "team_1", fetch: fetchMock }),
+      receipts: true
+    });
+
+    const logs = await capsule.edge.logs({ id: "dpl_123", providerOptions: { api: "runtime" } });
+
+    expect(logs.logs).toEqual([{ timestamp: "2025-11-12T00:00:02.000Z", stream: "stderr", message: "runtime failed" }]);
+    expect(calls[0]).toMatchObject({
+      url: "https://api.vercel.com/v1/projects/prj_123/deployments/dpl_123/runtime-logs?teamId=team_1",
+      init: { method: "GET" }
+    });
+  });
+
+  it("requires project id before using Vercel runtime logs", async () => {
+    const capsule = new Capsule({ adapter: vercel({ token: "vercel-token" }) });
+
+    await expect(capsule.edge.logs({ id: "dpl_123", providerOptions: { api: "runtime" } })).rejects.toThrow("Vercel runtime logs require providerOptions.projectId");
   });
 
   it("assigns an alias through edge.release", async () => {
