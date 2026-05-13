@@ -95,6 +95,36 @@ Support levels are `native`, `emulated`, `unsupported`, and `experimental`. Adap
 
 Capsule can apply network, filesystem, secrets, limits, cost, TTL, and approval policies before runtime actions. Receipts record the provider, adapter, capability path, support level, timing, output hashes, resource identifiers, and policy decision. Receipts prove what Capsule observed, not absolute truth.
 
+## Presets
+
+Presets are small spec and policy factories for common workflows. They do not execute anything and they do not hide provider differences. Each preset carries the capability paths a caller should check before using it.
+
+```ts
+import { Capsule, nodeSandboxPreset } from "@capsule/core";
+import { docker } from "@capsule/adapter-docker";
+
+const preset = nodeSandboxPreset({
+  timeoutMs: 30_000,
+  secretEnv: ["NPM_TOKEN"]
+});
+
+const capsule = new Capsule({
+  adapter: docker(),
+  policy: preset.policy,
+  receipts: true
+});
+
+for (const path of preset.capabilityPaths) {
+  if (!capsule.supports(path)) {
+    throw new Error(`Adapter does not support ${path}`);
+  }
+}
+
+const sandbox = await capsule.sandbox.create(preset.spec);
+```
+
+Available core presets include `nodeSandboxPreset`, `nodeJobPreset`, `httpServicePreset`, `edgeWorkerPreset`, `previewDatabaseBranchPreset`, and `previewEnvironmentPreset`.
+
 ## Provider Matrix
 
 `native`, `experimental`, `emulated`, and `unsupported` are adapter-declared support levels. This short table covers real adapters in this repo; mock-only modeling is listed separately below.

@@ -4,6 +4,7 @@ import { Capsule } from "./capsule.js";
 import { supportLevel, supports } from "./capabilities.js";
 import { UnsupportedCapabilityError, PolicyViolationError } from "./errors.js";
 import { evaluatePolicy, mergeTimeout, redactLogEntries, redactSecrets } from "./policy.js";
+import { edgeWorkerPreset, httpServicePreset, nodeJobPreset, nodeSandboxPreset, previewDatabaseBranchPreset, previewEnvironmentPreset } from "./presets.js";
 import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
 import { createReceipt } from "./receipts.js";
 import { MemoryReceiptStore } from "./stores.js";
@@ -214,6 +215,35 @@ describe("policy", () => {
       { timestamp: "2026-01-01T00:00:00.000Z", stream: "stdout", message: "first [REDACTED]" },
       { timestamp: "2026-01-01T00:00:00.001Z", stream: "stderr", message: "second [REDACTED] [REDACTED]" }
     ]);
+  });
+});
+
+describe("presets", () => {
+  test("creates an agent-safe Node sandbox preset without hiding capabilities", () => {
+    const preset = nodeSandboxPreset({ timeoutMs: 5_000, secretEnv: ["TOKEN"] });
+
+    expect(preset.domain).toBe("sandbox");
+    expect(preset.capabilityPaths).toEqual(["sandbox.create", "sandbox.exec", "sandbox.fileWrite", "sandbox.destroy"]);
+    expect(preset.spec).toMatchObject({ image: "node:22", cwd: "/workspace", timeoutMs: 5_000 });
+    expect(preset.policy).toEqual({
+      network: { mode: "none" },
+      filesystem: { read: ["/workspace"], write: ["/workspace"] },
+      secrets: { allowed: ["TOKEN"], redactFromLogs: true },
+      limits: { timeoutMs: 5_000, memoryMb: undefined, cpu: undefined }
+    });
+  });
+
+  test("creates domain-specific provider specs while keeping notes explicit", () => {
+    expect(nodeJobPreset({ command: ["node", "-e", "console.log(1)"] }).capabilityPaths).toEqual(["job.run"]);
+    expect(httpServicePreset({ name: "api", image: "example/api", healthPath: "/health" }).spec).toMatchObject({
+      name: "api",
+      image: "example/api",
+      ports: [{ port: 8080, public: true, protocol: "http" }],
+      healthcheck: { path: "/health" }
+    });
+    expect(edgeWorkerPreset({ name: "worker" }).spec.runtime).toBe("workers");
+    expect(previewDatabaseBranchPreset({ project: "app", name: "pr-42", ttlMs: 60_000 }).policy).toEqual({ ttl: { maxMs: 60_000 } });
+    expect(previewEnvironmentPreset({ name: "pr-42" }).capabilityPaths).toEqual(["preview.create", "preview.destroy", "preview.urls"]);
   });
 });
 
