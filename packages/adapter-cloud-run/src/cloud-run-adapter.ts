@@ -169,6 +169,11 @@ function serviceUpdateBody(name: string, spec: UpdateServiceSpec): { body: Recor
   }
   const limits = resources(spec.resources);
   const hasContainerUpdate = Boolean(spec.image ?? spec.env ?? spec.resources ?? spec.ports ?? spec.healthcheck);
+  if (hasContainerUpdate && !spec.image) {
+    throw new AdapterExecutionError(
+      "Cloud Run service.update requires image when updating container fields so Capsule does not overwrite the existing container with a partial template."
+    );
+  }
   const body: Record<string, unknown> = { name };
   const updateMask: string[] = [];
 
@@ -198,8 +203,8 @@ function serviceUpdateBody(name: string, spec: UpdateServiceSpec): { body: Recor
     updateMask.push(...(spec.scale ? ["template.scaling"] : []), ...(hasContainerUpdate ? ["template.containers"] : []));
   }
 
-  if (!body.template) {
-    throw new AdapterExecutionError("Cloud Run service.update requires a revision template change such as image, env, resources, ports, healthcheck, or scale.");
+  if (updateMask.length === 0) {
+    throw new AdapterExecutionError("Cloud Run service.update requires at least one supported change: labels, image, env, resources, ports, healthcheck, or scale.");
   }
 
   return { body, updateMask };
@@ -269,8 +274,14 @@ function serviceStatus(service: CloudRunService): ServiceDeployment["status"] {
 
 function serviceOperationStatus(operation: CloudRunOperation): ServiceDeployment["status"] {
   if (operation.error) return "failed";
+  if (isService(operation.response)) {
+    const status = serviceStatus(operation.response);
+    if (operation.done && status === "deploying" && !operation.response.reconciling && !operation.response.terminalCondition) {
+      return "ready";
+    }
+    return status;
+  }
   if (operation.done) return "ready";
-  if (isService(operation.response)) return serviceStatus(operation.response);
   return "deploying";
 }
 

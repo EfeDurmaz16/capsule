@@ -311,6 +311,60 @@ describe("cloud-run adapter", () => {
     expect(deployment.receipt).toMatchObject({ type: "service.update", capabilityPath: "service.update" });
   });
 
+  it("does not report failed Cloud Run service update operations as ready", async () => {
+    const serviceName = "projects/proj/locations/europe-west1/services/api";
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).endsWith(":wait")) {
+        return response({
+          name: "operations/update",
+          done: true,
+          response: {
+            name: serviceName,
+            terminalCondition: { state: "CONDITION_FAILED", message: "revision failed" }
+          }
+        });
+      }
+      if (init?.method === "GET") return response({ name: serviceName });
+      return response({ name: "operations/update", done: false });
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: cloudRun({ projectId: "proj", location: "europe-west1", accessToken: "token", fetch: fetchMock })
+    });
+
+    await expect(capsule.service.update({ id: "api", image: "europe-docker.pkg.dev/proj/repo/api:v2" })).resolves.toMatchObject({
+      status: "failed"
+    });
+  });
+
+  it("rejects partial Cloud Run container updates without an image", async () => {
+    const capsule = new Capsule({
+      adapter: cloudRun({ projectId: "proj", location: "europe-west1", accessToken: "token", fetch: async () => response({}) })
+    });
+
+    await expect(capsule.service.update({ id: "api", env: { VERSION: "v2" } })).rejects.toThrow(
+      "requires image when updating container fields"
+    );
+  });
+
+  it("allows Cloud Run labels-only service updates", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const serviceName = "projects/proj/locations/europe-west1/services/api";
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      if (String(url).endsWith(":wait")) return response({ name: "operations/update", done: true, response: { name: serviceName } });
+      if (init?.method === "GET") return response({ name: serviceName });
+      return response({ name: "operations/update", done: false });
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: cloudRun({ projectId: "proj", location: "europe-west1", accessToken: "token", fetch: fetchMock })
+    });
+
+    await expect(capsule.service.update({ id: "api", labels: { track: "stable" } })).resolves.toMatchObject({ status: "ready" });
+    const updateUrl = new URL(calls[0]?.url ?? "");
+    expect(updateUrl.searchParams.get("updateMask")).toBe("labels");
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({ name: serviceName, labels: { track: "stable" } });
+  });
+
   it("rolls back Cloud Run service traffic to an explicit revision", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const serviceName = "projects/proj/locations/europe-west1/services/api";
@@ -339,6 +393,30 @@ describe("cloud-run adapter", () => {
       traffic: [{ type: "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION", revision, percent: 100 }]
     });
     expect(deployment.receipt).toMatchObject({ type: "service.rollback", capabilityPath: "service.rollback" });
+  });
+
+  it("does not report failed Cloud Run rollback operations as ready", async () => {
+    const serviceName = "projects/proj/locations/europe-west1/services/api";
+    const revision = `${serviceName}/revisions/api-00001-abc`;
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).endsWith(":wait")) {
+        return response({
+          name: "operations/rollback",
+          done: true,
+          response: {
+            name: serviceName,
+            terminalCondition: { state: "CONDITION_FAILED", message: "traffic update failed" }
+          }
+        });
+      }
+      if (init?.method === "GET") return response({ name: serviceName, latestReadyRevision: `${serviceName}/revisions/api-00002-def` });
+      return response({ name: "operations/rollback", done: false });
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: cloudRun({ projectId: "proj", location: "europe-west1", accessToken: "token", fetch: fetchMock })
+    });
+
+    await expect(capsule.service.rollback({ id: "api", revision })).resolves.toMatchObject({ status: "failed" });
   });
 
   it("selects the previous Cloud Run revision when rollback revision is omitted", async () => {
