@@ -98,6 +98,11 @@ describe("capabilities", () => {
     await expect(capsule.database.branch.delete({ project: "app", branchId: "br_mock" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.database.branch.reset({ project: "app", branchId: "br_mock" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.database.migrate({ project: "app", branchId: "br_mock", dryRun: true })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.preview.destroy({ id: "preview_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.preview.status({ id: "preview_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.preview.logs({ id: "preview_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.preview.urls({ id: "preview_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.preview.cleanup({ id: "preview_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.machine.status({ id: "machine_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.machine.start({ id: "machine_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.machine.stop({ id: "machine_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
@@ -121,6 +126,35 @@ describe("capabilities", () => {
     };
 
     expect(() => assertAdapterContract(dishonestAdapter)).toThrow("declares job.logs as native but does not implement the public contract");
+  });
+
+  test("contract rejects declared preview lifecycle support without implementation", () => {
+    const dishonestAdapter: CapsuleAdapter = {
+      ...adapter,
+      capabilities: {
+        ...capabilities,
+        preview: {
+          create: "native",
+          destroy: "native",
+          status: "native",
+          logs: "native",
+          urls: "native",
+          cleanup: "native"
+        }
+      },
+      preview: {
+        create: async () => ({
+          id: "preview_123",
+          provider: "test",
+          name: "preview",
+          status: "ready",
+          urls: [],
+          resources: []
+        })
+      }
+    };
+
+    expect(() => assertAdapterContract(dishonestAdapter)).toThrow("declares preview.destroy as native but does not implement the public contract");
   });
 });
 

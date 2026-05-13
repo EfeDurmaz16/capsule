@@ -5,8 +5,10 @@ import {
   type CapabilityMap,
   type CreateDatabaseBranchSpec,
   type DeleteDatabaseBranchSpec,
+  type CleanupPreviewSpec,
   type CreateMachineSpec,
   type CreatePreviewSpec,
+  type DestroyPreviewSpec,
   type CreateSandboxSpec,
   type DeployEdgeSpec,
   type DeployServiceSpec,
@@ -15,6 +17,9 @@ import {
   type FileEntry,
   type EdgeLogsSpec,
   type JobLogsSpec,
+  type PreviewLogsSpec,
+  type PreviewStatusSpec,
+  type PreviewUrlsSpec,
   type ServiceLogsSpec,
   type RunJobSpec,
   type Sandbox,
@@ -307,8 +312,9 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
     };
   }
 
-  if (hasDomain(capabilities, "preview")) {
-    adapter.preview = {
+  const previewCapabilities = capabilities.preview;
+  if (previewCapabilities && previewCapabilities.create !== "unsupported") {
+    const previewAdapter: NonNullable<CapsuleAdapter["preview"]> = {
       create: async (spec: CreatePreviewSpec, context: AdapterContext) => {
         const startedAt = new Date();
         const previewId = id(`${provider}_preview`, spec.name);
@@ -335,6 +341,93 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
         return { id: previewId, provider, name: spec.name, status: "ready", urls, resources, receipt };
       }
     };
+
+    if (previewCapabilities.destroy !== "unsupported") {
+      previewAdapter.destroy = async (spec: DestroyPreviewSpec, context: AdapterContext) => {
+        const startedAt = new Date();
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "preview.destroy",
+              capabilityPath: "preview.destroy",
+              startedAt,
+              policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
+              resource: { id: spec.id, status: "deleted" },
+              metadata: { force: spec.force, reason: spec.reason }
+            })
+          : undefined;
+        return { id: spec.id, provider, status: "deleted", receipt };
+      };
+    }
+
+    if (previewCapabilities.status !== "unsupported") {
+      previewAdapter.status = async (spec: PreviewStatusSpec, context: AdapterContext) => {
+        const startedAt = new Date();
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "preview.status",
+              capabilityPath: "preview.status",
+              startedAt,
+              policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
+              resource: { id: spec.id, status: "ready" }
+            })
+          : undefined;
+        return { id: spec.id, provider, status: "ready", urls: [], resources: [], receipt };
+      };
+    }
+
+    if (previewCapabilities.logs !== "unsupported") {
+      previewAdapter.logs = async (spec: PreviewLogsSpec, context: AdapterContext) => {
+        const startedAt = new Date();
+        const logs = logsFromOutput(`preview ${spec.id} ready`, "");
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "preview.logs",
+              capabilityPath: "preview.logs",
+              startedAt,
+              policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
+              resource: { id: spec.id },
+              metadata: { limit: spec.limit, follow: spec.follow }
+            })
+          : undefined;
+        return { id: spec.id, provider, logs, receipt };
+      };
+    }
+
+    if (previewCapabilities.urls !== "unsupported") {
+      previewAdapter.urls = async (spec: PreviewUrlsSpec, context: AdapterContext) => {
+        const startedAt = new Date();
+        const urls = [`https://${sanitize(spec.id, "preview")}.${provider}.preview.mock.capsule.dev`];
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "preview.urls",
+              capabilityPath: "preview.urls",
+              startedAt,
+              policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
+              resource: { id: spec.id, url: urls[0] }
+            })
+          : undefined;
+        return { id: spec.id, provider, urls, receipt };
+      };
+    }
+
+    if ((previewCapabilities.cleanup ?? "unsupported") !== "unsupported") {
+      previewAdapter.cleanup = async (spec: CleanupPreviewSpec, context: AdapterContext) => {
+        const startedAt = new Date();
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "preview.cleanup",
+              capabilityPath: "preview.cleanup",
+              startedAt,
+              policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
+              resource: { id: spec.id, status: "cleaned" },
+              metadata: { force: spec.force, reason: spec.reason }
+            })
+          : undefined;
+        return { id: spec.id, provider, status: "cleaned", cleanedResources: [], failedResources: [], receipt };
+      };
+    }
+
+    adapter.preview = previewAdapter;
   }
 
   if (hasDomain(capabilities, "machine")) {

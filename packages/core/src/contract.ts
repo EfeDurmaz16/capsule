@@ -126,6 +126,31 @@ const publicCapabilities: PublicCapability[] = [
     exercise: (capsule) => capsule.preview.create({ name: "capsule-contract-test" })
   },
   {
+    path: "preview.destroy",
+    isImplemented: (adapter) => typeof adapter.preview?.destroy === "function",
+    exercise: (capsule) => capsule.preview.destroy({ id: "capsule-contract-test" })
+  },
+  {
+    path: "preview.status",
+    isImplemented: (adapter) => typeof adapter.preview?.status === "function",
+    exercise: (capsule) => capsule.preview.status({ id: "capsule-contract-test" })
+  },
+  {
+    path: "preview.logs",
+    isImplemented: (adapter) => typeof adapter.preview?.logs === "function",
+    exercise: (capsule) => capsule.preview.logs({ id: "capsule-contract-test" })
+  },
+  {
+    path: "preview.urls",
+    isImplemented: (adapter) => typeof adapter.preview?.urls === "function",
+    exercise: (capsule) => capsule.preview.urls({ id: "capsule-contract-test" })
+  },
+  {
+    path: "preview.cleanup",
+    isImplemented: (adapter) => typeof adapter.preview?.cleanup === "function",
+    exercise: (capsule) => capsule.preview.cleanup({ id: "capsule-contract-test" })
+  },
+  {
     path: "machine.create",
     isImplemented: (adapter) => typeof adapter.machine?.create === "function",
     exercise: (capsule) => capsule.machine.create({ name: "capsule-contract-test", image: "capsule-contract-test", size: "capsule-contract-test" })

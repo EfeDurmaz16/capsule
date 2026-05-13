@@ -175,6 +175,10 @@ export interface CapsuleReceipt {
     | "database.migrate"
     | "preview.create"
     | "preview.destroy"
+    | "preview.status"
+    | "preview.logs"
+    | "preview.urls"
+    | "preview.cleanup"
     | "machine.create"
     | "machine.status"
     | "machine.start"
@@ -709,6 +713,84 @@ export interface PreviewEnvironment {
     name?: string;
   }>;
   receipt?: CapsuleReceipt;
+}
+
+export interface DestroyPreviewSpec {
+  id: string;
+  force?: boolean;
+  reason?: string;
+  providerOptions?: ProviderOptions;
+}
+
+export interface PreviewStatusSpec {
+  id: string;
+  providerOptions?: ProviderOptions;
+}
+
+export interface PreviewStatusResult {
+  id: string;
+  provider: string;
+  name?: string;
+  status: PreviewEnvironment["status"];
+  urls?: string[];
+  resources?: PreviewEnvironment["resources"];
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
+}
+
+export interface PreviewLogsSpec {
+  id: string;
+  since?: string;
+  until?: string;
+  limit?: number;
+  follow?: boolean;
+  providerOptions?: ProviderOptions;
+}
+
+export interface PreviewLogsResult {
+  id: string;
+  provider: string;
+  logs: LogEntry[];
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
+}
+
+export interface PreviewUrlsSpec {
+  id: string;
+  providerOptions?: ProviderOptions;
+}
+
+export interface PreviewUrlsResult {
+  id: string;
+  provider: string;
+  urls: string[];
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
+}
+
+export interface CleanupPreviewSpec {
+  id: string;
+  force?: boolean;
+  reason?: string;
+  providerOptions?: ProviderOptions;
+}
+
+export interface PreviewCleanupResult {
+  id: string;
+  provider: string;
+  status: "cleaned" | "partial" | "failed";
+  cleanedResources?: PreviewEnvironment["resources"];
+  failedResources?: Array<PreviewEnvironment["resources"][number] & { error: string }>;
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
+}
+
+export interface DestroyPreviewResult {
+  id: string;
+  provider: string;
+  status: "deleted" | "deleting";
+  receipt?: CapsuleReceipt;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CreateMachineSpec {

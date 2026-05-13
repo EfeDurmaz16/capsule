@@ -8,8 +8,10 @@ import type {
   CapabilityMap,
   CancelJobSpec,
   CapsulePolicy,
+  CleanupPreviewSpec,
   CreateDatabaseBranchSpec,
   DeleteDatabaseBranchSpec,
+  DestroyPreviewSpec,
   DestroyMachineSpec,
   CreateMachineSpec,
   CreatePreviewSpec,
@@ -23,6 +25,9 @@ import type {
   JobStatusSpec,
   MigrateDatabaseSpec,
   MachineStatusSpec,
+  PreviewLogsSpec,
+  PreviewStatusSpec,
+  PreviewUrlsSpec,
   ReleaseEdgeVersionSpec,
   ResetDatabaseBranchSpec,
   RollbackEdgeSpec,
@@ -237,6 +242,41 @@ export class Capsule {
           throw new UnsupportedCapabilityError("preview.create");
         }
         return this.options.adapter.preview.create(spec, this.context());
+      },
+      destroy: async (spec: DestroyPreviewSpec) => {
+        this.require("preview.destroy");
+        if (!this.options.adapter.preview?.destroy) {
+          throw new UnsupportedCapabilityError("preview.destroy");
+        }
+        return this.options.adapter.preview.destroy(spec, this.context());
+      },
+      status: async (spec: PreviewStatusSpec) => {
+        this.require("preview.status");
+        if (!this.options.adapter.preview?.status) {
+          throw new UnsupportedCapabilityError("preview.status");
+        }
+        return this.options.adapter.preview.status(spec, this.context());
+      },
+      logs: async (spec: PreviewLogsSpec) => {
+        this.require("preview.logs");
+        if (!this.options.adapter.preview?.logs) {
+          throw new UnsupportedCapabilityError("preview.logs");
+        }
+        return this.options.adapter.preview.logs(spec, this.context());
+      },
+      urls: async (spec: PreviewUrlsSpec) => {
+        this.require("preview.urls");
+        if (!this.options.adapter.preview?.urls) {
+          throw new UnsupportedCapabilityError("preview.urls");
+        }
+        return this.options.adapter.preview.urls(spec, this.context());
+      },
+      cleanup: async (spec: CleanupPreviewSpec) => {
+        this.require("preview.cleanup");
+        if (!this.options.adapter.preview?.cleanup) {
+          throw new UnsupportedCapabilityError("preview.cleanup");
+        }
+        return this.options.adapter.preview.cleanup(spec, this.context());
       }
     };
 
