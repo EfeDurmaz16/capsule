@@ -48,8 +48,8 @@ export const cloudflareCapabilities: CapabilityMap = {
     version: "unsupported",
     release: "unsupported",
     rollback: "unsupported",
-    routes: "unsupported",
-    bindings: "experimental",
+    routes: "native",
+    bindings: "unsupported",
     logs: "unsupported",
     url: "experimental"
   },
@@ -75,27 +75,18 @@ export const cloudflareCapabilities: CapabilityMap = {
 };
 
 function edgeNotes(spec: DeployEdgeSpec): string[] {
-  const notes = ["Cloudflare Worker upload is native; route mutation, custom domains, and rollback are separate capabilities and are not performed by edge.deploy."];
+  const notes = ["Cloudflare Worker upload is native; route creation is native when routes and a zone ID are provided."];
   if (spec.env && Object.keys(spec.env).length > 0) {
-    notes.push("Plain text environment bindings were uploaded; Cloudflare Worker secrets are not created by this adapter.");
-  }
-  if (spec.bindings && Object.keys(spec.bindings).length > 0) {
-    notes.push("Provider-specific bindings are passed through as experimental metadata.");
+    notes.push("Plain text environment variables were uploaded as Worker vars; Cloudflare Worker secrets are not created by this adapter.");
   }
   if (spec.routes && spec.routes.length > 0) {
-    notes.push("Routes were recorded in metadata but not configured on Cloudflare.");
+    notes.push("Routes were configured through the Cloudflare Workers Routes API.");
   }
   return notes;
 }
 
 function plainTextBindings(env: Record<string, string> | undefined): Array<Record<string, string>> {
   return Object.entries(env ?? {}).map(([name, text]) => ({ type: "plain_text", name, text }));
-}
-
-function providerBindings(bindings: Record<string, unknown> | undefined): unknown[] {
-  if (!bindings) return [];
-  if (Array.isArray(bindings.bindings)) return bindings.bindings;
-  return Object.entries(bindings).map(([name, value]) => (typeof value === "object" && value !== null ? { name, ...value } : { type: "plain_text", name, text: String(value) }));
 }
 
 function workerUrl(name: string, subdomain: string | undefined): string | undefined {
@@ -117,6 +108,15 @@ async function resolveSource(spec: DeployEdgeSpec): Promise<string | Uint8Array>
   return await readFile(spec.source.path);
 }
 
+function assertSupportedSpec(spec: DeployEdgeSpec, options: CloudflareAdapterOptions): void {
+  if (spec.bindings && Object.keys(spec.bindings).length > 0) {
+    throw new AdapterExecutionError("Cloudflare edge.deploy does not support provider-specific bindings yet. Use env for plain text Worker vars.");
+  }
+  if (spec.routes && spec.routes.length > 0 && !(options.zoneId ?? process.env.CLOUDFLARE_ZONE_ID)) {
+    throw new AdapterExecutionError("Cloudflare edge.deploy requires zoneId or CLOUDFLARE_ZONE_ID when routes are provided.");
+  }
+}
+
 export function cloudflare(options: CloudflareAdapterOptions = {}): CapsuleAdapter {
   const getClient = () => new CloudflareClient(options);
   return {
@@ -129,6 +129,7 @@ export function cloudflare(options: CloudflareAdapterOptions = {}): CapsuleAdapt
         if (spec.runtime && spec.runtime !== "workers" && spec.runtime !== "edge") {
           throw new AdapterExecutionError(`Cloudflare adapter supports runtime "workers" or "edge", received "${spec.runtime}".`);
         }
+        assertSupportedSpec(spec, options);
         context.evaluatePolicy({ env: spec.env });
         const startedAt = new Date();
         const client = getClient();
@@ -137,7 +138,7 @@ export function cloudflare(options: CloudflareAdapterOptions = {}): CapsuleAdapt
         const metadata = {
           main_module: entrypoint,
           compatibility_date: options.compatibilityDate,
-          bindings: [...plainTextBindings(spec.env), ...providerBindings(spec.bindings)]
+          bindings: plainTextBindings(spec.env)
         };
         const result = await client.uploadWorkerModule({
           scriptName: spec.name,
@@ -145,6 +146,7 @@ export function cloudflare(options: CloudflareAdapterOptions = {}): CapsuleAdapt
           source,
           metadata
         });
+        const routes = await Promise.all((spec.routes ?? []).map((route) => client.createWorkerRoute({ pattern: route, scriptName: spec.name })));
         const url = workerUrl(spec.name, options.workersDevSubdomain);
         const receipt = context.receipts
           ? context.createReceipt({
@@ -168,7 +170,7 @@ export function cloudflare(options: CloudflareAdapterOptions = {}): CapsuleAdapt
                 runtime: spec.runtime ?? "workers",
                 compatibilityDate: result.compatibility_date ?? options.compatibilityDate,
                 entryPoint: result.entry_point ?? entrypoint,
-                routesRequested: spec.routes,
+                routes,
                 labels: spec.labels
               }
             })
