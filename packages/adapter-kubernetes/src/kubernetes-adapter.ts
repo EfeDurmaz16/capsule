@@ -7,13 +7,17 @@ import {
   type CapabilityMap,
   type CancelJobResult,
   type CancelJobSpec,
+  type DeletedService,
+  type DeleteServiceSpec,
   type DeployServiceSpec,
   type JobRun,
   type JobRunStatus,
   type JobStatusResult,
   type JobStatusSpec,
   type RunJobSpec,
-  type ServiceDeployment
+  type ServiceDeployment,
+  type ServiceStatusResult,
+  type ServiceStatusSpec
 } from "@capsule/core";
 
 interface KubernetesObject {
@@ -24,6 +28,7 @@ interface KubernetesObject {
     labels?: Record<string, string>;
     deletionTimestamp?: string;
   };
+  spec?: Record<string, unknown>;
   status?: Record<string, unknown>;
 }
 
@@ -35,10 +40,14 @@ interface BatchApi {
 
 interface AppsApi {
   createNamespacedDeployment(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
+  readNamespacedDeployment?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
+  deleteNamespacedDeployment?(input: { namespace: string; name: string; gracePeriodSeconds?: number; propagationPolicy?: string; body?: unknown }): Promise<KubernetesObject>;
 }
 
 interface CoreApi {
   createNamespacedService(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
+  readNamespacedService?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
+  deleteNamespacedService?(input: { namespace: string; name: string; gracePeriodSeconds?: number; propagationPolicy?: string; body?: unknown }): Promise<KubernetesObject>;
 }
 
 interface KubernetesClients {
@@ -79,8 +88,8 @@ export const kubernetesCapabilities: CapabilityMap = {
   service: {
     deploy: "native",
     update: "unsupported",
-    delete: "unsupported",
-    status: "unsupported",
+    delete: "native",
+    status: "native",
     logs: "unsupported",
     url: "experimental",
     scale: "native",
@@ -226,6 +235,31 @@ function clusterUrl(name: string, namespace: string, port?: number): string {
   return `http://${name}.${namespace}.svc.cluster.local${port ? `:${port}` : ""}`;
 }
 
+function firstServicePort(service: KubernetesObject, fallback?: number): number | undefined {
+  const ports = service.spec?.ports;
+  if (!Array.isArray(ports)) return fallback;
+  const first = ports[0];
+  if (!first || typeof first !== "object" || !("port" in first) || typeof first.port !== "number") return fallback;
+  return first.port;
+}
+
+function serviceUrl(service: KubernetesObject, name: string, namespace: string, fallbackPort?: number): string {
+  const port = firstServicePort(service, fallbackPort);
+  const ingress = service.status?.loadBalancer;
+  const entries =
+    ingress && typeof ingress === "object" && "ingress" in ingress && Array.isArray(ingress.ingress) ? ingress.ingress : [];
+  const first = entries[0];
+  if (first && typeof first === "object") {
+    if ("hostname" in first && typeof first.hostname === "string" && first.hostname.length > 0) {
+      return `http://${first.hostname}${port ? `:${port}` : ""}`;
+    }
+    if ("ip" in first && typeof first.ip === "string" && first.ip.length > 0) {
+      return `http://${first.ip}${port ? `:${port}` : ""}`;
+    }
+  }
+  return clusterUrl(name, namespace, port);
+}
+
 function conditionIsTrue(condition: unknown, type: string): boolean {
   return Boolean(
     condition &&
@@ -253,10 +287,37 @@ function jobStatus(job: KubernetesObject): JobRunStatus {
   return "queued";
 }
 
+function serviceStatus(deployment: KubernetesObject): ServiceStatusResult["status"] {
+  if (deployment.metadata?.deletionTimestamp) return "deleted";
+  const conditions = Array.isArray(deployment.status?.conditions) ? deployment.status.conditions : [];
+  if (conditions.some((condition) => conditionIsTrue(condition, "ReplicaFailure"))) return "failed";
+  const desired = numericStatus(deployment.spec, "replicas") || 1;
+  const ready = numericStatus(deployment.status, "readyReplicas");
+  const available = numericStatus(deployment.status, "availableReplicas");
+  if (ready >= desired && available >= desired) return "ready";
+  return "deploying";
+}
+
 function requireBatchMethod<K extends keyof BatchApi>(batch: BatchApi, method: K): NonNullable<BatchApi[K]> {
   const value = batch[method];
   if (typeof value !== "function") {
     throw new AdapterExecutionError(`Kubernetes Batch API client does not implement ${String(method)}.`);
+  }
+  return value;
+}
+
+function requireAppsMethod<K extends keyof AppsApi>(apps: AppsApi, method: K): NonNullable<AppsApi[K]> {
+  const value = apps[method];
+  if (typeof value !== "function") {
+    throw new AdapterExecutionError(`Kubernetes Apps API client does not implement ${String(method)}.`);
+  }
+  return value;
+}
+
+function requireCoreMethod<K extends keyof CoreApi>(core: CoreApi, method: K): NonNullable<CoreApi[K]> {
+  const value = core[method];
+  if (typeof value !== "function") {
+    throw new AdapterExecutionError(`Kubernetes Core API client does not implement ${String(method)}.`);
   }
   return value;
 }
@@ -371,7 +432,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
         const clients = getClients();
         const deployment = await clients.apps.createNamespacedDeployment({ namespace, body: deploymentBody(name, namespace, spec) });
         const service = await clients.core.createNamespacedService({ namespace, body: serviceBody(name, namespace, spec) });
-        const url = clusterUrl(name, namespace, spec.ports?.[0]?.port);
+        const url = serviceUrl(service, service.metadata?.name ?? name, namespace, spec.ports?.[0]?.port);
         const receipt = context.receipts
           ? context.createReceipt({
               type: "service.deploy",
@@ -393,6 +454,88 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
             })
           : undefined;
         return { id: deployment.metadata?.uid ?? name, provider, name, status: "deploying", url, receipt };
+      },
+      status: async (spec: ServiceStatusSpec, context: AdapterContext): Promise<ServiceStatusResult> => {
+        const startedAt = new Date();
+        const clients = getClients();
+        const readNamespacedDeployment = requireAppsMethod(clients.apps, "readNamespacedDeployment");
+        const readNamespacedService = requireCoreMethod(clients.core, "readNamespacedService");
+        const name = spec.id;
+        const deployment = await readNamespacedDeployment.call(clients.apps, { namespace, name });
+        const service = await readNamespacedService.call(clients.core, { namespace, name });
+        const resolvedName = deployment.metadata?.name ?? service.metadata?.name ?? name;
+        const url = serviceUrl(service, service.metadata?.name ?? resolvedName, namespace);
+        const status = serviceStatus(deployment);
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "service.status",
+              capabilityPath: "service.status",
+              startedAt,
+              policy: context.evaluatePolicy(),
+              resource: { id: resolvedName, name: resolvedName, status, url },
+              metadata: { namespace, deploymentName: deployment.metadata?.name ?? name, serviceName: service.metadata?.name ?? name }
+            })
+          : undefined;
+        return {
+          id: resolvedName,
+          provider,
+          name: resolvedName,
+          status,
+          url,
+          metadata: { namespace, deployment, service },
+          receipt
+        };
+      },
+      delete: async (spec: DeleteServiceSpec, context: AdapterContext): Promise<DeletedService> => {
+        const startedAt = new Date();
+        const clients = getClients();
+        const deleteNamespacedDeployment = requireAppsMethod(clients.apps, "deleteNamespacedDeployment");
+        const deleteNamespacedService = requireCoreMethod(clients.core, "deleteNamespacedService");
+        const name = spec.id;
+        const deleteOptions = {
+          apiVersion: "v1",
+          kind: "DeleteOptions",
+          gracePeriodSeconds: 0,
+          propagationPolicy: "Foreground"
+        };
+        const deployment = await deleteNamespacedDeployment.call(clients.apps, {
+          namespace,
+          name,
+          gracePeriodSeconds: 0,
+          propagationPolicy: "Foreground",
+          body: deleteOptions
+        });
+        const service = await deleteNamespacedService.call(clients.core, {
+          namespace,
+          name,
+          gracePeriodSeconds: 0,
+          propagationPolicy: "Foreground",
+          body: deleteOptions
+        });
+        const resolvedName = deployment.metadata?.name ?? service.metadata?.name ?? name;
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "service.delete",
+              capabilityPath: "service.delete",
+              startedAt,
+              policy: context.evaluatePolicy(),
+              resource: { id: resolvedName, name: resolvedName, status: "deleted" },
+              metadata: {
+                namespace,
+                deploymentName: deployment.metadata?.name ?? name,
+                serviceName: service.metadata?.name ?? name,
+                reason: spec.reason
+              }
+            })
+          : undefined;
+        return {
+          id: resolvedName,
+          provider,
+          name: resolvedName,
+          status: "deleted",
+          metadata: { namespace, deployment, service, reason: spec.reason },
+          receipt
+        };
       }
     }
   };

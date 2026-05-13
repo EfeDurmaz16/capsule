@@ -12,6 +12,8 @@ describe("kubernetes adapter", () => {
     expect(kubernetesCapabilities.job?.status).toBe("native");
     expect(kubernetesCapabilities.job?.cancel).toBe("native");
     expect(kubernetesCapabilities.service?.deploy).toBe("native");
+    expect(kubernetesCapabilities.service?.status).toBe("native");
+    expect(kubernetesCapabilities.service?.delete).toBe("native");
     expect(kubernetesCapabilities.service?.url).toBe("experimental");
   });
 
@@ -220,5 +222,139 @@ describe("kubernetes adapter", () => {
       kind: "Service",
       spec: { type: "LoadBalancer", ports: [{ port: 8080, targetPort: 8080, protocol: "TCP" }] }
     });
+  });
+
+  it("reads Deployment and LoadBalancer Service status with an external URL", async () => {
+    const reads = {
+      deployments: [] as Array<{ namespace: string; name: string }>,
+      services: [] as Array<{ namespace: string; name: string }>
+    };
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "preview",
+        clients: {
+          batch: { createNamespacedJob: async () => ({}) },
+          apps: {
+            createNamespacedDeployment: async () => ({}),
+            readNamespacedDeployment: async (input) => {
+              reads.deployments.push(input);
+              return {
+                metadata: { name: "api", uid: "deployment-uid" },
+                spec: { replicas: 2 },
+                status: { readyReplicas: 2, availableReplicas: 2 }
+              };
+            },
+            deleteNamespacedDeployment: async () => ({})
+          },
+          core: {
+            createNamespacedService: async () => ({}),
+            readNamespacedService: async (input) => {
+              reads.services.push(input);
+              return {
+                metadata: { name: "api", uid: "service-uid" },
+                spec: { type: "LoadBalancer", ports: [{ port: 8080 }] },
+                status: { loadBalancer: { ingress: [{ hostname: "api.example.test" }] } }
+              };
+            },
+            deleteNamespacedService: async () => ({})
+          }
+        }
+      }),
+      receipts: true
+    });
+
+    const status = await capsule.service.status({ id: "api" });
+
+    expect(status).toMatchObject({
+      id: "api",
+      provider: "kubernetes",
+      name: "api",
+      status: "ready",
+      url: "http://api.example.test:8080"
+    });
+    expect(status.receipt?.type).toBe("service.status");
+    expect(reads.deployments).toEqual([{ namespace: "preview", name: "api" }]);
+    expect(reads.services).toEqual([{ namespace: "preview", name: "api" }]);
+  });
+
+  it("falls back to the cluster-local Service URL when LoadBalancer ingress is not assigned", async () => {
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "internal",
+        clients: {
+          batch: { createNamespacedJob: async () => ({}) },
+          apps: {
+            createNamespacedDeployment: async () => ({}),
+            readNamespacedDeployment: async () => ({
+              metadata: { name: "worker" },
+              spec: { replicas: 1 },
+              status: { readyReplicas: 0, availableReplicas: 0 }
+            })
+          },
+          core: {
+            createNamespacedService: async () => ({}),
+            readNamespacedService: async () => ({
+              metadata: { name: "worker" },
+              spec: { type: "ClusterIP", ports: [{ port: 9090 }] },
+              status: {}
+            })
+          }
+        }
+      })
+    });
+
+    await expect(capsule.service.status({ id: "worker" })).resolves.toMatchObject({
+      status: "deploying",
+      url: "http://worker.internal.svc.cluster.local:9090"
+    });
+  });
+
+  it("deletes the Deployment and Service in the configured namespace", async () => {
+    const deletions = {
+      deployments: [] as Array<{ namespace: string; name: string; gracePeriodSeconds?: number; propagationPolicy?: string; body?: unknown }>,
+      services: [] as Array<{ namespace: string; name: string; gracePeriodSeconds?: number; propagationPolicy?: string; body?: unknown }>
+    };
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "preview",
+        clients: {
+          batch: { createNamespacedJob: async () => ({}) },
+          apps: {
+            createNamespacedDeployment: async () => ({}),
+            deleteNamespacedDeployment: async (input) => {
+              deletions.deployments.push(input);
+              return { metadata: { name: input.name, uid: "deployment-uid" } };
+            }
+          },
+          core: {
+            createNamespacedService: async () => ({}),
+            deleteNamespacedService: async (input) => {
+              deletions.services.push(input);
+              return { metadata: { name: input.name, uid: "service-uid" } };
+            }
+          }
+        }
+      }),
+      receipts: true
+    });
+
+    await expect(capsule.service.delete({ id: "api", reason: "cleanup" })).resolves.toMatchObject({
+      id: "api",
+      provider: "kubernetes",
+      status: "deleted",
+      metadata: { namespace: "preview", reason: "cleanup" }
+    });
+    const expectedDeleteOptions = {
+      apiVersion: "v1",
+      kind: "DeleteOptions",
+      gracePeriodSeconds: 0,
+      propagationPolicy: "Foreground"
+    };
+    expect(deletions.deployments).toEqual([
+      { namespace: "preview", name: "api", gracePeriodSeconds: 0, propagationPolicy: "Foreground", body: expectedDeleteOptions }
+    ]);
+    expect(deletions.services).toEqual([
+      { namespace: "preview", name: "api", gracePeriodSeconds: 0, propagationPolicy: "Foreground", body: expectedDeleteOptions }
+    ]);
   });
 });
