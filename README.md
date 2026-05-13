@@ -22,6 +22,17 @@ Capsule is not a fake universal cloud abstraction, PaaS clone, Terraform or Pulu
 pnpm add @capsule/core @capsule/adapter-docker
 ```
 
+Install only the adapters you use:
+
+```bash
+pnpm add @capsule/core @capsule/adapter-e2b
+pnpm add @capsule/core @capsule/adapter-neon
+pnpm add @capsule/core @capsule/adapter-vercel
+pnpm add @capsule/core @capsule/adapter-mock
+```
+
+`@capsule/adapter-mock` is for tests, examples, and future-provider modeling. It does not call real provider APIs.
+
 ## Quickstart
 
 ```ts
@@ -77,20 +88,28 @@ Capsule can apply network, filesystem, secrets, limits, cost, TTL, and approval 
 
 ## Provider Matrix
 
-| Provider | Sandbox | Job | Service | Edge | Database | Preview | Machine |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Docker | native | native | unsupported | unsupported | unsupported | unsupported | unsupported |
-| E2B | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported |
-| Daytona | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported |
-| Modal | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported |
-| Cloud Run | unsupported | native | native | unsupported | unsupported | unsupported | unsupported |
-| Cloudflare | unsupported | unsupported | unsupported | native | unsupported | unsupported | unsupported |
-| Vercel | unsupported | unsupported | unsupported | native | unsupported | unsupported | unsupported |
-| Neon | unsupported | unsupported | unsupported | unsupported | native | unsupported | unsupported |
-| Lambda | unsupported | native | unsupported | unsupported | unsupported | unsupported | unsupported |
-| ECS/Fargate | unsupported | native | native | unsupported | unsupported | unsupported | unsupported |
-| Kubernetes | unsupported | native | native | unsupported | unsupported | unsupported | unsupported |
-| EC2 | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | native |
+`native`, `experimental`, `emulated`, and `unsupported` are adapter-declared support levels. This short table covers real adapters in this repo; mock-only modeling is listed separately below.
+
+| Provider | Package | Sandbox | Job | Service | Edge | Database | Preview | Machine |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Docker | `@capsule/adapter-docker` | native | native | unsupported | unsupported | unsupported | unsupported | unsupported |
+| E2B | `@capsule/adapter-e2b` | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported |
+| Daytona | `@capsule/adapter-daytona` | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported |
+| Modal | `@capsule/adapter-modal` | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported |
+| Cloud Run | `@capsule/adapter-cloud-run` | unsupported | native | native | unsupported | unsupported | unsupported | unsupported |
+| Cloudflare Workers | `@capsule/adapter-cloudflare` | unsupported | unsupported | unsupported | native | unsupported | unsupported | unsupported |
+| Vercel | `@capsule/adapter-vercel` | unsupported | unsupported | unsupported | native | unsupported | unsupported | unsupported |
+| Neon | `@capsule/adapter-neon` | unsupported | unsupported | unsupported | unsupported | native | unsupported | unsupported |
+| Kubernetes | `@capsule/adapter-kubernetes` | unsupported | native | native | unsupported | unsupported | unsupported | unsupported |
+| Lambda | `@capsule/adapter-lambda` | unsupported | native | unsupported | unsupported | unsupported | unsupported | unsupported |
+| ECS/Fargate | `@capsule/adapter-ecs` | unsupported | native | native | unsupported | unsupported | unsupported | unsupported |
+| EC2 | `@capsule/adapter-ec2` | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | native |
+| Fly Machines | `@capsule/adapter-fly` | unsupported | native | unsupported | unsupported | unsupported | unsupported | native |
+| Azure Container Apps | `@capsule/adapter-azure-container-apps` | unsupported | native | native | unsupported | unsupported | unsupported | unsupported |
+
+Mock modeling package:
+
+- `@capsule/adapter-mock`: mock E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models for tests/examples. It returns fake objects and receipts and should not be presented as a real provider integration.
 
 ## Docs
 
