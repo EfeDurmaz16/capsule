@@ -21,7 +21,16 @@ pnpm capsule:linear
 LINEAR_API_KEY=... LINEAR_TEAM_ID=... pnpm capsule:linear -- --apply
 ```
 
-Set `LINEAR_PROJECT_ID` to attach mirrored issues to a Linear project. The script uses Linear's GraphQL API directly and does not add a Linear SDK dependency.
+Set `LINEAR_PROJECT_ID` or `LINEAR_PROJECT_SLUG` to attach mirrored issues to a Linear project. For the Capsule project in the `sardis-ai-payments` Linear workspace, use:
+
+```bash
+LINEAR_TEAM_KEY=SAR \
+LINEAR_PROJECT_SLUG=capsule-4a792bca0f93 \
+LINEAR_STATE_NAME=Todo \
+pnpm capsule:linear -- --tasks .capsule/live-verification-tasks.json --apply
+```
+
+`LINEAR_PROJECT_SLUG` accepts either the full URL slug, such as `capsule-4a792bca0f93`, or the Linear API `slugId`, such as `4a792bca0f93`. The script uses Linear's GraphQL API directly and does not add a Linear SDK dependency.
 
 ## Start Overnight
 
