@@ -89,6 +89,7 @@ export function capabilities(levels: {
     },
     machine: {
       create: levels.machine ?? unsupported,
+      status: levels.machine ?? unsupported,
       exec: levels.machine ?? unsupported,
       start: levels.machine ?? unsupported,
       stop: levels.machine ?? unsupported,

@@ -303,6 +303,61 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
             })
           : undefined;
         return { id: machineId, provider, name: spec.name, status: "running", receipt };
+      },
+      status: async (spec, context) => {
+        const startedAt = new Date();
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "machine.status",
+              capabilityPath: "machine.status",
+              startedAt,
+              policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
+              resource: { id: spec.id, status: "running" }
+            })
+          : undefined;
+        return { id: spec.id, provider, status: "running", receipt };
+      },
+      start: async (spec, context) => {
+        const startedAt = new Date();
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "machine.start",
+              capabilityPath: "machine.start",
+              startedAt,
+              policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
+              resource: { id: spec.id, status: "running" },
+              metadata: { reason: spec.reason }
+            })
+          : undefined;
+        return { id: spec.id, provider, status: "running", receipt };
+      },
+      stop: async (spec, context) => {
+        const startedAt = new Date();
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "machine.stop",
+              capabilityPath: "machine.stop",
+              startedAt,
+              policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
+              resource: { id: spec.id, status: "stopped" },
+              metadata: { force: spec.force, reason: spec.reason }
+            })
+          : undefined;
+        return { id: spec.id, provider, status: "stopped", receipt };
+      },
+      destroy: async (spec, context) => {
+        const startedAt = new Date();
+        const receipt = context.receipts
+          ? context.createReceipt({
+              type: "machine.destroy",
+              capabilityPath: "machine.destroy",
+              startedAt,
+              policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
+              resource: { id: spec.id, status: "deleted" },
+              metadata: { force: spec.force, reason: spec.reason }
+            })
+          : undefined;
+        return { id: spec.id, provider, status: "deleted", receipt };
       }
     };
   }

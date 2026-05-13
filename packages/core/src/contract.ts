@@ -109,6 +109,26 @@ const publicCapabilities: PublicCapability[] = [
     path: "machine.create",
     isImplemented: (adapter) => typeof adapter.machine?.create === "function",
     exercise: (capsule) => capsule.machine.create({ name: "capsule-contract-test", image: "capsule-contract-test", size: "capsule-contract-test" })
+  },
+  {
+    path: "machine.status",
+    isImplemented: (adapter) => typeof adapter.machine?.status === "function",
+    exercise: (capsule) => capsule.machine.status({ id: "capsule-contract-test" })
+  },
+  {
+    path: "machine.start",
+    isImplemented: (adapter) => typeof adapter.machine?.start === "function",
+    exercise: (capsule) => capsule.machine.start({ id: "capsule-contract-test" })
+  },
+  {
+    path: "machine.stop",
+    isImplemented: (adapter) => typeof adapter.machine?.stop === "function",
+    exercise: (capsule) => capsule.machine.stop({ id: "capsule-contract-test" })
+  },
+  {
+    path: "machine.destroy",
+    isImplemented: (adapter) => typeof adapter.machine?.destroy === "function",
+    exercise: (capsule) => capsule.machine.destroy({ id: "capsule-contract-test" })
   }
 ];
 

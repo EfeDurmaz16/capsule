@@ -10,6 +10,7 @@ import type {
   CapsulePolicy,
   CreateDatabaseBranchSpec,
   DeleteDatabaseBranchSpec,
+  DestroyMachineSpec,
   CreateMachineSpec,
   CreatePreviewSpec,
   CreateSandboxSpec,
@@ -19,11 +20,14 @@ import type {
   EdgeStatusSpec,
   JobStatusSpec,
   MigrateDatabaseSpec,
+  MachineStatusSpec,
   ReleaseEdgeVersionSpec,
   ResetDatabaseBranchSpec,
   RollbackEdgeSpec,
   RunJobSpec,
   ServiceStatusSpec,
+  StartMachineSpec,
+  StopMachineSpec,
   UpdateServiceSpec,
   VersionEdgeSpec
 } from "./types.js";
@@ -210,6 +214,34 @@ export class Capsule {
           throw new UnsupportedCapabilityError("machine.create");
         }
         return this.options.adapter.machine.create(spec, this.context());
+      },
+      status: async (spec: MachineStatusSpec) => {
+        this.require("machine.status");
+        if (!this.options.adapter.machine?.status) {
+          throw new UnsupportedCapabilityError("machine.status");
+        }
+        return this.options.adapter.machine.status(spec, this.context());
+      },
+      start: async (spec: StartMachineSpec) => {
+        this.require("machine.start");
+        if (!this.options.adapter.machine?.start) {
+          throw new UnsupportedCapabilityError("machine.start");
+        }
+        return this.options.adapter.machine.start(spec, this.context());
+      },
+      stop: async (spec: StopMachineSpec) => {
+        this.require("machine.stop");
+        if (!this.options.adapter.machine?.stop) {
+          throw new UnsupportedCapabilityError("machine.stop");
+        }
+        return this.options.adapter.machine.stop(spec, this.context());
+      },
+      destroy: async (spec: DestroyMachineSpec) => {
+        this.require("machine.destroy");
+        if (!this.options.adapter.machine?.destroy) {
+          throw new UnsupportedCapabilityError("machine.destroy");
+        }
+        return this.options.adapter.machine.destroy(spec, this.context());
       }
     };
   }
