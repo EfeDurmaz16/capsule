@@ -77,7 +77,8 @@ class MockSandbox implements Sandbox {
           stdout,
           stderr,
           policy: { ...policy, notes: [...policy.notes, ...receiptNotes(this.adapterName)] },
-          resource: { id: this.handle.id, status: "running" }
+          resource: { id: this.handle.id, status: "running" },
+          metadata: { mock: true, mockProvider: this.handle.provider, mockAdapter: this.adapterName }
         })
       : undefined;
     return { exitCode: 0, stdout, stderr, logs: logsFromOutput(stdout, stderr), artifacts: [], receipt };
@@ -109,6 +110,12 @@ class MockSandbox implements Sandbox {
 
 export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
   const { name, provider, capabilities } = options;
+  const mockReceiptMetadata = (metadata: Record<string, unknown> = {}) => ({
+    ...metadata,
+    mock: true,
+    mockProvider: provider,
+    mockAdapter: name
+  });
   const adapter: CapsuleAdapter = {
     name,
     provider,
@@ -125,7 +132,7 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
           id: id(`${provider}_sandbox`, spec.name),
           provider,
           createdAt: startedAt.toISOString(),
-          metadata: { image: spec.image ?? "mock-runtime", name: spec.name }
+          metadata: mockReceiptMetadata({ image: spec.image ?? "mock-runtime", name: spec.name })
         };
         if (context.receipts) {
           context.createReceipt({
@@ -134,7 +141,8 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
             startedAt,
             image: spec.image,
             policy: { ...policy, notes: [...policy.notes, ...receiptNotes(name)] },
-            resource: { id: handle.id, name: spec.name, status: "running" }
+            resource: { id: handle.id, name: spec.name, status: "running" },
+            metadata: mockReceiptMetadata({ image: spec.image ?? "mock-runtime", name: spec.name })
           });
         }
         return new MockSandbox(handle, context, name);
@@ -161,7 +169,8 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               stdout,
               stderr,
               policy: { ...policy, notes: [...policy.notes, ...receiptNotes(name)] },
-              resource: { id: spec.name, name: spec.name, status: "succeeded" }
+              resource: { id: spec.name, name: spec.name, status: "succeeded" },
+              metadata: mockReceiptMetadata()
             })
           : undefined;
         return {
@@ -182,7 +191,7 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               startedAt,
               policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
               resource: { id: spec.id },
-              metadata: { since: spec.since, until: spec.until, limit: spec.limit, follow: spec.follow }
+              metadata: mockReceiptMetadata({ since: spec.since, until: spec.until, limit: spec.limit, follow: spec.follow })
             })
           : undefined;
         return { id: spec.id, provider, logs, receipt };
@@ -205,7 +214,8 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               image: spec.image,
               source: spec.source,
               policy: { ...policy, notes: [...policy.notes, ...receiptNotes(name)] },
-              resource: { id: deploymentId, name: spec.name, url, status: "ready" }
+              resource: { id: deploymentId, name: spec.name, url, status: "ready" },
+              metadata: mockReceiptMetadata()
             })
           : undefined;
         return { id: deploymentId, provider, name: spec.name, status: "ready", url, receipt };
@@ -220,7 +230,7 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               startedAt,
               policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
               resource: { id: spec.id },
-              metadata: { since: spec.since, until: spec.until, limit: spec.limit, follow: spec.follow }
+              metadata: mockReceiptMetadata({ since: spec.since, until: spec.until, limit: spec.limit, follow: spec.follow })
             })
           : undefined;
         return { id: spec.id, provider, logs, receipt };
@@ -243,7 +253,7 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               source: spec.source,
               policy: { ...policy, notes: [...policy.notes, ...receiptNotes(name)] },
               resource: { id: deploymentId, name: spec.name, url, status: "ready" },
-              metadata: { runtime: spec.runtime, routes: spec.routes, bindings: spec.bindings }
+              metadata: mockReceiptMetadata({ runtime: spec.runtime, routes: spec.routes, bindings: spec.bindings })
             })
           : undefined;
         return { id: deploymentId, provider, name: spec.name, status: "ready", url, receipt };
@@ -258,7 +268,7 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               startedAt,
               policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
               resource: { id: spec.id },
-              metadata: { since: spec.since, until: spec.until, limit: spec.limit, follow: spec.follow }
+              metadata: mockReceiptMetadata({ since: spec.since, until: spec.until, limit: spec.limit, follow: spec.follow })
             })
           : undefined;
         return { id: spec.id, provider, logs, receipt };
@@ -280,7 +290,7 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
                 startedAt,
                 policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
                 resource: { id: branchId, name: spec.name, status: "ready" },
-                metadata: { project: spec.project, parent: spec.parent, ttlMs: spec.ttlMs }
+                metadata: mockReceiptMetadata({ project: spec.project, parent: spec.parent, ttlMs: spec.ttlMs })
               })
             : undefined;
           return {
@@ -303,7 +313,7 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
                 startedAt,
                 policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
                 resource: { id: spec.branchId, status: "deleted" },
-                metadata: { project: spec.project, hardDelete: spec.hardDelete }
+                metadata: mockReceiptMetadata({ project: spec.project, hardDelete: spec.hardDelete })
               })
             : undefined;
           return { id: spec.branchId, provider, project: spec.project, status: "deleted", receipt };
@@ -335,7 +345,7 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               source: spec.source,
               policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
               resource: { id: previewId, name: spec.name, status: "ready" },
-              metadata: { ttlMs: spec.ttlMs, resources }
+              metadata: mockReceiptMetadata({ ttlMs: spec.ttlMs, resources })
             })
           : undefined;
         return { id: previewId, provider, name: spec.name, status: "ready", urls, resources, receipt };
@@ -352,7 +362,7 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               startedAt,
               policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
               resource: { id: spec.id, status: "deleted" },
-              metadata: { force: spec.force, reason: spec.reason }
+              metadata: mockReceiptMetadata({ force: spec.force, reason: spec.reason })
             })
           : undefined;
         return { id: spec.id, provider, status: "deleted", receipt };
@@ -368,7 +378,8 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               capabilityPath: "preview.status",
               startedAt,
               policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
-              resource: { id: spec.id, status: "ready" }
+              resource: { id: spec.id, status: "ready" },
+              metadata: mockReceiptMetadata()
             })
           : undefined;
         return { id: spec.id, provider, status: "ready", urls: [], resources: [], receipt };
@@ -386,7 +397,7 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               startedAt,
               policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
               resource: { id: spec.id },
-              metadata: { limit: spec.limit, follow: spec.follow }
+              metadata: mockReceiptMetadata({ limit: spec.limit, follow: spec.follow })
             })
           : undefined;
         return { id: spec.id, provider, logs, receipt };
@@ -403,7 +414,8 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               capabilityPath: "preview.urls",
               startedAt,
               policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
-              resource: { id: spec.id, url: urls[0] }
+              resource: { id: spec.id, url: urls[0] },
+              metadata: mockReceiptMetadata()
             })
           : undefined;
         return { id: spec.id, provider, urls, receipt };
@@ -420,7 +432,7 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               startedAt,
               policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
               resource: { id: spec.id, status: "cleaned" },
-              metadata: { force: spec.force, reason: spec.reason }
+              metadata: mockReceiptMetadata({ force: spec.force, reason: spec.reason })
             })
           : undefined;
         return { id: spec.id, provider, status: "cleaned", cleanedResources: [], failedResources: [], receipt };
@@ -444,7 +456,7 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               image: spec.image,
               policy: { ...policy, notes: [...policy.notes, ...receiptNotes(name), "Machine primitives are lower-level and intentionally leak provider details."] },
               resource: { id: machineId, name: spec.name, status: "running" },
-              metadata: { region: spec.region, size: spec.size }
+              metadata: mockReceiptMetadata({ region: spec.region, size: spec.size })
             })
           : undefined;
         return { id: machineId, provider, name: spec.name, status: "running", receipt };
@@ -457,7 +469,8 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               capabilityPath: "machine.status",
               startedAt,
               policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
-              resource: { id: spec.id, status: "running" }
+              resource: { id: spec.id, status: "running" },
+              metadata: mockReceiptMetadata()
             })
           : undefined;
         return { id: spec.id, provider, status: "running", receipt };
@@ -471,7 +484,7 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               startedAt,
               policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
               resource: { id: spec.id, status: "running" },
-              metadata: { reason: spec.reason }
+              metadata: mockReceiptMetadata({ reason: spec.reason })
             })
           : undefined;
         return { id: spec.id, provider, status: "running", receipt };
@@ -485,7 +498,7 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               startedAt,
               policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
               resource: { id: spec.id, status: "stopped" },
-              metadata: { force: spec.force, reason: spec.reason }
+              metadata: mockReceiptMetadata({ force: spec.force, reason: spec.reason })
             })
           : undefined;
         return { id: spec.id, provider, status: "stopped", receipt };
@@ -499,7 +512,7 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               startedAt,
               policy: { decision: "allowed", applied: context.policy, notes: receiptNotes(name) },
               resource: { id: spec.id, status: "deleted" },
-              metadata: { force: spec.force, reason: spec.reason }
+              metadata: mockReceiptMetadata({ force: spec.force, reason: spec.reason })
             })
           : undefined;
         return { id: spec.id, provider, status: "deleted", receipt };

@@ -1,6 +1,13 @@
 import { describe, expect, test } from "vitest";
 import { Capsule, type CapsuleAdapter, type CapabilityMap } from "@capsule/core";
-import { cleanupPreviewEnvironment, createPreviewEnvironmentWithCleanup, createPreviewGraph, PreviewCreationError, type PreviewPlan } from "./index.js";
+import {
+  cleanupPreviewEnvironment,
+  createPreviewEnvironmentWithCleanup,
+  createPreviewGraph,
+  MockProviderNotAllowedError,
+  PreviewCreationError,
+  type PreviewPlan
+} from "./index.js";
 
 const capabilities: CapabilityMap = {
   database: {
@@ -35,11 +42,12 @@ const capabilities: CapabilityMap = {
   }
 };
 
-function fakeCapsule(events: string[] = [], options: { failServiceDeploy?: boolean; failDatabaseDelete?: boolean } = {}): Capsule {
+function fakeCapsule(events: string[] = [], options: { failServiceDeploy?: boolean; failDatabaseDelete?: boolean; mock?: boolean } = {}): Capsule {
   const adapter: CapsuleAdapter = {
     name: "fake-preview",
     provider: "fake",
     capabilities,
+    raw: options.mock ? { mock: true, provider: "fake" } : undefined,
     database: {
       branch: {
         create: async (spec, context) => {
@@ -245,5 +253,26 @@ describe("preview orchestration", () => {
         policy: { decision: "allowed" }
       });
     }
+  });
+
+  test("rejects mock adapters when real providers are required", async () => {
+    const previewPlan = {
+      ...plan(fakeCapsule([], { mock: true })),
+      requireRealProviders: true
+    };
+
+    await expect(createPreviewGraph(previewPlan)).rejects.toBeInstanceOf(MockProviderNotAllowedError);
+  });
+
+  test("allows mock adapters only when explicitly allowed", async () => {
+    const previewPlan = {
+      ...plan(fakeCapsule([], { mock: true })),
+      requireRealProviders: true,
+      allowMockProviders: true
+    };
+
+    await expect(createPreviewGraph(previewPlan)).resolves.toMatchObject({
+      preview: { status: "ready" }
+    });
   });
 });

@@ -8,6 +8,8 @@ describe("preview environment example runtime config", () => {
 
     expect(config.mode).toBe("demo-only");
     expect(config.liveProviders).toEqual([]);
+    expect(config.plan.requireRealProviders).toBe(true);
+    expect(config.plan.allowMockProviders).toBe(true);
     expect(config.plan.databases).toHaveLength(1);
     expect(config.plan.edges).toHaveLength(1);
     expect(config.plan.services).toBeUndefined();
@@ -29,6 +31,8 @@ describe("preview environment example runtime config", () => {
     });
 
     expect(config.mode).toBe("live");
+    expect(config.plan.requireRealProviders).toBe(true);
+    expect(config.plan.allowMockProviders).toBeUndefined();
     expect(config.liveProviders).toEqual(["neon", "vercel"]);
     expect(config.plan.databases).toHaveLength(1);
     expect(config.plan.edges).toHaveLength(1);

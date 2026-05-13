@@ -10,6 +10,8 @@ Docker `network.mode = "none"` is applied with Docker's `--network none` where t
 
 Receipts are observational records. They record what Capsule requested and observed, including hashes and resource metadata. They are not a cryptographic proof of the entire provider environment unless future signing and provider attestations are added.
 
+Mock adapters are marked as mocks in two places: `adapter.raw()` returns `{ mock: true }`, and mock-generated receipts include `metadata.mock: true` with the mock provider and adapter names. Production preview orchestration should require real providers so mock success cannot satisfy a live preview run by accident.
+
 Secrets must be handled carefully. Avoid logging raw credentials, private keys, tokens, connection strings, or payment data. Use allowlists and redaction. Provider docs and runtime isolation guarantees still matter.
 
 ## Observation vs Attestation

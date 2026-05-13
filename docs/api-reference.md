@@ -286,6 +286,7 @@ Exports:
 - `createPreviewEnvironmentWithCleanup`
 - `createPreviewGraph`
 - `createPreviewId`
+- `MockProviderNotAllowedError`
 - `PreviewCleanupAction`
 - `PreviewCleanupDisposition`
 - `PreviewCleanupDispositionRecord`

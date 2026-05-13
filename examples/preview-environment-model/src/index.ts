@@ -101,6 +101,8 @@ function demoPlan(receiptPath: string): PreviewPlan {
 
   return {
     name: previewName,
+    requireRealProviders: true,
+    allowMockProviders: true,
     labels: { example: "preview-environment-model", mode: "demo-only" },
     databases: [{ capsule: demo, spec: { project: "demo-app", name: previewName } }],
     edges: [{ capsule: demo, spec: { name: "web", source: { path: edgeSourcePath, entrypoint: "worker.js" } } }],
@@ -130,6 +132,7 @@ function livePlan(env: Env, receiptPath: string): PreviewPlan {
 
   const plan: PreviewPlan = {
     name: env.CAPSULE_EXAMPLE_PREVIEW_NAME ?? previewName,
+    requireRealProviders: true,
     labels: { example: "preview-environment-model", mode: "live" },
     databases: [
       {
