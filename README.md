@@ -139,14 +139,11 @@ Mock modeling package:
 - [Security model](docs/security-model.md)
 - [Roadmap](docs/roadmap.md)
 - [Real provider gap register](docs/real-provider-gap-register.md)
-- [Symphony harness](docs/symphony-harness.md)
-- [Autopilot runbook](docs/autopilot-runbook.md)
 - [Contributing](docs/contributing.md)
 - [Comparison](docs/comparison.md)
 - [Technical decisions](docs/technical-decisions.md)
 - [Architecture decision records](docs/adr/README.md)
 - [V1 readiness audit](docs/v1-readiness-audit.md)
-- [V2 plan](docs/v2-plan.md)
 
 ## Development
 
@@ -159,7 +156,7 @@ pnpm typecheck
 
 ## Project Status
 
-Capsule is pre-1.0 OSS infrastructure. The core contracts, real provider adapters, CLI, examples, tests, docs, release audit, and automation harness are present in this repository. Packages are not published to npm yet, and live provider operations require explicit credentials plus provider-specific quickstart steps.
+Capsule is pre-1.0 OSS infrastructure. The core contracts, real provider adapters, CLI, examples, tests, docs, and release audit are present in this repository. Packages are not published to npm yet, and live provider operations require explicit credentials plus provider-specific quickstart steps.
 
 ## Packages
 
@@ -200,22 +197,6 @@ Docker-backed examples require Docker:
 ```bash
 pnpm --filter @capsule/example-sandbox-docker start
 pnpm --filter @capsule/example-job-docker start
-```
-
-## Maintainer Autopilot
-
-Capsule includes a repo-local automation harness for long-running maintenance work:
-
-```bash
-pnpm capsule:gap
-pnpm capsule:issues
-pnpm capsule:autopilot -- --once --dry-run --max-parallel 2
-```
-
-For an overnight run on macOS:
-
-```bash
-nohup caffeinate -dimsu node scripts/capsule-autopilot.mjs --max-parallel 2 > .symphony/logs/autopilot.log 2>&1 &
 ```
 
 ## Real And Mocked

@@ -64,9 +64,6 @@ Use labels to make the task graph inspectable:
 | `needs-verification` | Work is not done until verification evidence is posted. |
 | `needs-design` | Contract or architecture shape is not ready for implementation. |
 | `blocked` | External dependency or missing decision prevents progress. |
-| `autopilot-running` | Automation or a maintainer branch is actively working the issue. |
-| `autopilot-failed` | Automation attempted the issue and left logs or failure notes. |
-
 Task issues should include a source task ID when possible, success criteria, required verification, and explicit guardrails. Large features should be split by package or domain so each PR can stay reviewable and atomic.
 
 ## Good First Issues
