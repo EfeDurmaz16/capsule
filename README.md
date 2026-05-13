@@ -137,6 +137,7 @@ pnpm typecheck
 - `@capsule/adapter-vercel`: real Vercel REST adapter for inline deployment creation.
 - `@capsule/adapter-mock`: mock E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models.
 - `@capsule/ai`: framework-agnostic code execution tool helper.
+- `@capsule/preview`: preview environment composition helpers for Capsule-backed services, edges, database branches, and jobs.
 - `@capsule/cli`: small CLI with `doctor`, `capabilities`, `run`, and `sandbox`.
 
 ## Examples
@@ -204,7 +205,7 @@ Mocked:
 
 - no original provider family is represented only by mocks; remaining gaps are explicit unsupported or experimental capabilities inside real adapters.
 - service, edge, database, preview, and machine lifecycle operations outside Docker;
-- preview orchestration across real providers.
+- provider-native preview orchestration across real providers.
 
 CLI examples:
 

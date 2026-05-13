@@ -63,6 +63,12 @@ export interface PreviewCleanupResult {
   receipts: CapsuleReceipt[];
 }
 
+export interface PreviewOrchestrationResult {
+  preview: PreviewEnvironment;
+  resources: PreviewResourceRecord[];
+  receipts: CapsuleReceipt[];
+}
+
 export class PreviewCreationError extends Error {
   readonly preview: PreviewEnvironment;
   readonly cleanup?: PreviewCleanupResult;
@@ -164,6 +170,10 @@ function previewFromResources(id: string, plan: PreviewPlan, status: PreviewEnvi
 }
 
 export async function createPreviewEnvironment(plan: PreviewPlan): Promise<PreviewEnvironment> {
+  return (await createPreviewGraph(plan)).preview;
+}
+
+export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrchestrationResult> {
   const id = createPreviewId(plan.name);
   const resources: PreviewResourceRecord[] = [];
 
@@ -181,7 +191,11 @@ export async function createPreviewEnvironment(plan: PreviewPlan): Promise<Previ
       resources.push(jobRecord(await entry.capsule.job.run(entry.spec)));
     }
 
-    return previewFromResources(id, plan, "ready", resources);
+    return {
+      preview: previewFromResources(id, plan, "ready", resources),
+      resources,
+      receipts: resources.map((resource) => resource.receipt).filter((receipt): receipt is CapsuleReceipt => receipt !== undefined)
+    };
   } catch (error) {
     const failedPreview = previewFromResources(id, plan, "failed", resources);
     throw new PreviewCreationError("Preview environment creation failed.", { preview: failedPreview, cause: error });
