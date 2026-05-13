@@ -102,6 +102,7 @@ Capsule can apply network, filesystem, secrets, limits, cost, TTL, and approval 
 - [Policy model](docs/policy-model.md)
 - [Execution receipts](docs/execution-receipts.md)
 - [Provider matrix](docs/provider-matrix.md)
+- [Real provider quickstarts](docs/real-provider-quickstarts.md)
 - [Security model](docs/security-model.md)
 - [Roadmap](docs/roadmap.md)
 - [Real provider gap register](docs/real-provider-gap-register.md)
