@@ -143,7 +143,7 @@ describe("cloud-run adapter", () => {
     expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
       resourceNames: ["projects/proj"],
       filter:
-        'resource.type="cloud_run_job" AND resource.labels.project_id="proj" AND resource.labels.location="us-central1" AND resource.labels.job_name="capsule-job" AND labels."run.googleapis.com/execution_name"="execution-1" AND timestamp>="2026-01-01T00:00:00.000Z" AND timestamp<="2026-01-01T00:05:00.000Z"',
+        'resource.type="cloud_run_job" AND resource.labels.project_id="proj" AND resource.labels.location="us-central1" AND resource.labels.job_name="capsule-job" AND labels.execution_name="execution-1" AND timestamp>="2026-01-01T00:00:00.000Z" AND timestamp<="2026-01-01T00:05:00.000Z"',
       orderBy: "timestamp desc",
       pageSize: 25
     });

@@ -260,7 +260,7 @@ function jobLogFilter(client: CloudRunClient, spec: JobLogsSpec): string {
     `resource.labels.project_id=${loggingValue(client.projectId)}`,
     `resource.labels.location=${loggingValue(client.location)}`,
     `resource.labels.job_name=${loggingValue(jobName)}`,
-    ...(executionName ? [`labels."run.googleapis.com/execution_name"=${loggingValue(executionName)}`] : []),
+    ...(executionName ? [`labels.execution_name=${loggingValue(executionName)}`] : []),
     ...loggingTimeRange(spec)
   ].join(" AND ");
 }
