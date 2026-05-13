@@ -33,13 +33,17 @@ export class AzureContainerAppsClient {
     this.accessToken = accessToken;
     this.subscriptionId = subscriptionId;
     this.resourceGroupName = resourceGroupName;
-    this.apiVersion = options.apiVersion ?? "2025-01-01";
+    this.apiVersion = options.apiVersion ?? "2025-07-01";
     this.baseUrl = options.baseUrl ?? "https://management.azure.com";
     this.fetchImpl = options.fetch ?? globalThis.fetch;
   }
 
   resourcePath(kind: "containerApps" | "jobs", name: string, suffix = ""): string {
     return `/subscriptions/${encodeURIComponent(this.subscriptionId)}/resourceGroups/${encodeURIComponent(this.resourceGroupName)}/providers/Microsoft.App/${kind}/${encodeURIComponent(name)}${suffix}?api-version=${encodeURIComponent(this.apiVersion)}`;
+  }
+
+  jobExecutionPath(jobName: string, executionName: string, suffix = ""): string {
+    return this.resourcePath("jobs", jobName, `/executions/${encodeURIComponent(executionName)}${suffix}`);
   }
 
   async request<T>(options: AzureContainerAppsRequestOptions): Promise<T> {

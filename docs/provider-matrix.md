@@ -23,7 +23,7 @@ Status legend:
 | ECS/Fargate | `@capsule/adapter-ecs` | unsupported | native | native | unsupported | unsupported | unsupported | unsupported | RunTask and CreateService are implemented for existing task definitions; task-definition registration, previews, and load balancers are future work. |
 | EC2 | `@capsule/adapter-ec2` | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | native | `machine.create/status/start/stop/destroy` are implemented through EC2 APIs; job/service wrappers, exec, and snapshot remain explicit future work. |
 | Fly Machines | `@capsule/adapter-fly` | unsupported | native | unsupported | unsupported | unsupported | unsupported | native | Fly Machines API supports machine create/status/start/stop/destroy and one-shot job machines; services, logs, volumes, and app networking remain explicit future work. |
-| Azure Container Apps | `@capsule/adapter-azure-container-apps` | unsupported | native | native | unsupported | unsupported | unsupported | unsupported | ARM APIs support Container App service create/update and manual job create/start; logs, revisions, secrets, registries, and delete/status lifecycle remain explicit future work. |
+| Azure Container Apps | `@capsule/adapter-azure-container-apps` | unsupported | native | native | unsupported | unsupported | unsupported | unsupported | ARM APIs support Container App service create/status/delete and manual job create/start/status/stop; logs, secrets, registries, and generic service rollback remain explicit future work. |
 
 ## Mock And Planned Modeling
 

@@ -68,10 +68,20 @@ describe("CLI service lifecycle parsing", () => {
     });
   });
 
-  test("fails clearly when a provider does not support service status", async () => {
-    await expect(main(["service", "status", "--adapter", "azure-container-apps", "--id", "api"])).rejects.toThrow(
-      'azure-container-apps does not support service.status. Run "capsule capabilities --adapter azure-container-apps" to inspect supported operations.'
-    );
+  test("parses Azure Container Apps service lifecycle commands", () => {
+    expect(parse(["service", "status", "--adapter", "azure-container-apps", "--id", "api"])).toMatchObject({
+      command: "service",
+      adapter: "azure-container-apps",
+      id: "api",
+      rest: ["status"]
+    });
+    expect(parse(["service", "delete", "--adapter", "azure-container-apps", "--id", "api", "--reason", "cleanup"])).toMatchObject({
+      command: "service",
+      adapter: "azure-container-apps",
+      id: "api",
+      reason: "cleanup",
+      rest: ["delete"]
+    });
   });
 });
 
@@ -92,9 +102,19 @@ describe("CLI job lifecycle parsing", () => {
     });
   });
 
-  test("fails clearly when a provider does not support job cancel", async () => {
-    await expect(main(["job", "cancel", "--adapter", "azure-container-apps", "--id", "job-execution"])).rejects.toThrow(
-      'azure-container-apps does not support job.cancel. Run "capsule capabilities --adapter azure-container-apps" to inspect supported operations.'
-    );
+  test("parses Azure Container Apps job lifecycle commands", () => {
+    expect(parse(["job", "status", "--adapter", "azure-container-apps", "--id", "job-execution"])).toMatchObject({
+      command: "job",
+      adapter: "azure-container-apps",
+      id: "job-execution",
+      rest: ["status"]
+    });
+    expect(parse(["job", "cancel", "--adapter", "azure-container-apps", "--id", "job-execution", "--reason", "cleanup"])).toMatchObject({
+      command: "job",
+      adapter: "azure-container-apps",
+      id: "job-execution",
+      reason: "cleanup",
+      rest: ["cancel"]
+    });
   });
 });
