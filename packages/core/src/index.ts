@@ -7,5 +7,6 @@ export * from "./errors.js";
 export * from "./logs.js";
 export * from "./policy.js";
 export * from "./receipts.js";
+export * from "./receipt-schema.js";
 export * from "./stores.js";
 export * from "./types.js";
