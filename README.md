@@ -134,6 +134,7 @@ Mock modeling package:
 - [Live provider tests](docs/live-tests.md)
 - [Publish readiness](docs/publish-readiness.md)
 - [Unfinished marker gate](docs/unfinished-marker-gate.md)
+- [V2 readiness audit](docs/v2-readiness-audit.md)
 - [API reference](docs/api-reference.md) (`pnpm docs:api`)
 - [Security model](docs/security-model.md)
 - [Roadmap](docs/roadmap.md)

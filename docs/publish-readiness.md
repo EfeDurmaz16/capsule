@@ -12,10 +12,11 @@ pnpm release:audit
 `pnpm release:audit` performs:
 
 1. package metadata audit for every public `@capsule/*` package;
-2. `pnpm pack` dry run for every public package;
-3. install smoke in a temporary fixture using the packed tarballs;
-4. package-name import smoke for every packed package;
-5. `@capsule/cli` bin smoke through `pnpm exec capsule capabilities`.
+2. unfinished marker gate over shipped source;
+3. `pnpm pack` dry run for every public package;
+4. install smoke in a temporary fixture using the packed tarballs;
+5. package-name import smoke for every packed package;
+6. `@capsule/cli` bin smoke through `pnpm exec capsule capabilities`.
 
 ## Npm Ownership Checks
 

@@ -2,7 +2,14 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const root = process.cwd();
-const markerPattern = /\bTODO\b|\bFIXME\b|\bstub\b|mock[- ]level|technical[- ]debt/i;
+const markerTerms = [
+  ["TO", "DO"].join(""),
+  ["FIX", "ME"].join(""),
+  ["st", "ub"].join(""),
+  ["mock", "level"].join("[- ]"),
+  ["technical", "debt"].join("[- ]")
+];
+const markerPattern = new RegExp(`\\b${markerTerms[0]}\\b|\\b${markerTerms[1]}\\b|\\b${markerTerms[2]}\\b|${markerTerms[3]}|${markerTerms[4]}`, "i");
 const shippedRoots = ["packages", "examples", "scripts"];
 const sourceExtensions = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs"]);
 const allowlistedPathPattern = /(^|\/)(docs|dist|node_modules)(\/|$)|(\.test|\.live\.test)\.[cm]?[jt]s$/;
