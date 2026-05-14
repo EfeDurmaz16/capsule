@@ -175,6 +175,7 @@ Mock modeling package:
 - [Policy model](docs/policy-model.md)
 - [Execution receipts](docs/execution-receipts.md)
 - [Provider matrix](docs/provider-matrix.md)
+- [Provider selection](docs/provider-selection.md)
 - [Real provider quickstarts](docs/real-provider-quickstarts.md)
 - [Live provider tests](docs/live-tests.md)
 - [Publish readiness](docs/publish-readiness.md)

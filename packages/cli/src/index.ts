@@ -1,6 +1,17 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "node:url";
-import { Capsule, explainSupportLevel, uniqueCapabilityPaths, type CapabilityMap, type CapabilityPath, type SupportLevelExplanation } from "@capsule/core";
+import {
+  Capsule,
+  capabilityDiff,
+  explainSupportLevel,
+  providerCompatibilityScore,
+  uniqueCapabilityPaths,
+  type CapabilityDiffEntry,
+  type CapabilityMap,
+  type CapabilityPath,
+  type ProviderCompatibilityScore,
+  type SupportLevelExplanation
+} from "@capsule/core";
 import { azureContainerApps } from "@capsule/adapter-azure-container-apps";
 import { cloudflare } from "@capsule/adapter-cloudflare";
 import { cloudRun } from "@capsule/adapter-cloud-run";
@@ -21,6 +32,8 @@ interface ParsedArgs {
   command?: string;
   image?: string;
   adapter?: string;
+  leftAdapter?: string;
+  rightAdapter?: string;
   receiptFile?: string;
   id?: string;
   project?: string;
@@ -86,6 +99,18 @@ interface DoctorReport {
   providers: ProviderCredentialDiagnostic[];
 }
 
+interface ProviderCapabilityComparison {
+  left: {
+    provider: string;
+    compatibility: ProviderCompatibilityScore;
+  };
+  right: {
+    provider: string;
+    compatibility: ProviderCompatibilityScore;
+  };
+  diff: CapabilityDiffEntry[];
+}
+
 const credentialRequirements: CredentialRequirement[] = [
   { provider: "e2b", requiredAll: ["E2B_API_KEY"] },
   { provider: "daytona", requiredAll: ["DAYTONA_API_KEY"] },
@@ -128,6 +153,23 @@ const credentialRequirements: CredentialRequirement[] = [
   }
 ];
 
+const comparableProviders = [
+  "azure-container-apps",
+  "cloud-run",
+  "cloudflare",
+  "daytona",
+  "docker",
+  "e2b",
+  "ec2",
+  "ecs",
+  "fly",
+  "kubernetes",
+  "lambda",
+  "modal",
+  "neon",
+  "vercel"
+] as const;
+
 export function parse(argv: string[]): ParsedArgs {
   const [command, ...args] = argv;
   const parsed: ParsedArgs = { command, rest: [] };
@@ -140,6 +182,16 @@ export function parse(argv: string[]): ParsedArgs {
     }
     if (arg === "--adapter") {
       parsed.adapter = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--left") {
+      parsed.leftAdapter = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--right") {
+      parsed.rightAdapter = args[index + 1];
       index += 1;
       continue;
     }
@@ -386,11 +438,38 @@ export function capabilityExplanations(capabilities: CapabilityMap): SupportLeve
   return uniqueCapabilityPaths(capabilities).map((path) => explainSupportLevel(capabilities, path));
 }
 
+export function compareProviderCapabilities(leftProvider: string, rightProvider: string): ProviderCapabilityComparison {
+  assertComparableProvider(leftProvider);
+  assertComparableProvider(rightProvider);
+  const leftCapabilities = createCapsule({ adapter: leftProvider, rest: [] }).capabilities();
+  const rightCapabilities = createCapsule({ adapter: rightProvider, rest: [] }).capabilities();
+  const paths = uniqueCapabilityPaths(leftCapabilities, rightCapabilities);
+
+  return {
+    left: {
+      provider: leftProvider,
+      compatibility: providerCompatibilityScore(leftCapabilities, paths)
+    },
+    right: {
+      provider: rightProvider,
+      compatibility: providerCompatibilityScore(rightCapabilities, paths)
+    },
+    diff: capabilityDiff(leftCapabilities, rightCapabilities, paths)
+  };
+}
+
+function assertComparableProvider(provider: string): void {
+  if (!(comparableProviders as readonly string[]).includes(provider)) {
+    throw new Error(`Unknown provider "${provider}". Comparable providers: ${comparableProviders.join(", ")}`);
+  }
+}
+
 function printHelp(): void {
   console.log(`Capsule CLI
 
 Commands:
   capsule doctor
+  capsule compare providers --left docker --right e2b
   capsule capabilities
   capsule capabilities --explain
   capsule capabilities --adapter neon
@@ -595,6 +674,19 @@ export async function main(argv: string[]): Promise<void> {
       const capsule = createCapsule(parsed);
       const capabilities = capsule.capabilities();
       console.log(JSON.stringify(parsed.explain ? capabilityExplanations(capabilities) : capabilities, null, 2));
+      return;
+    }
+    case "compare": {
+      const action = parsed.rest[0];
+      if (action !== "providers") {
+        throw new Error("Unknown compare command. Use providers.");
+      }
+      const left = parsed.leftAdapter ?? parsed.rest[1];
+      const right = parsed.rightAdapter ?? parsed.rest[2];
+      if (!left || !right) {
+        throw new Error("Missing providers. Use capsule compare providers --left docker --right e2b.");
+      }
+      console.log(JSON.stringify(compareProviderCapabilities(left, right), null, 2));
       return;
     }
     case "edge": {

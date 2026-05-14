@@ -1,5 +1,5 @@
-import { describe, expect, test } from "vitest";
-import { capabilityExplanations, createDoctorReport, main, parse, providerCredentialDiagnostics } from "./index.js";
+import { describe, expect, test, vi } from "vitest";
+import { compareProviderCapabilities, capabilityExplanations, createDoctorReport, main, parse, providerCredentialDiagnostics } from "./index.js";
 
 describe("CLI doctor credential diagnostics", () => {
   test("reports configured and missing providers without secret values", () => {
@@ -81,6 +81,54 @@ describe("CLI doctor credential diagnostics", () => {
 });
 
 describe("CLI capability explanations", () => {
+  test("parses provider comparison adapters", () => {
+    expect(parse(["compare", "providers", "--left", "docker", "--right", "e2b"])).toMatchObject({
+      command: "compare",
+      leftAdapter: "docker",
+      rightAdapter: "e2b",
+      rest: ["providers"]
+    });
+  });
+
+  test("compares provider capabilities with diff and compatibility scores", () => {
+    const report = compareProviderCapabilities("docker", "e2b");
+
+    expect(report.left.provider).toBe("docker");
+    expect(report.right.provider).toBe("e2b");
+    expect(report.diff).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: "sandbox.exposePort",
+          left: "native",
+          right: "experimental"
+        })
+      ])
+    );
+    expect(report.left.compatibility.score).toBeGreaterThanOrEqual(0);
+    expect(report.left.compatibility.score).toBeGreaterThan(report.right.compatibility.score);
+  });
+
+  test("prints provider comparison from the compare providers command", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    let output: { left: { provider: string }; right: { provider: string }; diff: Array<{ path: string }> };
+    try {
+      await main(["compare", "providers", "--left", "docker", "--right", "e2b"]);
+      output = JSON.parse(String(log.mock.calls[0]?.[0])) as typeof output;
+    } finally {
+      log.mockRestore();
+    }
+
+    expect(output).toMatchObject({
+      left: { provider: "docker" },
+      right: { provider: "e2b" }
+    });
+    expect(output.diff).toEqual(expect.arrayContaining([expect.objectContaining({ path: "sandbox.exposePort" })]));
+  });
+
+  test("rejects unknown provider comparison names", () => {
+    expect(() => compareProviderCapabilities("dockre", "e2b")).toThrow('Unknown provider "dockre"');
+  });
+
   test("parses the explain flag", () => {
     expect(parse(["capabilities", "--adapter", "neon", "--explain"])).toMatchObject({
       command: "capabilities",
