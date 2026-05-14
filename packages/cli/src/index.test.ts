@@ -129,6 +129,10 @@ describe("CLI capability explanations", () => {
     expect(() => compareProviderCapabilities("dockre", "e2b")).toThrow('Unknown provider "dockre"');
   });
 
+  test("compares ECS capabilities without requiring deployment options", () => {
+    expect(() => compareProviderCapabilities("ecs", "e2b")).not.toThrow();
+  });
+
   test("parses the explain flag", () => {
     expect(parse(["capabilities", "--adapter", "neon", "--explain"])).toMatchObject({
       command: "capabilities",

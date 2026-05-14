@@ -441,8 +441,8 @@ export function capabilityExplanations(capabilities: CapabilityMap): SupportLeve
 export function compareProviderCapabilities(leftProvider: string, rightProvider: string): ProviderCapabilityComparison {
   assertComparableProvider(leftProvider);
   assertComparableProvider(rightProvider);
-  const leftCapabilities = createCapsule({ adapter: leftProvider, rest: [] }).capabilities();
-  const rightCapabilities = createCapsule({ adapter: rightProvider, rest: [] }).capabilities();
+  const leftCapabilities = createCapsuleForCapabilityInspection(leftProvider).capabilities();
+  const rightCapabilities = createCapsuleForCapabilityInspection(rightProvider).capabilities();
   const paths = uniqueCapabilityPaths(leftCapabilities, rightCapabilities);
 
   return {
@@ -456,6 +456,13 @@ export function compareProviderCapabilities(leftProvider: string, rightProvider:
     },
     diff: capabilityDiff(leftCapabilities, rightCapabilities, paths)
   };
+}
+
+function createCapsuleForCapabilityInspection(provider: string): Capsule {
+  if (provider === "ecs") {
+    return createCapsule({ adapter: provider, cluster: "capability-inspection", taskDefinition: "capability-inspection:1", containerName: "main", rest: [] });
+  }
+  return createCapsule({ adapter: provider, rest: [] });
 }
 
 function assertComparableProvider(provider: string): void {
