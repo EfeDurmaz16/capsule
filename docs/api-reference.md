@@ -271,6 +271,7 @@ Exports:
 - `main`
 - `parse`
 - `providerCredentialDiagnostics`
+- `selectProvidersForRecipe`
 
 ## @capsule/core
 
@@ -290,6 +291,7 @@ Exports:
 - `barrel: logs`
 - `barrel: policy`
 - `barrel: presets`
+- `barrel: provider-selection`
 - `barrel: receipt-schema`
 - `barrel: receipts`
 - `barrel: stores`

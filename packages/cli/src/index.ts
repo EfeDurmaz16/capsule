@@ -4,11 +4,17 @@ import {
   Capsule,
   capabilityDiff,
   explainSupportLevel,
+  getProviderSelectionRecipe,
+  isProviderSelectionRecipeId,
   providerCompatibilityScore,
+  rankProvidersByRecipe,
   uniqueCapabilityPaths,
   type CapabilityDiffEntry,
   type CapabilityMap,
   type CapabilityPath,
+  type ProviderSelectionRecipe,
+  type ProviderSelectionRecipeId,
+  type ProviderSelectionResult,
   type ProviderCompatibilityScore,
   type SupportLevelExplanation
 } from "@capsule/core";
@@ -35,6 +41,7 @@ interface ParsedArgs {
   leftAdapter?: string;
   rightAdapter?: string;
   provider?: string;
+  recipe?: string;
   receiptFile?: string;
   id?: string;
   project?: string;
@@ -120,6 +127,11 @@ interface ProviderCapabilityComparison {
     compatibility: ProviderCompatibilityScore;
   };
   diff: CapabilityDiffEntry[];
+}
+
+interface ProviderSelectionReport {
+  recipe: ProviderSelectionRecipe;
+  results: ProviderSelectionResult[];
 }
 
 const credentialRequirements: CredentialRequirement[] = [
@@ -318,6 +330,11 @@ export function parse(argv: string[]): ParsedArgs {
     }
     if (arg === "--provider") {
       parsed.provider = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--recipe") {
+      parsed.recipe = args[index + 1];
       index += 1;
       continue;
     }
@@ -584,6 +601,19 @@ export function compareProviderCapabilities(leftProvider: string, rightProvider:
   };
 }
 
+export function selectProvidersForRecipe(recipeId: ProviderSelectionRecipeId): ProviderSelectionReport {
+  const recipe = getProviderSelectionRecipe(recipeId);
+  const candidates = comparableProviders.map((provider) => ({
+    provider,
+    capabilities: createCapsuleForCapabilityInspection(provider).capabilities()
+  }));
+
+  return {
+    recipe,
+    results: rankProvidersByRecipe(candidates, recipe)
+  };
+}
+
 export function liveTestCommandPlan(provider?: string): LiveTestPlan[] {
   if (!provider) {
     return liveTestPlans;
@@ -615,6 +645,8 @@ Commands:
   capsule doctor
   capsule live-test plan
   capsule live-test plan --provider neon
+  capsule select provider --recipe sandbox
+  capsule select provider --recipe service-api
   capsule compare providers --left docker --right e2b
   capsule capabilities
   capsule capabilities --explain
@@ -831,6 +863,20 @@ export async function main(argv: string[]): Promise<void> {
       const capsule = createCapsule(parsed);
       const capabilities = capsule.capabilities();
       console.log(JSON.stringify(parsed.explain ? capabilityExplanations(capabilities) : capabilities, null, 2));
+      return;
+    }
+    case "select": {
+      const action = parsed.rest[0];
+      if (action !== "provider") {
+        throw new Error("Unknown select command. Use provider.");
+      }
+      if (!parsed.recipe) {
+        throw new Error("Missing --recipe");
+      }
+      if (!isProviderSelectionRecipeId(parsed.recipe)) {
+        throw new Error(`Unknown provider selection recipe "${parsed.recipe}". Recipes: sandbox, agent-code-execution, preview-web-db, edge-web, service-api, machine`);
+      }
+      console.log(JSON.stringify(selectProvidersForRecipe(parsed.recipe), null, 2));
       return;
     }
     case "compare": {

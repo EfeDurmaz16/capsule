@@ -6,6 +6,7 @@ import {
   liveTestCommandPlan,
   main,
   parse,
+  selectProvidersForRecipe,
   providerCredentialDiagnostics
 } from "./index.js";
 
@@ -89,6 +90,40 @@ describe("CLI doctor credential diagnostics", () => {
 });
 
 describe("CLI capability explanations", () => {
+  test("parses provider selection recipes", () => {
+    expect(parse(["select", "provider", "--recipe", "sandbox"])).toMatchObject({
+      command: "select",
+      recipe: "sandbox",
+      rest: ["provider"]
+    });
+  });
+
+  test("ranks comparable providers for a built-in recipe", () => {
+    const report = selectProvidersForRecipe("service-api");
+
+    expect(report.recipe.id).toBe("service-api");
+    expect(report.results[0]).toMatchObject({
+      provider: expect.stringMatching(/cloud-run|kubernetes|azure-container-apps/),
+      requiredSatisfied: expect.any(Number),
+      requiredTotal: expect.any(Number)
+    });
+    expect(report.results.find((entry) => entry.provider === "e2b")?.missingRequired.map((entry) => entry.path)).toContain("service.deploy");
+  });
+
+  test("prints provider selection from the select provider command", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await main(["select", "provider", "--recipe", "sandbox"]);
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as ReturnType<typeof selectProvidersForRecipe>;
+
+      expect(output.recipe.id).toBe("sandbox");
+      expect(output.results[0]?.provider).toBe("docker");
+      expect(output.results[0]?.missingRequired).toEqual([]);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   test("parses provider comparison adapters", () => {
     expect(parse(["compare", "providers", "--left", "docker", "--right", "e2b"])).toMatchObject({
       command: "compare",
