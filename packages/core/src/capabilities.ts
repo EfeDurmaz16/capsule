@@ -32,10 +32,28 @@ export interface SupportLevelExplanation {
   guidance: string;
 }
 
+export interface ProviderCompatibilityScore {
+  score: number;
+  requiredScore: number;
+  optionalScore: number;
+  requiredSatisfied: number;
+  requiredTotal: number;
+  optionalSatisfied: number;
+  optionalTotal: number;
+  missingRequired: CapabilityRequirementResult[];
+  results: CapabilityRequirementResult[];
+}
+
 export type CapabilityRequirementInput = CapabilityPath | CapabilityRequirement;
 
 export const deployableSupportLevels: SupportLevel[] = ["native", "emulated", "experimental"];
 export const nativeOnlySupportLevels: SupportLevel[] = ["native"];
+export const supportLevelWeights: Record<SupportLevel, number> = {
+  native: 1,
+  emulated: 0.65,
+  experimental: 0.4,
+  unsupported: 0
+};
 
 export function supportLevel(capabilities: CapabilityMap, path: CapabilityPath): SupportLevel {
   const [domain, key] = path.split(".");
@@ -87,6 +105,26 @@ export function missingCapabilityRequirements(
   return evaluateCapabilityRequirements(capabilities, requirements).filter((result) => !result.optional && !result.supported);
 }
 
+export function providerCompatibilityScore(capabilities: CapabilityMap, requirements: CapabilityRequirementInput[]): ProviderCompatibilityScore {
+  const results = evaluateCapabilityRequirements(capabilities, requirements);
+  const required = results.filter((result) => !result.optional);
+  const optional = results.filter((result) => result.optional);
+  const requiredScore = averageCapabilityScore(required);
+  const optionalScore = averageCapabilityScore(optional);
+
+  return {
+    score: Math.round((requiredScore * 0.85 + optionalScore * 0.15) * 100),
+    requiredScore,
+    optionalScore,
+    requiredSatisfied: required.filter((result) => result.supported).length,
+    requiredTotal: required.length,
+    optionalSatisfied: optional.filter((result) => result.supported).length,
+    optionalTotal: optional.length,
+    missingRequired: required.filter((result) => !result.supported),
+    results
+  };
+}
+
 export function capabilityDiff(left: CapabilityMap, right: CapabilityMap, paths?: CapabilityPath[]): CapabilityDiffEntry[] {
   const capabilityPaths = paths ?? uniqueCapabilityPaths(left, right);
 
@@ -117,6 +155,12 @@ export function uniqueCapabilityPaths(...maps: CapabilityMap[]): CapabilityPath[
 
 function normalizeRequirement(requirement: CapabilityRequirementInput): CapabilityRequirement {
   return typeof requirement === "string" ? { path: requirement } : requirement;
+}
+
+function averageCapabilityScore(results: CapabilityRequirementResult[]): number {
+  if (results.length === 0) return 1;
+  const total = results.reduce((sum, result) => sum + (result.supported ? supportLevelWeights[result.actualLevel] : 0), 0);
+  return Number((total / results.length).toFixed(4));
 }
 
 function supportLevelSummary(level: SupportLevel): string {

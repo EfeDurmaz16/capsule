@@ -28,6 +28,8 @@ By default, `native`, `emulated`, and `experimental` satisfy a requirement. Use 
 
 `explainSupportLevel(capabilities, path)` returns a human-readable summary and guidance for a declared support level. Use it in CLIs, docs generators, and provider selection UIs instead of inventing per-command wording.
 
+`providerCompatibilityScore(capabilities, requirements)` returns a 0-100 score for a workflow requirement set. Required capabilities account for most of the score, optional capabilities add a smaller bonus, and support levels are weighted as `native > emulated > experimental > unsupported`. This is not a universal provider ranking; it is a transparent fit score for one explicit workflow.
+
 Examples:
 
 - Docker: `sandbox.exec` and `sandbox.exposePort` are native, `sandbox.filesystemPolicy` is emulated, `sandbox.networkPolicy` is experimental, `sandbox.snapshot` and `sandbox.restore` are unsupported, and `service.deploy` is unsupported. Docker sandbox port exposure is local-only by default: requested ports are published to `127.0.0.1` unless a caller explicitly supplies another `hostIp`.

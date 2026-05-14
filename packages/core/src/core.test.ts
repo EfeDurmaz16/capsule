@@ -7,6 +7,7 @@ import {
   explainSupportLevel,
   missingCapabilityRequirements,
   nativeOnlySupportLevels,
+  providerCompatibilityScore,
   supportLevel,
   supports,
   uniqueCapabilityPaths
@@ -173,6 +174,55 @@ describe("capabilities", () => {
       { path: "sandbox.snapshot", left: "unsupported", right: "experimental" },
       { path: "job.run", left: "unsupported", right: "native" }
     ]);
+  });
+
+  test("scores provider compatibility by support level and required coverage", () => {
+    const scored: CapabilityMap = {
+      sandbox: {
+        create: "native",
+        exec: "native",
+        fileRead: "native",
+        fileWrite: "emulated",
+        fileList: "experimental",
+        destroy: "native",
+        snapshot: "unsupported"
+      },
+      job: {
+        run: "unsupported",
+        status: "unsupported",
+        cancel: "unsupported",
+        logs: "unsupported",
+        artifacts: "unsupported",
+        timeout: "unsupported",
+        env: "unsupported"
+      }
+    };
+
+    expect(
+      providerCompatibilityScore(scored, [
+        "sandbox.create",
+        { path: "sandbox.fileWrite", levels: ["native"] },
+        { path: "sandbox.fileList" },
+        { path: "sandbox.snapshot", optional: true },
+        { path: "job.run", optional: true }
+      ])
+    ).toMatchObject({
+      score: 40,
+      requiredScore: 0.4667,
+      optionalScore: 0,
+      requiredSatisfied: 2,
+      requiredTotal: 3,
+      optionalSatisfied: 0,
+      optionalTotal: 2,
+      missingRequired: [
+        expect.objectContaining({
+          path: "sandbox.fileWrite",
+          actualLevel: "emulated",
+          acceptedLevels: ["native"],
+          supported: false
+        })
+      ]
+    });
   });
 
   test("unsupported capability throws", async () => {
