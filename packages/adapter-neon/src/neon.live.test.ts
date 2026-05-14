@@ -27,7 +27,17 @@ describe("neon live smoke", () => {
       });
       branchId = branch.id;
       expect(branch.status).toBe("ready");
+      if (process.env.NEON_DATABASE && process.env.NEON_ROLE) {
+        expect(branch.connectionString).toContain("postgres");
+      } else {
+        expect(branch.connectionString).toBeUndefined();
+      }
       expect(branch.receipt?.type).toBe("database.branch.create");
+      expect(branch.receipt?.policy.notes).toContain(
+        process.env.NEON_DATABASE && process.env.NEON_ROLE
+          ? "Connection URI retrieved from Neon API."
+          : "Connection URI not requested; configure databaseName and roleName to retrieve it."
+      );
     } finally {
       if (branchId) {
         const deleted = await capsule.database.branch.delete({ project: process.env.NEON_PROJECT_ID ?? "", branchId, hardDelete: true });

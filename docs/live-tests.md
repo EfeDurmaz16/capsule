@@ -11,7 +11,7 @@ Do not enable these tests in routine CI without dedicated test accounts, quotas,
 | Cloud Run | `packages/adapter-cloud-run/src/cloud-run.live.test.ts` | `CAPSULE_LIVE_TESTS`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_RUN_LOCATION`, `GOOGLE_OAUTH_ACCESS_TOKEN`, `CAPSULE_CLOUD_RUN_SERVICE_ID` | Reads an existing service status. | No resource is created. |
 | Cloudflare | `packages/adapter-cloudflare/src/cloudflare.live.test.ts` | `CAPSULE_LIVE_TESTS`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CAPSULE_CLOUDFLARE_WORKER_NAME`, `CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION` | Creates an unreleased Worker version. | No route is released; remove Worker versions from Cloudflare if your account policy requires it. |
 | Vercel | `packages/adapter-vercel/src/vercel.live.test.ts` | `CAPSULE_LIVE_TESTS`, `VERCEL_TOKEN`, `CAPSULE_VERCEL_DEPLOYMENT_ID` | Reads an existing deployment status. | No resource is created. |
-| Neon | `packages/adapter-neon/src/neon.live.test.ts` | `CAPSULE_LIVE_TESTS`, `NEON_API_KEY`, `NEON_PROJECT_ID` | Creates a branch. | Deletes the branch with `hardDelete: true` in `finally`. |
+| Neon | `packages/adapter-neon/src/neon.live.test.ts` | `CAPSULE_LIVE_TESTS`, `NEON_API_KEY`, `NEON_PROJECT_ID` | Creates a branch and optionally retrieves its connection URI when `NEON_DATABASE` and `NEON_ROLE` are set. | Deletes the branch with `hardDelete: true` in `finally`. |
 | Kubernetes | `packages/adapter-kubernetes/src/kubernetes.live.test.ts` | `CAPSULE_LIVE_TESTS`, `CAPSULE_KUBERNETES_NAMESPACE` | Creates a Job in the configured namespace. | Deletes the Job in `finally`. |
 | AWS Lambda | `packages/adapter-lambda/src/lambda.live.test.ts` | `CAPSULE_LIVE_TESTS`, `AWS_REGION`, `CAPSULE_LAMBDA_FUNCTION_NAME` | Invokes an existing Lambda function. | No resource is created; side effects depend on the function. |
 | Fly Machines | `packages/adapter-fly/src/fly.live.test.ts` | `CAPSULE_LIVE_TESTS`, `FLY_API_TOKEN`, `FLY_APP_NAME`, `CAPSULE_FLY_IMAGE` | Creates a Machine. | Destroys the Machine in `finally`. |
@@ -37,3 +37,27 @@ Run a single provider:
 ```bash
 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-neon/src/neon.live.test.ts
 ```
+
+## Stripe Projects Env Mapping
+
+Stripe Projects resources may expose credentials with resource-scoped names. Keep those names local and map them to Capsule's canonical live-test variables at command time:
+
+```bash
+set -a
+. ./.env
+set +a
+
+NEON_PROJECT_ID="${NEON_PROJECT_ID:-$CAPSULE_POSTGRES_PROJECT_ID}" \
+NEON_DATABASE="${NEON_DATABASE:-$CAPSULE_POSTGRES_DATABASE_NAME}" \
+CAPSULE_LIVE_TESTS=1 \
+pnpm vitest run packages/adapter-neon/src/neon.live.test.ts
+
+CLOUDFLARE_API_TOKEN="${CLOUDFLARE_API_TOKEN:-$CAPSULE_WORKER_API_TOKEN}" \
+CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-$CAPSULE_WORKER_ACCOUNT_ID}" \
+CAPSULE_CLOUDFLARE_WORKER_NAME="capsule-worker" \
+CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION=1 \
+CAPSULE_LIVE_TESTS=1 \
+pnpm vitest run packages/adapter-cloudflare/src/cloudflare.live.test.ts
+```
+
+Do not commit `.env`, `.projects/`, Stripe Projects vault files, or live-test logs that include provider IDs, tokens, connection strings, or account URLs.
