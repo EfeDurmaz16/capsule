@@ -894,12 +894,12 @@ export function ${factoryName}(options: ${typeName}AdapterOptions = {}): Capsule
     {
       path: join(packageDir, `src/${segment}.test.ts`),
       content: `import { describe, expect, test } from "vitest";
-import { Capsule, runAdapterContract } from "@capsule/core";
+import { Capsule, runCapsuleAdapterContract } from "@capsule/core";
 import { ${factoryName}, ${factoryName}Capabilities } from "./index.js";
 
 describe("${segment} adapter", () => {
   test("satisfies the public adapter contract for declared unsupported capabilities", async () => {
-    await runAdapterContract(${factoryName}());
+    await runCapsuleAdapterContract(${factoryName}(), { domains: ${JSON.stringify(domains)} });
   });
 
   test("starts with explicit unsupported support levels", () => {

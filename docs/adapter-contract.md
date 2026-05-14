@@ -95,12 +95,14 @@ Use the core contract helpers first. They verify that declared public capabiliti
 
 ```ts
 import { describe, expect, test } from "vitest";
-import { Capsule, runAdapterContract } from "@capsule/core";
+import { Capsule, runCapsuleAdapterContract } from "@capsule/core";
 import { exampleAdapter } from "./example-adapter.js";
 
 describe("example adapter", () => {
   test("satisfies the public adapter contract", async () => {
-    await runAdapterContract(exampleAdapter({ fakeClient: true }));
+    await runCapsuleAdapterContract(exampleAdapter({ fakeClient: true }), {
+      domains: ["sandbox", "job"]
+    });
   });
 
   test("declares support levels honestly", () => {

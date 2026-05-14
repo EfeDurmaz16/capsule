@@ -2,12 +2,18 @@ import { UnsupportedCapabilityError } from "./errors.js";
 import { Capsule } from "./capsule.js";
 import { supportLevel, type CapabilityPath } from "./capabilities.js";
 import type { CapsuleAdapter } from "./adapters.js";
+import type { CapsuleDomain } from "./types.js";
 
 type PublicCapability = {
   path: CapabilityPath;
   isImplemented(adapter: CapsuleAdapter): boolean;
   exercise(capsule: Capsule): Promise<unknown>;
 };
+
+export interface CapsuleAdapterContractOptions {
+  domains?: CapsuleDomain[];
+  capabilities?: CapabilityPath[];
+}
 
 const publicCapabilities: PublicCapability[] = [
   {
@@ -177,7 +183,14 @@ const publicCapabilities: PublicCapability[] = [
   }
 ];
 
-export function assertAdapterContract(adapter: CapsuleAdapter): void {
+function selectedPublicCapabilities(options: CapsuleAdapterContractOptions = {}): PublicCapability[] {
+  return publicCapabilities.filter((capability) => {
+    const domain = capability.path.split(".")[0] as CapsuleDomain;
+    return (!options.domains || options.domains.includes(domain)) && (!options.capabilities || options.capabilities.includes(capability.path));
+  });
+}
+
+export function assertAdapterContract(adapter: CapsuleAdapter, options: CapsuleAdapterContractOptions = {}): void {
   if (!adapter.name) {
     throw new Error("Adapter must declare a name");
   }
@@ -187,7 +200,7 @@ export function assertAdapterContract(adapter: CapsuleAdapter): void {
   if (!adapter.capabilities) {
     throw new Error("Adapter must declare capabilities");
   }
-  for (const capability of publicCapabilities) {
+  for (const capability of selectedPublicCapabilities(options)) {
     const level = supportLevel(adapter.capabilities, capability.path);
     const implemented = capability.isImplemented(adapter);
     if (level !== "unsupported" && !implemented) {
@@ -199,11 +212,11 @@ export function assertAdapterContract(adapter: CapsuleAdapter): void {
   }
 }
 
-export async function assertUnsupportedCapabilityGuards(adapter: CapsuleAdapter): Promise<void> {
-  assertAdapterContract(adapter);
+export async function assertUnsupportedCapabilityGuards(adapter: CapsuleAdapter, options: CapsuleAdapterContractOptions = {}): Promise<void> {
+  assertAdapterContract(adapter, options);
   const capsule = new Capsule({ adapter });
 
-  for (const capability of publicCapabilities) {
+  for (const capability of selectedPublicCapabilities(options)) {
     if (supportLevel(adapter.capabilities, capability.path) !== "unsupported") {
       continue;
     }
@@ -219,7 +232,11 @@ export async function assertUnsupportedCapabilityGuards(adapter: CapsuleAdapter)
   }
 }
 
-export async function runAdapterContract(adapter: CapsuleAdapter): Promise<void> {
-  assertAdapterContract(adapter);
-  await assertUnsupportedCapabilityGuards(adapter);
+export async function runAdapterContract(adapter: CapsuleAdapter, options: CapsuleAdapterContractOptions = {}): Promise<void> {
+  assertAdapterContract(adapter, options);
+  await assertUnsupportedCapabilityGuards(adapter, options);
+}
+
+export async function runCapsuleAdapterContract(adapter: CapsuleAdapter, options: CapsuleAdapterContractOptions = {}): Promise<void> {
+  await runAdapterContract(adapter, options);
 }

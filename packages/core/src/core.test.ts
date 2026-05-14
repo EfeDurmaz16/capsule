@@ -18,7 +18,7 @@ import { edgeWorkerPreset, httpServicePreset, nodeJobPreset, nodeSandboxPreset, 
 import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
 import { createReceipt } from "./receipts.js";
 import { MemoryReceiptStore } from "./stores.js";
-import { assertAdapterContract } from "./contract.js";
+import { assertAdapterContract, runCapsuleAdapterContract } from "./contract.js";
 import type { CapsuleAdapter, CapabilityMap } from "./index.js";
 
 const capabilities: CapabilityMap = {
@@ -282,6 +282,26 @@ describe("capabilities", () => {
     };
 
     expect(() => assertAdapterContract(dishonestAdapter)).toThrow("declares job.logs as native but does not implement the public contract");
+  });
+
+  test("contract can be scoped to selected domains for adapter authors", async () => {
+    const partialAdapter: CapsuleAdapter = {
+      ...adapter,
+      capabilities: {
+        ...capabilities,
+        service: {
+          deploy: "native",
+          update: "unsupported",
+          delete: "unsupported",
+          status: "unsupported",
+          logs: "unsupported",
+          url: "unsupported"
+        }
+      }
+    };
+
+    await expect(runCapsuleAdapterContract(partialAdapter, { domains: ["sandbox"] })).resolves.toBeUndefined();
+    await expect(runCapsuleAdapterContract(partialAdapter, { domains: ["service"] })).rejects.toThrow("declares service.deploy as native but does not implement the public contract");
   });
 
   test("contract rejects declared preview lifecycle support without implementation", () => {

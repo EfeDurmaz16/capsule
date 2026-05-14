@@ -101,11 +101,13 @@ Do not add dashboards, auth, servers, databases, queues, or provider provisionin
 Every adapter should run the shared contract suite:
 
 ```ts
-import { runAdapterContract } from "@capsule/core";
+import { runCapsuleAdapterContract } from "@capsule/core";
 import { railway } from "./index.js";
 
 test("runs the shared adapter contract suite", async () => {
-  await runAdapterContract(railway({ fakeClient: true }));
+  await runCapsuleAdapterContract(railway({ fakeClient: true }), {
+    domains: ["service"]
+  });
 });
 ```
 
