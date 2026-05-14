@@ -23,6 +23,29 @@ Capsule is a TypeScript-first OSS control-plane interface for running code, jobs
 
 Capsule is not a fake universal cloud abstraction, PaaS clone, Terraform or Pulumi replacement, Nitric or Encore replacement, Docker wrapper only, sandbox provider, deployment provider, or security magic layer.
 
+## Why Not Just Use Provider SDKs?
+
+Use provider SDKs directly when you are building for one provider and need its full native API.
+
+Use Capsule when an agent platform, CI system, preview controller, internal developer tool, or framework needs to operate across providers and prove what happened.
+
+Direct provider SDKs execute actions:
+
+- Neon creates database branches.
+- Cloudflare deploys Workers.
+- Vercel creates deployments.
+- Docker runs containers.
+
+Capsule makes runtime actions governable, comparable, auditable, and composable across providers:
+
+- capability checks say whether `edge.rollback`, `database.branchCreate`, or `sandbox.exec` is `native`, `emulated`, `experimental`, or `unsupported`;
+- policy checks run before runtime calls and are recorded in receipts;
+- receipts normalize provider, adapter, support level, timing, hashes, resource ids, and policy decisions;
+- preview flows can compose database branches, edge deployments, services, jobs, URLs, cleanup plans, and evidence bundles;
+- provider-specific escape hatches stay available through `raw()` instead of being hidden behind a fake common denominator.
+
+Capsule is not a better Cloudflare SDK, Vercel SDK, Neon SDK, or Docker SDK. It is the small TypeScript layer above provider SDKs that lets tools execute runtime actions without lying about what each provider can actually do.
+
 ## Install
 
 Package names are reserved in the repo contract but not published to npm yet. Until the first release, use the workspace packages from this repository. The install commands below show the intended npm package names after publication.
