@@ -1,11 +1,13 @@
 import { beforeAll, describe, expect, test } from "vitest";
-import { Capsule, runAdapterContract } from "@capsule/core";
+import { Capsule, MemoryReceiptStore, runAdapterContract } from "@capsule/core";
 import { liveTest, liveTestGate, type LiveTestGate } from "@capsule/test-utils";
 import { docker, dockerAvailable, runDocker } from "./index.js";
 import { dockerSandboxCreateArgs } from "./docker-adapter.js";
+import { normalizeDockerReceiptFixtures } from "./docker-receipt-fixtures.js";
 
-const hasDocker = await dockerAvailable();
-const dockerLiveGate: LiveTestGate = hasDocker ? liveTestGate({ provider: "docker" }) : { enabled: false, skipReason: "Docker is not available." };
+const configuredDockerLiveGate = liveTestGate({ provider: "docker" });
+const hasDocker = configuredDockerLiveGate.enabled ? await dockerAvailable() : false;
+const dockerLiveGate: LiveTestGate = configuredDockerLiveGate.enabled && !hasDocker ? { enabled: false, skipReason: "Docker is not available." } : configuredDockerLiveGate;
 const dockerLiveEnabled = dockerLiveGate.enabled;
 
 beforeAll(async () => {
@@ -91,6 +93,142 @@ describe("docker adapter", () => {
     expect(run.result?.stdout).toContain("docker ok");
     expect(run.receipt?.type).toBe("job.run");
   }, 60_000);
+
+  runLiveDocker("matches normalized live Docker receipt fixtures", async () => {
+    const store = new MemoryReceiptStore();
+    const capsule = new Capsule({ adapter: docker(), receipts: true, receiptStore: store });
+    const sandbox = await capsule.sandbox.create({ image: "node:22", name: uniqueName("receipt-fixture"), timeoutMs: 30_000 });
+
+    try {
+      const exec = await sandbox.exec({ command: ["node", "-e", "console.log('sandbox fixture')"], timeoutMs: 30_000 });
+      expect(exec.exitCode).toBe(0);
+      expect(exec.stdout).toBe("sandbox fixture\n");
+    } finally {
+      await sandbox.destroy();
+    }
+
+    const run = await capsule.job.run({
+      image: "node:22",
+      name: "capsule-receipt-fixture-job",
+      command: ["node", "-e", "console.log('job fixture')"],
+      timeoutMs: 30_000
+    });
+
+    expect(run.status).toBe("succeeded");
+    expect(run.result?.stdout).toBe("job fixture\n");
+    expect(normalizeDockerReceiptFixtures(store.receipts)).toMatchInlineSnapshot(`
+      [
+        {
+          "adapter": "docker",
+          "capabilityPath": "sandbox.create",
+          "durationMs": "<duration-ms>",
+          "finishedAt": "<finished-at>",
+          "id": "<receipt-id>",
+          "image": "node:22",
+          "policy": {
+            "applied": {},
+            "decision": "allowed",
+            "notes": [
+              "Docker local is not safe for hostile untrusted code unless the host Docker environment is hardened.",
+            ],
+          },
+          "provider": "docker",
+          "resource": {
+            "id": "<docker-resource-id>",
+            "name": "<docker-resource-name>",
+            "status": "running",
+          },
+          "startedAt": "<started-at>",
+          "supportLevel": "native",
+          "type": "sandbox.create",
+        },
+        {
+          "adapter": "docker",
+          "capabilityPath": "sandbox.exec",
+          "command": [
+            "node",
+            "-e",
+            "console.log('sandbox fixture')",
+          ],
+          "durationMs": "<duration-ms>",
+          "exitCode": 0,
+          "finishedAt": "<finished-at>",
+          "id": "<receipt-id>",
+          "policy": {
+            "applied": {},
+            "decision": "allowed",
+            "notes": [
+              "Docker local is not safe for hostile untrusted code unless the host Docker environment is hardened.",
+            ],
+          },
+          "provider": "docker",
+          "resource": {
+            "id": "<docker-resource-id>",
+            "status": "running",
+          },
+          "startedAt": "<started-at>",
+          "stderrHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutHash": "7e1e82f0b9747ea9a51b310275d0d11da40bb5e5711fde334dc4e10212ba9ced",
+          "supportLevel": "native",
+          "type": "sandbox.exec",
+        },
+        {
+          "adapter": "docker",
+          "capabilityPath": "sandbox.destroy",
+          "durationMs": "<duration-ms>",
+          "finishedAt": "<finished-at>",
+          "id": "<receipt-id>",
+          "policy": {
+            "applied": {},
+            "decision": "allowed",
+            "notes": [
+              "Docker local is not safe for hostile untrusted code unless the host Docker environment is hardened.",
+            ],
+          },
+          "provider": "docker",
+          "resource": {
+            "id": "<docker-resource-id>",
+            "status": "deleted",
+          },
+          "startedAt": "<started-at>",
+          "supportLevel": "native",
+          "type": "sandbox.destroy",
+        },
+        {
+          "adapter": "docker",
+          "capabilityPath": "job.run",
+          "command": [
+            "node",
+            "-e",
+            "console.log('job fixture')",
+          ],
+          "durationMs": "<duration-ms>",
+          "exitCode": 0,
+          "finishedAt": "<finished-at>",
+          "id": "<receipt-id>",
+          "image": "node:22",
+          "policy": {
+            "applied": {},
+            "decision": "allowed",
+            "notes": [
+              "Docker local is not safe for hostile untrusted code unless the host Docker environment is hardened.",
+            ],
+          },
+          "provider": "docker",
+          "resource": {
+            "id": "<docker-resource-id>",
+            "name": "capsule-receipt-fixture-job",
+            "status": "succeeded",
+          },
+          "startedAt": "<started-at>",
+          "stderrHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutHash": "bae360ea25b96d08bc8ddfb907fbfd703c6a93fcbfed56bf518b8913f47a90ce",
+          "supportLevel": "native",
+          "type": "job.run",
+        },
+      ]
+    `);
+  }, 90_000);
 
   runLiveDocker("covers sandbox create, exec, file read/write/list, and destroy", async () => {
     const capsule = new Capsule({ adapter: docker(), receipts: true });
