@@ -1,12 +1,18 @@
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, test, vi } from "vitest";
 import {
+  classifyProvider,
   compareProviderCapabilities,
   capabilityExplanations,
+  createAdapterScaffoldPlan,
   createDoctorReport,
   liveTestCommandPlan,
   main,
   parse,
   selectProvidersForRecipe,
+  writeAdapterScaffold,
   providerCredentialDiagnostics
 } from "./index.js";
 
@@ -90,6 +96,63 @@ describe("CLI doctor credential diagnostics", () => {
 });
 
 describe("CLI capability explanations", () => {
+  test("classifies provider services by Capsule domain", async () => {
+    expect(parse(["classify", "provider", "cloudflare", "workers"])).toMatchObject({
+      command: "classify",
+      rest: ["provider", "cloudflare", "workers"]
+    });
+    expect(classifyProvider("fly", "mpg")).toMatchObject({
+      classification: {
+        domains: ["database", "resource"],
+        notCapabilities: expect.arrayContaining(["machine.create"])
+      }
+    });
+
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await main(["classify", "provider", "neon", "postgres"]);
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as ReturnType<typeof classifyProvider>;
+      expect(output.classification?.domains).toEqual(["database", "resource"]);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  test("creates an adapter scaffold plan without claiming provider support", async () => {
+    const plan = createAdapterScaffoldPlan({ provider: "acme-cloud", domains: ["sandbox", "job"], outDir: "tmp-packages" });
+
+    expect(plan).toMatchObject({
+      provider: "acme-cloud",
+      packageName: "@capsule/adapter-acme-cloud",
+      factoryName: "acmeCloud",
+      packageDir: join("tmp-packages", "adapter-acme-cloud"),
+      domains: ["sandbox", "job"]
+    });
+    expect(plan.files.map((file) => file.path)).toEqual([
+      join("tmp-packages", "adapter-acme-cloud", "package.json"),
+      join("tmp-packages", "adapter-acme-cloud", "tsconfig.json"),
+      join("tmp-packages", "adapter-acme-cloud", "src/index.ts"),
+      join("tmp-packages", "adapter-acme-cloud", "src/acme-cloud-adapter.ts"),
+      join("tmp-packages", "adapter-acme-cloud", "src/acme-cloud.test.ts")
+    ]);
+    expect(plan.files.find((file) => file.path.endsWith("acme-cloud-adapter.ts"))?.content).toContain('create: "unsupported"');
+    expect(plan.files.find((file) => file.path.endsWith("acme-cloud-adapter.ts"))?.content).toContain('run: "unsupported"');
+  });
+
+  test("writes adapter scaffold files and refuses overwrites without force", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-scaffold-"));
+    try {
+      const plan = createAdapterScaffoldPlan({ provider: "sample", domains: ["edge"], outDir: root });
+      await writeAdapterScaffold(plan);
+
+      await expect(readFile(join(root, "adapter-sample", "src/sample-adapter.ts"), "utf8")).resolves.toContain('deploy: "unsupported"');
+      await expect(writeAdapterScaffold(plan)).rejects.toThrow("Refusing to overwrite");
+      await expect(writeAdapterScaffold(plan, { force: true })).resolves.toBe(plan);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   test("parses provider selection recipes", () => {
     expect(parse(["select", "provider", "--recipe", "sandbox"])).toMatchObject({
       command: "select",

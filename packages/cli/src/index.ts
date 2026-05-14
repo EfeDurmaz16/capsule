@@ -1,8 +1,11 @@
 #!/usr/bin/env node
+import { access, mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   Capsule,
   capabilityDiff,
+  classifyProviderService,
   explainSupportLevel,
   getProviderSelectionRecipe,
   isProviderSelectionRecipeId,
@@ -12,6 +15,8 @@ import {
   type CapabilityDiffEntry,
   type CapabilityMap,
   type CapabilityPath,
+  type CapsuleDomain,
+  type ClassifyProviderServiceResult,
   type ProviderSelectionRecipe,
   type ProviderSelectionRecipeId,
   type ProviderSelectionResult,
@@ -42,6 +47,8 @@ interface ParsedArgs {
   rightAdapter?: string;
   provider?: string;
   recipe?: string;
+  domains?: string[];
+  outDir?: string;
   receiptFile?: string;
   id?: string;
   project?: string;
@@ -133,6 +140,24 @@ interface ProviderSelectionReport {
   recipe: ProviderSelectionRecipe;
   results: ProviderSelectionResult[];
 }
+
+interface AdapterScaffoldFile {
+  path: string;
+  content: string;
+}
+
+interface AdapterScaffoldPlan {
+  provider: string;
+  packageName: string;
+  factoryName: string;
+  packageDir: string;
+  domains: AdapterScaffoldDomain[];
+  files: AdapterScaffoldFile[];
+}
+
+type AdapterScaffoldDomain = Extract<CapsuleDomain, "sandbox" | "job" | "service" | "edge" | "database" | "preview" | "machine">;
+
+const adapterScaffoldDomains = ["sandbox", "job", "service", "edge", "database", "preview", "machine"] as const satisfies readonly AdapterScaffoldDomain[];
 
 const credentialRequirements: CredentialRequirement[] = [
   { provider: "e2b", requiredAll: ["E2B_API_KEY"] },
@@ -335,6 +360,16 @@ export function parse(argv: string[]): ParsedArgs {
     }
     if (arg === "--recipe") {
       parsed.recipe = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--domain") {
+      parsed.domains = [...(parsed.domains ?? []), args[index + 1]];
+      index += 1;
+      continue;
+    }
+    if (arg === "--out-dir") {
+      parsed.outDir = args[index + 1];
       index += 1;
       continue;
     }
@@ -625,6 +660,218 @@ export function liveTestCommandPlan(provider?: string): LiveTestPlan[] {
   return [plan];
 }
 
+export function classifyProvider(provider: string, service: string): ClassifyProviderServiceResult {
+  return classifyProviderService({ provider, service });
+}
+
+function toPackageSegment(provider: string): string {
+  const segment = provider
+    .trim()
+    .toLowerCase()
+    .replace(/^@/, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  if (!segment) {
+    throw new Error("Provider name must contain at least one alphanumeric character.");
+  }
+  return segment;
+}
+
+function toFactoryName(provider: string): string {
+  const segment = toPackageSegment(provider);
+  const name = segment.replace(/-([a-z0-9])/g, (_, char: string) => char.toUpperCase());
+  return /^[a-z]/.test(name) ? name : `adapter${name[0]!.toUpperCase()}${name.slice(1)}`;
+}
+
+function toTypeName(factoryName: string): string {
+  return `${factoryName[0]!.toUpperCase()}${factoryName.slice(1)}`;
+}
+
+function assertScaffoldDomains(domains: string[]): AdapterScaffoldDomain[] {
+  if (domains.length === 0) {
+    throw new Error(`Missing --domain. Supported domains: ${adapterScaffoldDomains.join(", ")}`);
+  }
+  return domains.map((domain) => {
+    if (!(adapterScaffoldDomains as readonly string[]).includes(domain)) {
+      throw new Error(`Unknown adapter domain "${domain}". Supported domains: ${adapterScaffoldDomains.join(", ")}`);
+    }
+    return domain as AdapterScaffoldDomain;
+  });
+}
+
+function capabilityMapForDomains(domains: AdapterScaffoldDomain[]): string {
+  const entries: Record<AdapterScaffoldDomain, string> = {
+    sandbox: `  sandbox: {
+    create: "unsupported",
+    exec: "unsupported",
+    fileRead: "unsupported",
+    fileWrite: "unsupported",
+    fileList: "unsupported",
+    destroy: "unsupported"
+  }`,
+    job: `  job: {
+    run: "unsupported",
+    status: "unsupported",
+    cancel: "unsupported",
+    logs: "unsupported",
+    artifacts: "unsupported",
+    timeout: "unsupported",
+    env: "unsupported"
+  }`,
+    service: `  service: {
+    deploy: "unsupported",
+    update: "unsupported",
+    delete: "unsupported",
+    status: "unsupported",
+    logs: "unsupported",
+    url: "unsupported"
+  }`,
+    edge: `  edge: {
+    deploy: "unsupported",
+    rollback: "unsupported",
+    routes: "unsupported"
+  }`,
+    database: `  database: {
+    branchCreate: "unsupported",
+    branchDelete: "unsupported",
+    connectionString: "unsupported"
+  }`,
+    preview: `  preview: {
+    create: "unsupported",
+    destroy: "unsupported",
+    status: "unsupported",
+    logs: "unsupported",
+    urls: "unsupported"
+  }`,
+    machine: `  machine: {
+    create: "unsupported",
+    exec: "unsupported",
+    start: "unsupported",
+    stop: "unsupported",
+    destroy: "unsupported"
+  }`
+  };
+  return `{\n${domains.map((domain) => entries[domain]).join(",\n")}\n}`;
+}
+
+export function createAdapterScaffoldPlan(options: { provider: string; domains: string[]; outDir?: string }): AdapterScaffoldPlan {
+  const segment = toPackageSegment(options.provider);
+  const factoryName = toFactoryName(segment);
+  const typeName = toTypeName(factoryName);
+  const packageName = `@capsule/adapter-${segment}`;
+  const domains = assertScaffoldDomains(options.domains);
+  const packageDir = join(options.outDir ?? "packages", `adapter-${segment}`);
+  const capabilities = capabilityMapForDomains(domains);
+  const files: AdapterScaffoldFile[] = [
+    {
+      path: join(packageDir, "package.json"),
+      content: `${JSON.stringify(
+        {
+          name: packageName,
+          version: "0.1.0",
+          type: "module",
+          main: "./dist/index.js",
+          types: "./dist/index.d.ts",
+          exports: { ".": { types: "./dist/index.d.ts", import: "./dist/index.js" } },
+          scripts: {
+            build: "tsup src/index.ts --format esm && tsc -p tsconfig.json --emitDeclarationOnly",
+            typecheck: "tsc -p tsconfig.json --noEmit"
+          },
+          dependencies: { "@capsule/core": "workspace:*" },
+          devDependencies: { tsup: "^8.5.0", typescript: "^5.9.3", vitest: "^4.1.6" },
+          publishConfig: { access: "public" },
+          files: ["dist"],
+          description: `Capsule adapter scaffold for ${segment}.`,
+          license: "Apache-2.0",
+          engines: { node: ">=20.11" }
+        },
+        null,
+        2
+      )}\n`
+    },
+    {
+      path: join(packageDir, "tsconfig.json"),
+      content: `{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "references": [{ "path": "../core" }],
+  "include": ["src"]
+}
+`
+    },
+    {
+      path: join(packageDir, "src/index.ts"),
+      content: `export * from "./${segment}-adapter.js";
+`
+    },
+    {
+      path: join(packageDir, `src/${segment}-adapter.ts`),
+      content: `import type { CapsuleAdapter, CapabilityMap } from "@capsule/core";
+
+export interface ${typeName}AdapterOptions {
+  raw?: unknown;
+}
+
+export const ${factoryName}Capabilities: CapabilityMap = ${capabilities};
+
+export function ${factoryName}(options: ${typeName}AdapterOptions = {}): CapsuleAdapter {
+  return {
+    name: "${segment}",
+    provider: "${segment}",
+    capabilities: ${factoryName}Capabilities,
+    raw: options.raw
+  };
+}
+`
+    },
+    {
+      path: join(packageDir, `src/${segment}.test.ts`),
+      content: `import { describe, expect, test } from "vitest";
+import { Capsule, runAdapterContract } from "@capsule/core";
+import { ${factoryName}, ${factoryName}Capabilities } from "./index.js";
+
+describe("${segment} adapter", () => {
+  test("satisfies the public adapter contract for declared unsupported capabilities", async () => {
+    await runAdapterContract(${factoryName}());
+  });
+
+  test("starts with explicit unsupported support levels", () => {
+    const capsule = new Capsule({ adapter: ${factoryName}() });
+    expect(capsule.capabilities()).toEqual(${factoryName}Capabilities);
+  });
+});
+`
+    }
+  ];
+  return { provider: segment, packageName, factoryName, packageDir, domains, files };
+}
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function writeAdapterScaffold(plan: AdapterScaffoldPlan, options: { force?: boolean } = {}): Promise<AdapterScaffoldPlan> {
+  for (const file of plan.files) {
+    if (!options.force && (await exists(file.path))) {
+      throw new Error(`Refusing to overwrite ${file.path}. Re-run with --force to replace scaffold files.`);
+    }
+  }
+  for (const file of plan.files) {
+    await mkdir(dirname(file.path), { recursive: true });
+    await writeFile(file.path, file.content, "utf8");
+  }
+  return plan;
+}
+
 function createCapsuleForCapabilityInspection(provider: string): Capsule {
   if (provider === "ecs") {
     return createCapsule({ adapter: provider, cluster: "capability-inspection", taskDefinition: "capability-inspection:1", containerName: "main", rest: [] });
@@ -645,6 +892,8 @@ Commands:
   capsule doctor
   capsule live-test plan
   capsule live-test plan --provider neon
+  capsule classify provider cloudflare workers
+  capsule adapter scaffold acme --domain sandbox
   capsule select provider --recipe sandbox
   capsule select provider --recipe service-api
   capsule compare providers --left docker --right e2b
@@ -863,6 +1112,33 @@ export async function main(argv: string[]): Promise<void> {
       const capsule = createCapsule(parsed);
       const capabilities = capsule.capabilities();
       console.log(JSON.stringify(parsed.explain ? capabilityExplanations(capabilities) : capabilities, null, 2));
+      return;
+    }
+    case "classify": {
+      const action = parsed.rest[0];
+      if (action !== "provider") {
+        throw new Error("Unknown classify command. Use provider.");
+      }
+      const provider = parsed.rest[1] ?? parsed.provider;
+      const service = parsed.rest[2] ?? parsed.name;
+      if (!provider || !service) {
+        throw new Error("Missing provider or service. Use capsule classify provider <provider> <service>.");
+      }
+      console.log(JSON.stringify(classifyProvider(provider, service), null, 2));
+      return;
+    }
+    case "adapter": {
+      const action = parsed.rest[0];
+      if (action !== "scaffold") {
+        throw new Error("Unknown adapter command. Use scaffold.");
+      }
+      const provider = parsed.rest[1] ?? parsed.provider ?? parsed.name;
+      if (!provider) {
+        throw new Error("Missing provider. Use capsule adapter scaffold <provider> --domain <domain>.");
+      }
+      const plan = createAdapterScaffoldPlan({ provider, domains: parsed.domains ?? [], outDir: parsed.outDir });
+      await writeAdapterScaffold(plan, { force: parsed.force });
+      console.log(JSON.stringify({ provider: plan.provider, packageName: plan.packageName, packageDir: plan.packageDir, files: plan.files.map((file) => file.path) }, null, 2));
       return;
     }
     case "select": {

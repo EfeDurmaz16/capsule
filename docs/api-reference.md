@@ -265,13 +265,16 @@ Exports:
 
 Exports:
 - `capabilityExplanations`
+- `classifyProvider`
 - `compareProviderCapabilities`
+- `createAdapterScaffoldPlan`
 - `createDoctorReport`
 - `liveTestCommandPlan`
 - `main`
 - `parse`
 - `providerCredentialDiagnostics`
 - `selectProvidersForRecipe`
+- `writeAdapterScaffold`
 
 ## @capsule/core
 
@@ -291,6 +294,7 @@ Exports:
 - `barrel: logs`
 - `barrel: policy`
 - `barrel: presets`
+- `barrel: provider-classifier`
 - `barrel: provider-selection`
 - `barrel: receipt-schema`
 - `barrel: receipts`
