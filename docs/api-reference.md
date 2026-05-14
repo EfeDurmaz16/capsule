@@ -267,6 +267,7 @@ Exports:
 - `capabilityExplanations`
 - `compareProviderCapabilities`
 - `createDoctorReport`
+- `liveTestCommandPlan`
 - `main`
 - `parse`
 - `providerCredentialDiagnostics`
@@ -327,21 +328,29 @@ Exports:
 
 Exports:
 - `cleanupPreviewEnvironment`
+- `compilePreviewSpec`
 - `createPreviewEnvironment`
 - `createPreviewEnvironmentWithCleanup`
 - `createPreviewGraph`
 - `createPreviewId`
 - `MockProviderNotAllowedError`
+- `PreviewCapabilityCheck`
+- `PreviewCapabilityValidationRecord`
+- `PreviewCapabilityValidationResult`
 - `PreviewCleanupAction`
 - `PreviewCleanupDisposition`
 - `PreviewCleanupDispositionRecord`
 - `PreviewCleanupResult`
+- `PreviewCompiledPlan`
 - `PreviewCreationError`
 - `PreviewOrchestrationResult`
 - `PreviewPlan`
+- `PreviewPlannedResource`
+- `PreviewPlannedResourceSpec`
 - `PreviewResourceGroup`
 - `PreviewResourceKind`
 - `PreviewResourceRecord`
+- `validatePreviewPlanCapabilities`
 
 ## @capsule/store-jsonl
 
