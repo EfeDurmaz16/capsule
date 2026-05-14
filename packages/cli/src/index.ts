@@ -638,7 +638,10 @@ function createCapsule(parsed: ParsedArgs): Capsule {
 function requireCapability(capsule: Capsule, adapter: string | undefined, path: CapabilityPath): void {
   if (!capsule.supports(path)) {
     const adapterName = adapter ?? capsule.adapterName();
-    throw new Error(`${adapterName} does not support ${path}. Run "capsule capabilities --adapter ${adapterName}" to inspect supported operations.`);
+    const explanation = explainSupportLevel(capsule.capabilities(), path);
+    throw new Error(
+      `${adapterName} does not support ${path}. ${explanation.guidance} Run "capsule capabilities --adapter ${adapterName} --explain" to inspect supported operations.`
+    );
   }
 }
 
@@ -720,9 +723,6 @@ export async function main(argv: string[]): Promise<void> {
     case "job": {
       const capsule = createCapsule(parsed);
       const action = parsed.rest[0] === "run" || parsed.rest[0] === "status" || parsed.rest[0] === "cancel" ? parsed.rest[0] : "run";
-      if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes" && parsed.adapter !== "lambda" && parsed.adapter !== "ecs" && parsed.adapter !== "fly" && parsed.adapter !== "azure-container-apps") {
-        throw new Error("job currently requires --adapter cloud-run, --adapter kubernetes, --adapter lambda, --adapter ecs, --adapter fly, or --adapter azure-container-apps");
-      }
       if (action === "status") {
         const id = parsed.id ?? parsed.name ?? parsed.rest[1];
         if (!id) {

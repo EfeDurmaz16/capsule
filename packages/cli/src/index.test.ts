@@ -133,6 +133,12 @@ describe("CLI capability explanations", () => {
     expect(() => compareProviderCapabilities("ecs", "e2b")).not.toThrow();
   });
 
+  test("prints remediation hints for unsupported CLI capabilities", async () => {
+    await expect(main(["job", "run", "--adapter", "neon", "--image", "node:22"])).rejects.toThrow(
+      'neon does not support job.run. Choose another adapter, change the workflow requirements, or use a provider-specific escape hatch for job.run. Run "capsule capabilities --adapter neon --explain" to inspect supported operations.'
+    );
+  });
+
   test("parses the explain flag", () => {
     expect(parse(["capabilities", "--adapter", "neon", "--explain"])).toMatchObject({
       command: "capabilities",

@@ -234,7 +234,11 @@ describe("capabilities", () => {
 
   test("unsupported capability throws", async () => {
     const capsule = new Capsule({ adapter });
-    await expect(capsule.job.run({ image: "node:22" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(capsule.job.run({ image: "node:22" })).rejects.toMatchObject({
+      name: "UnsupportedCapabilityError",
+      capabilityPath: "job.run",
+      remediation: "Choose another adapter, change the workflow requirements, or use a provider-specific escape hatch for job.run."
+    });
     await expect(capsule.job.status({ id: "job_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.job.cancel({ id: "job_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     await expect(capsule.job.logs({ id: "job_123" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);

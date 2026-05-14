@@ -1,5 +1,5 @@
 import { UnsupportedCapabilityError } from "./errors.js";
-import { supportLevel, supports, type CapabilityPath } from "./capabilities.js";
+import { explainSupportLevel, supportLevel, supports, type CapabilityPath } from "./capabilities.js";
 import { evaluatePolicy, mergeTimeout } from "./policy.js";
 import { createReceipt } from "./receipts.js";
 import type { AdapterContext, CapsuleAdapter } from "./adapters.js";
@@ -417,7 +417,7 @@ export class Capsule {
 
   private require(path: CapabilityPath) {
     if (!this.supports(path)) {
-      throw new UnsupportedCapabilityError(path);
+      throw new UnsupportedCapabilityError(path, explainSupportLevel(this.options.adapter.capabilities, path).guidance);
     }
   }
 }

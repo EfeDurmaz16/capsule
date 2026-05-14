@@ -6,8 +6,11 @@ export class CapsuleError extends Error {
 }
 
 export class UnsupportedCapabilityError extends CapsuleError {
-  constructor(public readonly capabilityPath: string) {
-    super(`Capability is unsupported: ${capabilityPath}`, "CAPSULE_UNSUPPORTED_CAPABILITY");
+  constructor(public readonly capabilityPath: string, public readonly remediation?: string) {
+    super(
+      remediation ? `Capability is unsupported: ${capabilityPath}. ${remediation}` : `Capability is unsupported: ${capabilityPath}`,
+      "CAPSULE_UNSUPPORTED_CAPABILITY"
+    );
     this.name = "UnsupportedCapabilityError";
   }
 }
