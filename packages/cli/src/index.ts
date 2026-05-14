@@ -34,6 +34,7 @@ interface ParsedArgs {
   adapter?: string;
   leftAdapter?: string;
   rightAdapter?: string;
+  provider?: string;
   receiptFile?: string;
   id?: string;
   project?: string;
@@ -97,6 +98,16 @@ interface ProviderCredentialDiagnostic {
 interface DoctorReport {
   docker: "available" | "unavailable";
   providers: ProviderCredentialDiagnostic[];
+}
+
+interface LiveTestPlan {
+  provider: string;
+  testPath: string;
+  requiredEnv: string[];
+  optionalEnv: string[];
+  aliases?: Record<string, string[]>;
+  safeCommands: string[];
+  notes: string[];
 }
 
 interface ProviderCapabilityComparison {
@@ -170,6 +181,116 @@ const comparableProviders = [
   "vercel"
 ] as const;
 
+const liveTestPlans: LiveTestPlan[] = [
+  {
+    provider: "e2b",
+    testPath: "packages/adapter-e2b/src/e2b.live.test.ts",
+    requiredEnv: ["CAPSULE_LIVE_TESTS", "E2B_API_KEY"],
+    optionalEnv: [],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-e2b/src/e2b.live.test.ts"],
+    notes: ["Creates a sandbox, exercises exec and file operations, then destroys the sandbox."]
+  },
+  {
+    provider: "daytona",
+    testPath: "packages/adapter-daytona/src/daytona.live.test.ts",
+    requiredEnv: ["CAPSULE_LIVE_TESTS", "DAYTONA_API_KEY"],
+    optionalEnv: [],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-daytona/src/daytona.live.test.ts"],
+    notes: ["Creates an ephemeral sandbox with auto-stop configured and destroys it in finally."]
+  },
+  {
+    provider: "modal",
+    testPath: "packages/adapter-modal/src/modal.live.test.ts",
+    requiredEnv: ["CAPSULE_LIVE_TESTS", "MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"],
+    optionalEnv: ["MODAL_APP_NAME", "MODAL_IMAGE", "MODAL_ENVIRONMENT"],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-modal/src/modal.live.test.ts"],
+    notes: ["Creates a Modal sandbox, exercises exec and file operations, then destroys the sandbox."]
+  },
+  {
+    provider: "cloud-run",
+    testPath: "packages/adapter-cloud-run/src/cloud-run.live.test.ts",
+    requiredEnv: ["CAPSULE_LIVE_TESTS", "GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_RUN_LOCATION", "GOOGLE_OAUTH_ACCESS_TOKEN", "CAPSULE_CLOUD_RUN_SERVICE_ID"],
+    optionalEnv: [],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-cloud-run/src/cloud-run.live.test.ts"],
+    notes: ["Reads an existing Cloud Run service status; no resource is created."]
+  },
+  {
+    provider: "cloudflare",
+    testPath: "packages/adapter-cloudflare/src/cloudflare.live.test.ts",
+    requiredEnv: ["CAPSULE_LIVE_TESTS", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CAPSULE_CLOUDFLARE_WORKER_NAME", "CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION"],
+    optionalEnv: ["CLOUDFLARE_COMPATIBILITY_DATE"],
+    aliases: {
+      CLOUDFLARE_API_TOKEN: ["CAPSULE_WORKER_API_TOKEN", "CLOUDFLARE_WORKERS_FREE_API_TOKEN"],
+      CLOUDFLARE_ACCOUNT_ID: ["CAPSULE_WORKER_ACCOUNT_ID", "CLOUDFLARE_WORKERS_FREE_ACCOUNT_ID"]
+    },
+    safeCommands: [
+      'CLOUDFLARE_API_TOKEN="${CLOUDFLARE_API_TOKEN:-$CAPSULE_WORKER_API_TOKEN}" CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-$CAPSULE_WORKER_ACCOUNT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-cloudflare/src/cloudflare.live.test.ts'
+    ],
+    notes: ["Creates an unreleased Worker version. Stripe Projects Worker aliases can satisfy the Cloudflare token and account env vars."]
+  },
+  {
+    provider: "vercel",
+    testPath: "packages/adapter-vercel/src/vercel.live.test.ts",
+    requiredEnv: ["CAPSULE_LIVE_TESTS", "VERCEL_TOKEN", "CAPSULE_VERCEL_DEPLOYMENT_ID"],
+    optionalEnv: ["VERCEL_TEAM_ID", "VERCEL_TEAM_SLUG", "VERCEL_PROJECT_ID"],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-vercel/src/vercel.live.test.ts"],
+    notes: ["Reads an existing Vercel deployment status; no resource is created."]
+  },
+  {
+    provider: "neon",
+    testPath: "packages/adapter-neon/src/neon.live.test.ts",
+    requiredEnv: ["CAPSULE_LIVE_TESTS", "NEON_API_KEY", "NEON_PROJECT_ID"],
+    optionalEnv: ["NEON_PARENT_BRANCH_ID", "NEON_DATABASE", "NEON_ROLE", "NEON_POOLED"],
+    aliases: {
+      NEON_PROJECT_ID: ["CAPSULE_POSTGRES_PROJECT_ID"]
+    },
+    safeCommands: [
+      'NEON_PROJECT_ID="${NEON_PROJECT_ID:-$CAPSULE_POSTGRES_PROJECT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-neon/src/neon.live.test.ts'
+    ],
+    notes: ["Creates a Neon branch and hard-deletes it in finally. Stripe Projects Postgres aliases can satisfy NEON_PROJECT_ID."]
+  },
+  {
+    provider: "kubernetes",
+    testPath: "packages/adapter-kubernetes/src/kubernetes.live.test.ts",
+    requiredEnv: ["CAPSULE_LIVE_TESTS", "CAPSULE_KUBERNETES_NAMESPACE"],
+    optionalEnv: ["KUBECONFIG", "KUBECONFIG_CONTEXT", "CAPSULE_KUBERNETES_IMAGE"],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-kubernetes/src/kubernetes.live.test.ts"],
+    notes: ["Creates a Kubernetes Job and best-effort cancels it in finally."]
+  },
+  {
+    provider: "lambda",
+    testPath: "packages/adapter-lambda/src/lambda.live.test.ts",
+    requiredEnv: ["CAPSULE_LIVE_TESTS", "AWS_REGION", "CAPSULE_LAMBDA_FUNCTION_NAME"],
+    optionalEnv: ["AWS_PROFILE", "AWS_ACCESS_KEY_ID", "AWS_WEB_IDENTITY_TOKEN_FILE"],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-lambda/src/lambda.live.test.ts"],
+    notes: ["Uses the AWS SDK default credential chain and invokes an existing Lambda function."]
+  },
+  {
+    provider: "fly",
+    testPath: "packages/adapter-fly/src/fly.live.test.ts",
+    requiredEnv: ["CAPSULE_LIVE_TESTS", "FLY_API_TOKEN", "FLY_APP_NAME", "CAPSULE_FLY_IMAGE"],
+    optionalEnv: ["FLY_REGION", "CAPSULE_FLY_MEMORY_MB", "CAPSULE_FLY_CPUS"],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"],
+    notes: ["Creates a Fly Machine and destroys it in finally."]
+  },
+  {
+    provider: "azure-container-apps",
+    testPath: "packages/adapter-azure-container-apps/src/azure-container-apps.live.test.ts",
+    requiredEnv: [
+      "CAPSULE_LIVE_TESTS",
+      "AZURE_ACCESS_TOKEN",
+      "AZURE_SUBSCRIPTION_ID",
+      "AZURE_RESOURCE_GROUP",
+      "AZURE_LOCATION",
+      "AZURE_CONTAINERAPPS_ENVIRONMENT_ID",
+      "CAPSULE_AZURE_CONTAINER_IMAGE"
+    ],
+    optionalEnv: ["CAPSULE_AZURE_CONTAINER_PORT"],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-azure-container-apps/src/azure-container-apps.live.test.ts"],
+    notes: ["Deploys an Azure Container App service and deletes it in finally."]
+  }
+];
+
 export function parse(argv: string[]): ParsedArgs {
   const [command, ...args] = argv;
   const parsed: ParsedArgs = { command, rest: [] };
@@ -192,6 +313,11 @@ export function parse(argv: string[]): ParsedArgs {
     }
     if (arg === "--right") {
       parsed.rightAdapter = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--provider") {
+      parsed.provider = args[index + 1];
       index += 1;
       continue;
     }
@@ -458,6 +584,17 @@ export function compareProviderCapabilities(leftProvider: string, rightProvider:
   };
 }
 
+export function liveTestCommandPlan(provider?: string): LiveTestPlan[] {
+  if (!provider) {
+    return liveTestPlans;
+  }
+  const plan = liveTestPlans.find((entry) => entry.provider === provider);
+  if (!plan) {
+    throw new Error(`Unknown live-test provider "${provider}". Providers: ${liveTestPlans.map((entry) => entry.provider).join(", ")}`);
+  }
+  return [plan];
+}
+
 function createCapsuleForCapabilityInspection(provider: string): Capsule {
   if (provider === "ecs") {
     return createCapsule({ adapter: provider, cluster: "capability-inspection", taskDefinition: "capability-inspection:1", containerName: "main", rest: [] });
@@ -476,6 +613,8 @@ function printHelp(): void {
 
 Commands:
   capsule doctor
+  capsule live-test plan
+  capsule live-test plan --provider neon
   capsule compare providers --left docker --right e2b
   capsule capabilities
   capsule capabilities --explain
@@ -678,6 +817,14 @@ export async function main(argv: string[]): Promise<void> {
       const report = await createDoctorReport({ adapter: parsed.adapter });
       console.log(JSON.stringify(report, null, 2));
       process.exitCode = report.docker === "available" ? 0 : 1;
+      return;
+    }
+    case "live-test": {
+      const action = parsed.rest[0];
+      if (action !== "plan") {
+        throw new Error("Unknown live-test command. Use plan.");
+      }
+      console.log(JSON.stringify(liveTestCommandPlan(parsed.provider ?? parsed.adapter), null, 2));
       return;
     }
     case "capabilities": {

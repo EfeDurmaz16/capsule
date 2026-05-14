@@ -6,6 +6,16 @@ Do not enable these tests in routine CI without dedicated test accounts, quotas,
 
 `@capsule/test-utils` exports `liveProviderRegistry` and `liveProviderCredentials` for all real adapters: Docker, E2B, Daytona, Modal, Cloud Run, Cloudflare, Vercel, Neon, Kubernetes, Lambda, ECS, EC2, Fly, and Azure Container Apps. `@capsule/adapter-mock` is deliberately excluded because mock success is not live provider verification.
 
+Before exporting credentials, use the CLI planner to inspect the required env-var names and the provider-specific Vitest command:
+
+```bash
+pnpm --filter @capsule/cli capsule live-test plan
+pnpm --filter @capsule/cli capsule live-test plan --provider neon
+pnpm --filter @capsule/cli capsule live-test plan --provider cloudflare
+```
+
+The planner prints only env-var names, Stripe Projects aliases, notes, and copy-safe commands. It does not read or print secret values.
+
 | Provider | Test path | Required environment | Operation | Cleanup |
 | --- | --- | --- | --- | --- |
 | Cloud Run | `packages/adapter-cloud-run/src/cloud-run.live.test.ts` | `CAPSULE_LIVE_TESTS`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_RUN_LOCATION`, `GOOGLE_OAUTH_ACCESS_TOKEN`, `CAPSULE_CLOUD_RUN_SERVICE_ID` | Reads an existing service status. | No resource is created. |
@@ -38,6 +48,12 @@ Run a single provider:
 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-neon/src/neon.live.test.ts
 ```
 
+Ask the CLI for the canonical command when in doubt:
+
+```bash
+pnpm --filter @capsule/cli capsule live-test plan --provider vercel
+```
+
 ## Stripe Projects Env Mapping
 
 Stripe Projects resources may expose credentials with resource-scoped names. Keep those names local and map them to Capsule's canonical live-test variables at command time:
@@ -59,5 +75,7 @@ CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION=1 \
 CAPSULE_LIVE_TESTS=1 \
 pnpm vitest run packages/adapter-cloudflare/src/cloudflare.live.test.ts
 ```
+
+The same mappings are included in `capsule live-test plan --provider neon` and `capsule live-test plan --provider cloudflare`.
 
 Do not commit `.env`, `.projects/`, Stripe Projects vault files, or live-test logs that include provider IDs, tokens, connection strings, or account URLs.

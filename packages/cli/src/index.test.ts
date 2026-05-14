@@ -1,5 +1,13 @@
 import { describe, expect, test, vi } from "vitest";
-import { compareProviderCapabilities, capabilityExplanations, createDoctorReport, main, parse, providerCredentialDiagnostics } from "./index.js";
+import {
+  compareProviderCapabilities,
+  capabilityExplanations,
+  createDoctorReport,
+  liveTestCommandPlan,
+  main,
+  parse,
+  providerCredentialDiagnostics
+} from "./index.js";
 
 describe("CLI doctor credential diagnostics", () => {
   test("reports configured and missing providers without secret values", () => {
@@ -167,6 +175,68 @@ describe("CLI capability explanations", () => {
       summary: "The adapter/provider exposes this capability, but behavior may still change or be incomplete.",
       guidance: "sandbox.snapshot should be gated behind explicit opt-in, tests, or provider-specific checks."
     });
+  });
+});
+
+describe("CLI live-test planner", () => {
+  test("parses the live-test provider flag", () => {
+    expect(parse(["live-test", "plan", "--provider", "neon"])).toMatchObject({
+      command: "live-test",
+      provider: "neon",
+      rest: ["plan"]
+    });
+  });
+
+  test("returns a safe Neon plan with Stripe Projects aliases and no secret values", () => {
+    const plan = liveTestCommandPlan("neon");
+
+    expect(plan).toEqual([
+      expect.objectContaining({
+        provider: "neon",
+        testPath: "packages/adapter-neon/src/neon.live.test.ts",
+        requiredEnv: ["CAPSULE_LIVE_TESTS", "NEON_API_KEY", "NEON_PROJECT_ID"],
+        aliases: { NEON_PROJECT_ID: ["CAPSULE_POSTGRES_PROJECT_ID"] },
+        safeCommands: ['NEON_PROJECT_ID="${NEON_PROJECT_ID:-$CAPSULE_POSTGRES_PROJECT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-neon/src/neon.live.test.ts']
+      })
+    ]);
+    expect(JSON.stringify(plan)).not.toContain("secret");
+    expect(JSON.stringify(plan)).not.toContain("sk_");
+  });
+
+  test("returns a safe Cloudflare plan with Stripe Projects aliases", () => {
+    const plan = liveTestCommandPlan("cloudflare")[0];
+
+    expect(plan).toMatchObject({
+      provider: "cloudflare",
+      requiredEnv: ["CAPSULE_LIVE_TESTS", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CAPSULE_CLOUDFLARE_WORKER_NAME", "CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION"],
+      aliases: {
+        CLOUDFLARE_API_TOKEN: ["CAPSULE_WORKER_API_TOKEN", "CLOUDFLARE_WORKERS_FREE_API_TOKEN"],
+        CLOUDFLARE_ACCOUNT_ID: ["CAPSULE_WORKER_ACCOUNT_ID", "CLOUDFLARE_WORKERS_FREE_ACCOUNT_ID"]
+      }
+    });
+    expect(plan.safeCommands[0]).toContain('CLOUDFLARE_API_TOKEN="${CLOUDFLARE_API_TOKEN:-$CAPSULE_WORKER_API_TOKEN}"');
+    expect(plan.safeCommands[0]).toContain("pnpm vitest run packages/adapter-cloudflare/src/cloudflare.live.test.ts");
+  });
+
+  test("prints the selected live-test plan", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await main(["live-test", "plan", "--provider", "vercel"]);
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as Array<{ provider: string; requiredEnv: string[]; safeCommands: string[] }>;
+      expect(output).toEqual([
+        expect.objectContaining({
+          provider: "vercel",
+          requiredEnv: ["CAPSULE_LIVE_TESTS", "VERCEL_TOKEN", "CAPSULE_VERCEL_DEPLOYMENT_ID"],
+          safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-vercel/src/vercel.live.test.ts"]
+        })
+      ]);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  test("rejects unknown live-test providers", () => {
+    expect(() => liveTestCommandPlan("unknown")).toThrow('Unknown live-test provider "unknown"');
   });
 });
 

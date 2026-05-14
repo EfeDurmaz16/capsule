@@ -9,6 +9,14 @@ Do not run live provider operations from examples, scripts, or CI unless both co
 
 Capsule adapters do not make a provider safe by themselves. Isolation, billing, network controls, IAM, and cleanup still depend on the underlying provider.
 
+Use the CLI planner before running a live provider test. It maps provider names to required env vars, optional env vars, Stripe Projects aliases, and copy-safe commands without printing secret values:
+
+```bash
+pnpm --filter @capsule/cli capsule live-test plan
+pnpm --filter @capsule/cli capsule live-test plan --provider neon
+pnpm --filter @capsule/cli capsule live-test plan --provider cloudflare
+```
+
 ## Docker
 
 Install:
@@ -148,6 +156,12 @@ pnpm --filter @capsule/example-database-branch-model start
 
 Credentials: `NEON_API_KEY`, `NEON_PROJECT_ID`. `NEON_DATABASE` and `NEON_ROLE` are required only when you want Capsule to retrieve a connection URI.
 
+Stripe Projects alias: `CAPSULE_POSTGRES_PROJECT_ID` can be mapped to `NEON_PROJECT_ID` at command time. The planner includes the safe alias command:
+
+```bash
+pnpm --filter @capsule/cli capsule live-test plan --provider neon
+```
+
 Cleanup: delete the created branch with `capsule.database.branch.delete(...)` or in the Neon console. The example creates a branch and does not delete it automatically so you can inspect the receipt and resource.
 
 Caveat: database branches can incur storage/compute cost. TTL is recorded in receipts when provided, but cleanup must be implemented by the caller or provider automation.
@@ -191,6 +205,12 @@ await capsule.edge.rollback({
 ```
 
 Credentials: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`; `CLOUDFLARE_ZONE_ID` when routes are requested.
+
+Stripe Projects aliases: `CAPSULE_WORKER_API_TOKEN` can be mapped to `CLOUDFLARE_API_TOKEN`, and `CAPSULE_WORKER_ACCOUNT_ID` can be mapped to `CLOUDFLARE_ACCOUNT_ID`. The planner includes the safe alias command:
+
+```bash
+pnpm --filter @capsule/cli capsule live-test plan --provider cloudflare
+```
 
 Cleanup: remove the Worker, routes, and bindings in Cloudflare or through future lifecycle APIs once implemented.
 
