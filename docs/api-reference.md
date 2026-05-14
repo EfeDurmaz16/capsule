@@ -265,6 +265,7 @@ Exports:
 
 Exports:
 - `capabilityExplanations`
+- `compareProviderCapabilities`
 - `createDoctorReport`
 - `main`
 - `parse`
