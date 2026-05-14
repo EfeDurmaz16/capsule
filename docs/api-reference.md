@@ -251,9 +251,24 @@ Exports:
 Exports:
 - `CodeExecutionFile`
 - `CodeExecutionInput`
+- `codeExecutionInputJsonSchema`
 - `CodeExecutionTool`
 - `CodeExecutionToolOptions`
 - `createCodeExecutionTool`
+- `createCrewAiTool`
+- `createLangChainTool`
+- `createMastraTool`
+- `createOpenAIAgentsTool`
+- `createOpenAIResponsesFunctionTool`
+- `createVercelAiSdkTool`
+- `CrewAiToolDescriptor`
+- `JsonSchema`
+- `LangChainToolDescriptor`
+- `MastraToolDescriptor`
+- `OpenAIAgentsToolDescriptor`
+- `OpenAIResponsesFunctionTool`
+- `OpenAIResponsesToolDescriptor`
+- `VercelAiSdkToolDescriptor`
 
 ## @capsule/cli
 

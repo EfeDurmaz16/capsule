@@ -198,6 +198,7 @@ Mock modeling package:
 - [Capability model](docs/capability-model.md)
 - [Policy model](docs/policy-model.md)
 - [Execution receipts](docs/execution-receipts.md)
+- [AI framework wrappers](docs/ai-framework-wrappers.md)
 - [Provider matrix](docs/provider-matrix.md)
 - [Provider selection](docs/provider-selection.md)
 - [Real provider quickstarts](docs/real-provider-quickstarts.md)
@@ -247,7 +248,7 @@ Capsule is pre-1.0 OSS infrastructure. The core contracts, real provider adapter
 - `@capsule/adapter-neon`: real Neon API adapter for database branch create/delete/reset and connection URI retrieval.
 - `@capsule/adapter-vercel`: real Vercel REST adapter for inline deployment creation, bounded deployment event logs, project runtime logs, and alias release.
 - `@capsule/adapter-mock`: mock E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models.
-- `@capsule/ai`: framework-agnostic code execution tool helper.
+- `@capsule/ai`: framework-agnostic code execution tool helper plus dependency-free descriptors for Vercel AI SDK, OpenAI Agents/Responses, LangChain, Mastra, and CrewAI.
 - `@capsule/preview`: preview environment composition helpers for Capsule-backed services, edges, database branches, and jobs.
 - `@capsule/cli`: small CLI with `doctor`, `capabilities`, `run`, and `sandbox`.
 
