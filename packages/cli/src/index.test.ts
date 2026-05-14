@@ -36,6 +36,36 @@ describe("CLI doctor credential diagnostics", () => {
     ]);
   });
 
+  test("recognizes Stripe Projects env aliases without exposing values", () => {
+    const diagnostics = providerCredentialDiagnostics(
+      {
+        CAPSULE_WORKER_API_TOKEN: "secret-cloudflare-token",
+        CAPSULE_WORKER_ACCOUNT_ID: "secret-cloudflare-account",
+        CAPSULE_POSTGRES_PROJECT_ID: "secret-neon-project"
+      },
+      "cloudflare"
+    );
+
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        provider: "cloudflare",
+        status: "configured",
+        configuredEnv: ["CAPSULE_WORKER_API_TOKEN", "CAPSULE_WORKER_ACCOUNT_ID"],
+        missingEnv: [],
+        requiredEnv: [
+          "CLOUDFLARE_API_TOKEN",
+          "CAPSULE_WORKER_API_TOKEN",
+          "CLOUDFLARE_WORKERS_FREE_API_TOKEN",
+          "CLOUDFLARE_ACCOUNT_ID",
+          "CAPSULE_WORKER_ACCOUNT_ID",
+          "CLOUDFLARE_WORKERS_FREE_ACCOUNT_ID"
+        ]
+      })
+    ]);
+    expect(JSON.stringify(diagnostics)).not.toContain("secret-cloudflare-token");
+    expect(JSON.stringify(diagnostics)).not.toContain("secret-cloudflare-account");
+  });
+
   test("creates the doctor output shape", async () => {
     await expect(createDoctorReport({ env: { NEON_API_KEY: "secret-neon" }, adapter: "neon", dockerCheck: async () => false })).resolves.toEqual({
       docker: "unavailable",

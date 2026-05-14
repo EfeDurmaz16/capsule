@@ -68,6 +68,7 @@ interface CredentialRequirement {
   provider: string;
   requiredAll?: string[];
   requiredAny?: string[];
+  aliases?: Record<string, string[]>;
   notes?: string[];
 }
 
@@ -89,8 +90,21 @@ const credentialRequirements: CredentialRequirement[] = [
   { provider: "e2b", requiredAll: ["E2B_API_KEY"] },
   { provider: "daytona", requiredAll: ["DAYTONA_API_KEY"] },
   { provider: "modal", requiredAll: ["MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"], notes: ["MODAL_ENVIRONMENT is optional."] },
-  { provider: "neon", requiredAll: ["NEON_API_KEY"] },
-  { provider: "cloudflare", requiredAll: ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"], notes: ["CLOUDFLARE_ZONE_ID is required only for route creation."] },
+  {
+    provider: "neon",
+    requiredAll: ["NEON_API_KEY"],
+    aliases: { NEON_PROJECT_ID: ["CAPSULE_POSTGRES_PROJECT_ID"] },
+    notes: ["NEON_PROJECT_ID, or Stripe Projects alias CAPSULE_POSTGRES_PROJECT_ID, is required for Neon live branch tests."]
+  },
+  {
+    provider: "cloudflare",
+    requiredAll: ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"],
+    aliases: {
+      CLOUDFLARE_API_TOKEN: ["CAPSULE_WORKER_API_TOKEN", "CLOUDFLARE_WORKERS_FREE_API_TOKEN"],
+      CLOUDFLARE_ACCOUNT_ID: ["CAPSULE_WORKER_ACCOUNT_ID", "CLOUDFLARE_WORKERS_FREE_ACCOUNT_ID"]
+    },
+    notes: ["CLOUDFLARE_ZONE_ID is required only for route creation."]
+  },
   { provider: "vercel", requiredAll: ["VERCEL_TOKEN"], notes: ["VERCEL_TEAM_ID or slug-style scoping is optional."] },
   {
     provider: "cloud-run",
@@ -338,18 +352,22 @@ export function parse(argv: string[]): ParsedArgs {
 function credentialDiagnostic(requirement: CredentialRequirement, env: NodeJS.ProcessEnv): ProviderCredentialDiagnostic {
   const all = requirement.requiredAll ?? [];
   const any = requirement.requiredAny ?? [];
-  const configuredAll = all.filter((name) => Boolean(env[name]));
-  const missingAll = all.filter((name) => !env[name]);
-  const configuredAny = any.filter((name) => Boolean(env[name]));
+  const configuredAll = all.flatMap((name) => configuredCredentialNames(name, requirement.aliases, env));
+  const missingAll = all.filter((name) => configuredCredentialNames(name, requirement.aliases, env).length === 0);
+  const configuredAny = any.flatMap((name) => configuredCredentialNames(name, requirement.aliases, env));
   const hasRequiredAny = any.length === 0 || configuredAny.length > 0;
   return {
     provider: requirement.provider,
     status: missingAll.length === 0 && hasRequiredAny ? "configured" : "missing",
     configuredEnv: [...configuredAll, ...configuredAny],
     missingEnv: [...missingAll, ...(hasRequiredAny ? [] : any)],
-    requiredEnv: [...all, ...any],
+    requiredEnv: [...all, ...any].flatMap((name) => [name, ...(requirement.aliases?.[name] ?? [])]),
     notes: requirement.notes ?? []
   };
+}
+
+function configuredCredentialNames(name: string, aliases: Record<string, string[]> | undefined, env: NodeJS.ProcessEnv): string[] {
+  return [name, ...(aliases?.[name] ?? [])].filter((candidate) => Boolean(env[candidate]));
 }
 
 export function providerCredentialDiagnostics(env: NodeJS.ProcessEnv = process.env, adapter?: string): ProviderCredentialDiagnostic[] {
