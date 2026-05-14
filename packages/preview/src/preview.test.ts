@@ -2,10 +2,12 @@ import { describe, expect, test } from "vitest";
 import { Capsule, type CapsuleAdapter, type CapabilityMap } from "@capsule/core";
 import {
   cleanupPreviewEnvironment,
+  compilePreviewSpec,
   createPreviewEnvironmentWithCleanup,
   createPreviewGraph,
   MockProviderNotAllowedError,
   PreviewCreationError,
+  validatePreviewPlanCapabilities,
   type PreviewPlan
 } from "./index.js";
 
@@ -42,11 +44,14 @@ const capabilities: CapabilityMap = {
   }
 };
 
-function fakeCapsule(events: string[] = [], options: { failServiceDeploy?: boolean; failDatabaseDelete?: boolean; mock?: boolean } = {}): Capsule {
+function fakeCapsule(
+  events: string[] = [],
+  options: { failServiceDeploy?: boolean; failDatabaseDelete?: boolean; mock?: boolean; capabilities?: CapabilityMap } = {}
+): Capsule {
   const adapter: CapsuleAdapter = {
     name: "fake-preview",
     provider: "fake",
-    capabilities,
+    capabilities: options.capabilities ?? capabilities,
     raw: options.mock ? { mock: true, provider: "fake" } : undefined,
     database: {
       branch: {
@@ -170,6 +175,72 @@ function plan(capsule: Capsule): PreviewPlan {
 }
 
 describe("preview orchestration", () => {
+  test("compiles a create preview spec into explicit resources and checks", () => {
+    const compiled = compilePreviewSpec({
+      name: "pr-42",
+      source: { repo: "https://github.com/acme/app", ref: "refs/pull/42/head", path: "." },
+      ttlMs: 3_600_000,
+      labels: { pullRequest: "42" },
+      databases: [{ project: "app", name: "pr-42-db" }],
+      services: [{ name: "api", image: "ghcr.io/acme/api:latest" }],
+      edges: [{ name: "web", source: { path: "./dist" } }],
+      jobs: [{ name: "smoke", image: "node:22", command: "node smoke.js" }]
+    });
+
+    expect(compiled).toMatchObject({
+      name: "pr-42",
+      ttlMs: 3_600_000,
+      labels: { pullRequest: "42" }
+    });
+    expect(compiled.resources.map((resource) => [resource.kind, resource.name, resource.capabilityPath, resource.cleanupCapabilityPath])).toEqual([
+      ["database", "pr-42-db", "database.branchCreate", "database.branchDelete"],
+      ["service", "api", "service.deploy", "service.delete"],
+      ["edge", "web", "edge.deploy", undefined],
+      ["job", "smoke", "job.run", undefined]
+    ]);
+    expect(compiled.checks.map((check) => [check.kind, check.capabilityPath, check.required])).toEqual([
+      ["database", "database.branchCreate", true],
+      ["service", "service.deploy", true],
+      ["edge", "edge.deploy", true],
+      ["job", "job.run", true]
+    ]);
+  });
+
+  test("validates preview plan capability requirements without provider calls", () => {
+    const events: string[] = [];
+    const validation = validatePreviewPlanCapabilities(plan(fakeCapsule(events)));
+
+    expect(validation.ok).toBe(true);
+    expect(validation.missingRequired).toEqual([]);
+    expect(validation.checked.map((record) => [record.resource.kind, record.result.path, record.result.actualLevel])).toEqual([
+      ["database", "database.branchCreate", "native"],
+      ["service", "service.deploy", "native"],
+      ["edge", "edge.deploy", "native"],
+      ["job", "job.run", "native"]
+    ]);
+    expect(events).toEqual([]);
+  });
+
+  test("reports missing required capability paths before orchestration", () => {
+    const validation = validatePreviewPlanCapabilities(
+      plan(
+        fakeCapsule([], {
+          capabilities: {
+            ...capabilities,
+            edge: { ...capabilities.edge!, deploy: "unsupported" }
+          }
+        })
+      )
+    );
+
+    expect(validation.ok).toBe(false);
+    expect(validation.missingRequired).toHaveLength(1);
+    expect(validation.missingRequired[0]).toMatchObject({
+      resource: { kind: "edge", name: "web", capabilityPath: "edge.deploy" },
+      result: { path: "edge.deploy", actualLevel: "unsupported", supported: false }
+    });
+  });
+
   test("creates a preview resource graph", async () => {
     const events: string[] = [];
     const result = await createPreviewGraph(plan(fakeCapsule(events)));

@@ -2,6 +2,8 @@ import type {
   Capsule,
   CapsuleDomain,
   CapsuleReceipt,
+  CapabilityPath,
+  CapabilityRequirementResult,
   CreateDatabaseBranchSpec,
   CreatePreviewSpec,
   DatabaseBranch,
@@ -14,10 +16,55 @@ import type {
   RunJobSpec,
   ServiceDeployment
 } from "@capsule/core";
-import { createReceipt } from "@capsule/core";
+import { createReceipt, evaluateCapabilityRequirements } from "@capsule/core";
 
 export type PreviewResourceKind = "database" | "service" | "edge" | "job";
 export type PreviewCleanupDisposition = "cleaned" | "partial" | "unsupported" | "leaked";
+export type PreviewPlannedResourceSpec = CreateDatabaseBranchSpec | DeployServiceSpec | DeployEdgeSpec | RunJobSpec;
+
+export interface PreviewPlannedResource<TSpec extends PreviewPlannedResourceSpec = PreviewPlannedResourceSpec> {
+  order: number;
+  type: CapsuleDomain;
+  kind: PreviewResourceKind;
+  name?: string;
+  capabilityPath: CapabilityPath;
+  cleanupCapabilityPath?: CapabilityPath;
+  spec: TSpec;
+}
+
+export interface PreviewCapabilityCheck {
+  order: number;
+  type: CapsuleDomain;
+  kind: PreviewResourceKind;
+  name?: string;
+  capabilityPath: CapabilityPath;
+  required: true;
+  reason: string;
+}
+
+export interface PreviewCompiledPlan {
+  name: string;
+  source?: CreatePreviewSpec["source"];
+  ttlMs?: number;
+  labels?: Record<string, string>;
+  providerOptions?: CreatePreviewSpec["providerOptions"];
+  resources: PreviewPlannedResource[];
+  checks: PreviewCapabilityCheck[];
+}
+
+export interface PreviewCapabilityValidationRecord {
+  resource: PreviewPlannedResource;
+  check: PreviewCapabilityCheck;
+  adapter: string;
+  provider: string;
+  result: CapabilityRequirementResult;
+}
+
+export interface PreviewCapabilityValidationResult {
+  ok: boolean;
+  checked: PreviewCapabilityValidationRecord[];
+  missingRequired: PreviewCapabilityValidationRecord[];
+}
 
 export interface PreviewCleanupDispositionRecord {
   resource: PreviewResourceRecord;
@@ -110,9 +157,129 @@ export class MockProviderNotAllowedError extends Error {
   }
 }
 
+const previewResourceCapabilities: Record<PreviewResourceKind, { create: CapabilityPath; cleanup?: CapabilityPath; reason: string }> = {
+  database: {
+    create: "database.branchCreate",
+    cleanup: "database.branchDelete",
+    reason: "Preview database branches require database.branchCreate support."
+  },
+  service: {
+    create: "service.deploy",
+    cleanup: "service.delete",
+    reason: "Preview services require service.deploy support."
+  },
+  edge: {
+    create: "edge.deploy",
+    reason: "Preview edge deployments require edge.deploy support."
+  },
+  job: {
+    create: "job.run",
+    reason: "Preview checks require job.run support."
+  }
+};
+
 export function createPreviewId(name: string): string {
   const safeName = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "preview";
   return `preview_${safeName}_${Date.now().toString(36)}`;
+}
+
+export function compilePreviewSpec(spec: CreatePreviewSpec): PreviewCompiledPlan {
+  const resources: PreviewPlannedResource[] = [];
+  let order = 0;
+
+  for (const database of spec.databases ?? []) {
+    resources.push(plannedResource("database", order++, database.name, database));
+  }
+  for (const service of spec.services ?? []) {
+    resources.push(plannedResource("service", order++, service.name, service));
+  }
+  for (const edge of spec.edges ?? []) {
+    resources.push(plannedResource("edge", order++, edge.name, edge));
+  }
+  for (const job of spec.jobs ?? []) {
+    resources.push(plannedResource("job", order++, job.name, job));
+  }
+
+  return {
+    name: spec.name,
+    source: spec.source,
+    ttlMs: spec.ttlMs,
+    labels: spec.labels,
+    providerOptions: spec.providerOptions,
+    resources,
+    checks: resources.map((resource) => ({
+      order: resource.order,
+      type: resource.type,
+      kind: resource.kind,
+      name: resource.name,
+      capabilityPath: resource.capabilityPath,
+      required: true,
+      reason: previewResourceCapabilities[resource.kind].reason
+    }))
+  };
+}
+
+export function validatePreviewPlanCapabilities(plan: PreviewPlan): PreviewCapabilityValidationResult {
+  const checked: PreviewCapabilityValidationRecord[] = [];
+
+  for (const entry of resourceGroups(plan)) {
+    const resource = plannedResource(entry.kind, checked.length, resourceName(entry.spec), entry.spec);
+    const check: PreviewCapabilityCheck = {
+      order: resource.order,
+      type: resource.type,
+      kind: resource.kind,
+      name: resource.name,
+      capabilityPath: resource.capabilityPath,
+      required: true,
+      reason: previewResourceCapabilities[entry.kind].reason
+    };
+    const [result] = evaluateCapabilityRequirements(entry.capsule.capabilities(), [{ path: check.capabilityPath, reason: check.reason }]);
+    checked.push({
+      resource,
+      check,
+      adapter: entry.capsule.adapterName(),
+      provider: String((entry.capsule.raw() as { provider?: unknown } | undefined)?.provider ?? "unknown"),
+      result
+    });
+  }
+
+  const missingRequired = checked.filter((record) => !record.result.supported);
+  return {
+    ok: missingRequired.length === 0,
+    checked,
+    missingRequired
+  };
+}
+
+function plannedResource<TSpec extends PreviewPlannedResourceSpec>(
+  kind: PreviewResourceKind,
+  order: number,
+  name: string | undefined,
+  spec: TSpec
+): PreviewPlannedResource<TSpec> {
+  const capability = previewResourceCapabilities[kind];
+  return {
+    order,
+    type: kind,
+    kind,
+    name,
+    capabilityPath: capability.create,
+    cleanupCapabilityPath: capability.cleanup,
+    spec
+  };
+}
+
+function resourceName(spec: PreviewPlannedResourceSpec): string | undefined {
+  return "name" in spec ? spec.name : undefined;
+}
+
+function resourceGroups(plan: PreviewPlan): Array<{ kind: PreviewResourceKind; capsule: Capsule; spec: PreviewPlannedResourceSpec }> {
+  return [
+    ...(plan.databases ?? []).map((entry) => ({ kind: "database" as const, capsule: entry.capsule, spec: entry.spec })),
+    ...(plan.services ?? []).map((entry) => ({ kind: "service" as const, capsule: entry.capsule, spec: entry.spec })),
+    ...(plan.edges ?? []).map((entry) => ({ kind: "edge" as const, capsule: entry.capsule, spec: entry.spec })),
+    ...(plan.jobs ?? []).map((entry) => ({ kind: "job" as const, capsule: entry.capsule, spec: entry.spec }))
+  ];
 }
 
 function receiptOf(value: { receipt?: CapsuleReceipt } | undefined): CapsuleReceipt | undefined {
@@ -128,7 +295,7 @@ function assertRealProviders(plan: PreviewPlan): void {
   if (!plan.requireRealProviders || plan.allowMockProviders) {
     return;
   }
-  const entries: PreviewResourceGroup<unknown>[] = [...(plan.databases ?? []), ...(plan.services ?? []), ...(plan.edges ?? []), ...(plan.jobs ?? [])];
+  const entries = resourceGroups(plan);
   for (const entry of entries) {
     if (isMockCapsule(entry.capsule)) {
       throw new MockProviderNotAllowedError(String((entry.capsule.raw() as { provider?: unknown } | undefined)?.provider ?? "unknown"), entry.capsule.adapterName());
