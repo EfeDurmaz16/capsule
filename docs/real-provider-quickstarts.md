@@ -212,6 +212,8 @@ Stripe Projects aliases: `CAPSULE_WORKER_API_TOKEN` can be mapped to `CLOUDFLARE
 pnpm --filter @capsule/cli capsule live-test plan --provider cloudflare
 ```
 
+Live verification: the default Cloudflare live test creates only an unreleased Worker version. Add `CAPSULE_CLOUDFLARE_LIVE_DEPLOY=1` when you intentionally want the same live test to call `edge.deploy` and update the named Worker script. Set `CAPSULE_CLOUDFLARE_WORKERS_DEV_SUBDOMAIN` or map Stripe Projects' `CAPSULE_WORKER_WORKERS_DEV_SUBDOMAIN` when you want the receipt URL populated.
+
 Cleanup: remove the Worker, routes, and bindings in Cloudflare or through future lifecycle APIs once implemented.
 
 Caveat: routes, versions, and rollback use real Workers APIs. Rollback needs the Worker script name in `providerOptions.scriptName` because Cloudflare scopes deployments by script name rather than Capsule deployment id. Secret bindings, provider-specific bindings, logs, and gradual traffic-split release are still unsupported rather than faked. Plain `env` values are uploaded as Worker vars, not Cloudflare encrypted secrets.
