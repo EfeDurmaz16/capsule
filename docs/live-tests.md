@@ -16,6 +16,15 @@ pnpm --filter @capsule/cli capsule live-test plan --provider cloudflare
 
 The planner prints only env-var names, Stripe Projects aliases, notes, and copy-safe commands. It does not read or print secret values.
 
+Use the verification matrix before running live tests:
+
+```bash
+pnpm --filter @capsule/cli capsule verify providers
+pnpm --filter @capsule/cli capsule verify providers --provider neon
+```
+
+The matrix does not run provider-mutating tests by itself. It reports Docker availability, configured or missing provider credential names, the live test path, and the safe command to run when you intentionally opt in with `CAPSULE_LIVE_TESTS=1`.
+
 | Provider | Test path | Required environment | Operation | Cleanup |
 | --- | --- | --- | --- | --- |
 | Cloud Run | `packages/adapter-cloud-run/src/cloud-run.live.test.ts` | `CAPSULE_LIVE_TESTS`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_RUN_LOCATION`, `GOOGLE_OAUTH_ACCESS_TOKEN`, `CAPSULE_CLOUD_RUN_SERVICE_ID` | Reads an existing service status. | No resource is created. |

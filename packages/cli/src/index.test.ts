@@ -8,6 +8,7 @@ import {
   capabilityExplanations,
   createAdapterScaffoldPlan,
   createDoctorReport,
+  createProviderVerificationReport,
   liveTestCommandPlan,
   main,
   parse,
@@ -335,6 +336,72 @@ describe("CLI live-test planner", () => {
 
   test("rejects unknown live-test providers", () => {
     expect(() => liveTestCommandPlan("unknown")).toThrow('Unknown live-test provider "unknown"');
+  });
+});
+
+describe("CLI provider verification matrix", () => {
+  test("parses verify providers", () => {
+    expect(parse(["verify", "providers", "--provider", "neon"])).toMatchObject({
+      command: "verify",
+      provider: "neon",
+      rest: ["providers"]
+    });
+  });
+
+  test("reports Docker availability and provider credential readiness without secrets", async () => {
+    const report = await createProviderVerificationReport({
+      env: {
+        CAPSULE_LIVE_TESTS: "1",
+        NEON_API_KEY: "secret-neon",
+        CAPSULE_POSTGRES_PROJECT_ID: "secret-project"
+      },
+      dockerCheck: async () => true
+    });
+
+    expect(report.providers.find((entry) => entry.provider === "docker")).toMatchObject({
+      provider: "docker",
+      status: "passed",
+      missingEnv: []
+    });
+    expect(report.providers.find((entry) => entry.provider === "neon")).toMatchObject({
+      provider: "neon",
+      status: "ready",
+      liveTestEnabled: true,
+      configuredEnv: ["NEON_API_KEY", "CAPSULE_POSTGRES_PROJECT_ID"],
+      missingEnv: []
+    });
+    expect(JSON.stringify(report)).not.toContain("secret-neon");
+    expect(JSON.stringify(report)).not.toContain("secret-project");
+  });
+
+  test("reports missing credentials for a selected provider", async () => {
+    const report = await createProviderVerificationReport({
+      provider: "vercel",
+      env: {},
+      dockerCheck: async () => true
+    });
+
+    expect(report.providers).toEqual([
+      expect.objectContaining({
+        provider: "vercel",
+        status: "missing",
+        liveTestEnabled: false,
+        missingEnv: ["VERCEL_TOKEN", "CAPSULE_VERCEL_DEPLOYMENT_ID"],
+        notes: expect.arrayContaining(["Set CAPSULE_LIVE_TESTS=1 before running the safe command."])
+      })
+    ]);
+  });
+
+  test("prints the provider verification report", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await main(["verify", "providers", "--provider", "neon"]);
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as Awaited<ReturnType<typeof createProviderVerificationReport>>;
+      expect(output.providers[0]?.provider).toBe("neon");
+    } finally {
+      log.mockRestore();
+      process.exitCode = undefined;
+    }
   });
 });
 

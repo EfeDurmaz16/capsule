@@ -141,6 +141,22 @@ interface ProviderSelectionReport {
   results: ProviderSelectionResult[];
 }
 
+interface ProviderVerificationEntry {
+  provider: string;
+  status: "passed" | "ready" | "missing" | "unavailable";
+  liveTestEnabled: boolean;
+  configuredEnv: string[];
+  missingEnv: string[];
+  requiredEnv: string[];
+  testPath?: string;
+  safeCommands: string[];
+  notes: string[];
+}
+
+interface ProviderVerificationReport {
+  providers: ProviderVerificationEntry[];
+}
+
 interface AdapterScaffoldFile {
   path: string;
   content: string;
@@ -660,6 +676,53 @@ export function liveTestCommandPlan(provider?: string): LiveTestPlan[] {
   return [plan];
 }
 
+function livePlanRequirementDiagnostic(plan: LiveTestPlan, env: NodeJS.ProcessEnv): Omit<ProviderVerificationEntry, "provider" | "status" | "testPath" | "safeCommands" | "notes" | "liveTestEnabled"> {
+  const required = plan.requiredEnv.filter((name) => name !== "CAPSULE_LIVE_TESTS");
+  const configuredEnv = required.flatMap((name) => configuredCredentialNames(name, plan.aliases, env));
+  const missingEnv = required.filter((name) => configuredCredentialNames(name, plan.aliases, env).length === 0);
+  return {
+    configuredEnv,
+    missingEnv,
+    requiredEnv: required.flatMap((name) => [name, ...(plan.aliases?.[name] ?? [])])
+  };
+}
+
+export async function createProviderVerificationReport(options: { env?: NodeJS.ProcessEnv; provider?: string; dockerCheck?: () => Promise<boolean> } = {}): Promise<ProviderVerificationReport> {
+  const env = options.env ?? process.env;
+  const plans = options.provider === "docker" ? [] : liveTestCommandPlan(options.provider).filter((plan) => plan.provider !== "docker");
+  const providers: ProviderVerificationEntry[] = [];
+
+  if (!options.provider || options.provider === "docker") {
+    const dockerOk = await (options.dockerCheck ?? dockerAvailable)();
+    providers.push({
+      provider: "docker",
+      status: dockerOk ? "passed" : "unavailable",
+      liveTestEnabled: true,
+      configuredEnv: [],
+      missingEnv: [],
+      requiredEnv: [],
+      safeCommands: ["pnpm vitest run packages/adapter-docker/src/docker.test.ts"],
+      notes: [dockerOk ? "Docker daemon is available for local Docker adapter tests." : "Docker daemon is unavailable; Docker adapter live paths cannot run on this machine."]
+    });
+  }
+
+  for (const plan of plans) {
+    const diagnostic = livePlanRequirementDiagnostic(plan, env);
+    const liveTestEnabled = env.CAPSULE_LIVE_TESTS === "1";
+    providers.push({
+      provider: plan.provider,
+      status: diagnostic.missingEnv.length === 0 ? "ready" : "missing",
+      liveTestEnabled,
+      ...diagnostic,
+      testPath: plan.testPath,
+      safeCommands: plan.safeCommands,
+      notes: [...plan.notes, ...(liveTestEnabled ? [] : ["Set CAPSULE_LIVE_TESTS=1 before running the safe command."])]
+    });
+  }
+
+  return { providers };
+}
+
 export function classifyProvider(provider: string, service: string): ClassifyProviderServiceResult {
   return classifyProviderService({ provider, service });
 }
@@ -890,6 +953,8 @@ function printHelp(): void {
 
 Commands:
   capsule doctor
+  capsule verify providers
+  capsule verify providers --provider neon
   capsule live-test plan
   capsule live-test plan --provider neon
   capsule classify provider cloudflare workers
@@ -1098,6 +1163,16 @@ export async function main(argv: string[]): Promise<void> {
       const report = await createDoctorReport({ adapter: parsed.adapter });
       console.log(JSON.stringify(report, null, 2));
       process.exitCode = report.docker === "available" ? 0 : 1;
+      return;
+    }
+    case "verify": {
+      const action = parsed.rest[0];
+      if (action !== "providers") {
+        throw new Error("Unknown verify command. Use providers.");
+      }
+      const report = await createProviderVerificationReport({ provider: parsed.provider ?? parsed.adapter });
+      console.log(JSON.stringify(report, null, 2));
+      process.exitCode = report.providers.every((entry) => entry.status === "passed" || entry.status === "ready") ? 0 : 1;
       return;
     }
     case "live-test": {
