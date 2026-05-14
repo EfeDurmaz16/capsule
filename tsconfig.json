@@ -23,6 +23,7 @@
     { "path": "./packages/presets" },
     { "path": "./packages/cli" },
     { "path": "./packages/store-jsonl" },
+    { "path": "./packages/store-sqlite" },
     { "path": "./examples/sandbox-docker" },
     { "path": "./examples/job-docker" },
     { "path": "./examples/agent-code-execution" },

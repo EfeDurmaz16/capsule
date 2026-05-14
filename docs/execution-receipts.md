@@ -35,4 +35,6 @@ Receipt persistence is explicit. `receiptPersistence: "best-effort"` is the defa
 
 `@capsule/store-jsonl` is the local file store. Its writes create parent directories, append one receipt per line, and flush by default before `write` resolves. It is intentionally an optional package, not a core database.
 
+`@capsule/store-sqlite` is an optional Node 24 local SQLite store. It persists the full receipt JSON plus indexed columns for provider, receipt type, capability path, support level, and timestamps. The package uses Node's built-in `node:sqlite` module, so it remains dependency-free but should be treated as a Node 24 local persistence adapter rather than a portable browser or edge store.
+
 The receipt JSON Schema is published at [`schemas/capsule-receipt.schema.json`](../schemas/capsule-receipt.schema.json) and exported from `@capsule/core` as `capsuleReceiptJsonSchema`.

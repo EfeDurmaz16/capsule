@@ -390,3 +390,16 @@ Exports:
 - `jsonlReceiptStore`
 - `JsonlReceiptStore`
 - `JsonlReceiptStoreOptions`
+
+## @capsule/store-sqlite
+
+- Package: `@capsule/store-sqlite`
+- Import: `import { ... } from "@capsule/store-sqlite"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
+- Source: `packages/store-sqlite/src/index.ts`
+
+Exports:
+- `sqliteReceiptStore`
+- `SqliteReceiptStore`
+- `SqliteReceiptStoreOptions`

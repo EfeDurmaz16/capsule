@@ -45,6 +45,7 @@ Before the first publish, verify these manually with the npm account that will p
    - `@capsule/cli`
    - `@capsule/preview`
    - `@capsule/store-jsonl`
+   - `@capsule/store-sqlite`
 4. Two-factor authentication and npm provenance requirements match the release workflow.
 5. `NPM_TOKEN` is an automation token scoped to the organization/packages and stored only in GitHub Actions secrets.
 6. The first release PR from Changesets is reviewed before publishing.

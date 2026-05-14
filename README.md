@@ -250,6 +250,8 @@ Capsule is pre-1.0 OSS infrastructure. The core contracts, real provider adapter
 - `@capsule/adapter-mock`: mock E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models.
 - `@capsule/ai`: framework-agnostic code execution tool helper plus dependency-free descriptors for Vercel AI SDK, OpenAI Agents/Responses, LangChain, Mastra, and CrewAI.
 - `@capsule/preview`: preview environment composition helpers for Capsule-backed services, edges, database branches, and jobs.
+- `@capsule/store-jsonl`: local append-only JSONL receipt persistence.
+- `@capsule/store-sqlite`: optional Node 24 SQLite receipt persistence for local audit trails and indexed receipt lookup.
 - `@capsule/cli`: small CLI with `doctor`, `verify providers`, `classify provider`, `adapter scaffold`, `capabilities`, `run`, and `sandbox`.
 
 ## Examples
