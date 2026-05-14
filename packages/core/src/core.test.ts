@@ -91,6 +91,13 @@ describe("capabilities", () => {
     expect(supports(capabilities, "job.run")).toBe(false);
   });
 
+  test("treats nested or malformed capability paths as unsupported", () => {
+    expect(supportLevel(capabilities, "sandbox.exec.extra" as any)).toBe("unsupported");
+    expect(supportLevel(capabilities, "sandbox." as any)).toBe("unsupported");
+    expect(supportLevel(capabilities, ".exec" as any)).toBe("unsupported");
+    expect(supports(capabilities, "sandbox.exec.extra" as any)).toBe(false);
+  });
+
   test("evaluates required and optional capability sets", () => {
     expect(
       evaluateCapabilityRequirements(capabilities, [

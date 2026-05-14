@@ -56,7 +56,11 @@ export const supportLevelWeights: Record<SupportLevel, number> = {
 };
 
 export function supportLevel(capabilities: CapabilityMap, path: CapabilityPath): SupportLevel {
-  const [domain, key] = path.split(".");
+  const parts = path.split(".");
+  if (parts.length !== 2 || parts.some((part) => part.length === 0)) {
+    return "unsupported";
+  }
+  const [domain, key] = parts;
   const domainCapabilities = capabilities[domain as keyof CapabilityMap] as Record<string, SupportLevel | undefined> | undefined;
   return domainCapabilities?.[key] ?? "unsupported";
 }
