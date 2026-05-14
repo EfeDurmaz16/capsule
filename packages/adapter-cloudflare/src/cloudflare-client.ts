@@ -169,8 +169,7 @@ export class CloudflareClient {
         strategy: "percentage",
         versions: [{ version_id: input.versionId, percentage: 100 }],
         annotations: {
-          "workers/message": input.message ?? `Capsule rollback to Worker version ${input.versionId}`,
-          "workers/triggered_by": "capsule.rollback"
+          "workers/message": input.message ?? `Capsule rollback to Worker version ${input.versionId}`
         }
       })
     });

@@ -212,7 +212,7 @@ Stripe Projects aliases: `CAPSULE_WORKER_API_TOKEN` can be mapped to `CLOUDFLARE
 pnpm --filter @capsule/cli capsule live-test plan --provider cloudflare
 ```
 
-Live verification: the default Cloudflare live test creates only an unreleased Worker version. Add `CAPSULE_CLOUDFLARE_LIVE_DEPLOY=1` when you intentionally want the same live test to call `edge.deploy` and update the named Worker script. Set `CAPSULE_CLOUDFLARE_WORKERS_DEV_SUBDOMAIN` or map Stripe Projects' `CAPSULE_WORKER_WORKERS_DEV_SUBDOMAIN` when you want the receipt URL populated.
+Live verification: the default Cloudflare live test creates only an unreleased Worker version. Add `CAPSULE_CLOUDFLARE_LIVE_DEPLOY=1` when you intentionally want the same live test to call `edge.deploy` and update the named Worker script. Add `CAPSULE_CLOUDFLARE_LIVE_ROLLBACK=1` when you intentionally want it to create a Worker deployment that moves traffic to a freshly uploaded version. Set `CAPSULE_CLOUDFLARE_WORKERS_DEV_SUBDOMAIN` or map Stripe Projects' `CAPSULE_WORKER_WORKERS_DEV_SUBDOMAIN` when you want the receipt URL populated.
 
 Cleanup: remove the Worker, routes, and bindings in Cloudflare or through future lifecycle APIs once implemented.
 

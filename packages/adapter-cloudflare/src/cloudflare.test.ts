@@ -133,7 +133,7 @@ describe("cloudflare adapter", () => {
           id: "deployment-rollback",
           strategy: "percentage",
           versions: [{ version_id: "version-old", percentage: 100 }],
-          annotations: { "workers/triggered_by": "capsule.rollback" }
+          annotations: { "workers/message": "bad deploy" }
         }
       });
     }) as typeof fetch;
@@ -155,7 +155,7 @@ describe("cloudflare adapter", () => {
     expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
       strategy: "percentage",
       versions: [{ version_id: "version-old", percentage: 100 }],
-      annotations: { "workers/message": "bad deploy", "workers/triggered_by": "capsule.rollback" }
+      annotations: { "workers/message": "bad deploy" }
     });
   });
 
