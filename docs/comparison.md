@@ -25,6 +25,24 @@ files-sdk is the closest design inspiration. It presents a small storage surface
 
 Capsule copies that discipline but cannot copy the exact abstraction style. Storage has a relatively stable common slice: upload, download, list, head, delete. Runtime providers differ more sharply. A sandbox, a Cloud Run job, a Vercel deployment, a Neon branch, and an EC2 instance are not interchangeable resources. Capsule therefore uses domain primitives and support levels rather than one universal `run` or `deploy`.
 
+The useful lesson from files-sdk is restraint:
+
+- constructor-time adapter selection keeps call sites flat;
+- provider packages remain separately importable;
+- a local filesystem adapter works for dev and CI without becoming a production claim;
+- provider-native escape hatches are treated as a feature, not a failure of the abstraction;
+- agent tool factories can sit beside the SDK without forcing an AI framework into the core package.
+
+The boundary that does not transfer cleanly is the operation model. Storage can expose one small common API because each provider ultimately stores keyed blobs. Runtime providers do not share a single unit. Capsule should therefore stay closer to files-sdk's adapter discipline than to a universal compute facade: `capsule.sandbox`, `capsule.job`, `capsule.edge`, `capsule.database`, `capsule.preview`, and `capsule.machine` are separate because their failure modes and evidence needs are separate.
+
+Practical implication for Capsule:
+
+- keep `@capsule/core` small and dependency-light;
+- keep adapters as subpackages;
+- keep `raw()` available for provider-native APIs;
+- add AI helpers as optional framework adapters;
+- do not pretend provider-specific deployment, rollback, route, secret, log, or database semantics are interchangeable.
+
 ## ComputeSDK
 
 ComputeSDK is close to Capsule's sandbox slice. Its public README describes separate provider packages and a common sandbox interface for code execution, filesystem, and terminal-like capabilities.
@@ -37,6 +55,17 @@ Capsule should treat ComputeSDK as adjacent rather than obsolete. The difference
 - Capsule makes policy decisions, logs, artifacts, and receipts part of the contract.
 
 The risk for Capsule is overreach. The comparison with ComputeSDK is a reminder to keep the sandbox API small and avoid turning every provider detail into a fake common denominator.
+
+ComputeSDK also has a provider routing model: applications configure one or more providers and can choose strategies such as priority or round-robin. Capsule should not copy routing blindly. Provider routing is useful when providers are substitutable for the same sandbox workflow. Capsule's broader domains need a stricter selection step first: a provider must satisfy the required capability paths for the workflow before any routing or fallback strategy is considered.
+
+The sharper Capsule position:
+
+- For "run code in a sandbox", ComputeSDK is a direct adjacent tool.
+- For "run this agent action and keep a policy/receipt record", Capsule adds evidence.
+- For "compose a preview from an edge deployment, service, database branch, and check job", Capsule covers domains outside ComputeSDK's sandbox center.
+- For "choose between Cloudflare, Vercel, Neon, Docker, Fly, ECS, Kubernetes, Lambda, and EC2", Capsule should rank against domain requirements instead of treating providers as equivalent runtimes.
+
+Capsule should interoperate with ComputeSDK where it makes sense. A future adapter could wrap ComputeSDK's sandbox provider interface for teams that already use it, while Capsule remains the policy, capability, and receipt layer around the action.
 
 ## Sandbox Providers: E2B, Daytona, Modal
 
@@ -88,3 +117,34 @@ Capsule's value is the common evidence/control layer around those actions:
 
 That is a smaller claim than "write once, deploy everywhere", and it is the correct claim for Capsule.
 
+## Cloudflare, Vercel, And Neon
+
+The reason to use Capsule instead of calling Cloudflare, Vercel, or Neon directly is not that Capsule knows those platforms better than their own SDKs. It does not. The reason is that a multi-provider agent, CI, or preview system needs one place to ask different questions:
+
+- What domain is this action in: edge, service, job, database, preview, or machine?
+- Is the requested capability native, emulated, experimental, or unsupported for this adapter?
+- Which policy was evaluated before the provider call?
+- What evidence did we collect afterward?
+- Which provider-specific details were preserved rather than flattened away?
+
+Direct provider SDK calls are better when the application is deeply tied to one platform and needs the full native API. Capsule is better when the caller is an agent framework, developer tool, CI system, deployment orchestrator, or preview controller that may touch several providers and needs consistent evidence around the action.
+
+Cloudflare is the edge/runtime example. Its useful native concepts include Workers scripts, versions, routes, deployments, bindings, and rollback by Worker version. Capsule models that under `edge.*` while keeping unsupported features explicit. For example, Worker secret bindings and logs must not be silently faked as generic environment or log support.
+
+Vercel is the web/edge deployment example. Its useful native concepts include deployments, URLs, projects, logs, release/alias flows, and platform-specific build behavior. Capsule should expose Vercel through edge/deployment receipts, not pretend it is the same thing as Cloudflare Workers or Cloud Run services.
+
+Neon is the database/resource example. Its useful native concepts include projects, branches, parent branches, connection URIs, branch reset, and preview database lifecycle. Capsule should keep Neon under `database.*` and `preview` composition rather than calling it a service deployment.
+
+The moat is the cross-provider control plane layer:
+
+| Need | Direct provider SDK | Capsule |
+| --- | --- | --- |
+| Use every provider-native feature | Best fit | Use `raw()` or drop to provider SDK |
+| Run one platform-specific app | Best fit | Extra layer may not be needed |
+| Compare providers for a workflow | Manual docs/code | `providerCompatibilityScore`, recipe ranking, and capability paths |
+| Enforce action policy before runtime calls | Caller-owned | First-class policy model and receipt notes |
+| Record evidence across providers | Caller-owned | Normalized receipts with provider metadata |
+| Compose preview resources across edge, service, job, and database | Multiple SDKs plus glue | Preview planning/orchestration layer |
+| Let agents execute without hiding provider limits | Hard to standardize | Explicit support levels and unsupported errors |
+
+Capsule's pitch should stay narrow: it is not a better Cloudflare SDK, Vercel SDK, or Neon SDK. It is the small TypeScript layer that lets tools use those SDKs through domain-aware contracts, policy decisions, capability negotiation, and receipts.
