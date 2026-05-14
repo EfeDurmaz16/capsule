@@ -328,7 +328,10 @@ Exports:
 
 Exports:
 - `cleanupPreviewEnvironment`
+- `compilePreviewPlan`
 - `compilePreviewSpec`
+- `createPreviewDryRunReceiptBundle`
+- `CreatePreviewDryRunReceiptBundleOptions`
 - `createPreviewEnvironment`
 - `createPreviewEnvironmentWithCleanup`
 - `createPreviewGraph`
@@ -343,6 +346,7 @@ Exports:
 - `PreviewCleanupResult`
 - `PreviewCompiledPlan`
 - `PreviewCreationError`
+- `PreviewDryRunReceiptBundle`
 - `PreviewOrchestrationResult`
 - `PreviewPlan`
 - `PreviewPlannedResource`

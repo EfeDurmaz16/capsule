@@ -2,7 +2,9 @@ import { describe, expect, test } from "vitest";
 import { Capsule, type CapsuleAdapter, type CapabilityMap } from "@capsule/core";
 import {
   cleanupPreviewEnvironment,
+  compilePreviewPlan,
   compilePreviewSpec,
+  createPreviewDryRunReceiptBundle,
   createPreviewEnvironmentWithCleanup,
   createPreviewGraph,
   MockProviderNotAllowedError,
@@ -221,6 +223,49 @@ describe("preview orchestration", () => {
     expect(events).toEqual([]);
   });
 
+  test("compiles a provider-bound preview plan without provider calls", () => {
+    const events: string[] = [];
+    const compiled = compilePreviewPlan(plan(fakeCapsule(events)));
+
+    expect(compiled.resources.map((resource) => [resource.kind, resource.name, resource.capabilityPath])).toEqual([
+      ["database", "pr-42-db", "database.branchCreate"],
+      ["service", "api", "service.deploy"],
+      ["edge", "web", "edge.deploy"],
+      ["job", "smoke", "job.run"]
+    ]);
+    expect(events).toEqual([]);
+  });
+
+  test("emits a dry-run preview receipt bundle without creating provider resources", () => {
+    const events: string[] = [];
+    const bundle = createPreviewDryRunReceiptBundle(plan(fakeCapsule(events)), {
+      startedAt: new Date("2026-05-13T00:00:00.000Z")
+    });
+
+    expect(bundle.validation.ok).toBe(true);
+    expect(bundle.receipts).toEqual([bundle.receipt]);
+    expect(bundle.receipt).toMatchObject({
+      type: "preview.create",
+      provider: "capsule-preview",
+      adapter: "@capsule/preview",
+      capabilityPath: "preview.create",
+      supportLevel: "emulated",
+      resource: { name: "pr-42", status: "ready" },
+      policy: { decision: "allowed" }
+    });
+    expect(bundle.receipt.metadata).toMatchObject({
+      dryRun: true,
+      resources: [
+        { kind: "database", name: "pr-42-db", capabilityPath: "database.branchCreate", cleanupCapabilityPath: "database.branchDelete" },
+        { kind: "service", name: "api", capabilityPath: "service.deploy", cleanupCapabilityPath: "service.delete" },
+        { kind: "edge", name: "web", capabilityPath: "edge.deploy" },
+        { kind: "job", name: "smoke", capabilityPath: "job.run" }
+      ],
+      missingRequired: []
+    });
+    expect(events).toEqual([]);
+  });
+
   test("reports missing required capability paths before orchestration", () => {
     const validation = validatePreviewPlanCapabilities(
       plan(
@@ -239,6 +284,37 @@ describe("preview orchestration", () => {
       resource: { kind: "edge", name: "web", capabilityPath: "edge.deploy" },
       result: { path: "edge.deploy", actualLevel: "unsupported", supported: false }
     });
+  });
+
+  test("marks dry-run preview receipt as denied when required capabilities are missing", () => {
+    const bundle = createPreviewDryRunReceiptBundle(
+      plan(
+        fakeCapsule([], {
+          capabilities: {
+            ...capabilities,
+            service: { ...capabilities.service!, deploy: "unsupported" }
+          }
+        })
+      ),
+      { startedAt: new Date("2026-05-13T00:00:00.000Z") }
+    );
+
+    expect(bundle.validation.ok).toBe(false);
+    expect(bundle.receipt).toMatchObject({
+      resource: { name: "pr-42", status: "failed" },
+      policy: { decision: "denied" }
+    });
+    expect(bundle.receipt.metadata?.missingRequired).toEqual([
+      {
+        kind: "service",
+        name: "api",
+        provider: "unknown",
+        adapter: "fake-preview",
+        path: "service.deploy",
+        actualLevel: "unsupported",
+        reason: "Preview services require service.deploy support."
+      }
+    ]);
   });
 
   test("creates a preview resource graph", async () => {

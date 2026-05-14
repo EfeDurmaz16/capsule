@@ -66,6 +66,17 @@ export interface PreviewCapabilityValidationResult {
   missingRequired: PreviewCapabilityValidationRecord[];
 }
 
+export interface PreviewDryRunReceiptBundle {
+  plan: PreviewCompiledPlan;
+  validation: PreviewCapabilityValidationResult;
+  receipts: CapsuleReceipt[];
+  receipt: CapsuleReceipt;
+}
+
+export interface CreatePreviewDryRunReceiptBundleOptions {
+  startedAt?: Date;
+}
+
 export interface PreviewCleanupDispositionRecord {
   resource: PreviewResourceRecord;
   disposition: PreviewCleanupDisposition;
@@ -219,6 +230,19 @@ export function compilePreviewSpec(spec: CreatePreviewSpec): PreviewCompiledPlan
   };
 }
 
+export function compilePreviewPlan(plan: PreviewPlan): PreviewCompiledPlan {
+  return compilePreviewSpec({
+    name: plan.name,
+    source: plan.source,
+    ttlMs: plan.ttlMs,
+    labels: plan.labels,
+    databases: plan.databases?.map((entry) => entry.spec),
+    services: plan.services?.map((entry) => entry.spec),
+    edges: plan.edges?.map((entry) => entry.spec),
+    jobs: plan.jobs?.map((entry) => entry.spec)
+  });
+}
+
 export function validatePreviewPlanCapabilities(plan: PreviewPlan): PreviewCapabilityValidationResult {
   const checked: PreviewCapabilityValidationRecord[] = [];
 
@@ -248,6 +272,81 @@ export function validatePreviewPlanCapabilities(plan: PreviewPlan): PreviewCapab
     ok: missingRequired.length === 0,
     checked,
     missingRequired
+  };
+}
+
+export function createPreviewDryRunReceiptBundle(
+  plan: PreviewPlan,
+  options: CreatePreviewDryRunReceiptBundleOptions = {}
+): PreviewDryRunReceiptBundle {
+  const startedAt = options.startedAt ?? new Date();
+  const compiledPlan = compilePreviewPlan(plan);
+  const validation = validatePreviewPlanCapabilities(plan);
+  const receipt = createReceipt({
+    type: "preview.create",
+    provider: "capsule-preview",
+    adapter: "@capsule/preview",
+    capabilityPath: "preview.create",
+    supportLevel: "emulated",
+    startedAt,
+    resource: {
+      id: `dry_run_${compiledPlan.name}`,
+      name: compiledPlan.name,
+      status: validation.ok ? "ready" : "failed"
+    },
+    metadata: {
+      dryRun: true,
+      source: compiledPlan.source,
+      ttlMs: compiledPlan.ttlMs,
+      labels: compiledPlan.labels,
+      resources: compiledPlan.resources.map((resource) => ({
+        order: resource.order,
+        kind: resource.kind,
+        name: resource.name,
+        capabilityPath: resource.capabilityPath,
+        cleanupCapabilityPath: resource.cleanupCapabilityPath
+      })),
+      capabilityChecks: validation.checked.map((record) => ({
+        order: record.check.order,
+        kind: record.check.kind,
+        name: record.check.name,
+        provider: record.provider,
+        adapter: record.adapter,
+        path: record.result.path,
+        actualLevel: record.result.actualLevel,
+        supported: record.result.supported,
+        reason: record.result.reason
+      })),
+      missingRequired: validation.missingRequired.map((record) => ({
+        kind: record.check.kind,
+        name: record.check.name,
+        provider: record.provider,
+        adapter: record.adapter,
+        path: record.result.path,
+        actualLevel: record.result.actualLevel,
+        reason: record.result.reason
+      }))
+    },
+    policy: {
+      decision: validation.ok ? "allowed" : "denied",
+      applied: {},
+      notes: validation.ok
+        ? [
+            "Preview dry run receipt was generated without creating provider resources.",
+            "Capability checks describe declared adapter support, not provider-side deployment success."
+          ]
+        : [
+            "Preview dry run was denied because at least one required capability is unsupported.",
+            "No provider resources were created."
+          ]
+    }
+  });
+
+  return {
+    plan: compiledPlan,
+    validation,
+    receipts: [receipt],
+    receipt
   };
 }
 
