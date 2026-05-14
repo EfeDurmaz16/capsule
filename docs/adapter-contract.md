@@ -54,16 +54,19 @@ Never silently emulate without marking the feature as `emulated`. Never mark som
 
 ## Implementation Steps
 
-1. Create `packages/adapter-provider-name`.
-2. Add `package.json`, `tsconfig.json`, `src/index.ts`, and a provider adapter file.
-3. Export a factory function such as `providerName(options)`.
-4. Define the smallest truthful `CapabilityMap`.
-5. Implement one domain first: sandbox, job, service, edge, database, preview, or machine.
-6. Call `context.evaluatePolicy(...)` before executing provider actions that accept env, secrets, timeouts, resources, TTL, or cost-sensitive inputs.
-7. Attach receipts through `context.createReceipt(...)` when `context.receipts` is enabled.
-8. Redact provider tokens and user secrets from errors, logs, stdout/stderr, receipt metadata, and test snapshots.
-9. Add fake-client tests for request mapping and receipt shape.
-10. Add optional live tests only behind `CAPSULE_LIVE_TESTS=1` and provider credentials.
+For a longer onboarding walkthrough, see [Adding a provider adapter](adding-provider-adapter.md).
+
+1. Classify the provider service with `capsule classify provider <provider> <service>`.
+2. Create `packages/adapter-provider-name`, or run `capsule adapter scaffold <provider> --domain <domain>`.
+3. Add `package.json`, `tsconfig.json`, `src/index.ts`, and a provider adapter file if you are not using the scaffold.
+4. Export a factory function such as `providerName(options)`.
+5. Define the smallest truthful `CapabilityMap`.
+6. Implement one domain first: sandbox, job, service, edge, database, preview, or machine.
+7. Call `context.evaluatePolicy(...)` before executing provider actions that accept env, secrets, timeouts, resources, TTL, or cost-sensitive inputs.
+8. Attach receipts through `context.createReceipt(...)` when `context.receipts` is enabled.
+9. Redact provider tokens and user secrets from errors, logs, stdout/stderr, receipt metadata, and test snapshots.
+10. Add fake-client tests for request mapping and receipt shape.
+11. Add optional live tests only behind `CAPSULE_LIVE_TESTS=1` and provider credentials.
 
 ## Required Adapter Fields
 

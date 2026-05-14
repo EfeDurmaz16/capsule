@@ -194,6 +194,7 @@ Mock modeling package:
 - [Architecture](docs/architecture.md)
 - [Primitive taxonomy](docs/primitive-taxonomy.md)
 - [Adapter contract](docs/adapter-contract.md)
+- [Adding a provider adapter](docs/adding-provider-adapter.md)
 - [Capability model](docs/capability-model.md)
 - [Policy model](docs/policy-model.md)
 - [Execution receipts](docs/execution-receipts.md)
@@ -212,6 +213,7 @@ Mock modeling package:
 - [Comparison](docs/comparison.md)
 - [Technical decisions](docs/technical-decisions.md)
 - [Architecture decision records](docs/adr/README.md)
+- [OSP integration](docs/integrations/osp.md)
 - [V1 readiness audit](docs/v1-readiness-audit.md)
 
 ## Development

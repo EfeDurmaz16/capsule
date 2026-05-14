@@ -15,13 +15,16 @@ Live provider tests must use `@capsule/test-utils` and remain skipped by default
 
 ## Add An Adapter
 
-1. Create a package under `packages/adapter-*`.
-2. Export a factory that returns `CapsuleAdapter`.
-3. Declare a complete capability map.
-4. Implement only the domains the provider supports.
-5. Use `native`, `emulated`, `unsupported`, and `experimental` honestly.
-6. Add contract tests.
-7. Add docs and examples.
+Start with [Adding a provider adapter](adding-provider-adapter.md) and the [Adapter contract](adapter-contract.md).
+
+1. Classify the provider service with `capsule classify provider <provider> <service>`.
+2. Scaffold the package with `capsule adapter scaffold <provider> --domain <domain>` when the default package shape fits.
+3. Export a factory that returns `CapsuleAdapter`.
+4. Declare a complete capability map.
+5. Implement only the domains the provider supports.
+6. Use `native`, `emulated`, `unsupported`, and `experimental` honestly.
+7. Add contract tests.
+8. Add docs and examples.
 
 Adapter PRs are expected to explain:
 
