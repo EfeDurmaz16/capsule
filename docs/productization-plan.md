@@ -91,7 +91,7 @@ Supply-chain note: CAP-P009 gates production licenses and reviewed direct runtim
 | CAP-P031 | done | High | Add secret redaction profiles | Receipts, errors, logs, provider metadata, and debug output redact configured secret names and token-like values. | `pnpm vitest run packages/core/src/core.test.ts && pnpm typecheck` |
 | CAP-P032 | done | Medium | Add policy decision replay tests | Policy decisions can be reproduced from operation spec, default policy, approval grant, and adapter support level. | `pnpm vitest run packages/core/src/core.test.ts && pnpm typecheck` |
 | CAP-P033 | done | Medium | Add raw provider access guardrails | `raw()` documentation and tests make clear that raw access is ungoverned and should not be used for audited execution. | `pnpm vitest run packages/core/src/core.test.ts && git diff --check` |
-| CAP-P034 | open | Medium | Add receipt signing profile | Add optional receipt signatures with canonical payloads, key id metadata, and verification helpers. | `pnpm test packages/core/src/core.test.ts` |
+| CAP-P034 | done | Medium | Add receipt signing profile | Add optional receipt signatures with canonical payloads, key id metadata, and verification helpers. | `pnpm vitest run packages/core/src/core.test.ts && pnpm typecheck` |
 | CAP-P035 | open | Medium | Add evidence bundle export | Export receipts, logs, artifacts, policy decisions, and provider metadata as a verifiable bundle. | `pnpm test packages/core/src/core.test.ts` |
 
 ### Provider Adapter Lifecycle

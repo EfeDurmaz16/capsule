@@ -31,9 +31,9 @@ Receipts created through Capsule's adapter context are operation-scoped. Capsule
 
 Receipts prove what Capsule observed. They do not prove absolute provider truth or complete runtime isolation.
 
-Receipt signing is optional and disabled by default. `@capsule/core` exposes a small synchronous `ReceiptSigner` interface that receives the unsigned receipt and returns a signature value plus algorithm/key metadata. This keeps v1 dependency-free while allowing tests, CI systems, or future FIDES-style integrations to attach deterministic signatures.
+Receipt signing is optional and disabled by default. `@capsule/core` exposes a small synchronous `ReceiptSigner` interface that receives the unsigned receipt plus a canonical JSON payload and returns a signature value plus algorithm/key metadata. The canonical payload sorts object keys, omits undefined values, and excludes the `signature` field. `canonicalReceiptPayload`, `unsignedReceipt`, and `verifyReceiptSignature` are exported so tests, CI systems, or future FIDES-style integrations can attach and verify deterministic signatures without adding a crypto dependency to core.
 
-Signatures cover Capsule's receipt object before the `signature` field is attached. They are not provider attestations unless the caller's signer explicitly binds provider evidence.
+Signatures cover Capsule's unsigned receipt object before the `signature` field is attached. They are not provider attestations unless the caller's signer explicitly binds provider evidence.
 
 Receipt persistence is explicit. `receiptPersistence: "best-effort"` is the default and keeps provider operations moving if an optional store write fails. Use `receiptPersistence: "required"` when the caller must know that every receipt created during a Capsule operation was accepted by the configured `receiptStore`; in required mode, Capsule rejects before adapter execution starts if no store is configured or the store `ready()` preflight fails. A later store `write()` failure still rejects after the adapter creates the receipt, so the provider side effect may already have happened before Capsule reports evidence loss. Evidence profiles that make destructive or billable operations transactional with evidence persistence are future work.
 
