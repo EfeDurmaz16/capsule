@@ -573,6 +573,33 @@ describe("policy", () => {
     await expect(capsule.database.branch.create({ project: "app", name: "preview", ttlMs: 120_000 })).rejects.toThrow(PolicyViolationError);
     expect(called).toBe(false);
   });
+
+  test("raw provider access bypasses Capsule policy and receipt controls", async () => {
+    const receiptStore = new MemoryReceiptStore();
+    let rawCalled = false;
+    const rawAdapter: CapsuleAdapter = {
+      ...adapter,
+      raw: {
+        deleteService: async () => {
+          rawCalled = true;
+          return { id: "svc_123", status: "deleted" };
+        }
+      }
+    };
+    const capsule = new Capsule({
+      adapter: rawAdapter,
+      receipts: true,
+      receiptStore,
+      policy: { approvals: { required: true, reason: "raw access is outside the governed facade" } }
+    });
+
+    await expect((capsule.raw() as { deleteService(): Promise<{ id: string; status: string }> }).deleteService()).resolves.toEqual({
+      id: "svc_123",
+      status: "deleted"
+    });
+    expect(rawCalled).toBe(true);
+    expect(receiptStore.receipts).toEqual([]);
+  });
 });
 
 describe("presets", () => {

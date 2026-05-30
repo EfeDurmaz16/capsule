@@ -114,6 +114,8 @@ capsule.raw();
 
 Support levels are `native`, `emulated`, `unsupported`, and `experimental`. Adapters must declare what they support; unsupported capabilities throw `UnsupportedCapabilityError`.
 
+`raw()` is an explicit provider escape hatch. Calls made through the returned provider client or metadata object do not pass through Capsule capability checks, policy enforcement, receipt creation, redaction, or durability modes. Use it for provider-native inspection or setup, not for audited execution.
+
 ## Policy And Receipts
 
 Capsule can apply network, filesystem, secrets, limits, cost, TTL, and approval policies before runtime actions. Receipts record the provider, adapter, capability path, support level, timing, output hashes, resource identifiers, and policy decision. Receipts prove what Capsule observed, not absolute truth.
