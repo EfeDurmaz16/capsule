@@ -116,6 +116,8 @@ Live receipt assertions also check normalized runtime metadata where the adapter
 - `runtimeVersion` records the local Node.js runtime that produced the receipt, unless the provider supplies a more specific version in a provider-specific metadata field.
 - `adapterVersion` records the Capsule adapter package version that shaped the receipt.
 
+Sanitized golden receipt examples live in [`docs/live-receipt-samples/golden-live-receipts.json`](live-receipt-samples/golden-live-receipts.json). They use placeholder ids, URLs, request ids, timestamps, and hashes to document provider metadata shape without storing provider account data or secrets.
+
 ## Cleanup Sweep
 
 Use the cleanup sweep in dry-run mode before and after live-provider work:

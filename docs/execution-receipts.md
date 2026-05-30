@@ -34,6 +34,8 @@ Provider-visible operation tags use `capsule_operation_key` and `capsule_operati
 
 Adapters may include additional provider-specific metadata, but receipt creation redacts known secret-bearing metadata keys before signing or storing a receipt. Policies can add project-specific `secrets.redactKeys`, and the strict redaction profile masks common token-shaped values in receipt metadata and provider options. Adapters should still avoid placing secrets in metadata at all; redaction is a last boundary check, not a substitute for careful provider mapping.
 
+For concrete sanitized shapes, see [`docs/live-receipt-samples/golden-live-receipts.json`](live-receipt-samples/golden-live-receipts.json). The samples are deterministic placeholders for documentation and future receipt-verifier work; they are not captured provider outputs.
+
 Receipts created through Capsule's adapter context are operation-scoped. Capsule stamps the active provider and adapter, computes the support level from the declared capability path, and rejects mismatched receipt type/capability pairs for the active operation. For example, an adapter handling `service.delete` cannot persist a `job.run` receipt through the same context. Sandbox sub-operations are core-wrapped: `exec`, `writeFile`, `readFile`, `listFiles`, and `destroy` each run with their own policy and receipt scope. File read/write/list operations record core receipts with the sandbox id, path, and byte or entry counts. The Docker adapter has a non-live regression test covering the full wrapped sub-operation receipt sequence.
 
 Receipts prove what Capsule observed. They do not prove absolute provider truth or complete runtime isolation.
