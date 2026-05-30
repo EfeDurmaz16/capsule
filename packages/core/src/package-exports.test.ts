@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
@@ -22,6 +22,25 @@ const runtimeExportKinds = new Set(["class", "const", "enum", "function", "names
 
 function publicPackageDirs() {
   return packageDirs(packagesDir).filter((packageDir) => readJson(join(packageDir, "package.json")).private !== true);
+}
+
+function linkPackageNodeModules(sourceNodeModules: string, targetNodeModules: string, scopedNodeModules: string) {
+  if (!existsSync(sourceNodeModules)) return;
+  mkdirSync(targetNodeModules, { recursive: true });
+  for (const entry of readdirSync(sourceNodeModules)) {
+    if (entry === ".bin") continue;
+    if (entry === "@capsule") {
+      const sourceScope = join(sourceNodeModules, entry);
+      const targetScope = join(targetNodeModules, entry);
+      mkdirSync(targetScope, { recursive: true });
+      for (const scopedEntry of readdirSync(sourceScope)) {
+        const tempPackage = join(scopedNodeModules, scopedEntry);
+        symlinkSync(existsSync(tempPackage) ? tempPackage : join(sourceScope, scopedEntry), join(targetScope, scopedEntry));
+      }
+      continue;
+    }
+    symlinkSync(join(sourceNodeModules, entry), join(targetNodeModules, entry));
+  }
 }
 
 function expectedRuntimeExportsByPackage() {
@@ -75,10 +94,12 @@ describe("package export maps", () => {
           join(packageRoot, "package.json"),
           `${JSON.stringify({ name: pkg.name, type: "module", exports: { ".": "./src/index.ts" } }, null, 2)}\n`
         );
-        symlinkSync(join(dir, "src"), join(packageRoot, "src"), "dir");
-        if (existsSync(join(dir, "node_modules"))) {
-          symlinkSync(join(dir, "node_modules"), join(packageRoot, "node_modules"), "dir");
-        }
+        cpSync(join(dir, "src"), join(packageRoot, "src"), { recursive: true, dereference: true });
+      }
+
+      for (const { dir, pkg } of packages) {
+        const packageRoot = join(scopedNodeModules, String(pkg.name).replace("@capsule/", ""));
+        linkPackageNodeModules(join(dir, "node_modules"), join(packageRoot, "node_modules"), scopedNodeModules);
       }
 
       const verifierPath = join(tempRoot, "verify-package-exports.mjs");

@@ -1,4 +1,4 @@
-import { AdapterExecutionError, classifyProviderError } from "@capsule/core";
+import { AdapterExecutionError, classifyProviderError, providerExecutionError } from "@capsule/core";
 
 export interface AzureContainerAppsClientOptions {
   accessToken?: string;
@@ -62,10 +62,10 @@ export class AzureContainerAppsClient {
     const data = text ? JSON.parse(text) : undefined;
     if (!response.ok) {
       const message = typeof data?.error?.message === "string" ? data.error.message : `Azure Container Apps API request failed with status ${response.status}`;
-      throw new AdapterExecutionError(message, {
+      const providerError = classifyProviderError({ status: response.status, headers: response.headers, error: data });
+      throw providerExecutionError(message, providerError, {
         status: response.status,
-        data,
-        providerError: classifyProviderError({ status: response.status, headers: response.headers, error: data })
+        data
       });
     }
     return data as T;

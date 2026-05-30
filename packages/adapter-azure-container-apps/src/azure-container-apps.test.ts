@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, CleanupFailureError, runAdapterContract } from "@capsule/core";
 import { azureContainerApps, azureContainerAppsCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200): Response {
@@ -195,6 +195,45 @@ describe("azure container apps adapter", () => {
       ["POST", `https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/${jobName}/start?api-version=2025-07-01`],
       ["DELETE", `https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/${jobName}?api-version=2025-07-01`]
     ]);
+  });
+
+  test("wraps Container Apps cleanup failures after generated job start failures", async () => {
+    let jobName = "";
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      const method = init?.method ?? "GET";
+      const matchedJobName = requestUrl.match(/\/jobs\/([^/?]+)/)?.[1];
+      if (matchedJobName) jobName = decodeURIComponent(matchedJobName);
+      if (method === "POST" && requestUrl.endsWith("/start?api-version=2025-07-01")) {
+        return response({ error: { message: "Azure start failed" } }, 409);
+      }
+      if (method === "DELETE") {
+        return response({ error: { message: "Azure cleanup delete failed" } }, 500);
+      }
+      return response({ id: `/jobs/${jobName}`, name: jobName, properties: { provisioningState: "Succeeded" } }, 201);
+    }) as typeof fetch;
+    const capsule = new Capsule({ adapter: azureContainerApps({ ...options, fetch: fetchMock }), receipts: true });
+
+    let thrown: unknown;
+    try {
+      await capsule.job.run({ image: "node:22" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(CleanupFailureError);
+    expect((thrown as Error).message).toBe("Azure Container Apps job cleanup failed after execution start failure.");
+    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
+      action: "delete-generated-job",
+      jobName,
+      status: "failed",
+      error: "Azure cleanup delete failed",
+      resourceGroupName: "rg-1",
+      subscriptionId: "sub-1"
+    });
+    expect((thrown as CleanupFailureError).cause).toMatchObject({
+      operationError: expect.objectContaining({ message: "Azure start failed" })
+    });
   });
 
   test("reads Container Apps Job execution status through ARM", async () => {

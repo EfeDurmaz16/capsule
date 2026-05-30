@@ -1,6 +1,7 @@
 import { Sandbox as E2BSandbox } from "e2b";
 import {
   AdapterExecutionError,
+  CleanupFailureError,
   capsuleOperationTags,
   logsFromOutput,
   providerRuntimeMetadata,
@@ -220,6 +221,9 @@ async function killSandboxAfterFailure(
   } catch (cleanupError) {
     cleanup.status = "failed";
     cleanup.error = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+  }
+  if (cleanup.status === "failed") {
+    throw new CleanupFailureError("E2B sandbox cleanup failed after sandbox allocation.", cleanup, { operationError });
   }
   if (operationError instanceof Error) {
     (operationError as CleanupAwareError).cleanup = cleanup;

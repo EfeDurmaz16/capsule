@@ -1,5 +1,5 @@
 import { GoogleAuth } from "google-auth-library";
-import { AdapterExecutionError, classifyProviderError } from "@capsule/core";
+import { AdapterExecutionError, classifyProviderError, providerExecutionError } from "@capsule/core";
 
 export interface CloudRunClientOptions {
   projectId?: string;
@@ -245,10 +245,10 @@ export class CloudRunClient {
           : typeof data?.message === "string"
             ? data.message
             : `Cloud Run API request failed with status ${response.status}`;
-      throw new AdapterExecutionError(message, {
+      const providerError = classifyProviderError({ status: response.status, headers: response.headers, error: data?.error ?? data });
+      throw providerExecutionError(message, providerError, {
         status: response.status,
-        error: data?.error,
-        providerError: classifyProviderError({ status: response.status, headers: response.headers, error: data?.error ?? data })
+        error: data?.error
       });
     }
     return data as T;
@@ -274,10 +274,10 @@ export class CloudRunClient {
           : typeof data?.message === "string"
             ? data.message
             : `Cloud Logging API request failed with status ${response.status}`;
-      throw new AdapterExecutionError(message, {
+      const providerError = classifyProviderError({ status: response.status, headers: response.headers, error: data?.error ?? data });
+      throw providerExecutionError(message, providerError, {
         status: response.status,
-        error: data?.error,
-        providerError: classifyProviderError({ status: response.status, headers: response.headers, error: data?.error ?? data })
+        error: data?.error
       });
     }
     return data as T;

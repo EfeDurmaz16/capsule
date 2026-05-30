@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Capsule, runAdapterContract } from "@capsule/core";
+import { Capsule, CleanupFailureError, runAdapterContract } from "@capsule/core";
 import { ecs, ecsCapabilities } from "./index.js";
 
 describe("ecs adapter", () => {
@@ -197,6 +197,50 @@ describe("ecs adapter", () => {
       { name: "CreateServiceCommand", input: { cluster: "cluster-a", serviceName: "api", taskDefinition: "api:3", launchType: "FARGATE", desiredCount: 2 } },
       { name: "DeleteServiceCommand", input: { cluster: "cluster-a", service: "arn:service/api", force: true } }
     ]);
+  });
+
+  it("wraps ECS cleanup failures after service deploy errors", async () => {
+    const client = {
+      send: async (command: any) => {
+        if (command.constructor.name === "CreateServiceCommand") {
+          return { service: { serviceArn: "arn:service/api", serviceName: "api" } };
+        }
+        if (command.constructor.name === "DeleteServiceCommand") {
+          throw new Error("ecs delete failed");
+        }
+        return {};
+      }
+    };
+    const capsule = new Capsule({
+      adapter: ecs({ cluster: "cluster-a", taskDefinition: "api:3", containerName: "main", client }),
+      receipts: true,
+      receiptSigner: {
+        algorithm: "test-signature",
+        sign: () => {
+          throw new Error("receipt signing failed");
+        }
+      }
+    });
+
+    let thrown: unknown;
+    try {
+      await capsule.service.deploy({ name: "api", image: "ignored", scale: { min: 2 } });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(CleanupFailureError);
+    expect((thrown as Error).message).toBe("ECS service cleanup failed after service creation.");
+    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
+      action: "delete-created-service",
+      service: "arn:service/api",
+      status: "failed",
+      cluster: "cluster-a",
+      error: "ecs delete failed"
+    });
+    expect((thrown as CleanupFailureError).cause).toMatchObject({
+      operationError: expect.objectContaining({ message: "receipt signing failed" })
+    });
   });
 
   it("describes ECS service rollout status from DescribeServices", async () => {

@@ -15,6 +15,7 @@ import {
   logsFromOutput,
   type AdapterContext,
   AdapterExecutionError,
+  CleanupFailureError,
   type CapsuleAdapter,
   type CapabilityMap,
   type CancelJobResult,
@@ -251,6 +252,9 @@ async function cleanupCreatedServiceAfterDeployFailure(
   } catch (cleanupError) {
     cleanup.status = "failed";
     cleanup.error = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+  }
+  if (cleanup.status === "failed") {
+    throw new CleanupFailureError("ECS service cleanup failed after service creation.", cleanup, { operationError: deployError });
   }
   if (deployError instanceof Error) {
     (deployError as CleanupAwareError).cleanup = cleanup;

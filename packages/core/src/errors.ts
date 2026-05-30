@@ -30,8 +30,8 @@ export class PolicyViolationError extends CapsuleError {
 }
 
 export class AdapterExecutionError extends CapsuleError {
-  constructor(message: string, cause?: unknown) {
-    super(message, "CAPSULE_ADAPTER_EXECUTION_ERROR", cause);
+  constructor(message: string, cause?: unknown, code = "CAPSULE_ADAPTER_EXECUTION_ERROR") {
+    super(message, code, cause);
     this.name = "AdapterExecutionError";
   }
 }
@@ -44,6 +44,57 @@ export interface ProviderErrorClassification {
   status?: number;
   retryAfterMs?: number;
   code?: string;
+}
+
+export class ProviderAuthError extends AdapterExecutionError {
+  constructor(message: string, public readonly classification: ProviderErrorClassification, cause?: unknown) {
+    super(message, cause, "CAPSULE_PROVIDER_AUTH_ERROR");
+    this.name = "ProviderAuthError";
+  }
+}
+
+export class ProviderValidationError extends AdapterExecutionError {
+  constructor(message: string, public readonly classification: ProviderErrorClassification, cause?: unknown) {
+    super(message, cause, "CAPSULE_PROVIDER_VALIDATION_ERROR");
+    this.name = "ProviderValidationError";
+  }
+}
+
+export class ProviderRateLimitError extends AdapterExecutionError {
+  constructor(message: string, public readonly classification: ProviderErrorClassification, cause?: unknown) {
+    super(message, cause, "CAPSULE_PROVIDER_RATE_LIMIT_ERROR");
+    this.name = "ProviderRateLimitError";
+  }
+}
+
+export class ProviderRetryableError extends AdapterExecutionError {
+  constructor(message: string, public readonly classification: ProviderErrorClassification, cause?: unknown) {
+    super(message, cause, "CAPSULE_PROVIDER_RETRYABLE_ERROR");
+    this.name = "ProviderRetryableError";
+  }
+}
+
+export class CleanupFailureError<TCleanup extends object = object> extends AdapterExecutionError {
+  constructor(message: string, public readonly cleanup: TCleanup, cause?: unknown) {
+    super(message, cause, "CAPSULE_CLEANUP_FAILURE");
+    this.name = "CleanupFailureError";
+  }
+}
+
+export function providerExecutionError(message: string, classification: ProviderErrorClassification, cause?: unknown): AdapterExecutionError {
+  const errorCause = providerCause(cause, classification);
+  switch (classification.category) {
+    case "auth":
+      return new ProviderAuthError(message, classification, errorCause);
+    case "validation":
+      return new ProviderValidationError(message, classification, errorCause);
+    case "rate-limit":
+      return new ProviderRateLimitError(message, classification, errorCause);
+    case "retryable":
+      return new ProviderRetryableError(message, classification, errorCause);
+    case "unknown":
+      return new AdapterExecutionError(message, errorCause);
+  }
 }
 
 export interface ClassifyProviderErrorInput {
@@ -87,6 +138,23 @@ function classification(category: ProviderErrorCategory, retryable: boolean, sta
     ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
     ...(code === undefined ? {} : { code })
   };
+}
+
+function providerCause(cause: unknown, classification: ProviderErrorClassification): unknown {
+  if (cause === undefined) {
+    return { providerError: classification };
+  }
+  if (cause instanceof Error) {
+    return { providerError: classification, cause };
+  }
+  if (isRecord(cause)) {
+    return "providerError" in cause ? cause : { ...cause, providerError: classification };
+  }
+  return { providerError: classification, cause };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function normalizeStatus(status: number | undefined): number | undefined {

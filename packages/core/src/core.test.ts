@@ -13,7 +13,18 @@ import {
   uniqueCapabilityPaths
 } from "./capabilities.js";
 import { createEvidenceBundle, verifyEvidenceBundle } from "./evidence.js";
-import { AdapterExecutionError, UnsupportedCapabilityError, PolicyViolationError, classifyProviderError } from "./errors.js";
+import {
+  AdapterExecutionError,
+  CleanupFailureError,
+  PolicyViolationError,
+  ProviderAuthError,
+  ProviderRateLimitError,
+  ProviderRetryableError,
+  ProviderValidationError,
+  UnsupportedCapabilityError,
+  classifyProviderError,
+  providerExecutionError
+} from "./errors.js";
 import { capsuleOperationTag, capsuleOperationTags } from "./idempotency.js";
 import { evaluatePolicy, explainPolicy, mergeTimeout, redactError, redactLogEntries, redactSecrets } from "./policy.js";
 import { edgeWorkerPreset, httpServicePreset, nodeJobPreset, nodeSandboxPreset, previewDatabaseBranchPreset, previewEnvironmentPreset } from "./presets.js";
@@ -698,6 +709,45 @@ describe("policy", () => {
       category: "unknown",
       retryable: false
     });
+  });
+
+  test("maps provider classifications to typed execution errors", () => {
+    const auth = providerExecutionError("provider auth failed", { category: "auth", retryable: false, status: 401 }, { status: 401 });
+    expect(auth).toBeInstanceOf(ProviderAuthError);
+    expect(auth).toBeInstanceOf(AdapterExecutionError);
+    expect(auth.code).toBe("CAPSULE_PROVIDER_AUTH_ERROR");
+
+    const validation = providerExecutionError("provider rejected request", { category: "validation", retryable: false, status: 422 }, { status: 422 });
+    expect(validation).toBeInstanceOf(ProviderValidationError);
+    expect(validation.code).toBe("CAPSULE_PROVIDER_VALIDATION_ERROR");
+
+    const rateLimit = providerExecutionError("provider rate limited request", { category: "rate-limit", retryable: true, status: 429, retryAfterMs: 1000 }, { status: 429 });
+    expect(rateLimit).toBeInstanceOf(ProviderRateLimitError);
+    expect(rateLimit.code).toBe("CAPSULE_PROVIDER_RATE_LIMIT_ERROR");
+
+    const retryable = providerExecutionError("provider retryable failure", { category: "retryable", retryable: true, status: 503 }, { status: 503 });
+    expect(retryable).toBeInstanceOf(ProviderRetryableError);
+    expect(retryable.code).toBe("CAPSULE_PROVIDER_RETRYABLE_ERROR");
+
+    const unknown = providerExecutionError("provider failed", { category: "unknown", retryable: false }, {});
+    expect(unknown).toBeInstanceOf(AdapterExecutionError);
+    expect(unknown).not.toBeInstanceOf(ProviderAuthError);
+    expect(unknown.code).toBe("CAPSULE_ADAPTER_EXECUTION_ERROR");
+
+    const cause = new Error("provider transport failed");
+    const withErrorCause = providerExecutionError("provider failed", { category: "retryable", retryable: true }, cause);
+    expect(withErrorCause.cause).toMatchObject({
+      providerError: { category: "retryable", retryable: true },
+      cause: expect.objectContaining({ message: "provider transport failed" })
+    });
+  });
+
+  test("exposes cleanup failure as a typed adapter execution error", () => {
+    const cleanup = { action: "delete-created-resource", resourceId: "res_123", status: "failed", error: "delete failed" };
+    const error = new CleanupFailureError("cleanup failed after provider allocation", cleanup, { operationError: new Error("deploy failed") });
+    expect(error).toBeInstanceOf(AdapterExecutionError);
+    expect(error.code).toBe("CAPSULE_CLEANUP_FAILURE");
+    expect(error.cleanup).toEqual(cleanup);
   });
 
   test("does not redact when log redaction policy is absent", () => {
