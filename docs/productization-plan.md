@@ -69,7 +69,7 @@ Supply-chain note: CAP-P009 gates production licenses and reviewed direct runtim
 | CAP-P014 | done | Medium | Add architecture diagram source | Add Mermaid or text diagrams for Capsule, adapters, policy, receipts, stores, and live tests. | `git diff --check` |
 | CAP-P015 | done | High | Align security model with current enforcement | `docs/security-model.md` states what is enforced, what is best-effort, and what is not evidence-grade yet. | `git diff --check && pnpm test packages/core/src/core.test.ts` |
 | CAP-P016 | done | High | Align execution receipts docs with store behavior | Receipt docs distinguish in-memory capture, JSONL, SQLite, signing, and required durability modes. | `git diff --check && pnpm test packages/core/src/core.test.ts` |
-| CAP-P017 | open | Medium | Add provider quickstart status badges | Each real-provider quickstart states credential requirements, cost risk, supported capabilities, and cleanup command. | `git diff --check` |
+| CAP-P017 | done | Medium | Add provider quickstart status badges | Each real-provider quickstart states credential requirements, cost risk, supported capabilities, and cleanup command. | `git diff --check` |
 | CAP-P018 | open | Medium | Add comparison decision table | Comparison doc explains when to use Capsule, provider SDKs, Terraform, Pulumi, Nitric, Encore, or a managed PaaS. | `git diff --check` |
 | CAP-P019 | done | Medium | Add ADR for evidence-grade receipts | Record the difference between observational receipts and evidence-grade receipts, including failure modes. | `git diff --check` |
 | CAP-P020 | done | Low | Add issue-label taxonomy | Document labels for core, adapter, docs, release, security, live-test, good-first-issue, and commercial-surface work. | `git diff --check` |
