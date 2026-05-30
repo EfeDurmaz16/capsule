@@ -16,6 +16,8 @@ Docker sandbox snapshots and restore are explicitly unsupported. Docker has lowe
 
 The E2B adapter uses the official E2B SDK for cloud sandbox creation, command execution, file read/write/list, and sandbox destruction. Network `none` maps to E2B's internet-access control for the sandbox; host allowlists and OS-level filesystem policy remain provider-specific or adapter-boundary concerns.
 
+If E2B sandbox creation succeeds but a later local adapter step fails, such as receipt signing or persistence preflight, Capsule attempts to kill the allocated sandbox and attaches cleanup metadata to the thrown error. If E2B command execution throws before returning an exit code, Capsule conservatively attempts to kill the sandbox and records whether cleanup was killed or failed on the original error. Normal nonzero command exits are still returned as `sandbox.exec` results and do not trigger automatic sandbox destruction.
+
 The E2B live integration test is opt-in. It is skipped unless both `CAPSULE_LIVE_TESTS=1` and `E2B_API_KEY` are set. The test creates a real E2B sandbox, executes a command, writes/reads/lists a file, and destroys the sandbox in cleanup. Do not set `CAPSULE_LIVE_TESTS=1` in routine local or CI runs unless live provider operations are intended.
 
 The Daytona adapter uses the official Daytona TypeScript SDK for cloud sandbox creation, command execution, file read/write/list, and deletion. Capsule maps `network.none` to Daytona network blocking and `allowlist` to Daytona's network allow list request, while keeping filesystem policy as adapter-boundary enforcement.

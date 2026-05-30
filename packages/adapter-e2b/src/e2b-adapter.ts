@@ -64,6 +64,15 @@ export interface E2BAdapterOptions {
   sandboxClass?: E2BSandboxClass;
 }
 
+interface E2BSandboxCleanupMetadata {
+  action: "kill-created-sandbox" | "kill-sandbox-after-exec-error";
+  sandboxId: string;
+  status: "killed" | "failed";
+  error?: string;
+}
+
+type CleanupAwareError = Error & { cleanup?: E2BSandboxCleanupMetadata };
+
 const provider = "e2b";
 const adapter = "e2b";
 
@@ -185,6 +194,29 @@ function toFileType(type: E2BEntryInfo["type"]): FileEntry["type"] {
   return "unknown";
 }
 
+async function killSandboxAfterFailure(
+  sandbox: E2BSandboxInstance,
+  action: E2BSandboxCleanupMetadata["action"],
+  operationError: unknown
+): Promise<never> {
+  const cleanup: E2BSandboxCleanupMetadata = {
+    action,
+    sandboxId: sandbox.sandboxId,
+    status: "killed"
+  };
+  try {
+    await sandbox.kill();
+  } catch (cleanupError) {
+    cleanup.status = "failed";
+    cleanup.error = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+  }
+  if (operationError instanceof Error) {
+    (operationError as CleanupAwareError).cleanup = cleanup;
+    throw operationError;
+  }
+  throw new AdapterExecutionError("E2B sandbox operation failed after sandbox allocation.", { operationError, cleanup });
+}
+
 class E2BCapsuleSandbox implements Sandbox {
   constructor(
     private readonly sandbox: E2BSandboxInstance,
@@ -198,12 +230,17 @@ class E2BCapsuleSandbox implements Sandbox {
     const policy = this.context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
     const command = commandToString(spec.command);
     const receiptCommand = commandForReceipt(spec.command);
-    const result = await this.sandbox.commands.run(command, {
-      cwd: spec.cwd ?? this.defaultCwd,
-      envs: spec.env,
-      timeoutMs: spec.timeoutMs,
-      background: false
-    });
+    let result: E2BCommandResult;
+    try {
+      result = await this.sandbox.commands.run(command, {
+        cwd: spec.cwd ?? this.defaultCwd,
+        envs: spec.env,
+        timeoutMs: spec.timeoutMs,
+        background: false
+      });
+    } catch (error) {
+      return await killSandboxAfterFailure(this.sandbox, "kill-sandbox-after-exec-error", error);
+    }
     const stdout = redactSecrets(result.stdout, spec.env, this.context.policy);
     const stderr = redactSecrets(result.stderr, spec.env, this.context.policy);
     const receipt = this.context.receipts
@@ -280,18 +317,22 @@ export function e2b(options: E2BAdapterOptions = {}): CapsuleAdapter {
             template: template ?? "base"
           }
         };
-        if (context.receipts) {
-          context.createReceipt({
-            type: "sandbox.create",
-            capabilityPath: "sandbox.create",
-            startedAt,
-            image: template,
-            policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
-            resource: { id: sandbox.sandboxId, status: "running" },
-            metadata: { domain: sandbox.sandboxDomain, labels: spec.labels }
-          });
+        try {
+          if (context.receipts) {
+            context.createReceipt({
+              type: "sandbox.create",
+              capabilityPath: "sandbox.create",
+              startedAt,
+              image: template,
+              policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
+              resource: { id: sandbox.sandboxId, status: "running" },
+              metadata: { domain: sandbox.sandboxDomain, labels: spec.labels }
+            });
+          }
+          return new E2BCapsuleSandbox(sandbox, handle, context, spec.cwd ?? options.defaultCwd);
+        } catch (error) {
+          return await killSandboxAfterFailure(sandbox, "kill-created-sandbox", error);
         }
-        return new E2BCapsuleSandbox(sandbox, handle, context, spec.cwd ?? options.defaultCwd);
       }
     }
   };
