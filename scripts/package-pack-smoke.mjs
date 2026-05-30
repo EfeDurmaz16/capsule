@@ -3,7 +3,63 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
 
-const root = process.cwd();
+function parseArgs(argv) {
+  const options = {
+    root: process.cwd(),
+    nodeVersion: process.versions.node,
+    respectEngines: false,
+    listPackages: false
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+
+    if (arg === "--root") {
+      const value = argv[index + 1];
+      if (!value) {
+        throw new Error("--root requires a path.");
+      }
+      options.root = value;
+      index += 1;
+    } else if (arg === "--node-version") {
+      const value = argv[index + 1];
+      if (!value) {
+        throw new Error("--node-version requires a version.");
+      }
+      options.nodeVersion = value;
+      index += 1;
+    } else if (arg === "--respect-engines") {
+      options.respectEngines = true;
+    } else if (arg === "--list-packages") {
+      options.listPackages = true;
+    } else if (arg === "--help") {
+      options.help = true;
+    } else {
+      throw new Error(`Unknown argument: ${arg}`);
+    }
+  }
+
+  return options;
+}
+
+function printUsage() {
+  console.log(`Usage: node scripts/package-pack-smoke.mjs [--root <path>] [--respect-engines] [--node-version <version>] [--list-packages]
+
+Packs public Capsule packages, installs them into a temporary fixture, imports
+the packed artifacts, and runs the packed CLI. With --respect-engines, packages
+whose engines.node minimum is above the current Node version are skipped; this is
+used by Node compatibility CI while the full release audit still runs all public
+packages on Node 24.`);
+}
+
+const options = parseArgs(process.argv.slice(2));
+
+if (options.help) {
+  printUsage();
+  process.exit(0);
+}
+
+const root = options.root;
 const packagesDir = join(root, "packages");
 const kib = 1024;
 // Packed tarball budgets are rounded up from current pnpm pack artifacts.
@@ -43,6 +99,51 @@ function publicPackages() {
     .map((entry) => ({ ...entry, pkg: readJson(entry.packageJsonPath) }))
     .filter((entry) => entry.pkg.private !== true)
     .sort((left, right) => left.pkg.name.localeCompare(right.pkg.name));
+}
+
+function parseVersion(version) {
+  const match = version.match(/^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?/);
+  if (!match) {
+    throw new Error(`Invalid Node.js version: ${version}`);
+  }
+  return [Number(match[1]), Number(match[2] ?? 0), Number(match[3] ?? 0)];
+}
+
+function compareVersions(left, right) {
+  for (let index = 0; index < 3; index += 1) {
+    if (left[index] !== right[index]) {
+      return left[index] - right[index];
+    }
+  }
+  return 0;
+}
+
+function parseMinimumNodeVersion(range, packageName) {
+  if (typeof range !== "string" || range.trim() === "") {
+    return undefined;
+  }
+  const match = range.trim().match(/^>=\s*(\d+)(?:\.(\d+))?(?:\.(\d+))?$/);
+  if (!match) {
+    throw new Error(`${packageName}: unsupported engines.node range ${JSON.stringify(range)} for pack smoke engine filtering.`);
+  }
+  return [Number(match[1]), Number(match[2] ?? 0), Number(match[3] ?? 0)];
+}
+
+function splitPackagesByEngine(packages, nodeVersion) {
+  const current = parseVersion(nodeVersion);
+  const included = [];
+  const skipped = [];
+
+  for (const entry of packages) {
+    const minimum = parseMinimumNodeVersion(entry.pkg.engines?.node, entry.pkg.name);
+    if (minimum && compareVersions(current, minimum) < 0) {
+      skipped.push({ name: entry.pkg.name, enginesNode: entry.pkg.engines.node });
+    } else {
+      included.push(entry);
+    }
+  }
+
+  return { included, skipped };
 }
 
 function parsePackOutput(output) {
@@ -102,6 +203,7 @@ function checkPackedSizeBudgets(tarballs) {
 }
 
 function writeFixture(fixtureDir, tarballs) {
+  const rootPackage = readJson(join(root, "package.json"));
   const dependencies = Object.fromEntries(tarballs.map((tarball) => [tarball.name, `file:${tarball.filename}`]));
   writeFileSync(
     join(fixtureDir, "package.json"),
@@ -110,6 +212,7 @@ function writeFixture(fixtureDir, tarballs) {
         name: "capsule-pack-smoke-fixture",
         private: true,
         type: "module",
+        packageManager: rootPackage.packageManager,
         dependencies
       },
       null,
@@ -139,7 +242,28 @@ function smokeCliBin(fixtureDir) {
   }
 }
 
-const packages = publicPackages();
+const allPackages = publicPackages();
+const { included: packages, skipped } = options.respectEngines
+  ? splitPackagesByEngine(allPackages, options.nodeVersion)
+  : { included: allPackages, skipped: [] };
+
+if (options.respectEngines && skipped.length > 0) {
+  for (const entry of skipped) {
+    console.log(`Skipping ${entry.name}; engines.node ${entry.enginesNode} is not satisfied by Node ${options.nodeVersion}.`);
+  }
+}
+
+if (options.listPackages) {
+  for (const entry of packages) {
+    console.log(entry.pkg.name);
+  }
+  process.exit(0);
+}
+
+if (packages.length === 0) {
+  throw new Error("No public packages selected for package pack smoke.");
+}
+
 const tempRoot = mkdtempSync(join(tmpdir(), "capsule-pack-smoke-"));
 const packDir = join(tempRoot, "packs");
 const fixtureDir = join(tempRoot, "fixture");
@@ -156,7 +280,9 @@ try {
     writeImportSmoke(fixtureDir, tarballs.map((tarball) => tarball.name));
     run("pnpm", ["install", "--ignore-scripts", "--no-frozen-lockfile"], { cwd: fixtureDir, stdio: "inherit" });
     run("node", ["smoke.mjs"], { cwd: fixtureDir, stdio: "inherit" });
-    smokeCliBin(fixtureDir);
+    if (tarballs.some((tarball) => tarball.name === "@capsule/cli")) {
+      smokeCliBin(fixtureDir);
+    }
     console.log(`Package pack smoke passed for ${tarballs.length} packages in ${basename(tempRoot)}.`);
   }
 } finally {
