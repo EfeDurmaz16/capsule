@@ -12,6 +12,9 @@ export const capsuleReceiptJsonSchema = {
       enum: [
         "sandbox.create",
         "sandbox.exec",
+        "sandbox.file.write",
+        "sandbox.file.read",
+        "sandbox.file.list",
         "sandbox.destroy",
         "job.run",
         "job.status",

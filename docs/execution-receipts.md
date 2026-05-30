@@ -25,7 +25,7 @@ Receipt metadata uses these common provider fields when an adapter can observe t
 
 Adapters may include additional provider-specific metadata, but receipt creation redacts known secret-bearing metadata keys before signing or storing a receipt. Adapters should still avoid placing secrets in metadata at all; redaction is a last boundary check, not a substitute for careful provider mapping.
 
-Receipts created through Capsule's adapter context are operation-scoped. Capsule stamps the active provider and adapter, computes the support level from the declared capability path, and rejects mismatched receipt type/capability pairs for the active operation. For example, an adapter handling `service.delete` cannot persist a `job.run` receipt through the same context. The current sandbox context allows `sandbox.create`, `sandbox.exec`, and `sandbox.destroy` receipts because returned sandbox objects still hold the context created by `sandbox.create`; core-wrapped sandbox sub-operations are a planned hardening step.
+Receipts created through Capsule's adapter context are operation-scoped. Capsule stamps the active provider and adapter, computes the support level from the declared capability path, and rejects mismatched receipt type/capability pairs for the active operation. For example, an adapter handling `service.delete` cannot persist a `job.run` receipt through the same context. Sandbox sub-operations are core-wrapped: `exec`, `writeFile`, `readFile`, `listFiles`, and `destroy` each run with their own policy and receipt scope. File read/write/list operations record core receipts with the sandbox id, path, and byte or entry counts.
 
 Receipts prove what Capsule observed. They do not prove absolute provider truth or complete runtime isolation.
 

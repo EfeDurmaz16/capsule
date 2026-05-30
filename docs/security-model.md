@@ -12,7 +12,7 @@ Docker `network.mode = "none"` is applied with Docker's `--network none` where t
 
 Receipts are observational records. They record what Capsule requested and observed, including hashes and resource metadata. They are not a cryptographic proof of the entire provider environment unless future signing and provider attestations are added. Receipts created through Capsule's adapter context are stamped with the active provider and adapter, sanitized before signing or storage, and scoped to the active operation so an adapter cannot mint an unrelated receipt such as `job.run` from a `service.delete` call.
 
-Sandbox lifecycle methods are the current exception to strict single-operation scoping. Existing sandbox adapters hold the context returned from `sandbox.create`, so that context permits `sandbox.create`, `sandbox.exec`, and `sandbox.destroy` receipts. Core-level wrapping for sandbox `exec`, file operations, and destroy is tracked as follow-up productization work.
+Sandbox sub-operations are wrapped by core after `sandbox.create`. `exec`, `writeFile`, `readFile`, `listFiles`, and `destroy` each check the declared capability before provider code runs, evaluate the active policy, preflight required receipt persistence, and restrict receipts to the active sub-operation scope.
 
 Mock adapters are marked as mocks in two places: `adapter.raw()` returns `{ mock: true }`, and mock-generated receipts include `metadata.mock: true` with the mock provider and adapter names. Production preview orchestration should require real providers so mock success cannot satisfy a live preview run by accident.
 

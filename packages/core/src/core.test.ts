@@ -713,6 +713,94 @@ describe("receipts", () => {
     expect(receiptStore.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create", "sandbox.exec", "sandbox.destroy"]);
   });
 
+  test("checks sandbox sub-operation capabilities before calling adapter methods", async () => {
+    let writeCalled = false;
+    const limitedAdapter: CapsuleAdapter = {
+      ...adapter,
+      capabilities: {
+        ...capabilities,
+        sandbox: {
+          ...capabilities.sandbox!,
+          fileWrite: "unsupported"
+        }
+      },
+      sandbox: {
+        create: async () => ({
+          handle: { id: "box", provider: "test", createdAt: new Date("2026-01-01T00:00:00.000Z").toISOString() },
+          exec: async () => ({ exitCode: 0, stdout: "", stderr: "", logs: [], artifacts: [] }),
+          writeFile: async () => {
+            writeCalled = true;
+          },
+          readFile: async () => new Uint8Array(),
+          listFiles: async () => [],
+          destroy: async () => undefined
+        })
+      }
+    };
+    const capsule = new Capsule({ adapter: limitedAdapter });
+
+    const box = await capsule.sandbox.create({});
+    await expect(box.writeFile("/workspace/secret.txt", "secret")).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    expect(writeCalled).toBe(false);
+  });
+
+  test("evaluates sandbox exec policy before calling the adapter method", async () => {
+    let execCalled = false;
+    const policyAdapter: CapsuleAdapter = {
+      ...adapter,
+      sandbox: {
+        create: async () => ({
+          handle: { id: "box", provider: "test", createdAt: new Date("2026-01-01T00:00:00.000Z").toISOString() },
+          exec: async () => {
+            execCalled = true;
+            return { exitCode: 0, stdout: "", stderr: "", logs: [], artifacts: [] };
+          },
+          writeFile: async () => undefined,
+          readFile: async () => new Uint8Array(),
+          listFiles: async () => [],
+          destroy: async () => undefined
+        })
+      }
+    };
+    const capsule = new Capsule({ adapter: policyAdapter, policy: { secrets: { allowed: ["SAFE"] } } });
+
+    const box = await capsule.sandbox.create({});
+    await expect(box.exec({ command: ["node", "index.js"], env: { TOKEN: "denied" } })).rejects.toBeInstanceOf(PolicyViolationError);
+    expect(execCalled).toBe(false);
+  });
+
+  test("records core receipts for sandbox file sub-operations", async () => {
+    const receiptStore = new MemoryReceiptStore();
+    const fileAdapter: CapsuleAdapter = {
+      ...adapter,
+      sandbox: {
+        create: async (_spec, context) => {
+          context.createReceipt({ type: "sandbox.create", capabilityPath: "sandbox.create", startedAt: new Date("2026-01-01T00:00:00.000Z") });
+          return {
+            handle: { id: "box", provider: "test", createdAt: new Date("2026-01-01T00:00:00.000Z").toISOString() },
+            exec: async () => ({ exitCode: 0, stdout: "", stderr: "", logs: [], artifacts: [] }),
+            writeFile: async () => undefined,
+            readFile: async () => new TextEncoder().encode("hello"),
+            listFiles: async () => [{ name: "hello.txt", path: "/workspace/hello.txt", type: "file", sizeBytes: 5 }],
+            destroy: async () => undefined
+          };
+        }
+      }
+    };
+    const capsule = new Capsule({ adapter: fileAdapter, receipts: true, receiptStore });
+
+    const box = await capsule.sandbox.create({});
+    await box.writeFile("/workspace/hello.txt", "hello");
+    await box.readFile("/workspace/hello.txt");
+    await box.listFiles("/workspace");
+
+    expect(receiptStore.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create", "sandbox.file.write", "sandbox.file.read", "sandbox.file.list"]);
+    expect(receiptStore.receipts.slice(1).map((receipt) => receipt.capabilityPath)).toEqual(["sandbox.fileWrite", "sandbox.fileRead", "sandbox.fileList"]);
+    expect(receiptStore.receipts[1]?.metadata).toMatchObject({ path: "/workspace/hello.txt", byteLength: 5 });
+    expect(receiptStore.receipts[2]?.metadata).toMatchObject({ path: "/workspace/hello.txt", byteLength: 5 });
+    expect(receiptStore.receipts[3]?.metadata).toMatchObject({ path: "/workspace", entryCount: 1 });
+  });
+
   test("continues when best-effort receipt persistence fails", async () => {
     const receiptAdapter: CapsuleAdapter = {
       ...adapter,
