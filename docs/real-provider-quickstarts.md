@@ -139,9 +139,9 @@ try {
 
 Credentials: `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET`; optional `MODAL_ENVIRONMENT` and `MODAL_IMAGE`.
 
-Cleanup: call `sandbox.destroy()` to terminate the sandbox.
+Cleanup: call `sandbox.destroy()` to terminate the sandbox. Capsule writes the Modal destroy receipt only after `terminate()` succeeds; if termination fails, the original provider error is propagated and users should inspect the Modal dashboard before assuming cleanup completed.
 
-Caveat: Capsule currently models Modal sandboxes; broader Modal function/service workflows remain explicit future work.
+Caveat: Capsule currently models Modal sandboxes; file listing and broader Modal function/service workflows remain explicit future work. Modal receipts include app/image/network metadata for create, text-mode execution metadata for exec, and terminate semantics for destroy.
 
 ## Neon
 

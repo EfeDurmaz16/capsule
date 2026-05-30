@@ -125,6 +125,10 @@ function command(commandValue: string[] | string): string[] {
   return typeof commandValue === "string" ? ["sh", "-lc", commandValue] : commandValue;
 }
 
+function removeUndefined(input: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
+}
+
 function policyNotes(context: AdapterContext): string[] {
   const notes = ["Modal sandbox isolation is provided by Modal, not by Capsule itself."];
   if (context.policy.network?.mode === "none") notes.push("Modal blockNetwork is requested for this sandbox.");
@@ -158,7 +162,8 @@ class ModalCapsuleSandbox implements Sandbox {
           stdout,
           stderr,
           policy: { ...policy, notes: [...policy.notes, ...policyNotes(this.context)] },
-          resource: { id: this.handle.id, status: "running" }
+          resource: { id: this.handle.id, status: "running" },
+          metadata: removeUndefined({ mode: "text", workdir: spec.cwd, timeoutMs: spec.timeoutMs })
         })
       : undefined;
     return { exitCode, stdout, stderr, logs: logsFromOutput(stdout, stderr), artifacts: [], receipt };
@@ -196,7 +201,8 @@ class ModalCapsuleSandbox implements Sandbox {
         capabilityPath: "sandbox.destroy",
         startedAt,
         policy: { decision: "allowed", applied: this.context.policy, notes: policyNotes(this.context) },
-        resource: { id: this.handle.id, status: "deleted" }
+        resource: { id: this.handle.id, status: "deleted" },
+        metadata: { terminateWait: false }
       });
     }
   }
@@ -214,8 +220,10 @@ export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
         const client = getClient();
-        const app = await client.apps.fromName(options.appName ?? "capsule", { createIfMissing: true, environment: options.environment });
-        const image = client.images.fromRegistry(spec.image ?? options.defaultImage ?? "debian:bookworm-slim");
+        const appName = options.appName ?? "capsule";
+        const imageTag = spec.image ?? options.defaultImage ?? "debian:bookworm-slim";
+        const app = await client.apps.fromName(appName, { createIfMissing: true, environment: options.environment });
+        const image = client.images.fromRegistry(imageTag);
         const sandbox = await client.sandboxes.create(app, image, {
           name: spec.name,
           env: spec.env,
@@ -224,15 +232,22 @@ export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
           blockNetwork: context.policy.network?.mode === "none" ? true : undefined,
           cidrAllowlist: context.policy.network?.mode === "allowlist" ? context.policy.network.allowedHosts : undefined
         });
-        const handle: SandboxHandle = { id: sandbox.sandboxId, provider, createdAt: new Date().toISOString(), metadata: { appName: options.appName ?? "capsule" } };
+        const handle: SandboxHandle = { id: sandbox.sandboxId, provider, createdAt: new Date().toISOString(), metadata: { appName } };
         if (context.receipts) {
           context.createReceipt({
             type: "sandbox.create",
             capabilityPath: "sandbox.create",
             startedAt,
-            image: spec.image ?? options.defaultImage,
+            image: imageTag,
             policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
-            resource: { id: sandbox.sandboxId, name: spec.name, status: "running" }
+            resource: { id: sandbox.sandboxId, name: spec.name, status: "running" },
+            metadata: removeUndefined({
+              appName,
+              environment: options.environment,
+              image: imageTag,
+              blockNetwork: context.policy.network?.mode === "none" ? true : undefined,
+              cidrAllowlist: context.policy.network?.mode === "allowlist" ? context.policy.network.allowedHosts : undefined
+            })
           });
         }
         return new ModalCapsuleSandbox(sandbox, handle, context);

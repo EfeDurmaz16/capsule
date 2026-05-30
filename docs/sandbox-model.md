@@ -27,3 +27,5 @@ If Daytona sandbox creation succeeds but a later local adapter step fails, Capsu
 The Daytona live integration test is opt-in. It is skipped unless both `CAPSULE_LIVE_TESTS=1` and `DAYTONA_API_KEY` are set. The test creates a real Daytona sandbox, executes commands, writes/reads/lists a file, and calls destroy in a `finally` block. Cleanup is best-effort because provider-side delete can still fail during outages or credential revocation, so interrupted live runs should be checked in the Daytona console before rerunning.
 
 The Modal adapter uses the Modal JavaScript SDK for sandbox creation, command execution, file read/write, and termination. Modal's public sandbox file listing surface is not modeled as a stable high-level method in this adapter, so `sandbox.fileList` remains unsupported instead of being faked.
+
+Modal create receipts include app, environment, image, and requested network metadata. Modal exec receipts record text-mode execution metadata such as workdir and timeout. Modal destroy receipts are written only after `terminate()` succeeds; terminate failures propagate and do not produce a misleading deleted receipt.
