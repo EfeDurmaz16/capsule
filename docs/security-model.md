@@ -16,6 +16,8 @@ Sandbox sub-operations are wrapped by core after `sandbox.create`. `exec`, `writ
 
 Mock adapters are marked as mocks in two places: `adapter.raw()` returns `{ mock: true }`, and mock-generated receipts include `metadata.mock: true` with the mock provider and adapter names. Production preview orchestration should require real providers so mock success cannot satisfy a live preview run by accident.
 
+`raw()` is not an audited execution path. It exists so advanced users can access provider-native clients or metadata when the common Capsule domain model is intentionally too small. Core does not apply capability checks, policy checks, receipts, redaction, or required receipt durability to actions invoked through the raw provider object.
+
 Secrets must be handled carefully. Avoid logging raw credentials, private keys, tokens, connection strings, or payment data. Use allowlists and redaction. Provider docs and runtime isolation guarantees still matter.
 
 ## Observation vs Attestation

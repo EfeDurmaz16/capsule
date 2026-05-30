@@ -73,7 +73,7 @@ For a longer onboarding walkthrough, see [Adding a provider adapter](adding-prov
 - `name`: stable adapter name, usually the package/provider short name.
 - `provider`: provider family, such as `docker`, `e2b`, `cloud-run`, or `neon`.
 - `capabilities`: complete map for implemented domains and explicit unsupported entries for public capabilities in that domain.
-- `raw`: optional escape hatch for provider-specific clients, base URLs, or metadata. It must not replace the common domain API.
+- `raw`: optional escape hatch for provider-specific clients, base URLs, or metadata. It must not replace the common domain API. Anything invoked through `raw()` is outside Capsule's governed facade: no capability check, policy evaluation, receipt creation, redaction, or required receipt durability is applied by core.
 
 ## Receipts
 
