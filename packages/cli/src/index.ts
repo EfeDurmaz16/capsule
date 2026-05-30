@@ -89,6 +89,7 @@ interface ParsedArgs {
   force?: boolean;
   hardDelete?: boolean;
   explain?: boolean;
+  json?: boolean;
   reason?: string;
   rest: string[];
 }
@@ -171,6 +172,12 @@ interface ProviderCapabilityComparison {
     compatibility: ProviderCompatibilityScore;
   };
   diff: CapabilityDiffEntry[];
+}
+
+interface CapabilityReport {
+  adapter: string;
+  capabilities: CapabilityMap;
+  entries: SupportLevelExplanation[];
 }
 
 interface ProviderSelectionReport {
@@ -677,6 +684,10 @@ export function parse(argv: string[]): ParsedArgs {
       parsed.explain = true;
       continue;
     }
+    if (arg === "--json") {
+      parsed.json = true;
+      continue;
+    }
     if (arg === "--force") {
       parsed.force = true;
       continue;
@@ -826,6 +837,28 @@ export async function createDoctorReport(options: { env?: NodeJS.ProcessEnv; ada
 
 export function capabilityExplanations(capabilities: CapabilityMap): SupportLevelExplanation[] {
   return uniqueCapabilityPaths(capabilities).map((path) => explainSupportLevel(capabilities, path));
+}
+
+function createCapabilityReport(adapter: string, capabilities: CapabilityMap): CapabilityReport {
+  return {
+    adapter,
+    capabilities,
+    entries: capabilityExplanations(capabilities)
+  };
+}
+
+function formatCapabilityTable(report: CapabilityReport, options: { explain?: boolean } = {}): string {
+  const columns = options.explain ? ["Capability", "Level", "Supported", "Guidance"] : ["Capability", "Level", "Supported", "Summary"];
+  const rows = report.entries.map((entry) => [
+    entry.path,
+    entry.level,
+    entry.supported ? "yes" : "no",
+    options.explain ? entry.guidance : entry.summary
+  ]);
+  const widths = columns.map((column, index) => Math.max(column.length, ...rows.map((row) => row[index]?.length ?? 0)));
+  const formatRow = (values: string[]): string => values.map((value, index) => value.padEnd(widths[index] ?? value.length)).join("  ").trimEnd();
+
+  return [`Adapter: ${report.adapter}`, "", formatRow(columns), formatRow(widths.map((width) => "-".repeat(width))), ...rows.map(formatRow)].join("\n");
 }
 
 export function compareProviderCapabilities(leftProvider: string, rightProvider: string): ProviderCapabilityComparison {
@@ -1322,6 +1355,7 @@ Commands:
   capsule compare providers --left docker --right e2b
   capsule capabilities
   capsule capabilities --explain
+  capsule capabilities --json
   capsule capabilities --adapter neon
   capsule capabilities --adapter e2b
   capsule capabilities --adapter daytona
@@ -1550,7 +1584,8 @@ export async function main(argv: string[]): Promise<void> {
     case "capabilities": {
       const capsule = createCapsule(parsed);
       const capabilities = capsule.capabilities();
-      console.log(JSON.stringify(parsed.explain ? capabilityExplanations(capabilities) : capabilities, null, 2));
+      const report = createCapabilityReport(capsule.adapterName(), capabilities);
+      console.log(parsed.json ? JSON.stringify(report, null, 2) : formatCapabilityTable(report, { explain: parsed.explain }));
       return;
     }
     case "classify": {

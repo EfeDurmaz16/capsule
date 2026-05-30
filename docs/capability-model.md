@@ -30,6 +30,22 @@ By default, `native`, `emulated`, and `experimental` satisfy a requirement. Use 
 
 `providerCompatibilityScore(capabilities, requirements)` returns a 0-100 score for a workflow requirement set. Required capabilities account for most of the score, optional capabilities add a smaller bonus, and support levels are weighted as `native > emulated > experimental > unsupported`. This is not a universal provider ranking; it is a transparent fit score for one explicit workflow.
 
+## CLI Inspection
+
+`capsule capabilities --adapter <provider>` prints a table for humans. The table includes every declared capability path, including `unsupported` and `experimental` entries, so operators can see gaps before attempting an action.
+
+Use `--explain` to replace the short summary column with remediation guidance:
+
+```bash
+capsule capabilities --adapter docker --explain
+```
+
+Use `--json` for automation. The JSON report includes the adapter name, the raw capability map, and normalized explanation entries:
+
+```bash
+capsule capabilities --adapter docker --json
+```
+
 Examples:
 
 - Docker: `sandbox.exec` and `sandbox.exposePort` are native, `sandbox.filesystemPolicy` is emulated, `sandbox.networkPolicy` is experimental, `sandbox.snapshot` and `sandbox.restore` are unsupported, and `service.deploy` is unsupported. Docker sandbox port exposure is local-only by default: requested ports are published to `127.0.0.1` unless a caller explicitly supplies another `hostIp`.

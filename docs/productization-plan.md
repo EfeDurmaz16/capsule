@@ -139,7 +139,7 @@ Supply-chain note: CAP-P009 gates production licenses and reviewed direct runtim
 | ID | Status | Priority | Title | Acceptance criteria | Verification |
 | --- | --- | --- | --- | --- | --- |
 | CAP-P066 | done | High | Add `capsule doctor` | CLI reports package versions, Node version, workspace health, provider env availability, and release audit status. | `pnpm test packages/cli/src/*.test.ts && pnpm typecheck` |
-| CAP-P067 | open | Medium | Add `capsule capabilities` | CLI prints adapter support levels as table and JSON, including unsupported and experimental capabilities. | `pnpm test packages/cli/src/*.test.ts` |
+| CAP-P067 | done | Medium | Add `capsule capabilities` | CLI prints adapter support levels as table and JSON, including unsupported and experimental capabilities. | `pnpm test packages/cli/src/*.test.ts` |
 | CAP-P068 | open | High | Add `capsule policy explain` | CLI explains why a spec is allowed or denied under a policy without executing a provider action. | `pnpm test packages/cli/src/*.test.ts packages/core/src/core.test.ts` |
 | CAP-P069 | open | High | Add receipt verify command | CLI verifies receipt schema, optional signatures, redaction status, and store readability. | `pnpm test packages/cli/src/*.test.ts packages/core/src/core.test.ts` |
 | CAP-P070 | open | Medium | Add preview create and destroy CLI flow | CLI can create a preview from a config file and destroy it using recorded cleanup plans. | `pnpm test packages/cli/src/*.test.ts packages/preview/src/*.test.ts` |
