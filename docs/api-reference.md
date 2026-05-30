@@ -325,6 +325,8 @@ Exports:
 - `CapsuleApprovalResourceScope`
 - `CapsuleDomain`
 - `CapsuleError`
+- `capsuleOperationTag`
+- `capsuleOperationTags`
 - `CapsuleOptions`
 - `CapsulePolicy`
 - `CapsulePreset`

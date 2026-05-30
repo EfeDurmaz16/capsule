@@ -22,8 +22,11 @@ Receipt metadata uses these common provider fields when an adapter can observe t
 - `providerRequestId`: opaque provider control-plane request id for the API call Capsule observed. This is for correlation and support/debugging only; it must not contain credentials, bearer tokens, signed URLs, or other secrets.
 - `idempotencyKey`: opaque idempotency key supplied to or observed from the provider request when the adapter can safely record it. Callers should generate non-secret keys and avoid embedding user data or credentials.
 - `idempotencyScope`: provider-specific operation or resource scope where the idempotency key applies, such as `job.run` or a provider resource path.
+- `operationTag`: deterministic non-secret hash derived from `idempotencyKey` plus scope. Adapters use this tag for provider labels/tags where those channels already exist, avoiding raw caller idempotency keys in provider-visible metadata.
 
-Mutating operation specs accept `idempotencyKey`. Capsule attaches that key to receipts created through the operation-scoped adapter context, using the capability path as the default `idempotencyScope`. If an adapter also supplies idempotency metadata, the caller-provided operation key remains authoritative and other provider metadata is preserved.
+Mutating operation specs accept `idempotencyKey`. Capsule attaches that key to receipts created through the operation-scoped adapter context, using the capability path as the default `idempotencyScope`, and derives `operationTag` for non-secret provider correlation. If an adapter also supplies idempotency metadata, the caller-provided operation key remains authoritative and other provider metadata is preserved.
+
+Provider-visible operation tags use `capsule_operation_key` and `capsule_operation_scope` when an adapter already has a label/tag channel. The key is the deterministic hash, not the raw idempotency key. The scope value is normalized for provider label compatibility, for example `service.deploy` becomes `service_deploy`.
 
 Adapters may include additional provider-specific metadata, but receipt creation redacts known secret-bearing metadata keys before signing or storing a receipt. Policies can add project-specific `secrets.redactKeys`, and the strict redaction profile masks common token-shaped values in receipt metadata and provider options. Adapters should still avoid placing secrets in metadata at all; redaction is a last boundary check, not a substitute for careful provider mapping.
 

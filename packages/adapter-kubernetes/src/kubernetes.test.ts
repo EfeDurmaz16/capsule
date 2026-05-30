@@ -45,7 +45,8 @@ describe("kubernetes adapter", () => {
       env: { NODE_ENV: "test" },
       timeoutMs: 45_000,
       resources: { cpu: 1, memoryMb: 512 },
-      labels: { "capsule.dev/example": "true" }
+      labels: { "capsule.dev/example": "true" },
+      idempotencyKey: "k8s-job-key"
     });
 
     expect(run.id).toBe("build-job");
@@ -56,7 +57,7 @@ describe("kubernetes adapter", () => {
     expect(calls[0]?.body).toMatchObject({
       apiVersion: "batch/v1",
       kind: "Job",
-      metadata: { name: "build-job" },
+      metadata: { name: "build-job", labels: { capsule_operation_scope: "job_run" } },
       spec: {
         activeDeadlineSeconds: 45,
         template: {
@@ -358,7 +359,8 @@ describe("kubernetes adapter", () => {
       ports: [{ port: 8080, public: true, protocol: "http" }],
       scale: { min: 2, max: 5 },
       healthcheck: { path: "/healthz" },
-      env: { NODE_ENV: "production" }
+      env: { NODE_ENV: "production" },
+      idempotencyKey: "k8s-service-key"
     });
 
     expect(deployment).toMatchObject({
@@ -373,6 +375,7 @@ describe("kubernetes adapter", () => {
     expect(deployments[0]?.body).toMatchObject({
       apiVersion: "apps/v1",
       kind: "Deployment",
+      metadata: { labels: { capsule_operation_scope: "service_deploy" } },
       spec: {
         replicas: 2,
         template: {
@@ -385,6 +388,7 @@ describe("kubernetes adapter", () => {
     expect(services[0]?.body).toMatchObject({
       apiVersion: "v1",
       kind: "Service",
+      metadata: { labels: { capsule_operation_scope: "service_deploy" } },
       spec: { type: "LoadBalancer", ports: [{ port: 8080, targetPort: 8080, protocol: "TCP" }] }
     });
   });

@@ -50,7 +50,8 @@ describe("cloud-run adapter", () => {
       command: ["node", "job.js"],
       env: { MESSAGE: "hi" },
       timeoutMs: 60_000,
-      resources: { cpu: 1, memoryMb: 512 }
+      resources: { cpu: 1, memoryMb: 512 },
+      idempotencyKey: "cloud-run-job-key"
     });
 
     expect(run.status).toBe("succeeded");
@@ -59,6 +60,7 @@ describe("cloud-run adapter", () => {
     expect(calls[0]?.url).toContain("/projects/proj/locations/us-central1/jobs?jobId=capsule-job");
     expect(calls[0]?.init.headers).toMatchObject({ authorization: "Bearer token" });
     expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
+      labels: { capsule_operation_scope: "job_run" },
       template: { template: { timeout: "60s", containers: [{ command: ["node"], args: ["job.js"], env: [{ name: "MESSAGE", value: "hi" }] }] } }
     });
     expect(calls[1]?.url).toContain("/jobs/capsule-job:run");
@@ -359,10 +361,10 @@ describe("cloud-run adapter", () => {
       adapter: cloudRun({ projectId: "proj", location: "europe-west1", accessToken: "token", fetch: fetchMock })
     });
 
-    await expect(capsule.service.update({ id: "api", labels: { track: "stable" } })).resolves.toMatchObject({ status: "ready" });
+    await expect(capsule.service.update({ id: "api", labels: { track: "stable" }, idempotencyKey: "cloud-run-update-key" })).resolves.toMatchObject({ status: "ready" });
     const updateUrl = new URL(calls[0]?.url ?? "");
     expect(updateUrl.searchParams.get("updateMask")).toBe("labels");
-    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({ name: serviceName, labels: { track: "stable" } });
+    expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({ name: serviceName, labels: { track: "stable", capsule_operation_scope: "service_update" } });
   });
 
   it("rolls back Cloud Run service traffic to an explicit revision", async () => {

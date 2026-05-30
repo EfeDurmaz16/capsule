@@ -11,6 +11,7 @@ import {
   type Task
 } from "@aws-sdk/client-ecs";
 import {
+  capsuleOperationTags,
   logsFromOutput,
   type AdapterContext,
   AdapterExecutionError,
@@ -146,8 +147,8 @@ function networkConfiguration(options: ECSAdapterOptions) {
   };
 }
 
-function tags(labels?: Record<string, string>): Array<{ key: string; value: string }> | undefined {
-  const entries = Object.entries(labels ?? {});
+function tags(labels?: Record<string, string>, idempotencyKey?: string, capabilityPath?: string): Array<{ key: string; value: string }> | undefined {
+  const entries = Object.entries({ ...(labels ?? {}), ...(capabilityPath ? (capsuleOperationTags({ idempotencyKey, capabilityPath }) ?? {}) : {}) });
   return entries.length > 0 ? entries.map(([key, value]) => ({ key, value })) : undefined;
 }
 
@@ -275,7 +276,7 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
             taskDefinition: options.taskDefinition,
             launchType: options.launchType ?? "FARGATE",
             networkConfiguration: networkConfiguration(options),
-            tags: tags(spec.labels),
+            tags: tags(spec.labels, spec.idempotencyKey, "job.run"),
             overrides: {
               containerOverrides: [
                 {
@@ -382,7 +383,7 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
             launchType: options.launchType ?? "FARGATE",
             desiredCount: spec.scale?.min ?? 1,
             networkConfiguration: networkConfiguration(options),
-            tags: tags(spec.labels)
+            tags: tags(spec.labels, spec.idempotencyKey, "service.deploy")
           })
         );
         const service = response.service;

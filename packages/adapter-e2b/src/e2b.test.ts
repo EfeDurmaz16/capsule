@@ -78,7 +78,7 @@ describe("e2b adapter", () => {
       receiptStore: store
     });
 
-    const sandbox = await capsule.sandbox.create({ name: "test-box", cwd: "/workspace" });
+    const sandbox = await capsule.sandbox.create({ name: "test-box", cwd: "/workspace", idempotencyKey: "e2b-create-key" });
     await sandbox.writeFile("/workspace/index.js", "console.log('hi')");
     const file = await sandbox.readFile("/workspace/index.js");
     const entries = await sandbox.listFiles("/workspace");
@@ -87,6 +87,7 @@ describe("e2b adapter", () => {
 
     expect(FakeE2BSandbox.createdWith[0]).toBe("base");
     expect(FakeE2BSandbox.createdWith[1]).toMatchObject({ allowInternetAccess: false, timeoutMs: 1_000 });
+    expect(FakeE2BSandbox.createdWith[1]).toMatchObject({ metadata: { capsule_operation_scope: "sandbox_create" } });
     expect(new TextDecoder().decode(file)).toBe("console.log('hi')");
     expect(entries[0]).toMatchObject({ name: "index.js", type: "file" });
     expect(result.stdout).toBe("hello from e2b\n");

@@ -250,6 +250,7 @@ export interface CapsuleReceiptMetadata extends Record<string, unknown> {
   providerRequestId?: string;
   idempotencyKey?: string;
   idempotencyScope?: string;
+  operationTag?: string;
 }
 
 export interface ExecResult {

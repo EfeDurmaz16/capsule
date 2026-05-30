@@ -42,7 +42,8 @@ describe("ecs adapter", () => {
       command: ["node", "job.js"],
       env: { NODE_ENV: "test" },
       resources: { cpu: 256, memoryMb: 512 },
-      labels: { capsule: "true" }
+      labels: { capsule: "true" },
+      idempotencyKey: "ecs-run-key"
     });
 
     expect(run.status).toBe("running");
@@ -53,6 +54,7 @@ describe("ecs adapter", () => {
       taskDefinition: "task-def:1",
       launchType: "FARGATE",
       networkConfiguration: { awsvpcConfiguration: { subnets: ["subnet-1"], securityGroups: ["sg-1"], assignPublicIp: "DISABLED" } },
+      tags: expect.arrayContaining([{ key: "capsule", value: "true" }, { key: "capsule_operation_scope", value: "job_run" }]),
       overrides: {
         containerOverrides: [{ name: "main", command: ["node", "job.js"], environment: [{ name: "NODE_ENV", value: "test" }], cpu: 256, memory: 512 }]
       }
@@ -146,11 +148,12 @@ describe("ecs adapter", () => {
       adapter: ecs({ cluster: "cluster-a", taskDefinition: "api:3", containerName: "main", launchType: "EC2", client }),
       receipts: true
     });
-    const deployment = await capsule.service.deploy({ name: "api", image: "ignored", scale: { min: 2 } });
+    const deployment = await capsule.service.deploy({ name: "api", image: "ignored", scale: { min: 2 }, idempotencyKey: "ecs-service-key" });
 
     expect(deployment).toMatchObject({ id: "arn:service/api", provider: "ecs", status: "deploying" });
     expect(deployment.receipt?.type).toBe("service.deploy");
     expect(sent[0]).toMatchObject({ cluster: "cluster-a", serviceName: "api", taskDefinition: "api:3", launchType: "EC2", desiredCount: 2 });
+    expect(sent[0].tags).toEqual(expect.arrayContaining([{ key: "capsule_operation_scope", value: "service_deploy" }]));
   });
 
   it("deletes created ECS services when deploy fails after CreateService", async () => {

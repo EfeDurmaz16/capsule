@@ -1,6 +1,7 @@
 import { Sandbox as E2BSandbox } from "e2b";
 import {
   AdapterExecutionError,
+  capsuleOperationTags,
   logsFromOutput,
   redactSecrets,
   type AdapterContext,
@@ -179,7 +180,8 @@ function createOptions(spec: CreateSandboxSpec, context: AdapterContext, options
     allowInternetAccess: context.policy.network?.mode === "none" ? false : undefined,
     metadata: {
       ...(spec.name ? { name: spec.name } : {}),
-      ...(spec.labels ?? {})
+      ...(spec.labels ?? {}),
+      ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "sandbox.create" }) ?? {})
     }
   };
 }

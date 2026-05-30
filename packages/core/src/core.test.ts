@@ -14,6 +14,7 @@ import {
 } from "./capabilities.js";
 import { createEvidenceBundle, verifyEvidenceBundle } from "./evidence.js";
 import { AdapterExecutionError, UnsupportedCapabilityError, PolicyViolationError } from "./errors.js";
+import { capsuleOperationTag, capsuleOperationTags } from "./idempotency.js";
 import { evaluatePolicy, mergeTimeout, redactError, redactLogEntries, redactSecrets } from "./policy.js";
 import { edgeWorkerPreset, httpServicePreset, nodeJobPreset, nodeSandboxPreset, previewDatabaseBranchPreset, previewEnvironmentPreset } from "./presets.js";
 import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
@@ -1064,7 +1065,23 @@ describe("receipts", () => {
 
     expect(receiptStore.receipts[0]?.metadata).toMatchObject({
       idempotencyKey: "delete-svc-123",
-      idempotencyScope: "service.delete"
+      idempotencyScope: "service.delete",
+      operationTag: capsuleOperationTag({ idempotencyKey: "delete-svc-123", capabilityPath: "service.delete" })
+    });
+  });
+
+  test("derives deterministic non-secret operation tags for provider labels", () => {
+    const first = capsuleOperationTag({ idempotencyKey: "user-facing-key-123", capabilityPath: "service.deploy" });
+    const second = capsuleOperationTag({ idempotencyKey: "user-facing-key-123", capabilityPath: "service.deploy" });
+    const differentScope = capsuleOperationTag({ idempotencyKey: "user-facing-key-123", capabilityPath: "job.run" });
+
+    expect(first).toBe(second);
+    expect(first).toMatch(/^[a-f0-9]{32}$/);
+    expect(first).not.toContain("user-facing-key-123");
+    expect(differentScope).not.toBe(first);
+    expect(capsuleOperationTags({ idempotencyKey: "user-facing-key-123", capabilityPath: "service.deploy" })).toEqual({
+      capsule_operation_key: first,
+      capsule_operation_scope: "service_deploy"
     });
   });
 
@@ -1419,7 +1436,8 @@ describe("receipts", () => {
     expect(capsuleReceiptJsonSchema.properties.metadata.properties).toMatchObject({
       providerRequestId: { type: "string" },
       idempotencyKey: { type: "string" },
-      idempotencyScope: { type: "string" }
+      idempotencyScope: { type: "string" },
+      operationTag: { type: "string" }
     });
     expect(validateAgainstSimpleSchema(capsuleReceiptJsonSchema, JSON.parse(JSON.stringify(receipt)))).toEqual([]);
   });

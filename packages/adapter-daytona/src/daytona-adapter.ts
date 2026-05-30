@@ -1,6 +1,7 @@
 import { Daytona } from "@daytona/sdk";
 import {
   AdapterExecutionError,
+  capsuleOperationTags,
   logsFromOutput,
   redactSecrets,
   type AdapterContext,
@@ -137,12 +138,17 @@ function createParams(spec: CreateSandboxSpec, context: AdapterContext, options:
     image: spec.image,
     language: options.language ?? "typescript",
     envVars: spec.env,
-    labels: spec.labels,
+    labels: labelsWithOperationTag(spec.labels, spec.idempotencyKey),
     autoStopInterval: options.autoStopIntervalMinutes,
     ephemeral: options.ephemeral,
     networkBlockAll: context.policy.network?.mode === "none" ? true : undefined,
     networkAllowList: context.policy.network?.mode === "allowlist" ? context.policy.network.allowedHosts?.join(",") : undefined
   };
+}
+
+function labelsWithOperationTag(labels: Record<string, string> | undefined, idempotencyKey: string | undefined): Record<string, string> | undefined {
+  const merged = { ...(labels ?? {}), ...(capsuleOperationTags({ idempotencyKey, capabilityPath: "sandbox.create" }) ?? {}) };
+  return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
 function removeUndefined(input: Record<string, unknown>): Record<string, unknown> {

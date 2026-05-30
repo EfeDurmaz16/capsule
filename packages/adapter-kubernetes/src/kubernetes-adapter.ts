@@ -1,6 +1,7 @@
 import * as k8s from "@kubernetes/client-node";
 import {
   AdapterExecutionError,
+  capsuleOperationTags,
   logsFromOutput,
   type AdapterContext,
   type CapsuleAdapter,
@@ -175,7 +176,7 @@ function resources(resourcesInput?: { cpu?: number; memoryMb?: number }) {
 }
 
 function jobBody(name: string, spec: RunJobSpec) {
-  const matchLabels = labels(name, spec.labels);
+  const matchLabels = labels(name, { ...(spec.labels ?? {}), ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "job.run" }) ?? {}) });
   return {
     apiVersion: "batch/v1",
     kind: "Job",
@@ -206,7 +207,7 @@ function deploymentBody(name: string, namespace: string, spec: DeployServiceSpec
   if (!spec.image) {
     throw new AdapterExecutionError("Kubernetes service.deploy requires spec.image. Source deploy is not implemented.");
   }
-  const matchLabels = labels(name, spec.labels);
+  const matchLabels = labels(name, { ...(spec.labels ?? {}), ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "service.deploy" }) ?? {}) });
   const replicas = spec.scale?.min ?? 1;
   return {
     apiVersion: "apps/v1",
@@ -235,7 +236,7 @@ function deploymentBody(name: string, namespace: string, spec: DeployServiceSpec
 }
 
 function serviceBody(name: string, namespace: string, spec: DeployServiceSpec) {
-  const matchLabels = labels(name, spec.labels);
+  const matchLabels = labels(name, { ...(spec.labels ?? {}), ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "service.deploy" }) ?? {}) });
   return {
     apiVersion: "v1",
     kind: "Service",

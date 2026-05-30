@@ -3,6 +3,7 @@ import { UnsupportedCapabilityError } from "./errors.js";
 import { explainSupportLevel, supportLevel, supports, type CapabilityPath } from "./capabilities.js";
 import { evaluatePolicy, mergeTimeout, redactError, type PolicyInput } from "./policy.js";
 import { createReceipt } from "./receipts.js";
+import { capsuleOperationTag } from "./idempotency.js";
 import type { AdapterContext, CapsuleAdapter } from "./adapters.js";
 import type { ReceiptPersistenceMode, ReceiptStore } from "./stores.js";
 import type {
@@ -741,6 +742,11 @@ function withOperationReceiptMetadata(metadata: CapsuleReceipt["metadata"] | und
   return {
     ...metadata,
     idempotencyKey: options.idempotencyKey,
-    idempotencyScope: options.idempotencyScope ?? options.capabilityPath
+    idempotencyScope: options.idempotencyScope ?? options.capabilityPath,
+    operationTag: capsuleOperationTag({
+      idempotencyKey: options.idempotencyKey,
+      idempotencyScope: options.idempotencyScope,
+      capabilityPath: options.capabilityPath ?? "operation"
+    })
   };
 }
