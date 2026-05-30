@@ -34,7 +34,7 @@ pnpm --filter @capsule/cli capsule live-test validate --provider neon
 pnpm --filter @capsule/cli capsule live-test validate --provider fly
 ```
 
-The validator is side-effect-free. It checks `CAPSULE_LIVE_TESTS`, required credential/project/region env vars, provider-scoped aliases, and billable-test acknowledgement. Live tests that create resources or invoke billable provider work report `blocked` until `CAPSULE_LIVE_TEST_COST_ACK=1` is set. Read-only status checks, such as Vercel deployment status and Cloud Run service status, do not require that acknowledgement.
+The validator is side-effect-free. It checks `CAPSULE_LIVE_TESTS`, required credential/project/region env vars, provider-scoped aliases, billable-test acknowledgement, and max resource count. Live tests that create resources or invoke billable provider work report `blocked` until `CAPSULE_LIVE_TEST_COST_ACK=1` and `CAPSULE_LIVE_TEST_MAX_RESOURCES` are set. Read-only status checks, such as Vercel deployment status and Cloud Run service status, do not require those billable-test controls.
 
 ## Live Resource Metadata
 
@@ -50,6 +50,8 @@ Optional metadata environment:
 - `CAPSULE_LIVE_TEST_REPO`: repo label; falls back to `GITHUB_REPOSITORY`, then `capsule`.
 - `CAPSULE_LIVE_TEST_RUN_ID`: deterministic run scope; falls back to `GITHUB_RUN_ID` plus `GITHUB_RUN_ATTEMPT`, `CI_PIPELINE_ID`, `BUILD_ID`, then `local`.
 - `CAPSULE_LIVE_TEST_TTL_MS`: positive integer TTL override.
+- `CAPSULE_LIVE_TEST_COST_ACK=1`: required before billable live tests run.
+- `CAPSULE_LIVE_TEST_MAX_RESOURCES`: positive integer maximum resource count for a billable live test invocation; set at least `1` for the current single-resource live tests.
 
 Provider coverage is intentionally explicit. E2B receives labels as sandbox metadata, Daytona receives labels in create params, Azure Container Apps maps labels to ARM tags, Kubernetes maps labels onto Jobs, and Fly Machines stores labels in Machine config metadata. Neon records labels and TTL in Capsule receipts, while Neon provider-side TTL enforcement is not implemented by the current adapter. Cloudflare Worker tests keep the existing env-provided Worker name and record labels in Capsule receipts only. Modal currently uses deterministic names, but its adapter does not map labels to a provider metadata field. Cloud Run, Vercel, and Lambda tests operate on existing resources and do not create taggable live resources.
 
@@ -105,7 +107,10 @@ CAPSULE_LIVE_TESTS=1 pnpm test
 Run a single provider:
 
 ```bash
-CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-neon/src/neon.live.test.ts
+CAPSULE_LIVE_TESTS=1 \
+CAPSULE_LIVE_TEST_COST_ACK=1 \
+CAPSULE_LIVE_TEST_MAX_RESOURCES=1 \
+pnpm vitest run packages/adapter-neon/src/neon.live.test.ts
 ```
 
 Ask the CLI for the canonical command when in doubt:
@@ -126,6 +131,8 @@ set +a
 NEON_PROJECT_ID="${NEON_PROJECT_ID:-$CAPSULE_POSTGRES_PROJECT_ID}" \
 NEON_DATABASE="${NEON_DATABASE:-$CAPSULE_POSTGRES_DATABASE_NAME}" \
 CAPSULE_LIVE_TESTS=1 \
+CAPSULE_LIVE_TEST_COST_ACK=1 \
+CAPSULE_LIVE_TEST_MAX_RESOURCES=1 \
 pnpm vitest run packages/adapter-neon/src/neon.live.test.ts
 
 CLOUDFLARE_API_TOKEN="${CLOUDFLARE_API_TOKEN:-$CAPSULE_WORKER_API_TOKEN}" \
@@ -133,6 +140,8 @@ CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-$CAPSULE_WORKER_ACCOUNT_ID}" \
 CAPSULE_CLOUDFLARE_WORKER_NAME="capsule-worker" \
 CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION=1 \
 CAPSULE_LIVE_TESTS=1 \
+CAPSULE_LIVE_TEST_COST_ACK=1 \
+CAPSULE_LIVE_TEST_MAX_RESOURCES=1 \
 pnpm vitest run packages/adapter-cloudflare/src/cloudflare.live.test.ts
 
 CLOUDFLARE_API_TOKEN="${CLOUDFLARE_API_TOKEN:-$CAPSULE_WORKER_API_TOKEN}" \
@@ -142,6 +151,8 @@ CAPSULE_CLOUDFLARE_WORKER_NAME="capsule-worker" \
 CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION=1 \
 CAPSULE_CLOUDFLARE_LIVE_DEPLOY=1 \
 CAPSULE_LIVE_TESTS=1 \
+CAPSULE_LIVE_TEST_COST_ACK=1 \
+CAPSULE_LIVE_TEST_MAX_RESOURCES=1 \
 pnpm vitest run packages/adapter-cloudflare/src/cloudflare.live.test.ts
 
 CLOUDFLARE_API_TOKEN="${CLOUDFLARE_API_TOKEN:-$CAPSULE_WORKER_API_TOKEN}" \
@@ -150,6 +161,8 @@ CAPSULE_CLOUDFLARE_WORKER_NAME="capsule-worker" \
 CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION=1 \
 CAPSULE_CLOUDFLARE_LIVE_ROLLBACK=1 \
 CAPSULE_LIVE_TESTS=1 \
+CAPSULE_LIVE_TEST_COST_ACK=1 \
+CAPSULE_LIVE_TEST_MAX_RESOURCES=1 \
 pnpm vitest run packages/adapter-cloudflare/src/cloudflare.live.test.ts
 ```
 

@@ -122,6 +122,8 @@ interface LiveTestPlan {
   aliases?: Record<string, string[]>;
   costRisk: "none" | "read-only" | "billable";
   costAcknowledgementEnv?: string;
+  maxResourceCount?: number;
+  maxResourceCountEnv?: string;
   safeCommands: string[];
   notes: string[];
 }
@@ -165,9 +167,16 @@ interface LiveEnvironmentValidationEntry {
   liveTestEnabled: boolean;
   costRisk: LiveTestPlan["costRisk"];
   costAcknowledged: boolean;
+  resourceLimit?: {
+    env: string;
+    required: number;
+    configured?: number;
+    satisfied: boolean;
+  };
   configuredEnv: string[];
   missingEnv: string[];
   missingCostEnv: string[];
+  missingResourceLimitEnv: string[];
   requiredEnv: string[];
   testPath: string;
   safeCommands: string[];
@@ -195,6 +204,7 @@ interface AdapterScaffoldPlan {
 type AdapterScaffoldDomain = Extract<CapsuleDomain, "sandbox" | "job" | "service" | "edge" | "database" | "preview" | "machine">;
 
 const adapterScaffoldDomains = ["sandbox", "job", "service", "edge", "database", "preview", "machine"] as const satisfies readonly AdapterScaffoldDomain[];
+const liveTestMaxResourcesEnv = "CAPSULE_LIVE_TEST_MAX_RESOURCES";
 
 const credentialRequirements: CredentialRequirement[] = [
   { provider: "e2b", requiredAll: ["E2B_API_KEY"] },
@@ -707,14 +717,24 @@ export function selectProvidersForRecipe(recipeId: ProviderSelectionRecipeId): P
 }
 
 export function liveTestCommandPlan(provider?: string): LiveTestPlan[] {
+  const withGuardedCommands = (plan: LiveTestPlan): LiveTestPlan =>
+    plan.costRisk === "billable"
+      ? {
+          ...plan,
+          safeCommands: plan.safeCommands.map(
+            (command) => `${plan.costAcknowledgementEnv ?? "CAPSULE_LIVE_TEST_COST_ACK"}=1 ${plan.maxResourceCountEnv ?? liveTestMaxResourcesEnv}=${plan.maxResourceCount ?? 1} ${command}`
+          )
+        }
+      : plan;
+
   if (!provider) {
-    return liveTestPlans;
+    return liveTestPlans.map(withGuardedCommands);
   }
   const plan = liveTestPlans.find((entry) => entry.provider === provider);
   if (!plan) {
     throw new Error(`Unknown live-test provider "${provider}". Providers: ${liveTestPlans.map((entry) => entry.provider).join(", ")}`);
   }
-  return [plan];
+  return [withGuardedCommands(plan)];
 }
 
 function livePlanRequirementDiagnostic(plan: LiveTestPlan, env: NodeJS.ProcessEnv): Omit<ProviderVerificationEntry, "provider" | "status" | "testPath" | "safeCommands" | "notes" | "liveTestEnabled"> {
@@ -726,6 +746,16 @@ function livePlanRequirementDiagnostic(plan: LiveTestPlan, env: NodeJS.ProcessEn
     missingEnv,
     requiredEnv: required.flatMap((name) => [name, ...(plan.aliases?.[name] ?? [])])
   };
+}
+
+function livePlanResourceLimit(plan: LiveTestPlan, env: NodeJS.ProcessEnv): LiveEnvironmentValidationEntry["resourceLimit"] {
+  if (plan.costRisk !== "billable") return undefined;
+  const resourceEnv = plan.maxResourceCountEnv ?? liveTestMaxResourcesEnv;
+  const required = plan.maxResourceCount ?? 1;
+  const raw = env[resourceEnv];
+  const configured = raw === undefined ? undefined : Number(raw);
+  const satisfied = configured !== undefined && Number.isSafeInteger(configured) && configured >= required;
+  return { env: resourceEnv, required, configured, satisfied };
 }
 
 export async function createProviderVerificationReport(options: { env?: NodeJS.ProcessEnv; provider?: string; dockerCheck?: () => Promise<boolean> } = {}): Promise<ProviderVerificationReport> {
@@ -773,26 +803,34 @@ export function createLiveEnvironmentValidationReport(options: { env?: NodeJS.Pr
     const costEnv = plan.costAcknowledgementEnv;
     const costAcknowledged = costEnv ? env[costEnv] === "1" : true;
     const missingCostEnv = costEnv && !costAcknowledged ? [costEnv] : [];
+    const resourceLimit = livePlanResourceLimit(plan, env);
+    const missingResourceLimitEnv = resourceLimit && !resourceLimit.satisfied ? [resourceLimit.env] : [];
     return {
       provider: plan.provider,
-      status: liveTestEnabled && diagnostic.missingEnv.length === 0 && missingCostEnv.length === 0 ? "ready" : "blocked",
+      status: liveTestEnabled && diagnostic.missingEnv.length === 0 && missingCostEnv.length === 0 && missingResourceLimitEnv.length === 0 ? "ready" : "blocked",
       liveTestEnabled,
       costRisk: plan.costRisk,
       costAcknowledged,
+      resourceLimit,
       configuredEnv: [
         ...(liveTestEnabled ? ["CAPSULE_LIVE_TESTS"] : []),
         ...diagnostic.configuredEnv,
-        ...(costEnv && costAcknowledged ? [costEnv] : [])
+        ...(costEnv && costAcknowledged ? [costEnv] : []),
+        ...(resourceLimit?.satisfied ? [resourceLimit.env] : [])
       ],
       missingEnv: liveTestEnabled ? diagnostic.missingEnv : ["CAPSULE_LIVE_TESTS", ...diagnostic.missingEnv],
       missingCostEnv,
+      missingResourceLimitEnv,
       requiredEnv: plan.requiredEnv.flatMap((name) => [name, ...(plan.aliases?.[name] ?? [])]),
       testPath: plan.testPath,
       safeCommands: plan.safeCommands,
       notes: [
         ...plan.notes,
         ...(liveTestEnabled ? [] : ["Set CAPSULE_LIVE_TESTS=1 before running the safe command."]),
-        ...(missingCostEnv.length > 0 ? [`Set ${missingCostEnv[0]}=1 to acknowledge billable or side-effecting live provider work.`] : [])
+        ...(missingCostEnv.length > 0 ? [`Set ${missingCostEnv[0]}=1 to acknowledge billable or side-effecting live provider work.`] : []),
+        ...(missingResourceLimitEnv.length > 0
+          ? [`Set ${missingResourceLimitEnv[0]} to a positive integer >= ${resourceLimit?.required ?? 1} before running billable live provider work.`]
+          : [])
       ]
     };
   });

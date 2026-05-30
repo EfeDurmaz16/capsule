@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "node:url";
 
+const liveTestMaxResourcesEnv = "CAPSULE_LIVE_TEST_MAX_RESOURCES";
+
 export const liveTestMatrixPlans = [
   {
     provider: "e2b",
@@ -130,6 +132,21 @@ function configuredCredentialNames(name, aliases, env) {
   return [name, ...(aliases?.[name] ?? [])].filter((candidate) => Boolean(env[candidate]));
 }
 
+function resourceLimit(plan, env) {
+  if (plan.costRisk !== "billable") return undefined;
+  const resourceEnv = plan.maxResourceCountEnv ?? liveTestMaxResourcesEnv;
+  const required = plan.maxResourceCount ?? 1;
+  const raw = env[resourceEnv];
+  const configured = raw === undefined ? undefined : Number(raw);
+  const satisfied = configured !== undefined && Number.isSafeInteger(configured) && configured >= required;
+  return { env: resourceEnv, required, configured, satisfied };
+}
+
+function guardedCommand(plan) {
+  if (plan.costRisk !== "billable") return plan.command;
+  return `${plan.costAcknowledgementEnv ?? "CAPSULE_LIVE_TEST_COST_ACK"}=1 ${plan.maxResourceCountEnv ?? liveTestMaxResourcesEnv}=${plan.maxResourceCount ?? 1} ${plan.command}`;
+}
+
 function providerPlans(provider) {
   if (!provider) return liveTestMatrixPlans;
   const plan = liveTestMatrixPlans.find((entry) => entry.provider === provider);
@@ -149,8 +166,10 @@ export function createLiveTestMatrix(options = {}) {
     const costEnv = plan.costAcknowledgementEnv;
     const costAcknowledged = costEnv ? env[costEnv] === "1" : true;
     const missingCostEnv = costEnv && !costAcknowledged ? [costEnv] : [];
+    const limit = resourceLimit(plan, env);
+    const missingResourceLimitEnv = limit && !limit.satisfied ? [limit.env] : [];
     const missingEnv = liveTestEnabled ? missingRequired : ["CAPSULE_LIVE_TESTS", ...missingRequired];
-    const status = liveTestEnabled && missingRequired.length === 0 && missingCostEnv.length === 0 ? "ready" : "blocked";
+    const status = liveTestEnabled && missingRequired.length === 0 && missingCostEnv.length === 0 && missingResourceLimitEnv.length === 0 ? "ready" : "blocked";
 
     return {
       provider: plan.provider,
@@ -159,13 +178,20 @@ export function createLiveTestMatrix(options = {}) {
       liveTestEnabled,
       costRisk: plan.costRisk,
       costAcknowledged,
-      configuredEnv: [...(liveTestEnabled ? ["CAPSULE_LIVE_TESTS"] : []), ...configuredEnv, ...(costEnv && costAcknowledged ? [costEnv] : [])],
+      resourceLimit: limit,
+      configuredEnv: [
+        ...(liveTestEnabled ? ["CAPSULE_LIVE_TESTS"] : []),
+        ...configuredEnv,
+        ...(costEnv && costAcknowledged ? [costEnv] : []),
+        ...(limit?.satisfied ? [limit.env] : [])
+      ],
       missingEnv,
       missingCostEnv,
+      missingResourceLimitEnv,
       requiredEnv: plan.requiredEnv.flatMap((name) => [name, ...(plan.aliases?.[name] ?? [])]),
       optionalEnv: plan.optionalEnv,
       testPath: plan.testPath,
-      command: plan.command,
+      command: guardedCommand(plan),
       notes: plan.notes
     };
   });
