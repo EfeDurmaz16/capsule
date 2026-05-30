@@ -138,7 +138,19 @@ export interface CapsuleApprovalGrant {
   approver?: string;
   reason?: string;
   approvedAt?: string;
+  expiresAt?: string;
+  capabilities?: string[];
+  resources?: CapsuleApprovalResourceScope[];
   metadata?: Record<string, string>;
+}
+
+export interface CapsuleApprovalResourceScope {
+  type?: CapsuleDomain | string;
+  id?: string;
+  name?: string;
+  project?: string;
+  provider?: string;
+  path?: string;
 }
 
 export interface LogEntry {

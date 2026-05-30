@@ -6,7 +6,7 @@ Isolation depends on the provider and the adapter. Docker local is not safe for 
 
 Policy support may be native, emulated, unsupported, experimental, delegated to a provider, or best-effort. Capsule records policy decisions and notes, but it must not claim full enforcement when enforcement is delegated, partial, or missing.
 
-Core policy checks fail closed for the controls Capsule can evaluate before calling an adapter. Secret env allowlists, approval requirements, timeout merging, and TTL maxima are evaluated before supported public operations reach provider code. If `policy.approvals.required` is set, callers must pass an approved operation grant on the spec; otherwise Capsule rejects the operation before provider execution.
+Core policy checks fail closed for the controls Capsule can evaluate before calling an adapter. Secret env allowlists, approval requirements, approval expiry/scope, timeout merging, and TTL maxima are evaluated before supported public operations reach provider code. If `policy.approvals.required` is set, callers must pass an approved operation grant on the spec; otherwise Capsule rejects the operation before provider execution. Approval grants with `expiresAt`, `capabilities`, or `resources` are denied when the current operation is stale, outside the allowed capability paths, or outside the allowed resource hints.
 
 Docker `network.mode = "none"` is applied with Docker's `--network none` where the Docker adapter controls container creation. Docker host allowlists are not natively enforced by the adapter and are recorded as unsupported/best-effort. Cloud-provider resource, network, CPU, memory, secret, cost, and TTL policies are delegated to provider APIs only where those APIs expose the relevant controls.
 

@@ -10,6 +10,7 @@ import type {
   CapsuleReceipt,
   CancelJobSpec,
   CapsulePolicy,
+  CapsuleApprovalResourceScope,
   CleanupPreviewSpec,
   CreateDatabaseBranchSpec,
   DeleteDatabaseBranchSpec,
@@ -115,11 +116,12 @@ export class Capsule {
     this.sandbox = {
       create: async (spec: CreateSandboxSpec) => {
         this.require("sandbox.create");
-        evaluatePolicy(this.options.policy, { env: spec.env, timeoutMs: spec.timeoutMs, approval: spec.approval });
+        const policyInput = { env: spec.env, timeoutMs: spec.timeoutMs, approval: spec.approval, resource: approvalResource("sandbox", { name: spec.name }) };
+        this.evaluateOperationPolicy("sandbox.create", policyInput);
         if (!this.options.adapter.sandbox) {
           throw new UnsupportedCapabilityError("sandbox.create");
         }
-        const runtime = this.contextRuntime({ approval: spec.approval, receiptScopes: sandboxCreateReceiptScope });
+        const runtime = this.contextRuntime({ ...policyInput, receiptScopes: sandboxCreateReceiptScope });
         await this.preflightReceiptPersistence();
         const sandbox = await this.contextOptions.run(runtime.defaultOptions, () =>
           this.options.adapter.sandbox!.create({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, runtime.context)
@@ -134,12 +136,13 @@ export class Capsule {
     this.job = {
       run: async (spec: RunJobSpec) => {
         this.require("job.run");
-        evaluatePolicy(this.options.policy, { env: spec.env, timeoutMs: spec.timeoutMs, approval: spec.approval });
+        const policyInput = { env: spec.env, timeoutMs: spec.timeoutMs, approval: spec.approval, resource: approvalResource("job", { name: spec.name }) };
+        this.evaluateOperationPolicy("job.run", policyInput);
         if (!this.options.adapter.job) {
           throw new UnsupportedCapabilityError("job.run");
         }
         return this.withContext((context) => this.options.adapter.job!.run({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, context), {
-          approval: spec.approval,
+          ...policyInput,
           receiptScopes: receiptScope("job.run", "job.run")
         });
       },
@@ -152,11 +155,12 @@ export class Capsule {
       },
       cancel: async (spec: CancelJobSpec) => {
         this.require("job.cancel");
-        evaluatePolicy(this.options.policy, { approval: spec.approval });
+        const policyInput = { approval: spec.approval, resource: approvalResource("job", { id: spec.id }) };
+        this.evaluateOperationPolicy("job.cancel", policyInput);
         if (!this.options.adapter.job?.cancel) {
           throw new UnsupportedCapabilityError("job.cancel");
         }
-        return this.withContext((context) => this.options.adapter.job!.cancel!(spec, context), { approval: spec.approval, receiptScopes: receiptScope("job.cancel", "job.cancel") });
+        return this.withContext((context) => this.options.adapter.job!.cancel!(spec, context), { ...policyInput, receiptScopes: receiptScope("job.cancel", "job.cancel") });
       },
       logs: async (spec: JobLogsSpec) => {
         this.require("job.logs");
@@ -170,11 +174,12 @@ export class Capsule {
     this.service = {
       deploy: async (spec: DeployServiceSpec) => {
         this.require("service.deploy");
-        evaluatePolicy(this.options.policy, { env: spec.env, approval: spec.approval });
+        const policyInput = { env: spec.env, approval: spec.approval, resource: approvalResource("service", { name: spec.name }) };
+        this.evaluateOperationPolicy("service.deploy", policyInput);
         if (!this.options.adapter.service) {
           throw new UnsupportedCapabilityError("service.deploy");
         }
-        return this.withContext((context) => this.options.adapter.service!.deploy(spec, context), { approval: spec.approval, receiptScopes: receiptScope("service.deploy", "service.deploy") });
+        return this.withContext((context) => this.options.adapter.service!.deploy(spec, context), { ...policyInput, receiptScopes: receiptScope("service.deploy", "service.deploy") });
       },
       status: async (spec: ServiceStatusSpec) => {
         this.require("service.status");
@@ -185,27 +190,30 @@ export class Capsule {
       },
       update: async (spec: UpdateServiceSpec) => {
         this.require("service.update");
-        evaluatePolicy(this.options.policy, { env: spec.env, approval: spec.approval });
+        const policyInput = { env: spec.env, approval: spec.approval, resource: approvalResource("service", { id: spec.id }) };
+        this.evaluateOperationPolicy("service.update", policyInput);
         if (!this.options.adapter.service?.update) {
           throw new UnsupportedCapabilityError("service.update");
         }
-        return this.withContext((context) => this.options.adapter.service!.update!(spec, context), { approval: spec.approval, receiptScopes: receiptScope("service.update", "service.update") });
+        return this.withContext((context) => this.options.adapter.service!.update!(spec, context), { ...policyInput, receiptScopes: receiptScope("service.update", "service.update") });
       },
       rollback: async (spec: RollbackServiceSpec) => {
         this.require("service.rollback");
-        evaluatePolicy(this.options.policy, { approval: spec.approval });
+        const policyInput = { approval: spec.approval, resource: approvalResource("service", { id: spec.id }) };
+        this.evaluateOperationPolicy("service.rollback", policyInput);
         if (!this.options.adapter.service?.rollback) {
           throw new UnsupportedCapabilityError("service.rollback");
         }
-        return this.withContext((context) => this.options.adapter.service!.rollback!(spec, context), { approval: spec.approval, receiptScopes: receiptScope("service.rollback", "service.rollback") });
+        return this.withContext((context) => this.options.adapter.service!.rollback!(spec, context), { ...policyInput, receiptScopes: receiptScope("service.rollback", "service.rollback") });
       },
       delete: async (spec: DeleteServiceSpec) => {
         this.require("service.delete");
-        evaluatePolicy(this.options.policy, { approval: spec.approval });
+        const policyInput = { approval: spec.approval, resource: approvalResource("service", { id: spec.id }) };
+        this.evaluateOperationPolicy("service.delete", policyInput);
         if (!this.options.adapter.service?.delete) {
           throw new UnsupportedCapabilityError("service.delete");
         }
-        return this.withContext((context) => this.options.adapter.service!.delete!(spec, context), { approval: spec.approval, receiptScopes: receiptScope("service.delete", "service.delete") });
+        return this.withContext((context) => this.options.adapter.service!.delete!(spec, context), { ...policyInput, receiptScopes: receiptScope("service.delete", "service.delete") });
       },
       logs: async (spec: ServiceLogsSpec) => {
         this.require("service.logs");
@@ -219,11 +227,12 @@ export class Capsule {
     this.edge = {
       deploy: async (spec: DeployEdgeSpec) => {
         this.require("edge.deploy");
-        evaluatePolicy(this.options.policy, { env: spec.env, approval: spec.approval });
+        const policyInput = { env: spec.env, approval: spec.approval, resource: approvalResource("edge", { name: spec.name }) };
+        this.evaluateOperationPolicy("edge.deploy", policyInput);
         if (!this.options.adapter.edge) {
           throw new UnsupportedCapabilityError("edge.deploy");
         }
-        return this.withContext((context) => this.options.adapter.edge!.deploy(spec, context), { approval: spec.approval, receiptScopes: receiptScope("edge.deploy", "edge.deploy") });
+        return this.withContext((context) => this.options.adapter.edge!.deploy(spec, context), { ...policyInput, receiptScopes: receiptScope("edge.deploy", "edge.deploy") });
       },
       status: async (spec: EdgeStatusSpec) => {
         this.require("edge.status");
@@ -234,27 +243,30 @@ export class Capsule {
       },
       version: async (spec: VersionEdgeSpec) => {
         this.require("edge.version");
-        evaluatePolicy(this.options.policy, { env: spec.env, approval: spec.approval });
+        const policyInput = { env: spec.env, approval: spec.approval, resource: approvalResource("edge", { id: spec.deploymentId, name: spec.name }) };
+        this.evaluateOperationPolicy("edge.version", policyInput);
         if (!this.options.adapter.edge?.version) {
           throw new UnsupportedCapabilityError("edge.version");
         }
-        return this.withContext((context) => this.options.adapter.edge!.version!(spec, context), { approval: spec.approval, receiptScopes: receiptScope("edge.version", "edge.version") });
+        return this.withContext((context) => this.options.adapter.edge!.version!(spec, context), { ...policyInput, receiptScopes: receiptScope("edge.version", "edge.version") });
       },
       release: async (spec: ReleaseEdgeVersionSpec) => {
         this.require("edge.release");
-        evaluatePolicy(this.options.policy, { approval: spec.approval });
+        const policyInput = { approval: spec.approval, resource: approvalResource("edge", { id: spec.versionId }) };
+        this.evaluateOperationPolicy("edge.release", policyInput);
         if (!this.options.adapter.edge?.release) {
           throw new UnsupportedCapabilityError("edge.release");
         }
-        return this.withContext((context) => this.options.adapter.edge!.release!(spec, context), { approval: spec.approval, receiptScopes: receiptScope("edge.release", "edge.release") });
+        return this.withContext((context) => this.options.adapter.edge!.release!(spec, context), { ...policyInput, receiptScopes: receiptScope("edge.release", "edge.release") });
       },
       rollback: async (spec: RollbackEdgeSpec) => {
         this.require("edge.rollback");
-        evaluatePolicy(this.options.policy, { approval: spec.approval });
+        const policyInput = { approval: spec.approval, resource: approvalResource("edge", { id: spec.deploymentId }) };
+        this.evaluateOperationPolicy("edge.rollback", policyInput);
         if (!this.options.adapter.edge?.rollback) {
           throw new UnsupportedCapabilityError("edge.rollback");
         }
-        return this.withContext((context) => this.options.adapter.edge!.rollback!(spec, context), { approval: spec.approval, receiptScopes: receiptScope("edge.rollback", "edge.rollback") });
+        return this.withContext((context) => this.options.adapter.edge!.rollback!(spec, context), { ...policyInput, receiptScopes: receiptScope("edge.rollback", "edge.rollback") });
       },
       logs: async (spec: EdgeLogsSpec) => {
         this.require("edge.logs");
@@ -269,46 +281,50 @@ export class Capsule {
       branch: {
         create: async (spec: CreateDatabaseBranchSpec) => {
           this.require("database.branchCreate");
-          evaluatePolicy(this.options.policy, { ttlMs: spec.ttlMs, approval: spec.approval });
+          const policyInput = { ttlMs: spec.ttlMs, approval: spec.approval, resource: approvalResource("database", { project: spec.project, name: spec.name }) };
+          this.evaluateOperationPolicy("database.branchCreate", policyInput);
           if (!this.options.adapter.database) {
             throw new UnsupportedCapabilityError("database.branchCreate");
           }
           return this.withContext((context) => this.options.adapter.database!.branch.create(spec, context), {
-            approval: spec.approval,
+            ...policyInput,
             receiptScopes: receiptScope("database.branch.create", "database.branchCreate")
           });
         },
         delete: async (spec: DeleteDatabaseBranchSpec) => {
           this.require("database.branchDelete");
-          evaluatePolicy(this.options.policy, { approval: spec.approval });
+          const policyInput = { approval: spec.approval, resource: approvalResource("database", { project: spec.project, id: spec.branchId }) };
+          this.evaluateOperationPolicy("database.branchDelete", policyInput);
           if (!this.options.adapter.database?.branch.delete) {
             throw new UnsupportedCapabilityError("database.branchDelete");
           }
           return this.withContext((context) => this.options.adapter.database!.branch.delete!(spec, context), {
-            approval: spec.approval,
+            ...policyInput,
             receiptScopes: receiptScope("database.branch.delete", "database.branchDelete")
           });
         },
         reset: async (spec: ResetDatabaseBranchSpec) => {
           this.require("database.branchReset");
-          evaluatePolicy(this.options.policy, { approval: spec.approval });
+          const policyInput = { approval: spec.approval, resource: approvalResource("database", { project: spec.project, id: spec.branchId }) };
+          this.evaluateOperationPolicy("database.branchReset", policyInput);
           if (!this.options.adapter.database?.branch.reset) {
             throw new UnsupportedCapabilityError("database.branchReset");
           }
           return this.withContext((context) => this.options.adapter.database!.branch.reset!(spec, context), {
-            approval: spec.approval,
+            ...policyInput,
             receiptScopes: receiptScope("database.branch.reset", "database.branchReset")
           });
         }
       },
       migrate: async (spec: MigrateDatabaseSpec) => {
         this.require("database.migrate");
-        evaluatePolicy(this.options.policy, { env: spec.env, timeoutMs: spec.timeoutMs, approval: spec.approval });
+        const policyInput = { env: spec.env, timeoutMs: spec.timeoutMs, approval: spec.approval, resource: approvalResource("database", { project: spec.project, id: spec.branchId }) };
+        this.evaluateOperationPolicy("database.migrate", policyInput);
         if (!this.options.adapter.database?.migrate) {
           throw new UnsupportedCapabilityError("database.migrate");
         }
         return this.withContext((context) => this.options.adapter.database!.migrate!({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, context), {
-          approval: spec.approval,
+          ...policyInput,
           receiptScopes: receiptScope("database.migrate", "database.migrate")
         });
       }
@@ -317,19 +333,21 @@ export class Capsule {
     this.preview = {
       create: async (spec: CreatePreviewSpec) => {
         this.require("preview.create");
-        evaluatePolicy(this.options.policy, { ttlMs: spec.ttlMs, approval: spec.approval });
+        const policyInput = { ttlMs: spec.ttlMs, approval: spec.approval, resource: approvalResource("preview", { name: spec.name }) };
+        this.evaluateOperationPolicy("preview.create", policyInput);
         if (!this.options.adapter.preview) {
           throw new UnsupportedCapabilityError("preview.create");
         }
-        return this.withContext((context) => this.options.adapter.preview!.create(spec, context), { approval: spec.approval, receiptScopes: receiptScope("preview.create", "preview.create") });
+        return this.withContext((context) => this.options.adapter.preview!.create(spec, context), { ...policyInput, receiptScopes: receiptScope("preview.create", "preview.create") });
       },
       destroy: async (spec: DestroyPreviewSpec) => {
         this.require("preview.destroy");
-        evaluatePolicy(this.options.policy, { approval: spec.approval });
+        const policyInput = { approval: spec.approval, resource: approvalResource("preview", { id: spec.id }) };
+        this.evaluateOperationPolicy("preview.destroy", policyInput);
         if (!this.options.adapter.preview?.destroy) {
           throw new UnsupportedCapabilityError("preview.destroy");
         }
-        return this.withContext((context) => this.options.adapter.preview!.destroy!(spec, context), { approval: spec.approval, receiptScopes: receiptScope("preview.destroy", "preview.destroy") });
+        return this.withContext((context) => this.options.adapter.preview!.destroy!(spec, context), { ...policyInput, receiptScopes: receiptScope("preview.destroy", "preview.destroy") });
       },
       status: async (spec: PreviewStatusSpec) => {
         this.require("preview.status");
@@ -354,22 +372,24 @@ export class Capsule {
       },
       cleanup: async (spec: CleanupPreviewSpec) => {
         this.require("preview.cleanup");
-        evaluatePolicy(this.options.policy, { approval: spec.approval });
+        const policyInput = { approval: spec.approval, resource: approvalResource("preview", { id: spec.id }) };
+        this.evaluateOperationPolicy("preview.cleanup", policyInput);
         if (!this.options.adapter.preview?.cleanup) {
           throw new UnsupportedCapabilityError("preview.cleanup");
         }
-        return this.withContext((context) => this.options.adapter.preview!.cleanup!(spec, context), { approval: spec.approval, receiptScopes: receiptScope("preview.cleanup", "preview.cleanup") });
+        return this.withContext((context) => this.options.adapter.preview!.cleanup!(spec, context), { ...policyInput, receiptScopes: receiptScope("preview.cleanup", "preview.cleanup") });
       }
     };
 
     this.machine = {
       create: async (spec: CreateMachineSpec) => {
         this.require("machine.create");
-        evaluatePolicy(this.options.policy, { env: spec.env, approval: spec.approval });
+        const policyInput = { env: spec.env, approval: spec.approval, resource: approvalResource("machine", { name: spec.name }) };
+        this.evaluateOperationPolicy("machine.create", policyInput);
         if (!this.options.adapter.machine) {
           throw new UnsupportedCapabilityError("machine.create");
         }
-        return this.withContext((context) => this.options.adapter.machine!.create(spec, context), { approval: spec.approval, receiptScopes: receiptScope("machine.create", "machine.create") });
+        return this.withContext((context) => this.options.adapter.machine!.create(spec, context), { ...policyInput, receiptScopes: receiptScope("machine.create", "machine.create") });
       },
       status: async (spec: MachineStatusSpec) => {
         this.require("machine.status");
@@ -380,27 +400,30 @@ export class Capsule {
       },
       start: async (spec: StartMachineSpec) => {
         this.require("machine.start");
-        evaluatePolicy(this.options.policy, { approval: spec.approval });
+        const policyInput = { approval: spec.approval, resource: approvalResource("machine", { id: spec.id }) };
+        this.evaluateOperationPolicy("machine.start", policyInput);
         if (!this.options.adapter.machine?.start) {
           throw new UnsupportedCapabilityError("machine.start");
         }
-        return this.withContext((context) => this.options.adapter.machine!.start!(spec, context), { approval: spec.approval, receiptScopes: receiptScope("machine.start", "machine.start") });
+        return this.withContext((context) => this.options.adapter.machine!.start!(spec, context), { ...policyInput, receiptScopes: receiptScope("machine.start", "machine.start") });
       },
       stop: async (spec: StopMachineSpec) => {
         this.require("machine.stop");
-        evaluatePolicy(this.options.policy, { approval: spec.approval });
+        const policyInput = { approval: spec.approval, resource: approvalResource("machine", { id: spec.id }) };
+        this.evaluateOperationPolicy("machine.stop", policyInput);
         if (!this.options.adapter.machine?.stop) {
           throw new UnsupportedCapabilityError("machine.stop");
         }
-        return this.withContext((context) => this.options.adapter.machine!.stop!(spec, context), { approval: spec.approval, receiptScopes: receiptScope("machine.stop", "machine.stop") });
+        return this.withContext((context) => this.options.adapter.machine!.stop!(spec, context), { ...policyInput, receiptScopes: receiptScope("machine.stop", "machine.stop") });
       },
       destroy: async (spec: DestroyMachineSpec) => {
         this.require("machine.destroy");
-        evaluatePolicy(this.options.policy, { approval: spec.approval });
+        const policyInput = { approval: spec.approval, resource: approvalResource("machine", { id: spec.id }) };
+        this.evaluateOperationPolicy("machine.destroy", policyInput);
         if (!this.options.adapter.machine?.destroy) {
           throw new UnsupportedCapabilityError("machine.destroy");
         }
-        return this.withContext((context) => this.options.adapter.machine!.destroy!(spec, context), { approval: spec.approval, receiptScopes: receiptScope("machine.destroy", "machine.destroy") });
+        return this.withContext((context) => this.options.adapter.machine!.destroy!(spec, context), { ...policyInput, receiptScopes: receiptScope("machine.destroy", "machine.destroy") });
       }
     };
   }
@@ -439,10 +462,18 @@ export class Capsule {
     return result;
   }
 
+  private evaluateOperationPolicy(path: CapabilityPath, input: Omit<PolicyInput, "capabilityPath"> = {}) {
+    return evaluatePolicy(this.options.policy, { ...input, capabilityPath: path });
+  }
+
   private contextRuntime(defaultOptions: ContextOptions): ContextRuntime {
+    const normalizedOptions: ContextOptions = {
+      ...defaultOptions,
+      capabilityPath: defaultOptions.capabilityPath ?? defaultCapabilityPath(defaultOptions.receiptScopes)
+    };
     const runtime: ContextRuntime = {
       context: undefined as unknown as AdapterContext,
-      defaultOptions,
+      defaultOptions: normalizedOptions,
       pendingWrites: [],
       receipts: []
     };
@@ -466,9 +497,15 @@ export class Capsule {
       exec: async (spec: ExecSpec) => {
         this.require("sandbox.exec");
         const startedAt = new Date();
-        const policy = evaluatePolicy(this.options.policy, { env: spec.env, timeoutMs: spec.timeoutMs, approval });
+        const policyInput = {
+          env: spec.env,
+          timeoutMs: spec.timeoutMs,
+          approval,
+          resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider })
+        };
+        const policy = this.evaluateOperationPolicy("sandbox.exec", policyInput);
         const receiptStart = runtime.receipts.length;
-        return this.withSandboxSubOperation(runtime, { approval, receiptScopes: sandboxExecReceiptScope }, async () => {
+        return this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxExecReceiptScope }, async () => {
           const result = await sandbox.exec({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) });
           if ((this.options.receipts ?? false) && runtime.receipts.length === receiptStart) {
             const receipt = runtime.context.createReceipt({
@@ -493,9 +530,10 @@ export class Capsule {
       writeFile: async (path: string, data: string | Uint8Array) => {
         this.require("sandbox.fileWrite");
         const startedAt = new Date();
-        const policy = evaluatePolicy(this.options.policy, { approval });
+        const policyInput = { approval, resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider, path }) };
+        const policy = this.evaluateOperationPolicy("sandbox.fileWrite", policyInput);
         const receiptStart = runtime.receipts.length;
-        await this.withSandboxSubOperation(runtime, { approval, receiptScopes: sandboxFileWriteReceiptScope }, async () => {
+        await this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxFileWriteReceiptScope }, async () => {
           await sandbox.writeFile(path, data);
           if ((this.options.receipts ?? false) && runtime.receipts.length === receiptStart) {
             runtime.context.createReceipt({
@@ -512,9 +550,10 @@ export class Capsule {
       readFile: async (path: string) => {
         this.require("sandbox.fileRead");
         const startedAt = new Date();
-        const policy = evaluatePolicy(this.options.policy, { approval });
+        const policyInput = { approval, resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider, path }) };
+        const policy = this.evaluateOperationPolicy("sandbox.fileRead", policyInput);
         const receiptStart = runtime.receipts.length;
-        return this.withSandboxSubOperation(runtime, { approval, receiptScopes: sandboxFileReadReceiptScope }, async () => {
+        return this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxFileReadReceiptScope }, async () => {
           const data = await sandbox.readFile(path);
           if ((this.options.receipts ?? false) && runtime.receipts.length === receiptStart) {
             runtime.context.createReceipt({
@@ -532,9 +571,10 @@ export class Capsule {
       listFiles: async (path: string) => {
         this.require("sandbox.fileList");
         const startedAt = new Date();
-        const policy = evaluatePolicy(this.options.policy, { approval });
+        const policyInput = { approval, resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider, path }) };
+        const policy = this.evaluateOperationPolicy("sandbox.fileList", policyInput);
         const receiptStart = runtime.receipts.length;
-        return this.withSandboxSubOperation(runtime, { approval, receiptScopes: sandboxFileListReceiptScope }, async () => {
+        return this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxFileListReceiptScope }, async () => {
           const entries = await sandbox.listFiles(path);
           if ((this.options.receipts ?? false) && runtime.receipts.length === receiptStart) {
             runtime.context.createReceipt({
@@ -552,9 +592,10 @@ export class Capsule {
       destroy: async () => {
         this.require("sandbox.destroy");
         const startedAt = new Date();
-        const policy = evaluatePolicy(this.options.policy, { approval });
+        const policyInput = { approval, resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider }) };
+        const policy = this.evaluateOperationPolicy("sandbox.destroy", policyInput);
         const receiptStart = runtime.receipts.length;
-        await this.withSandboxSubOperation(runtime, { approval, receiptScopes: sandboxDestroyReceiptScope }, async () => {
+        await this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxDestroyReceiptScope }, async () => {
           await sandbox.destroy();
           if ((this.options.receipts ?? false) && runtime.receipts.length === receiptStart) {
             runtime.context.createReceipt({
@@ -619,7 +660,12 @@ export class Capsule {
       supportLevel: (path: string) => supportLevel(adapter.capabilities, path as CapabilityPath),
       evaluatePolicy: (input = {}) => {
         const options = this.contextOptions.getStore() ?? runtime.defaultOptions;
-        return evaluatePolicy(this.options.policy, { ...input, approval: input.approval ?? options.approval });
+        return evaluatePolicy(this.options.policy, {
+          ...input,
+          approval: input.approval ?? options.approval,
+          capabilityPath: input.capabilityPath ?? options.capabilityPath,
+          resource: input.resource ?? options.resource
+        });
       },
       createReceipt: (input) => {
         const options = this.contextOptions.getStore() ?? runtime.defaultOptions;
@@ -653,4 +699,13 @@ function normalizeCommand(command: ExecSpec["command"]): string[] {
 
 function byteLength(data: string | Uint8Array): number {
   return typeof data === "string" ? Buffer.byteLength(data) : data.byteLength;
+}
+
+function defaultCapabilityPath(scopes: ReceiptScope | readonly ReceiptScope[] | undefined): CapabilityPath | undefined {
+  const normalized = normalizeReceiptScopes(scopes);
+  return normalized.length === 1 ? normalized[0]?.capabilityPath : undefined;
+}
+
+function approvalResource(type: string, fields: Omit<CapsuleApprovalResourceScope, "type">): CapsuleApprovalResourceScope {
+  return Object.fromEntries(Object.entries({ type, ...fields }).filter((entry) => entry[1] !== undefined)) as CapsuleApprovalResourceScope;
 }

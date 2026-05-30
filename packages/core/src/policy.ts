@@ -1,5 +1,5 @@
 import { PolicyViolationError } from "./errors.js";
-import type { CapsuleApprovalGrant, CapsulePolicy, LogEntry } from "./types.js";
+import type { CapsuleApprovalGrant, CapsuleApprovalResourceScope, CapsulePolicy, LogEntry } from "./types.js";
 
 export interface PolicyDecision {
   decision: "allowed" | "denied";
@@ -12,6 +12,9 @@ export interface PolicyInput {
   timeoutMs?: number;
   ttlMs?: number;
   approval?: CapsuleApprovalGrant;
+  capabilityPath?: string;
+  resource?: CapsuleApprovalResourceScope;
+  now?: Date;
 }
 
 export function evaluatePolicy(policy: CapsulePolicy = {}, input: PolicyInput = {}): PolicyDecision {
@@ -35,7 +38,14 @@ export function evaluatePolicy(policy: CapsulePolicy = {}, input: PolicyInput = 
         policy.approvals.reason ?? "approval required"
       ]);
     }
+    validateApprovalGrant(input.approval, input);
     notes.push(`Approval satisfied: ${input.approval.id ?? input.approval.reason ?? policy.approvals.reason ?? "no reason provided"}`);
+    if (input.approval.capabilities !== undefined) {
+      notes.push(`Approval capability scope satisfied: ${input.capabilityPath}`);
+    }
+    if (input.approval.resources !== undefined) {
+      notes.push(`Approval resource scope satisfied: ${formatApprovalResource(input.resource)}`);
+    }
   }
 
   if (policy.secrets && input.env) {
@@ -75,6 +85,81 @@ export function evaluatePolicy(policy: CapsulePolicy = {}, input: PolicyInput = 
     applied: policy,
     notes
   };
+}
+
+function validateApprovalGrant(approval: CapsuleApprovalGrant, input: PolicyInput): void {
+  const now = input.now ?? new Date();
+
+  if (approval.expiresAt !== undefined) {
+    const expiresAt = new Date(approval.expiresAt);
+    if (Number.isNaN(expiresAt.getTime())) {
+      throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} has an invalid expiresAt timestamp`, ["approval.expiresAt"]);
+    }
+    if (expiresAt.getTime() <= now.getTime()) {
+      throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} expired at ${approval.expiresAt}`, ["approval.expiresAt"]);
+    }
+  }
+
+  if (approval.capabilities !== undefined) {
+    if (approval.capabilities.length === 0) {
+      throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} has no allowed capabilities`, ["approval.capabilities"]);
+    }
+    if (!input.capabilityPath) {
+      throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} is scoped to capabilities but this operation has no capability path`, ["approval.capabilities"]);
+    }
+    if (!approval.capabilities.includes(input.capabilityPath)) {
+      throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} is not valid for capability ${input.capabilityPath}`, [input.capabilityPath]);
+    }
+  }
+
+  if (approval.resources !== undefined) {
+    if (approval.resources.length === 0) {
+      throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} has no allowed resources`, ["approval.resources"]);
+    }
+    if (!input.resource) {
+      throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} is scoped to resources but this operation has no resource hint`, ["approval.resources"]);
+    }
+    if (!approval.resources.some((resource) => approvalResourceMatches(resource, input.resource!))) {
+      throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} is not valid for resource ${formatApprovalResource(input.resource)}`, ["approval.resources"]);
+    }
+  }
+}
+
+function approvalResourceMatches(scope: CapsuleApprovalResourceScope, resource: CapsuleApprovalResourceScope): boolean {
+  const entries = Object.entries(scope).filter((entry): entry is [keyof CapsuleApprovalResourceScope, string] => entry[1] !== undefined);
+  if (entries.length === 0) {
+    return false;
+  }
+  return entries.every(([key, value]) => resource[key] === value);
+}
+
+function approvalLabel(approval: CapsuleApprovalGrant): string {
+  return approval.id ?? approval.reason ?? "unknown";
+}
+
+function formatApprovalResource(resource: CapsuleApprovalResourceScope | undefined): string {
+  if (!resource) {
+    return "unknown";
+  }
+  if (resource.type && resource.id) {
+    return `${resource.type}:${resource.id}`;
+  }
+  if (resource.id) {
+    return resource.id;
+  }
+  if (resource.type && resource.name) {
+    return `${resource.type}:${resource.name}`;
+  }
+  if (resource.name) {
+    return resource.name;
+  }
+  if (resource.project) {
+    return `project:${resource.project}`;
+  }
+  if (resource.path) {
+    return resource.path;
+  }
+  return "unknown";
 }
 
 export function mergeTimeout(policy: CapsulePolicy = {}, requested?: number): number | undefined {

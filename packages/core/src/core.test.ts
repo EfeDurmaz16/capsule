@@ -346,6 +346,64 @@ describe("policy", () => {
     );
   });
 
+  test("denies expired approval grants", () => {
+    expect(() =>
+      evaluatePolicy(
+        { approvals: { required: true, reason: "production cleanup" } },
+        {
+          approval: { approved: true, id: "ticket-123", expiresAt: "2026-01-01T00:00:00.000Z" },
+          now: new Date("2026-01-01T00:00:01.000Z")
+        }
+      )
+    ).toThrow(PolicyViolationError);
+  });
+
+  test("denies approval grants outside their capability scope", () => {
+    expect(() =>
+      evaluatePolicy(
+        { approvals: { required: true, reason: "production cleanup" } },
+        {
+          capabilityPath: "service.delete",
+          approval: { approved: true, id: "ticket-123", capabilities: ["job.cancel"] }
+        }
+      )
+    ).toThrow(PolicyViolationError);
+
+    expect(
+      evaluatePolicy(
+        { approvals: { required: true, reason: "production cleanup" } },
+        {
+          capabilityPath: "service.delete",
+          approval: { approved: true, id: "ticket-123", capabilities: ["service.delete"] }
+        }
+      ).notes
+    ).toContain("Approval capability scope satisfied: service.delete");
+  });
+
+  test("denies approval grants outside their resource scope", () => {
+    expect(() =>
+      evaluatePolicy(
+        { approvals: { required: true, reason: "production cleanup" } },
+        {
+          capabilityPath: "service.delete",
+          resource: { type: "service", id: "svc_456" },
+          approval: { approved: true, id: "ticket-123", capabilities: ["service.delete"], resources: [{ type: "service", id: "svc_123" }] }
+        }
+      )
+    ).toThrow(PolicyViolationError);
+
+    expect(
+      evaluatePolicy(
+        { approvals: { required: true, reason: "production cleanup" } },
+        {
+          capabilityPath: "service.delete",
+          resource: { type: "service", id: "svc_123" },
+          approval: { approved: true, id: "ticket-123", capabilities: ["service.delete"], resources: [{ type: "service", id: "svc_123" }] }
+        }
+      ).notes
+    ).toContain("Approval resource scope satisfied: service:svc_123");
+  });
+
   test("denies ttl-scoped work above the policy maximum", () => {
     expect(() => evaluatePolicy({ ttl: { maxMs: 60_000 } }, { ttlMs: 120_000 })).toThrow(PolicyViolationError);
     expect(evaluatePolicy({ ttl: { maxMs: 60_000 } }, { ttlMs: 30_000 }).notes).toContain("TTL policy maximum 60000ms applies to this request.");
@@ -437,6 +495,37 @@ describe("policy", () => {
       status: "deleted"
     });
     expect(called).toBe(true);
+  });
+
+  test("enforces approval capability scope before destructive adapter operations", async () => {
+    let called = false;
+    const scopedAdapter: CapsuleAdapter = {
+      ...adapter,
+      capabilities: {
+        ...capabilities,
+        service: {
+          deploy: "unsupported",
+          update: "unsupported",
+          delete: "native",
+          status: "unsupported",
+          logs: "unsupported",
+          url: "unsupported"
+        }
+      },
+      service: {
+        deploy: async () => ({ id: "svc_123", provider: "test", name: "svc", status: "ready" }),
+        delete: async () => {
+          called = true;
+          return { id: "svc_123", provider: "test", status: "deleted" };
+        }
+      }
+    };
+    const capsule = new Capsule({ adapter: scopedAdapter, policy: { approvals: { required: true, reason: "production cleanup" } } });
+
+    await expect(capsule.service.delete({ id: "svc_123", approval: { approved: true, id: "ticket-123", capabilities: ["job.cancel"] } })).rejects.toThrow(
+      PolicyViolationError
+    );
+    expect(called).toBe(false);
   });
 
   test("enforces ttl policy before creating ttl-scoped resources", async () => {
