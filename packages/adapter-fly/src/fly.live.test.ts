@@ -31,7 +31,7 @@ describe("fly live smoke", () => {
         expect(machine.receipt?.type).toBe("machine.create");
       } finally {
         if (machineId) {
-          await capsule.machine.destroy({ id: machineId, force: true, reason: "capsule live smoke cleanup" }).catch(() => undefined);
+          await capsule.machine.destroy({ id: machineId, force: true, reason: "capsule live smoke cleanup" });
         }
       }
     },
