@@ -53,6 +53,25 @@ Optional metadata environment:
 
 Provider coverage is intentionally explicit. E2B receives labels as sandbox metadata, Daytona receives labels in create params, Azure Container Apps maps labels to ARM tags, Kubernetes maps labels onto Jobs, and Fly Machines stores labels in Machine config metadata. Neon records labels and TTL in Capsule receipts, while Neon provider-side TTL enforcement is not implemented by the current adapter. Cloudflare Worker tests keep the existing env-provided Worker name and record labels in Capsule receipts only. Modal currently uses deterministic names, but its adapter does not map labels to a provider metadata field. Cloud Run, Vercel, and Lambda tests operate on existing resources and do not create taggable live resources.
 
+## Cleanup Sweep
+
+Use the cleanup sweep in dry-run mode before and after live-provider work:
+
+```bash
+node scripts/live-cleanup-sweep.mjs --dry-run
+node scripts/live-cleanup-sweep.mjs --dry-run --provider fly
+```
+
+The sweep never creates resources. It only inspects provider-side Capsule metadata and reports stale resources whose `capsule_expires_at` is in the past. Supported delete paths are Fly Machines metadata, Kubernetes labels, and Azure Container Apps resource tags. Providers whose live metadata is receipt-only or existing-resource-only are reported as `unsupported` instead of pretending cleanup is available.
+
+Deletion requires two explicit controls:
+
+```bash
+CAPSULE_LIVE_CLEANUP_ACK=1 node scripts/live-cleanup-sweep.mjs --delete --yes --provider fly
+```
+
+Do not run delete mode against shared accounts unless the dry-run output is reviewed and the provider account is dedicated to Capsule live tests.
+
 | Provider | Test path | Required environment | Operation | Cleanup |
 | --- | --- | --- | --- | --- |
 | E2B | `packages/adapter-e2b/src/e2b.live.test.ts` | `CAPSULE_LIVE_TESTS`, `E2B_API_KEY` | Creates a sandbox, exercises exec and file operations. | Destroys the sandbox in `finally`. |
