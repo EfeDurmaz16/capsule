@@ -1,5 +1,6 @@
 import { Daytona } from "@daytona/sdk";
 import {
+  AdapterExecutionError,
   logsFromOutput,
   redactSecrets,
   type AdapterContext,
@@ -42,6 +43,15 @@ export interface DaytonaAdapterOptions {
   ephemeral?: boolean;
   client?: DaytonaClientLike;
 }
+
+interface DaytonaSandboxCleanupMetadata {
+  action: "delete-created-sandbox" | "delete-sandbox-after-exec-error";
+  sandboxId: string;
+  status: "deleted" | "failed";
+  error?: string;
+}
+
+type CleanupAwareError = Error & { cleanup?: DaytonaSandboxCleanupMetadata };
 
 const provider = "daytona";
 const adapter = "daytona";
@@ -157,6 +167,29 @@ function fileType(entry: Record<string, unknown>): FileEntry["type"] {
   return "unknown";
 }
 
+async function deleteSandboxAfterFailure(
+  sandbox: DaytonaSandboxLike,
+  action: DaytonaSandboxCleanupMetadata["action"],
+  operationError: unknown
+): Promise<never> {
+  const cleanup: DaytonaSandboxCleanupMetadata = {
+    action,
+    sandboxId: sandbox.id,
+    status: "deleted"
+  };
+  try {
+    await sandbox.delete();
+  } catch (cleanupError) {
+    cleanup.status = "failed";
+    cleanup.error = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+  }
+  if (operationError instanceof Error) {
+    (operationError as CleanupAwareError).cleanup = cleanup;
+    throw operationError;
+  }
+  throw new AdapterExecutionError("Daytona sandbox operation failed after sandbox allocation.", { operationError, cleanup });
+}
+
 class DaytonaCapsuleSandbox implements Sandbox {
   constructor(
     private readonly sandbox: DaytonaSandboxLike,
@@ -167,7 +200,12 @@ class DaytonaCapsuleSandbox implements Sandbox {
   async exec(spec: ExecSpec): Promise<ExecResult> {
     const startedAt = new Date();
     const policy = this.context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
-    const response = await this.sandbox.process.executeCommand(commandToString(spec.command), spec.cwd, spec.env, timeoutSeconds(spec.timeoutMs));
+    let response: { exitCode: number; result: string };
+    try {
+      response = await this.sandbox.process.executeCommand(commandToString(spec.command), spec.cwd, spec.env, timeoutSeconds(spec.timeoutMs));
+    } catch (error) {
+      return await deleteSandboxAfterFailure(this.sandbox, "delete-sandbox-after-exec-error", error);
+    }
     const stdout = redactSecrets(response.result, spec.env, this.context.policy);
     const stderr = "";
     const receipt = this.context.receipts
@@ -238,17 +276,21 @@ export function daytona(options: DaytonaAdapterOptions = {}): CapsuleAdapter {
           createdAt: sandbox.createdAt ?? new Date().toISOString(),
           metadata: { name: sandbox.name, state: sandbox.state }
         };
-        if (context.receipts) {
-          context.createReceipt({
-            type: "sandbox.create",
-            capabilityPath: "sandbox.create",
-            startedAt,
-            image: spec.image,
-            policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
-            resource: { id: sandbox.id, name: sandbox.name, status: sandbox.state ?? "started" }
-          });
+        try {
+          if (context.receipts) {
+            context.createReceipt({
+              type: "sandbox.create",
+              capabilityPath: "sandbox.create",
+              startedAt,
+              image: spec.image,
+              policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
+              resource: { id: sandbox.id, name: sandbox.name, status: sandbox.state ?? "started" }
+            });
+          }
+          return new DaytonaCapsuleSandbox(sandbox, handle, context);
+        } catch (error) {
+          return await deleteSandboxAfterFailure(sandbox, "delete-created-sandbox", error);
         }
-        return new DaytonaCapsuleSandbox(sandbox, handle, context);
       }
     }
   };
