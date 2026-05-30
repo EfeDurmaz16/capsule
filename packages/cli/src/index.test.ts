@@ -8,6 +8,7 @@ import {
   capabilityExplanations,
   createAdapterScaffoldPlan,
   createDoctorReport,
+  createLiveEnvironmentValidationReport,
   createProviderVerificationReport,
   liveTestCommandPlan,
   main,
@@ -284,6 +285,11 @@ describe("CLI live-test planner", () => {
       provider: "neon",
       rest: ["plan"]
     });
+    expect(parse(["live-test", "validate", "--provider", "fly"])).toMatchObject({
+      command: "live-test",
+      provider: "fly",
+      rest: ["validate"]
+    });
   });
 
   test("returns a safe Neon plan with project-scoped aliases and no secret values", () => {
@@ -336,6 +342,82 @@ describe("CLI live-test planner", () => {
 
   test("rejects unknown live-test providers", () => {
     expect(() => liveTestCommandPlan("unknown")).toThrow('Unknown live-test provider "unknown"');
+  });
+
+  test("validates live-test env and blocks billable providers without cost acknowledgement", () => {
+    const report = createLiveEnvironmentValidationReport({
+      provider: "fly",
+      env: {
+        CAPSULE_LIVE_TESTS: "1",
+        FLY_API_TOKEN: "secret-token",
+        FLY_APP_NAME: "capsule-app",
+        CAPSULE_FLY_IMAGE: "registry.example/app:latest"
+      }
+    });
+
+    expect(report.providers).toEqual([
+      expect.objectContaining({
+        provider: "fly",
+        status: "blocked",
+        liveTestEnabled: true,
+        costRisk: "billable",
+        configuredEnv: ["CAPSULE_LIVE_TESTS", "FLY_API_TOKEN", "FLY_APP_NAME", "CAPSULE_FLY_IMAGE"],
+        missingEnv: [],
+        missingCostEnv: ["CAPSULE_LIVE_TEST_COST_ACK"]
+      })
+    ]);
+    expect(JSON.stringify(report)).not.toContain("secret-token");
+  });
+
+  test("validates read-only live tests without cost acknowledgement", () => {
+    const report = createLiveEnvironmentValidationReport({
+      provider: "vercel",
+      env: {
+        CAPSULE_LIVE_TESTS: "1",
+        VERCEL_TOKEN: "secret-vercel",
+        CAPSULE_VERCEL_DEPLOYMENT_ID: "dpl_123"
+      }
+    });
+
+    expect(report.providers).toEqual([
+      expect.objectContaining({
+        provider: "vercel",
+        status: "ready",
+        costRisk: "read-only",
+        costAcknowledged: true,
+        missingEnv: [],
+        missingCostEnv: []
+      })
+    ]);
+    expect(JSON.stringify(report)).not.toContain("secret-vercel");
+  });
+
+  test("prints the selected live-test environment validation report", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const envKeys = ["CAPSULE_LIVE_TESTS", "NEON_API_KEY", "NEON_PROJECT_ID", "CAPSULE_POSTGRES_PROJECT_ID", "CAPSULE_LIVE_TEST_COST_ACK"];
+    const previousEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
+    try {
+      for (const key of envKeys) {
+        delete process.env[key];
+      }
+      await main(["live-test", "validate", "--provider", "neon"]);
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as ReturnType<typeof createLiveEnvironmentValidationReport>;
+      expect(output.providers[0]).toMatchObject({
+        provider: "neon",
+        status: "blocked"
+      });
+      expect(process.exitCode).toBe(1);
+    } finally {
+      for (const key of envKeys) {
+        if (previousEnv[key] === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = previousEnv[key];
+        }
+      }
+      log.mockRestore();
+      process.exitCode = undefined;
+    }
   });
 });
 

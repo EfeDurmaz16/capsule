@@ -284,6 +284,7 @@ Exports:
 - `compareProviderCapabilities`
 - `createAdapterScaffoldPlan`
 - `createDoctorReport`
+- `createLiveEnvironmentValidationReport`
 - `createProviderVerificationReport`
 - `liveTestCommandPlan`
 - `main`
