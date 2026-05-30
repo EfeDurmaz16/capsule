@@ -72,7 +72,14 @@ describe("e2b adapter", () => {
     expect(result.stdout).toBe("hello from e2b\n");
     expect(result.receipt?.provider).toBe("e2b");
     expect(FakeE2BSandbox.instance.killed).toBe(true);
-    expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create", "sandbox.exec", "sandbox.destroy"]);
+    expect(store.receipts.map((receipt) => receipt.type)).toEqual([
+      "sandbox.create",
+      "sandbox.file.write",
+      "sandbox.file.read",
+      "sandbox.file.list",
+      "sandbox.exec",
+      "sandbox.destroy"
+    ]);
   });
 
   it("redacts secret values in command output", async () => {

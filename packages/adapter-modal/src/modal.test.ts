@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, MemoryReceiptStore, runAdapterContract } from "@capsule/core";
+import { Capsule, MemoryReceiptStore, runAdapterContract, UnsupportedCapabilityError } from "@capsule/core";
 import { modal, modalCapabilities } from "./index.js";
 
 describe("modal adapter", () => {
@@ -48,12 +48,12 @@ describe("modal adapter", () => {
     await box.writeFile("/workspace/index.js", "console.log('hi')");
     const data = await box.readFile("/workspace/index.js");
     const result = await box.exec({ command: ["node", "/workspace/index.js"] });
-    await expect(box.listFiles("/workspace")).rejects.toThrow(AdapterExecutionError);
+    await expect(box.listFiles("/workspace")).rejects.toThrow(UnsupportedCapabilityError);
     await box.destroy();
 
     expect(created[0][2]).toMatchObject({ name: "box", blockNetwork: true });
     expect(new TextDecoder().decode(data)).toBe("console.log('hi')");
     expect(result.stdout).toContain("node");
-    expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create", "sandbox.exec", "sandbox.destroy"]);
+    expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create", "sandbox.file.write", "sandbox.file.read", "sandbox.exec", "sandbox.destroy"]);
   });
 });

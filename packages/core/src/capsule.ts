@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { UnsupportedCapabilityError } from "./errors.js";
 import { explainSupportLevel, supportLevel, supports, type CapabilityPath } from "./capabilities.js";
 import { evaluatePolicy, mergeTimeout, type PolicyInput } from "./policy.js";
@@ -42,6 +43,7 @@ import type {
   VersionEdgeSpec
 } from "./types.js";
 import type { ReceiptSigner } from "./receipts.js";
+import type { ExecSpec, Sandbox } from "./types.js";
 
 export interface CapsuleOptions {
   adapter: CapsuleAdapter;
@@ -61,15 +63,23 @@ interface ContextOptions extends PolicyInput {
   receiptScopes?: ReceiptScope | readonly ReceiptScope[];
 }
 
+interface ContextRuntime {
+  context: AdapterContext;
+  defaultOptions: ContextOptions;
+  pendingWrites: Promise<void>[];
+  receipts: CapsuleReceipt[];
+}
+
 function receiptScope(type: CapsuleReceipt["type"], capabilityPath: CapabilityPath): ReceiptScope {
   return { type, capabilityPath };
 }
 
-const sandboxReceiptScopes = [
-  receiptScope("sandbox.create", "sandbox.create"),
-  receiptScope("sandbox.exec", "sandbox.exec"),
-  receiptScope("sandbox.destroy", "sandbox.destroy")
-] as const;
+const sandboxCreateReceiptScope = receiptScope("sandbox.create", "sandbox.create");
+const sandboxExecReceiptScope = receiptScope("sandbox.exec", "sandbox.exec");
+const sandboxFileWriteReceiptScope = receiptScope("sandbox.file.write", "sandbox.fileWrite");
+const sandboxFileReadReceiptScope = receiptScope("sandbox.file.read", "sandbox.fileRead");
+const sandboxFileListReceiptScope = receiptScope("sandbox.file.list", "sandbox.fileList");
+const sandboxDestroyReceiptScope = receiptScope("sandbox.destroy", "sandbox.destroy");
 
 function normalizeReceiptScopes(scopes: ReceiptScope | readonly ReceiptScope[] | undefined): readonly ReceiptScope[] {
   if (!scopes) {
@@ -91,6 +101,8 @@ function assertReceiptScope(input: { type: CapsuleReceipt["type"]; capabilityPat
 }
 
 export class Capsule {
+  private readonly contextOptions = new AsyncLocalStorage<ContextOptions>();
+
   readonly sandbox;
   readonly job;
   readonly service;
@@ -107,14 +119,15 @@ export class Capsule {
         if (!this.options.adapter.sandbox) {
           throw new UnsupportedCapabilityError("sandbox.create");
         }
-        return this.withContext(
-          (context) =>
-            this.options.adapter.sandbox!.create(
-              { ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) },
-              context
-            ),
-          { approval: spec.approval, receiptScopes: sandboxReceiptScopes }
+        const runtime = this.contextRuntime({ approval: spec.approval, receiptScopes: sandboxCreateReceiptScope });
+        await this.preflightReceiptPersistence();
+        const sandbox = await this.contextOptions.run(runtime.defaultOptions, () =>
+          this.options.adapter.sandbox!.create({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, runtime.context)
         );
+        if (this.receiptPersistenceMode() === "required") {
+          await Promise.all(runtime.pendingWrites);
+        }
+        return this.wrapSandbox(sandbox, runtime, spec.approval);
       }
     };
 
@@ -417,14 +430,144 @@ export class Capsule {
   }
 
   private async withContext<T>(operation: (context: AdapterContext) => Promise<T>, options: ContextOptions = {}): Promise<T> {
-    const pendingWrites: Promise<void>[] = [];
+    const runtime = this.contextRuntime(options);
     await this.preflightReceiptPersistence();
-    const context = this.context(pendingWrites, options);
-    const result = await operation(context);
+    const result = await this.contextOptions.run(runtime.defaultOptions, () => operation(runtime.context));
     if (this.receiptPersistenceMode() === "required") {
-      await Promise.all(pendingWrites);
+      await Promise.all(runtime.pendingWrites);
     }
     return result;
+  }
+
+  private contextRuntime(defaultOptions: ContextOptions): ContextRuntime {
+    const runtime: ContextRuntime = {
+      context: undefined as unknown as AdapterContext,
+      defaultOptions,
+      pendingWrites: [],
+      receipts: []
+    };
+    runtime.context = this.context(runtime);
+    return runtime;
+  }
+
+  private async withSandboxSubOperation<T>(runtime: ContextRuntime, options: ContextOptions, operation: () => Promise<T>): Promise<T> {
+    await this.preflightReceiptPersistence();
+    const pendingStart = runtime.pendingWrites.length;
+    const result = await this.contextOptions.run(options, operation);
+    if (this.receiptPersistenceMode() === "required") {
+      await Promise.all(runtime.pendingWrites.slice(pendingStart));
+    }
+    return result;
+  }
+
+  private wrapSandbox(sandbox: Sandbox, runtime: ContextRuntime, approval: PolicyInput["approval"]): Sandbox {
+    return {
+      handle: sandbox.handle,
+      exec: async (spec: ExecSpec) => {
+        this.require("sandbox.exec");
+        const startedAt = new Date();
+        const policy = evaluatePolicy(this.options.policy, { env: spec.env, timeoutMs: spec.timeoutMs, approval });
+        const receiptStart = runtime.receipts.length;
+        return this.withSandboxSubOperation(runtime, { approval, receiptScopes: sandboxExecReceiptScope }, async () => {
+          const result = await sandbox.exec({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) });
+          if ((this.options.receipts ?? false) && runtime.receipts.length === receiptStart) {
+            const receipt = runtime.context.createReceipt({
+              type: "sandbox.exec",
+              capabilityPath: "sandbox.exec",
+              startedAt,
+              command: normalizeCommand(spec.command),
+              cwd: spec.cwd,
+              providerOptions: spec.providerOptions,
+              exitCode: result.exitCode,
+              stdout: result.stdout,
+              stderr: result.stderr,
+              artifacts: result.artifacts,
+              policy,
+              resource: { id: sandbox.handle.id, status: "running" }
+            });
+            return { ...result, receipt };
+          }
+          return result;
+        });
+      },
+      writeFile: async (path: string, data: string | Uint8Array) => {
+        this.require("sandbox.fileWrite");
+        const startedAt = new Date();
+        const policy = evaluatePolicy(this.options.policy, { approval });
+        const receiptStart = runtime.receipts.length;
+        await this.withSandboxSubOperation(runtime, { approval, receiptScopes: sandboxFileWriteReceiptScope }, async () => {
+          await sandbox.writeFile(path, data);
+          if ((this.options.receipts ?? false) && runtime.receipts.length === receiptStart) {
+            runtime.context.createReceipt({
+              type: "sandbox.file.write",
+              capabilityPath: "sandbox.fileWrite",
+              startedAt,
+              policy,
+              resource: { id: sandbox.handle.id, status: "running" },
+              metadata: { path, byteLength: byteLength(data) }
+            });
+          }
+        });
+      },
+      readFile: async (path: string) => {
+        this.require("sandbox.fileRead");
+        const startedAt = new Date();
+        const policy = evaluatePolicy(this.options.policy, { approval });
+        const receiptStart = runtime.receipts.length;
+        return this.withSandboxSubOperation(runtime, { approval, receiptScopes: sandboxFileReadReceiptScope }, async () => {
+          const data = await sandbox.readFile(path);
+          if ((this.options.receipts ?? false) && runtime.receipts.length === receiptStart) {
+            runtime.context.createReceipt({
+              type: "sandbox.file.read",
+              capabilityPath: "sandbox.fileRead",
+              startedAt,
+              policy,
+              resource: { id: sandbox.handle.id, status: "running" },
+              metadata: { path, byteLength: data.byteLength }
+            });
+          }
+          return data;
+        });
+      },
+      listFiles: async (path: string) => {
+        this.require("sandbox.fileList");
+        const startedAt = new Date();
+        const policy = evaluatePolicy(this.options.policy, { approval });
+        const receiptStart = runtime.receipts.length;
+        return this.withSandboxSubOperation(runtime, { approval, receiptScopes: sandboxFileListReceiptScope }, async () => {
+          const entries = await sandbox.listFiles(path);
+          if ((this.options.receipts ?? false) && runtime.receipts.length === receiptStart) {
+            runtime.context.createReceipt({
+              type: "sandbox.file.list",
+              capabilityPath: "sandbox.fileList",
+              startedAt,
+              policy,
+              resource: { id: sandbox.handle.id, status: "running" },
+              metadata: { path, entryCount: entries.length }
+            });
+          }
+          return entries;
+        });
+      },
+      destroy: async () => {
+        this.require("sandbox.destroy");
+        const startedAt = new Date();
+        const policy = evaluatePolicy(this.options.policy, { approval });
+        const receiptStart = runtime.receipts.length;
+        await this.withSandboxSubOperation(runtime, { approval, receiptScopes: sandboxDestroyReceiptScope }, async () => {
+          await sandbox.destroy();
+          if ((this.options.receipts ?? false) && runtime.receipts.length === receiptStart) {
+            runtime.context.createReceipt({
+              type: "sandbox.destroy",
+              capabilityPath: "sandbox.destroy",
+              startedAt,
+              policy,
+              resource: { id: sandbox.handle.id, status: "deleted" }
+            });
+          }
+        });
+      }
+    };
   }
 
   private receiptPersistenceMode(): ReceiptPersistenceMode {
@@ -468,14 +611,18 @@ export class Capsule {
     return Promise.resolve();
   }
 
-  private context(pendingWrites: Promise<void>[], options: ContextOptions): AdapterContext {
+  private context(runtime: ContextRuntime): AdapterContext {
     const adapter = this.options.adapter;
     return {
       receipts: this.options.receipts ?? false,
       policy: this.options.policy ?? {},
       supportLevel: (path: string) => supportLevel(adapter.capabilities, path as CapabilityPath),
-      evaluatePolicy: (input = {}) => evaluatePolicy(this.options.policy, { ...input, approval: input.approval ?? options.approval }),
+      evaluatePolicy: (input = {}) => {
+        const options = this.contextOptions.getStore() ?? runtime.defaultOptions;
+        return evaluatePolicy(this.options.policy, { ...input, approval: input.approval ?? options.approval });
+      },
       createReceipt: (input) => {
+        const options = this.contextOptions.getStore() ?? runtime.defaultOptions;
         assertReceiptScope(input, options.receiptScopes);
         const receipt = createReceipt(
           {
@@ -486,7 +633,8 @@ export class Capsule {
           },
           this.options.receiptSigner
         );
-        void this.persistReceipt(receipt, pendingWrites);
+        runtime.receipts.push(receipt);
+        void this.persistReceipt(receipt, runtime.pendingWrites);
         return receipt;
       }
     };
@@ -497,4 +645,12 @@ export class Capsule {
       throw new UnsupportedCapabilityError(path, explainSupportLevel(this.options.adapter.capabilities, path).guidance);
     }
   }
+}
+
+function normalizeCommand(command: ExecSpec["command"]): string[] {
+  return Array.isArray(command) ? command : [command];
+}
+
+function byteLength(data: string | Uint8Array): number {
+  return typeof data === "string" ? Buffer.byteLength(data) : data.byteLength;
 }

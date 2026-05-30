@@ -57,6 +57,13 @@ describe("daytona adapter", () => {
     expect(new TextDecoder().decode(data)).toBe("console.log('hi')");
     expect(entries[0]).toMatchObject({ name: "index.js", type: "file" });
     expect(result.stdout).toContain("node");
-    expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create", "sandbox.exec", "sandbox.destroy"]);
+    expect(store.receipts.map((receipt) => receipt.type)).toEqual([
+      "sandbox.create",
+      "sandbox.file.write",
+      "sandbox.file.read",
+      "sandbox.file.list",
+      "sandbox.exec",
+      "sandbox.destroy"
+    ]);
   });
 });
