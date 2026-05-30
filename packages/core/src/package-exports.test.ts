@@ -68,11 +68,17 @@ describe("package export maps", () => {
       const tempNodeModules = join(tempRoot, "node_modules");
       const scopedNodeModules = join(tempNodeModules, "@capsule");
       mkdirSync(scopedNodeModules, { recursive: true });
-      symlinkSync(join(root, "node_modules", ".pnpm"), join(tempNodeModules, ".pnpm"), "dir");
-      mkdirSync(join(tempNodeModules, "node_modules"), { recursive: true });
-      symlinkSync(join(root, "node_modules", ".pnpm"), join(tempNodeModules, "node_modules", ".pnpm"), "dir");
       for (const { dir, pkg } of packages) {
-        symlinkSync(dir, join(scopedNodeModules, String(pkg.name).replace("@capsule/", "")), "dir");
+        const packageRoot = join(scopedNodeModules, String(pkg.name).replace("@capsule/", ""));
+        mkdirSync(packageRoot, { recursive: true });
+        writeFileSync(
+          join(packageRoot, "package.json"),
+          `${JSON.stringify({ name: pkg.name, type: "module", exports: { ".": "./src/index.ts" } }, null, 2)}\n`
+        );
+        symlinkSync(join(dir, "src"), join(packageRoot, "src"), "dir");
+        if (existsSync(join(dir, "node_modules"))) {
+          symlinkSync(join(dir, "node_modules"), join(packageRoot, "node_modules"), "dir");
+        }
       }
 
       const verifierPath = join(tempRoot, "verify-package-exports.mjs");
@@ -90,8 +96,8 @@ process.exit(0);
 `
       );
 
-      execFileSync(process.execPath, [verifierPath], {
-        cwd: tempRoot,
+      execFileSync(process.execPath, ["--import", "tsx", verifierPath], {
+        cwd: root,
         encoding: "utf8",
         timeout: 15_000
       });
