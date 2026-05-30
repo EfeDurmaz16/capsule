@@ -1,6 +1,11 @@
 import type { CapabilityMap, SupportLevel } from "./types.js";
 
-export type CapabilityPath = `${string}.${string}`;
+type CapabilityDomainKey = Extract<keyof CapabilityMap, string>;
+type CapabilityLeafKey<Domain extends CapabilityDomainKey> = Extract<keyof NonNullable<CapabilityMap[Domain]>, string>;
+
+export type CapabilityPath = {
+  [Domain in CapabilityDomainKey]: `${Domain}.${CapabilityLeafKey<Domain>}`;
+}[CapabilityDomainKey];
 
 export interface CapabilityRequirement {
   path: CapabilityPath;
