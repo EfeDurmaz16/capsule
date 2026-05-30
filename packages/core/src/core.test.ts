@@ -16,7 +16,7 @@ import { AdapterExecutionError, UnsupportedCapabilityError, PolicyViolationError
 import { evaluatePolicy, mergeTimeout, redactError, redactLogEntries, redactSecrets } from "./policy.js";
 import { edgeWorkerPreset, httpServicePreset, nodeJobPreset, nodeSandboxPreset, previewDatabaseBranchPreset, previewEnvironmentPreset } from "./presets.js";
 import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
-import { createReceipt } from "./receipts.js";
+import { canonicalReceiptPayload, createReceipt, verifyReceiptSignature } from "./receipts.js";
 import { MemoryReceiptStore } from "./stores.js";
 import { assertAdapterContract, runCapsuleAdapterContract } from "./contract.js";
 import type { CapsuleAdapter, CapabilityMap } from "./index.js";
@@ -728,6 +728,46 @@ describe("receipts", () => {
       keyId: "test-key",
       value: "job.run:job_123:500"
     });
+  });
+
+  test("signs and verifies canonical receipt payloads", () => {
+    const receipt = createReceipt(
+      {
+        type: "job.run",
+        provider: "test",
+        adapter: "test",
+        capabilityPath: "job.run",
+        supportLevel: "native",
+        startedAt: new Date("2026-01-01T00:00:00.000Z"),
+        finishedAt: new Date("2026-01-01T00:00:00.500Z"),
+        policy: { decision: "allowed", applied: {} },
+        resource: { id: "job_123", status: "queued" },
+        metadata: { zeta: "z", providerRequestId: "req_123", alpha: "a" }
+      },
+      {
+        algorithm: "canonical-test",
+        keyId: "test-key",
+        sign: (_unsigned, payload) => `sig:${payload}`
+      }
+    );
+
+    const payload = canonicalReceiptPayload(receipt);
+    expect(payload).not.toContain("\"signature\"");
+    expect(payload).toContain("\"metadata\":{\"alpha\":\"a\",\"providerRequestId\":\"req_123\",\"zeta\":\"z\"}");
+    expect(receipt.signature).toEqual({
+      algorithm: "canonical-test",
+      keyId: "test-key",
+      value: `sig:${payload}`
+    });
+    const verifier = {
+      algorithm: "canonical-test",
+      keyId: "test-key",
+      verify: (payload: string, signature: string) => signature === `sig:${payload}`
+    };
+    expect(verifyReceiptSignature(receipt, verifier)).toEqual({ valid: true });
+
+    const tampered = { ...receipt, resource: { ...receipt.resource, status: "succeeded" } };
+    expect(verifyReceiptSignature(tampered, verifier)).toEqual({ valid: false, reason: "signature-mismatch" });
   });
 
   test("records sanitized provider options on receipts", () => {

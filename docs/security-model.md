@@ -31,7 +31,7 @@ Capsule receipts prove what Capsule observed at the adapter boundary:
 - stdout/stderr hashes when Capsule receives output
 - resource IDs and URLs returned by provider APIs
 
-They do not prove the full state of the provider runtime, host kernel, cloud control plane, network path, IAM policy, base image, or workload filesystem. A signed Capsule receipt would only sign Capsule's observation unless it is explicitly combined with provider attestations, workload signatures, image provenance, or confidential-computing evidence.
+They do not prove the full state of the provider runtime, host kernel, cloud control plane, network path, IAM policy, base image, or workload filesystem. A signed Capsule receipt signs Capsule's canonical unsigned receipt payload, not provider truth, unless it is explicitly combined with provider attestations, workload signatures, image provenance, or confidential-computing evidence.
 
 ## Provider Caveats
 

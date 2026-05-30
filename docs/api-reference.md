@@ -310,6 +310,7 @@ Exports:
 - `assertUnsupportedCapabilityGuards`
 - `CancelJobResult`
 - `CancelJobSpec`
+- `canonicalReceiptPayload`
 - `capabilityDiff`
 - `CapabilityDiffEntry`
 - `CapabilityMap`
@@ -430,8 +431,10 @@ Exports:
 - `providerServiceClassifications`
 - `rankProvidersByRecipe`
 - `ReceiptPersistenceMode`
+- `ReceiptSignatureVerificationResult`
 - `ReceiptSigner`
 - `ReceiptStore`
+- `ReceiptVerifier`
 - `redactError`
 - `redactLogEntries`
 - `redactSecrets`
@@ -465,8 +468,11 @@ Exports:
 - `supportLevelWeights`
 - `supports`
 - `uniqueCapabilityPaths`
+- `unsignedReceipt`
+- `UnsignedReceipt`
 - `UnsupportedCapabilityError`
 - `UpdateServiceSpec`
+- `verifyReceiptSignature`
 - `VersionEdgeSpec`
 
 ## @capsule/presets

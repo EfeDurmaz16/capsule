@@ -3,6 +3,8 @@ import { sha256 } from "./artifacts.js";
 import { isSensitiveKey, redactSensitiveText } from "./policy.js";
 import type { Artifact, CapsulePolicy, CapsuleReceipt, CapsuleReceiptMetadata, ProviderOptions, ProviderOptionValue, SupportLevel } from "./types.js";
 
+export type UnsignedReceipt = Omit<CapsuleReceipt, "signature">;
+
 export interface CreateReceiptInput {
   type: CapsuleReceipt["type"];
   provider: string;
@@ -32,7 +34,44 @@ export interface CreateReceiptInput {
 export interface ReceiptSigner {
   algorithm: string;
   keyId?: string;
-  sign(receipt: Omit<CapsuleReceipt, "signature">): string;
+  sign(receipt: UnsignedReceipt, canonicalPayload: string): string;
+}
+
+export interface ReceiptVerifier {
+  algorithm: string;
+  keyId?: string;
+  verify(canonicalPayload: string, signature: string, receipt: UnsignedReceipt): boolean;
+}
+
+export type ReceiptSignatureVerificationResult =
+  | { valid: true }
+  | { valid: false; reason: "missing-signature" | "algorithm-mismatch" | "key-id-mismatch" | "signature-mismatch" };
+
+export function unsignedReceipt(receipt: CapsuleReceipt): UnsignedReceipt {
+  const { signature: _signature, ...unsigned } = receipt;
+  return unsigned;
+}
+
+export function canonicalReceiptPayload(receipt: CapsuleReceipt | UnsignedReceipt): string {
+  return canonicalJson("signature" in receipt ? unsignedReceipt(receipt) : receipt);
+}
+
+export function verifyReceiptSignature(receipt: CapsuleReceipt, verifier: ReceiptVerifier): ReceiptSignatureVerificationResult {
+  if (!receipt.signature) {
+    return { valid: false, reason: "missing-signature" };
+  }
+  if (receipt.signature.algorithm !== verifier.algorithm) {
+    return { valid: false, reason: "algorithm-mismatch" };
+  }
+  if (verifier.keyId !== undefined && receipt.signature.keyId !== verifier.keyId) {
+    return { valid: false, reason: "key-id-mismatch" };
+  }
+  const unsigned = unsignedReceipt(receipt);
+  const payload = canonicalReceiptPayload(unsigned);
+  if (!verifier.verify(payload, receipt.signature.value, unsigned)) {
+    return { valid: false, reason: "signature-mismatch" };
+  }
+  return { valid: true };
 }
 
 function sanitizeProviderOptionValue(key: string, value: ProviderOptionValue, policy: CapsulePolicy): ProviderOptionValue {
@@ -88,7 +127,7 @@ export function sanitizeReceiptMetadata(metadata: Record<string, unknown> | unde
 export function createReceipt(input: CreateReceiptInput, signer?: ReceiptSigner): CapsuleReceipt {
   const finishedAt = input.finishedAt ?? new Date();
   const artifactHashes = input.artifacts?.map((artifact) => artifact.sha256).filter((hash): hash is string => Boolean(hash));
-  const receipt: Omit<CapsuleReceipt, "signature"> = {
+  const receipt: UnsignedReceipt = {
     id: randomUUID(),
     type: input.type,
     provider: input.provider,
@@ -118,8 +157,25 @@ export function createReceipt(input: CreateReceiptInput, signer?: ReceiptSigner)
     ...receipt,
     signature: {
       algorithm: signer.algorithm,
-      value: signer.sign(receipt),
+      value: signer.sign(receipt, canonicalReceiptPayload(receipt)),
       keyId: signer.keyId
     }
   };
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === undefined) {
+    return "null";
+  }
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
+  }
+  return `{${Object.entries(value)
+    .filter((entry) => entry[1] !== undefined)
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+    .map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`)
+    .join(",")}}`;
 }
