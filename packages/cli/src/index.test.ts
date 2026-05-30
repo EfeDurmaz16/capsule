@@ -11,11 +11,13 @@ import {
   createDoctorReport,
   createLiveEnvironmentValidationReport,
   createProviderVerificationReport,
+  createProjectInitPlan,
   liveTestCommandPlan,
   main,
   parse,
   selectProvidersForRecipe,
   writeAdapterScaffold,
+  writeProjectInitFiles,
   providerCredentialDiagnostics
 } from "./index.js";
 
@@ -374,6 +376,68 @@ describe("CLI capability explanations", () => {
       summary: "The adapter/provider exposes this capability, but behavior may still change or be incomplete.",
       guidance: "sandbox.snapshot should be gated behind explicit opt-in, tests, or provider-specific checks."
     });
+  });
+});
+
+describe("CLI project init", () => {
+  test("creates an init plan with config, policy, and install hint but no secrets", () => {
+    expect(parse(["init", "--adapter", "e2b", "--out-dir", "sample"])).toMatchObject({
+      command: "init",
+      adapter: "e2b",
+      outDir: "sample"
+    });
+
+    const plan = createProjectInitPlan({ adapter: "e2b", outDir: "sample" });
+
+    expect(plan).toMatchObject({
+      adapter: "e2b",
+      outDir: "sample",
+      installHint: "pnpm add @capsule/core @capsule/adapter-e2b"
+    });
+    expect(plan.files.map((file) => file.path)).toEqual([join("sample", "capsule.config.json"), join("sample", "capsule.policy.json")]);
+    expect(JSON.stringify(plan)).not.toMatch(/API_KEY|TOKEN=|SECRET=|sk_/);
+  });
+
+  test("writes init files and refuses overwrites without force", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-init-"));
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await main(["init", "--adapter", "mock-neon", "--out-dir", root]);
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as {
+        adapter: string;
+        files: string[];
+        installHint: string;
+        notes: string[];
+      };
+      const configText = await readFile(join(root, "capsule.config.json"), "utf8");
+      const policyText = await readFile(join(root, "capsule.policy.json"), "utf8");
+      const config = JSON.parse(configText) as { adapter: string; policyFile: string; receipts: { enabled: boolean; path: string } };
+      const policy = JSON.parse(policyText) as { network: { mode: string }; secrets: { allowed: string[] }; limits: { timeoutMs: number } };
+
+      expect(output).toMatchObject({
+        adapter: "mock-neon",
+        files: [join(root, "capsule.config.json"), join(root, "capsule.policy.json")],
+        installHint: "pnpm add @capsule/core @capsule/adapter-mock"
+      });
+      expect(output.notes).toContain("No secrets were written; configure provider credentials through environment variables or provider-native auth.");
+      expect(config).toMatchObject({
+        adapter: "mock-neon",
+        policyFile: "capsule.policy.json",
+        receipts: { enabled: true, path: ".capsule/receipts.jsonl" }
+      });
+      expect(policy).toMatchObject({
+        network: { mode: "none" },
+        secrets: { allowed: [] },
+        limits: { timeoutMs: 60_000 }
+      });
+      expect(`${configText}\n${policyText}`).not.toMatch(/API_KEY|TOKEN=|SECRET=|sk_/);
+
+      await expect(writeProjectInitFiles(createProjectInitPlan({ outDir: root }))).rejects.toThrow("Refusing to overwrite");
+      await expect(writeProjectInitFiles(createProjectInitPlan({ outDir: root }), { force: true })).resolves.toMatchObject({ outDir: root });
+    } finally {
+      log.mockRestore();
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
 

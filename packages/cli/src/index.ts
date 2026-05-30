@@ -400,6 +400,19 @@ interface AdapterScaffoldPlan {
   files: AdapterScaffoldFile[];
 }
 
+interface ProjectInitFile {
+  path: string;
+  content: string;
+}
+
+interface ProjectInitPlan {
+  adapter: string;
+  outDir: string;
+  files: ProjectInitFile[];
+  installHint: string;
+  notes: string[];
+}
+
 type AdapterScaffoldDomain = Extract<CapsuleDomain, "sandbox" | "job" | "service" | "edge" | "database" | "preview" | "machine">;
 
 const adapterScaffoldDomains = ["sandbox", "job", "service", "edge", "database", "preview", "machine"] as const satisfies readonly AdapterScaffoldDomain[];
@@ -1909,6 +1922,59 @@ describe("${segment} adapter", () => {
   return { provider: segment, packageName, factoryName, packageDir, domains, files };
 }
 
+function adapterPackageName(adapter: string): string {
+  if (adapter.startsWith("mock-")) {
+    return "@capsule/adapter-mock";
+  }
+  return `@capsule/adapter-${toPackageSegment(adapter)}`;
+}
+
+export function createProjectInitPlan(options: { adapter?: string; outDir?: string } = {}): ProjectInitPlan {
+  const adapter = options.adapter ?? "docker";
+  const outDir = options.outDir ?? ".";
+  const config = {
+    $schema: "https://capsule.dev/schemas/capsule.config.schema.json",
+    adapter,
+    policyFile: "capsule.policy.json",
+    receipts: {
+      enabled: true,
+      path: ".capsule/receipts.jsonl"
+    }
+  };
+  const policy: CapsulePolicy = {
+    network: { mode: "none" },
+    secrets: {
+      allowed: [],
+      redactFromLogs: true,
+      redactionProfile: "strict"
+    },
+    limits: {
+      timeoutMs: 60_000,
+      maxStdoutBytes: 1_048_576,
+      maxStderrBytes: 1_048_576
+    },
+    ttl: {
+      maxMs: 86_400_000
+    }
+  };
+  return {
+    adapter,
+    outDir,
+    files: [
+      {
+        path: join(outDir, "capsule.config.json"),
+        content: `${JSON.stringify(config, null, 2)}\n`
+      },
+      {
+        path: join(outDir, "capsule.policy.json"),
+        content: `${JSON.stringify(policy, null, 2)}\n`
+      }
+    ],
+    installHint: `pnpm add @capsule/core ${adapterPackageName(adapter)}`,
+    notes: ["No secrets were written; configure provider credentials through environment variables or provider-native auth."]
+  };
+}
+
 async function exists(path: string): Promise<boolean> {
   try {
     await access(path);
@@ -1922,6 +1988,19 @@ export async function writeAdapterScaffold(plan: AdapterScaffoldPlan, options: {
   for (const file of plan.files) {
     if (!options.force && (await exists(file.path))) {
       throw new Error(`Refusing to overwrite ${file.path}. Re-run with --force to replace scaffold files.`);
+    }
+  }
+  for (const file of plan.files) {
+    await mkdir(dirname(file.path), { recursive: true });
+    await writeFile(file.path, file.content, "utf8");
+  }
+  return plan;
+}
+
+export async function writeProjectInitFiles(plan: ProjectInitPlan, options: { force?: boolean } = {}): Promise<ProjectInitPlan> {
+  for (const file of plan.files) {
+    if (!options.force && (await exists(file.path))) {
+      throw new Error(`Refusing to overwrite ${file.path}. Re-run with --force to replace project init files.`);
     }
   }
   for (const file of plan.files) {
@@ -1959,6 +2038,7 @@ Commands:
   capsule receipt verify --receipt-file .capsule/receipts.jsonl
   capsule preview create --config-file preview.json --cleanup-file .capsule/preview-cleanup.json
   capsule preview destroy --cleanup-file .capsule/preview-cleanup.json
+  capsule init --adapter docker --out-dir .
   capsule adapter scaffold acme --domain sandbox
   capsule select provider --recipe sandbox
   capsule select provider --recipe service-api
@@ -2256,6 +2336,12 @@ export async function main(argv: string[]): Promise<void> {
       const plan = createAdapterScaffoldPlan({ provider, domains: parsed.domains ?? [], outDir: parsed.outDir });
       await writeAdapterScaffold(plan, { force: parsed.force });
       console.log(JSON.stringify({ provider: plan.provider, packageName: plan.packageName, packageDir: plan.packageDir, files: plan.files.map((file) => file.path) }, null, 2));
+      return;
+    }
+    case "init": {
+      const plan = createProjectInitPlan({ adapter: parsed.adapter, outDir: parsed.outDir });
+      await writeProjectInitFiles(plan, { force: parsed.force });
+      console.log(JSON.stringify({ adapter: plan.adapter, outDir: plan.outDir, files: plan.files.map((file) => file.path), installHint: plan.installHint, notes: plan.notes }, null, 2));
       return;
     }
     case "select": {
