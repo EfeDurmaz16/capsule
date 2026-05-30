@@ -21,3 +21,18 @@ Required repository secret:
 - `NPM_TOKEN`: npm automation token with publish permission for the `@capsule` scope.
 
 Before publishing, CI runs `pnpm release:audit` to check that public packages have explicit `publishConfig.access=public`, a narrow `files` allowlist, built `dist` entrypoints, and no example or harness package is publishable.
+
+## Release Notes
+
+Use [the release notes template](../docs/release-notes-template.md) when preparing a Changesets release PR, GitHub release, or npm publish summary. Group changes by domain so users can quickly separate core policy/receipt changes, provider adapter behavior, CLI and example updates, documentation-only changes, security/evidence implications, and breaking changes.
+
+Every release note should include the exact verification commands that ran for the release. At minimum, include:
+
+```bash
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm release:audit
+pnpm docs:api
+git diff --exit-code docs/api-reference.md
+```
