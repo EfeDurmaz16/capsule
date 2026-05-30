@@ -652,6 +652,67 @@ describe("receipts", () => {
     expect(receiptStore.receipts[0]?.type).toBe("sandbox.create");
   });
 
+  test("rejects adapter receipts outside the active operation scope", async () => {
+    const receiptStore = new MemoryReceiptStore();
+    const dishonestAdapter: CapsuleAdapter = {
+      ...adapter,
+      capabilities: {
+        ...capabilities,
+        service: {
+          deploy: "unsupported",
+          update: "unsupported",
+          delete: "native",
+          status: "unsupported",
+          logs: "unsupported",
+          url: "unsupported"
+        }
+      },
+      service: {
+        deploy: async () => ({ id: "svc_123", provider: "test", name: "svc", status: "ready" }),
+        delete: async (_spec, context) => {
+          context.createReceipt({ type: "job.run", capabilityPath: "job.run", startedAt: new Date("2026-01-01T00:00:00.000Z") });
+          return { id: "svc_123", provider: "test", status: "deleted" };
+        }
+      }
+    };
+    const capsule = new Capsule({ adapter: dishonestAdapter, receipts: true, receiptStore });
+
+    await expect(capsule.service.delete({ id: "svc_123" })).rejects.toThrow("outside active operation receipt scope");
+    expect(receiptStore.receipts).toEqual([]);
+  });
+
+  test("allows only sandbox lifecycle receipts on sandbox contexts", async () => {
+    const receiptStore = new MemoryReceiptStore();
+    const sandboxAdapter: CapsuleAdapter = {
+      ...adapter,
+      sandbox: {
+        create: async (_spec, context) => {
+          context.createReceipt({ type: "sandbox.create", capabilityPath: "sandbox.create", startedAt: new Date("2026-01-01T00:00:00.000Z") });
+          return {
+            handle: { id: "box", provider: "test", createdAt: new Date("2026-01-01T00:00:00.000Z").toISOString() },
+            exec: async () => {
+              const receipt = context.createReceipt({ type: "sandbox.exec", capabilityPath: "sandbox.exec", startedAt: new Date("2026-01-01T00:00:01.000Z") });
+              return { exitCode: 0, stdout: "ok", stderr: "", logs: [], artifacts: [], receipt };
+            },
+            writeFile: async () => undefined,
+            readFile: async () => new Uint8Array(),
+            listFiles: async () => [],
+            destroy: async () => {
+              context.createReceipt({ type: "sandbox.destroy", capabilityPath: "sandbox.destroy", startedAt: new Date("2026-01-01T00:00:02.000Z") });
+            }
+          };
+        }
+      }
+    };
+    const capsule = new Capsule({ adapter: sandboxAdapter, receipts: true, receiptStore });
+
+    const box = await capsule.sandbox.create({});
+    await box.exec({ command: ["node", "-e", "console.log(1)"] });
+    await box.destroy();
+
+    expect(receiptStore.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create", "sandbox.exec", "sandbox.destroy"]);
+  });
+
   test("continues when best-effort receipt persistence fails", async () => {
     const receiptAdapter: CapsuleAdapter = {
       ...adapter,
