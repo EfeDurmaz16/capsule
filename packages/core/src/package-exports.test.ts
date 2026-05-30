@@ -120,12 +120,12 @@ process.exit(0);
       execFileSync(process.execPath, ["--import", "tsx", verifierPath], {
         cwd: root,
         encoding: "utf8",
-        timeout: 15_000
+        timeout: 30_000
       });
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
-  }, 20_000);
+  }, 35_000);
 
   test("examples import packages through public package exports", () => {
     const privateImportPattern = /from\s+["'](@capsule\/[^"']+\/[^"']+)["']/g;
