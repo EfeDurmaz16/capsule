@@ -421,7 +421,8 @@ describe("policy", () => {
       },
       service: {
         deploy: async () => ({ id: "svc_123", provider: "test", name: "svc", status: "ready" }),
-        delete: async () => {
+        delete: async (_spec, context) => {
+          context.evaluatePolicy();
           called = true;
           return { id: "svc_123", provider: "test", status: "deleted" };
         }

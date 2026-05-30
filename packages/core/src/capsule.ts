@@ -1,6 +1,6 @@
 import { UnsupportedCapabilityError } from "./errors.js";
 import { explainSupportLevel, supportLevel, supports, type CapabilityPath } from "./capabilities.js";
-import { evaluatePolicy, mergeTimeout } from "./policy.js";
+import { evaluatePolicy, mergeTimeout, type PolicyInput } from "./policy.js";
 import { createReceipt } from "./receipts.js";
 import type { AdapterContext, CapsuleAdapter } from "./adapters.js";
 import type { ReceiptPersistenceMode, ReceiptStore } from "./stores.js";
@@ -69,11 +69,13 @@ export class Capsule {
         if (!this.options.adapter.sandbox) {
           throw new UnsupportedCapabilityError("sandbox.create");
         }
-        return this.withContext((context) =>
-          this.options.adapter.sandbox!.create(
-            { ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) },
-            context
-          )
+        return this.withContext(
+          (context) =>
+            this.options.adapter.sandbox!.create(
+              { ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) },
+              context
+            ),
+          { approval: spec.approval }
         );
       }
     };
@@ -85,7 +87,7 @@ export class Capsule {
         if (!this.options.adapter.job) {
           throw new UnsupportedCapabilityError("job.run");
         }
-        return this.withContext((context) => this.options.adapter.job!.run({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, context));
+        return this.withContext((context) => this.options.adapter.job!.run({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, context), { approval: spec.approval });
       },
       status: async (spec: JobStatusSpec) => {
         this.require("job.status");
@@ -100,7 +102,7 @@ export class Capsule {
         if (!this.options.adapter.job?.cancel) {
           throw new UnsupportedCapabilityError("job.cancel");
         }
-        return this.withContext((context) => this.options.adapter.job!.cancel!(spec, context));
+        return this.withContext((context) => this.options.adapter.job!.cancel!(spec, context), { approval: spec.approval });
       },
       logs: async (spec: JobLogsSpec) => {
         this.require("job.logs");
@@ -118,7 +120,7 @@ export class Capsule {
         if (!this.options.adapter.service) {
           throw new UnsupportedCapabilityError("service.deploy");
         }
-        return this.withContext((context) => this.options.adapter.service!.deploy(spec, context));
+        return this.withContext((context) => this.options.adapter.service!.deploy(spec, context), { approval: spec.approval });
       },
       status: async (spec: ServiceStatusSpec) => {
         this.require("service.status");
@@ -133,7 +135,7 @@ export class Capsule {
         if (!this.options.adapter.service?.update) {
           throw new UnsupportedCapabilityError("service.update");
         }
-        return this.withContext((context) => this.options.adapter.service!.update!(spec, context));
+        return this.withContext((context) => this.options.adapter.service!.update!(spec, context), { approval: spec.approval });
       },
       rollback: async (spec: RollbackServiceSpec) => {
         this.require("service.rollback");
@@ -141,7 +143,7 @@ export class Capsule {
         if (!this.options.adapter.service?.rollback) {
           throw new UnsupportedCapabilityError("service.rollback");
         }
-        return this.withContext((context) => this.options.adapter.service!.rollback!(spec, context));
+        return this.withContext((context) => this.options.adapter.service!.rollback!(spec, context), { approval: spec.approval });
       },
       delete: async (spec: DeleteServiceSpec) => {
         this.require("service.delete");
@@ -149,7 +151,7 @@ export class Capsule {
         if (!this.options.adapter.service?.delete) {
           throw new UnsupportedCapabilityError("service.delete");
         }
-        return this.withContext((context) => this.options.adapter.service!.delete!(spec, context));
+        return this.withContext((context) => this.options.adapter.service!.delete!(spec, context), { approval: spec.approval });
       },
       logs: async (spec: ServiceLogsSpec) => {
         this.require("service.logs");
@@ -167,7 +169,7 @@ export class Capsule {
         if (!this.options.adapter.edge) {
           throw new UnsupportedCapabilityError("edge.deploy");
         }
-        return this.withContext((context) => this.options.adapter.edge!.deploy(spec, context));
+        return this.withContext((context) => this.options.adapter.edge!.deploy(spec, context), { approval: spec.approval });
       },
       status: async (spec: EdgeStatusSpec) => {
         this.require("edge.status");
@@ -182,7 +184,7 @@ export class Capsule {
         if (!this.options.adapter.edge?.version) {
           throw new UnsupportedCapabilityError("edge.version");
         }
-        return this.withContext((context) => this.options.adapter.edge!.version!(spec, context));
+        return this.withContext((context) => this.options.adapter.edge!.version!(spec, context), { approval: spec.approval });
       },
       release: async (spec: ReleaseEdgeVersionSpec) => {
         this.require("edge.release");
@@ -190,7 +192,7 @@ export class Capsule {
         if (!this.options.adapter.edge?.release) {
           throw new UnsupportedCapabilityError("edge.release");
         }
-        return this.withContext((context) => this.options.adapter.edge!.release!(spec, context));
+        return this.withContext((context) => this.options.adapter.edge!.release!(spec, context), { approval: spec.approval });
       },
       rollback: async (spec: RollbackEdgeSpec) => {
         this.require("edge.rollback");
@@ -198,7 +200,7 @@ export class Capsule {
         if (!this.options.adapter.edge?.rollback) {
           throw new UnsupportedCapabilityError("edge.rollback");
         }
-        return this.withContext((context) => this.options.adapter.edge!.rollback!(spec, context));
+        return this.withContext((context) => this.options.adapter.edge!.rollback!(spec, context), { approval: spec.approval });
       },
       logs: async (spec: EdgeLogsSpec) => {
         this.require("edge.logs");
@@ -217,7 +219,7 @@ export class Capsule {
           if (!this.options.adapter.database) {
             throw new UnsupportedCapabilityError("database.branchCreate");
           }
-          return this.withContext((context) => this.options.adapter.database!.branch.create(spec, context));
+          return this.withContext((context) => this.options.adapter.database!.branch.create(spec, context), { approval: spec.approval });
         },
         delete: async (spec: DeleteDatabaseBranchSpec) => {
           this.require("database.branchDelete");
@@ -225,7 +227,7 @@ export class Capsule {
           if (!this.options.adapter.database?.branch.delete) {
             throw new UnsupportedCapabilityError("database.branchDelete");
           }
-          return this.withContext((context) => this.options.adapter.database!.branch.delete!(spec, context));
+          return this.withContext((context) => this.options.adapter.database!.branch.delete!(spec, context), { approval: spec.approval });
         },
         reset: async (spec: ResetDatabaseBranchSpec) => {
           this.require("database.branchReset");
@@ -233,7 +235,7 @@ export class Capsule {
           if (!this.options.adapter.database?.branch.reset) {
             throw new UnsupportedCapabilityError("database.branchReset");
           }
-          return this.withContext((context) => this.options.adapter.database!.branch.reset!(spec, context));
+          return this.withContext((context) => this.options.adapter.database!.branch.reset!(spec, context), { approval: spec.approval });
         }
       },
       migrate: async (spec: MigrateDatabaseSpec) => {
@@ -242,7 +244,7 @@ export class Capsule {
         if (!this.options.adapter.database?.migrate) {
           throw new UnsupportedCapabilityError("database.migrate");
         }
-        return this.withContext((context) => this.options.adapter.database!.migrate!({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, context));
+        return this.withContext((context) => this.options.adapter.database!.migrate!({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, context), { approval: spec.approval });
       }
     };
 
@@ -253,7 +255,7 @@ export class Capsule {
         if (!this.options.adapter.preview) {
           throw new UnsupportedCapabilityError("preview.create");
         }
-        return this.withContext((context) => this.options.adapter.preview!.create(spec, context));
+        return this.withContext((context) => this.options.adapter.preview!.create(spec, context), { approval: spec.approval });
       },
       destroy: async (spec: DestroyPreviewSpec) => {
         this.require("preview.destroy");
@@ -261,7 +263,7 @@ export class Capsule {
         if (!this.options.adapter.preview?.destroy) {
           throw new UnsupportedCapabilityError("preview.destroy");
         }
-        return this.withContext((context) => this.options.adapter.preview!.destroy!(spec, context));
+        return this.withContext((context) => this.options.adapter.preview!.destroy!(spec, context), { approval: spec.approval });
       },
       status: async (spec: PreviewStatusSpec) => {
         this.require("preview.status");
@@ -290,7 +292,7 @@ export class Capsule {
         if (!this.options.adapter.preview?.cleanup) {
           throw new UnsupportedCapabilityError("preview.cleanup");
         }
-        return this.withContext((context) => this.options.adapter.preview!.cleanup!(spec, context));
+        return this.withContext((context) => this.options.adapter.preview!.cleanup!(spec, context), { approval: spec.approval });
       }
     };
 
@@ -301,7 +303,7 @@ export class Capsule {
         if (!this.options.adapter.machine) {
           throw new UnsupportedCapabilityError("machine.create");
         }
-        return this.withContext((context) => this.options.adapter.machine!.create(spec, context));
+        return this.withContext((context) => this.options.adapter.machine!.create(spec, context), { approval: spec.approval });
       },
       status: async (spec: MachineStatusSpec) => {
         this.require("machine.status");
@@ -316,7 +318,7 @@ export class Capsule {
         if (!this.options.adapter.machine?.start) {
           throw new UnsupportedCapabilityError("machine.start");
         }
-        return this.withContext((context) => this.options.adapter.machine!.start!(spec, context));
+        return this.withContext((context) => this.options.adapter.machine!.start!(spec, context), { approval: spec.approval });
       },
       stop: async (spec: StopMachineSpec) => {
         this.require("machine.stop");
@@ -324,7 +326,7 @@ export class Capsule {
         if (!this.options.adapter.machine?.stop) {
           throw new UnsupportedCapabilityError("machine.stop");
         }
-        return this.withContext((context) => this.options.adapter.machine!.stop!(spec, context));
+        return this.withContext((context) => this.options.adapter.machine!.stop!(spec, context), { approval: spec.approval });
       },
       destroy: async (spec: DestroyMachineSpec) => {
         this.require("machine.destroy");
@@ -332,7 +334,7 @@ export class Capsule {
         if (!this.options.adapter.machine?.destroy) {
           throw new UnsupportedCapabilityError("machine.destroy");
         }
-        return this.withContext((context) => this.options.adapter.machine!.destroy!(spec, context));
+        return this.withContext((context) => this.options.adapter.machine!.destroy!(spec, context), { approval: spec.approval });
       }
     };
   }
@@ -361,9 +363,9 @@ export class Capsule {
     return this.options.policy ?? {};
   }
 
-  private async withContext<T>(operation: (context: AdapterContext) => Promise<T>): Promise<T> {
+  private async withContext<T>(operation: (context: AdapterContext) => Promise<T>, policyDefaults: PolicyInput = {}): Promise<T> {
     const pendingWrites: Promise<void>[] = [];
-    const context = this.context(pendingWrites);
+    const context = this.context(pendingWrites, policyDefaults);
     const result = await operation(context);
     if (this.receiptPersistenceMode() === "required") {
       await Promise.all(pendingWrites);
@@ -402,13 +404,13 @@ export class Capsule {
     return Promise.resolve();
   }
 
-  private context(pendingWrites: Promise<void>[]): AdapterContext {
+  private context(pendingWrites: Promise<void>[], policyDefaults: PolicyInput): AdapterContext {
     const adapter = this.options.adapter;
     return {
       receipts: this.options.receipts ?? false,
       policy: this.options.policy ?? {},
       supportLevel: (path: string) => supportLevel(adapter.capabilities, path as CapabilityPath),
-      evaluatePolicy: (input = {}) => evaluatePolicy(this.options.policy, input),
+      evaluatePolicy: (input = {}) => evaluatePolicy(this.options.policy, { ...input, approval: input.approval ?? policyDefaults.approval }),
       createReceipt: (input) => {
         const receipt = createReceipt(
           {
