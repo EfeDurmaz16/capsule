@@ -31,6 +31,40 @@ Cleanup evidence is explicit. Every resource gets a cleanup disposition:
 
 `createPreviewEnvironmentWithCleanup(...)` attempts cleanup when creation fails after earlier resources were provisioned. The cleanup result includes underlying provider receipts plus an orchestration-level `preview.cleanup` receipt from `@capsule/preview`. That receipt summarizes the cleanup status and per-resource dispositions. Provider receipts remain the strongest evidence for what happened at each provider; preview orchestration does not claim provider-native preview support unless an adapter exposes it.
 
+## CLI
+
+The CLI can run the same composition model from a JSON config file and persist a serializable cleanup plan:
+
+```bash
+capsule preview create --config-file preview.json --cleanup-file .capsule/preview-cleanup.json
+capsule preview destroy --cleanup-file .capsule/preview-cleanup.json
+```
+
+Minimal config:
+
+```json
+{
+  "name": "pr-70",
+  "requireRealProviders": true,
+  "allowMockProviders": true,
+  "databases": [
+    {
+      "adapter": "mock-neon",
+      "spec": {
+        "project": "app",
+        "name": "pr-70-db"
+      }
+    }
+  ]
+}
+```
+
+Each resource entry has an `adapter`, optional adapter `options`, and a domain spec. Supported top-level arrays are `databases`, `services`, `edges`, and `jobs`. Real provider configs use the same adapter names as the rest of the CLI, for example `neon`, `cloud-run`, `cloudflare`, `vercel`, `kubernetes`, `ecs`, or `azure-container-apps`.
+
+The cleanup file uses schema `capsule.preview.cleanup.v1`. It stores the preview identity, resource graph, cleanup capability path, adapter name, adapter options, and cleanup spec. It does not serialize `Capsule` instances or provider clients, and database connection strings are not written into the cleanup plan.
+
+`preview destroy` rebuilds the required Capsule instances from the recorded cleanup actions, walks the resource graph in reverse order through `@capsule/preview`, prints cleanup dispositions, and exits non-zero for partial cleanup.
+
 ## Example
 
 `examples/preview-environment-model` demonstrates both modes without blurring them:

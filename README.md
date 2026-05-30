@@ -204,6 +204,7 @@ Mock modeling package:
 - [AI framework wrappers](docs/ai-framework-wrappers.md)
 - [Provider matrix](docs/provider-matrix.md)
 - [Provider selection](docs/provider-selection.md)
+- [Preview environments](docs/preview-environments.md)
 - [Real provider quickstarts](docs/real-provider-quickstarts.md)
 - [Live provider tests](docs/live-tests.md)
 - [Publish readiness](docs/publish-readiness.md)
@@ -271,7 +272,7 @@ Before removing the `npm-not_published_yet` badge or treating the install comman
 - `@capsule/preview`: preview environment composition helpers for Capsule-backed services, edges, database branches, and jobs.
 - `@capsule/store-jsonl`: local append-only JSONL receipt persistence.
 - `@capsule/store-sqlite`: optional Node 24 SQLite receipt persistence for local audit trails and indexed receipt lookup.
-- `@capsule/cli`: small CLI with `doctor`, `verify providers`, `classify provider`, `adapter scaffold`, `capabilities`, `run`, and `sandbox`.
+- `@capsule/cli`: small CLI with `doctor`, `verify providers`, `classify provider`, `adapter scaffold`, `capabilities`, `policy explain`, `receipt verify`, `preview create`, `preview destroy`, `run`, and `sandbox`.
 
 ## Examples
 

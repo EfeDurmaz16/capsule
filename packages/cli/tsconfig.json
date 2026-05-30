@@ -18,9 +18,11 @@
     { "path": "../adapter-fly" },
     { "path": "../adapter-kubernetes" },
     { "path": "../adapter-lambda" },
+    { "path": "../adapter-mock" },
     { "path": "../adapter-modal" },
     { "path": "../adapter-neon" },
     { "path": "../adapter-vercel" },
+    { "path": "../preview" },
     { "path": "../store-jsonl" }
   ],
   "include": ["src"]

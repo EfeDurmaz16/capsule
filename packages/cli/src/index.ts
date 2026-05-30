@@ -18,16 +18,37 @@ import {
   type CapabilityDiffEntry,
   type CapabilityMap,
   type CapabilityPath,
+  type CapsuleAdapter,
   type CapsuleDomain,
   type CapsulePolicy,
+  type CapsuleReceipt,
   type ClassifyProviderServiceResult,
+  type CreateDatabaseBranchSpec,
+  type CreatePreviewSpec,
+  type DeployEdgeSpec,
+  type DeployServiceSpec,
   type PolicyInput,
+  type PreviewEnvironment,
   type ProviderSelectionRecipe,
   type ProviderSelectionRecipeId,
   type ProviderSelectionResult,
   type ProviderCompatibilityScore,
+  type RunJobSpec,
   type SupportLevelExplanation
 } from "@capsule/core";
+import {
+  mockCloudRun,
+  mockCloudflare,
+  mockDaytona,
+  mockE2B,
+  mockEC2,
+  mockECS,
+  mockKubernetes,
+  mockLambda,
+  mockModal,
+  mockNeon,
+  mockVercel
+} from "@capsule/adapter-mock";
 import { azureContainerApps } from "@capsule/adapter-azure-container-apps";
 import { cloudflare } from "@capsule/adapter-cloudflare";
 import { cloudRun } from "@capsule/adapter-cloud-run";
@@ -41,6 +62,14 @@ import { kubernetes } from "@capsule/adapter-kubernetes";
 import { lambda } from "@capsule/adapter-lambda";
 import { modal } from "@capsule/adapter-modal";
 import { neon } from "@capsule/adapter-neon";
+import {
+  cleanupPreviewEnvironment,
+  createPreviewGraph,
+  type PreviewCleanupDisposition,
+  type PreviewPlan,
+  type PreviewResourceKind,
+  type PreviewResourceRecord
+} from "@capsule/preview";
 import { vercel } from "@capsule/adapter-vercel";
 import { jsonlReceiptStore } from "@capsule/store-jsonl";
 
@@ -55,6 +84,8 @@ interface ParsedArgs {
   capability?: string;
   policyFile?: string;
   specFile?: string;
+  configFile?: string;
+  cleanupFile?: string;
   domains?: string[];
   outDir?: string;
   receiptFile?: string;
@@ -216,6 +247,86 @@ interface ReceiptVerifyReport {
   >;
 }
 
+interface PreviewConfigResource<TSpec> {
+  adapter: string;
+  options?: Record<string, unknown>;
+  spec: TSpec;
+}
+
+interface PreviewConfigFile {
+  name: string;
+  source?: CreatePreviewSpec["source"];
+  ttlMs?: number;
+  requireRealProviders?: boolean;
+  allowMockProviders?: boolean;
+  labels?: Record<string, string>;
+  databases?: Array<PreviewConfigResource<CreateDatabaseBranchSpec>>;
+  services?: Array<PreviewConfigResource<DeployServiceSpec>>;
+  edges?: Array<PreviewConfigResource<DeployEdgeSpec>>;
+  jobs?: Array<PreviewConfigResource<RunJobSpec>>;
+}
+
+interface SerializedPreviewCleanupAction {
+  kind: PreviewResourceKind;
+  adapter: string;
+  options?: Record<string, unknown>;
+  capabilityPath: string;
+  spec: Record<string, unknown>;
+}
+
+interface SerializedPreviewResourceRecord {
+  type: string;
+  kind: PreviewResourceKind;
+  id: string;
+  provider: string;
+  name?: string;
+  url?: string;
+  status?: string;
+  receipt?: CapsuleReceipt;
+  cleanup?: SerializedPreviewCleanupAction;
+  cleanupDisposition?: PreviewCleanupDisposition;
+}
+
+interface PreviewCleanupPlanFile {
+  schema: "capsule.preview.cleanup.v1";
+  createdAt: string;
+  preview: PreviewEnvironment;
+  resources: SerializedPreviewResourceRecord[];
+}
+
+interface PreviewCreateReport {
+  preview: PreviewEnvironment;
+  resources: SerializedPreviewResourceRecord[];
+  receipts: CapsuleReceipt[];
+  cleanupPlan: {
+    schema: PreviewCleanupPlanFile["schema"];
+    path?: string;
+    resourceCount: number;
+    cleanupActionCount: number;
+    unsupportedCleanupCount: number;
+  };
+}
+
+interface PreviewDestroyReport {
+  previewId: string;
+  status: "cleaned" | "partial";
+  summary: {
+    cleaned: number;
+    failed: number;
+    unsupported: number;
+    leaked: number;
+  };
+  dispositions: Array<{
+    resource: SerializedPreviewResourceRecord;
+    disposition: PreviewCleanupDisposition;
+    receipt?: CapsuleReceipt;
+    error?: string;
+    notes?: string[];
+  }>;
+  receipts: CapsuleReceipt[];
+  receipt: CapsuleReceipt;
+}
+
 interface ProviderSelectionReport {
   recipe: ProviderSelectionRecipe;
   results: ProviderSelectionResult[];
@@ -297,6 +408,20 @@ const liveTestFlakyRevalidationEnv = "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY";
 const liveTestCiOptInEnv = "CAPSULE_LIVE_TEST_CI_OPT_IN";
 const liveTestCiUntrustedForkEnv = "CAPSULE_LIVE_TEST_UNTRUSTED_FORK";
 const liveTestCiLabel = "capsule:live-tests";
+const previewCleanupPlanSchema = "capsule.preview.cleanup.v1" as const;
+const mockAdapterFactories: Record<string, () => CapsuleAdapter> = {
+  "mock-e2b": mockE2B,
+  "mock-daytona": mockDaytona,
+  "mock-modal": mockModal,
+  "mock-cloud-run": mockCloudRun,
+  "mock-vercel": mockVercel,
+  "mock-cloudflare": mockCloudflare,
+  "mock-neon": mockNeon,
+  "mock-lambda": mockLambda,
+  "mock-ecs": mockECS,
+  "mock-kubernetes": mockKubernetes,
+  "mock-ec2": mockEC2
+};
 
 const credentialRequirements: CredentialRequirement[] = [
   { provider: "e2b", requiredAll: ["E2B_API_KEY"] },
@@ -534,6 +659,16 @@ export function parse(argv: string[]): ParsedArgs {
     }
     if (arg === "--spec-file") {
       parsed.specFile = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--config-file") {
+      parsed.configFile = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--cleanup-file") {
+      parsed.cleanupFile = args[index + 1];
       index += 1;
       continue;
     }
@@ -1001,6 +1136,335 @@ async function createReceiptVerifyReport(parsed: ParsedArgs): Promise<ReceiptVer
       receipts: []
     };
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function assertRecordValue(value: unknown, label: string): Record<string, unknown> {
+  if (!isRecord(value)) {
+    throw new Error(`${label} must be a JSON object.`);
+  }
+  return value;
+}
+
+function assertStringValue(value: unknown, label: string): string {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error(`${label} must be a non-empty string.`);
+  }
+  return value;
+}
+
+function optionalBooleanValue(value: unknown, label: string): boolean | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "boolean") {
+    throw new Error(`${label} must be a boolean.`);
+  }
+  return value;
+}
+
+function optionalNumberValue(value: unknown, label: string): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`${label} must be a finite number.`);
+  }
+  return value;
+}
+
+function optionalObjectValue(value: unknown, label: string): Record<string, unknown> | undefined {
+  if (value === undefined) return undefined;
+  return assertRecordValue(value, label);
+}
+
+function optionalStringRecord(value: unknown, label: string): Record<string, string> | undefined {
+  if (value === undefined) return undefined;
+  const record = assertRecordValue(value, label);
+  for (const [key, entry] of Object.entries(record)) {
+    if (typeof entry !== "string") {
+      throw new Error(`${label}.${key} must be a string.`);
+    }
+  }
+  return record as Record<string, string>;
+}
+
+function previewConfigResources<TSpec>(value: unknown, label: string): Array<PreviewConfigResource<TSpec>> | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) {
+    throw new Error(`${label} must be an array.`);
+  }
+  return value.map((entry, index) => {
+    const record = assertRecordValue(entry, `${label}[${index}]`);
+    return {
+      adapter: assertStringValue(record.adapter, `${label}[${index}].adapter`),
+      options: optionalObjectValue(record.options, `${label}[${index}].options`),
+      spec: assertRecordValue(record.spec, `${label}[${index}].spec`) as TSpec
+    };
+  });
+}
+
+function validatePreviewConfig(record: Record<string, unknown>, label: string): PreviewConfigFile {
+  return {
+    name: assertStringValue(record.name, `${label}.name`),
+    source: optionalObjectValue(record.source, `${label}.source`) as CreatePreviewSpec["source"] | undefined,
+    ttlMs: optionalNumberValue(record.ttlMs, `${label}.ttlMs`),
+    requireRealProviders: optionalBooleanValue(record.requireRealProviders, `${label}.requireRealProviders`),
+    allowMockProviders: optionalBooleanValue(record.allowMockProviders, `${label}.allowMockProviders`),
+    labels: optionalStringRecord(record.labels, `${label}.labels`),
+    databases: previewConfigResources<CreateDatabaseBranchSpec>(record.databases, `${label}.databases`),
+    services: previewConfigResources<DeployServiceSpec>(record.services, `${label}.services`),
+    edges: previewConfigResources<DeployEdgeSpec>(record.edges, `${label}.edges`),
+    jobs: previewConfigResources<RunJobSpec>(record.jobs, `${label}.jobs`)
+  };
+}
+
+async function readPreviewConfigFile(path: string | undefined): Promise<PreviewConfigFile> {
+  if (!path) {
+    throw new Error("Missing --config-file for preview create.");
+  }
+  return validatePreviewConfig(assertJsonObject(JSON.parse(await readFile(path, "utf8")), path), path);
+}
+
+function previewResourceConfigs(config: PreviewConfigFile): Array<{ kind: PreviewResourceKind; config: PreviewConfigResource<CreateDatabaseBranchSpec | DeployServiceSpec | DeployEdgeSpec | RunJobSpec> }> {
+  return [
+    ...(config.databases ?? []).map((entry) => ({ kind: "database" as const, config: entry })),
+    ...(config.services ?? []).map((entry) => ({ kind: "service" as const, config: entry })),
+    ...(config.edges ?? []).map((entry) => ({ kind: "edge" as const, config: entry })),
+    ...(config.jobs ?? []).map((entry) => ({ kind: "job" as const, config: entry }))
+  ];
+}
+
+const previewAdapterOptionKeys = new Set<keyof ParsedArgs>([
+  "image",
+  "database",
+  "role",
+  "apiUrl",
+  "target",
+  "appName",
+  "compatibilityDate",
+  "workersDevSubdomain",
+  "zoneId",
+  "routes",
+  "projectId",
+  "location",
+  "projectName",
+  "namespace",
+  "context",
+  "kubeconfig",
+  "region",
+  "functionName",
+  "subscriptionId",
+  "resourceGroup",
+  "environmentId",
+  "cluster",
+  "taskDefinition",
+  "containerName",
+  "subnets",
+  "securityGroups",
+  "subnetId",
+  "imageId",
+  "instanceType"
+]);
+
+function parsedArgsFromPreviewAdapterConfig(adapter: string, options: Record<string, unknown> | undefined): ParsedArgs {
+  const parsed: ParsedArgs = { adapter, rest: [] };
+  for (const [key, value] of Object.entries(options ?? {})) {
+    if (!previewAdapterOptionKeys.has(key as keyof ParsedArgs)) {
+      throw new Error(`Unsupported preview adapter option "${key}" for ${adapter}.`);
+    }
+    (parsed as unknown as Record<string, unknown>)[key] = value;
+  }
+  return parsed;
+}
+
+function createPreviewCapsule(config: { adapter: string; options?: Record<string, unknown> }): Capsule {
+  const mockFactory = mockAdapterFactories[config.adapter];
+  if (mockFactory) {
+    return new Capsule({ adapter: mockFactory(), receipts: true });
+  }
+  return createCapsule(parsedArgsFromPreviewAdapterConfig(config.adapter, config.options));
+}
+
+function createPreviewPlanFromConfig(config: PreviewConfigFile): PreviewPlan {
+  return {
+    name: config.name,
+    source: config.source,
+    ttlMs: config.ttlMs,
+    requireRealProviders: config.requireRealProviders,
+    allowMockProviders: config.allowMockProviders,
+    labels: config.labels,
+    databases: config.databases?.map((entry) => ({ capsule: createPreviewCapsule(entry), spec: entry.spec })),
+    services: config.services?.map((entry) => ({ capsule: createPreviewCapsule(entry), spec: entry.spec })),
+    edges: config.edges?.map((entry) => ({ capsule: createPreviewCapsule(entry), spec: entry.spec })),
+    jobs: config.jobs?.map((entry) => ({ capsule: createPreviewCapsule(entry), spec: entry.spec }))
+  };
+}
+
+function serializePreviewResourceRecord(resource: PreviewResourceRecord, cleanup?: SerializedPreviewCleanupAction): SerializedPreviewResourceRecord {
+  return {
+    type: resource.type,
+    kind: resource.kind,
+    id: resource.id,
+    provider: resource.provider,
+    name: resource.name,
+    url: resource.url,
+    status: resource.status,
+    receipt: resource.receipt,
+    cleanup,
+    cleanupDisposition: resource.cleanupDisposition
+  };
+}
+
+function serializeCleanupAction(resource: PreviewResourceRecord, config: PreviewConfigResource<unknown> | undefined): SerializedPreviewCleanupAction | undefined {
+  if (!resource.cleanup || !config) {
+    return undefined;
+  }
+  return {
+    kind: resource.cleanup.kind,
+    adapter: config.adapter,
+    options: config.options,
+    capabilityPath: resource.cleanup.capabilityPath,
+    spec: resource.cleanup.spec
+  };
+}
+
+function createPreviewCleanupPlanFile(preview: PreviewEnvironment, resources: PreviewResourceRecord[], config: PreviewConfigFile): PreviewCleanupPlanFile {
+  const configs = previewResourceConfigs(config);
+  return {
+    schema: previewCleanupPlanSchema,
+    createdAt: new Date().toISOString(),
+    preview,
+    resources: resources.map((resource, index) => serializePreviewResourceRecord(resource, serializeCleanupAction(resource, configs[index]?.config)))
+  };
+}
+
+async function createPreviewCreateReport(parsed: ParsedArgs): Promise<PreviewCreateReport> {
+  const config = await readPreviewConfigFile(parsed.configFile);
+  const result = await createPreviewGraph(createPreviewPlanFromConfig(config));
+  const cleanupPlan = createPreviewCleanupPlanFile(result.preview, result.resources, config);
+  if (parsed.cleanupFile) {
+    await mkdir(dirname(parsed.cleanupFile), { recursive: true });
+    await writeFile(parsed.cleanupFile, `${JSON.stringify(cleanupPlan, null, 2)}\n`, "utf8");
+  }
+  const cleanupActionCount = cleanupPlan.resources.filter((resource) => resource.cleanup).length;
+  return {
+    preview: result.preview,
+    resources: cleanupPlan.resources,
+    receipts: result.receipts,
+    cleanupPlan: {
+      schema: cleanupPlan.schema,
+      path: parsed.cleanupFile,
+      resourceCount: cleanupPlan.resources.length,
+      cleanupActionCount,
+      unsupportedCleanupCount: cleanupPlan.resources.length - cleanupActionCount
+    }
+  };
+}
+
+function validatePreviewCleanupPlan(record: Record<string, unknown>, label: string): PreviewCleanupPlanFile {
+  if (record.schema !== previewCleanupPlanSchema) {
+    throw new Error(`${label}.schema must be ${previewCleanupPlanSchema}.`);
+  }
+  const preview = assertRecordValue(record.preview, `${label}.preview`) as unknown as PreviewEnvironment;
+  const resources = record.resources;
+  if (!Array.isArray(resources)) {
+    throw new Error(`${label}.resources must be an array.`);
+  }
+  return {
+    schema: previewCleanupPlanSchema,
+    createdAt: assertStringValue(record.createdAt, `${label}.createdAt`),
+    preview,
+    resources: resources.map((resource, index) => {
+      const entry = assertRecordValue(resource, `${label}.resources[${index}]`);
+      const cleanup = entry.cleanup === undefined ? undefined : (assertRecordValue(entry.cleanup, `${label}.resources[${index}].cleanup`) as unknown as SerializedPreviewCleanupAction);
+      return {
+        type: assertStringValue(entry.type, `${label}.resources[${index}].type`),
+        kind: assertStringValue(entry.kind, `${label}.resources[${index}].kind`) as PreviewResourceKind,
+        id: assertStringValue(entry.id, `${label}.resources[${index}].id`),
+        provider: assertStringValue(entry.provider, `${label}.resources[${index}].provider`),
+        name: typeof entry.name === "string" ? entry.name : undefined,
+        url: typeof entry.url === "string" ? entry.url : undefined,
+        status: typeof entry.status === "string" ? entry.status : undefined,
+        receipt: entry.receipt as CapsuleReceipt | undefined,
+        cleanup,
+        cleanupDisposition: entry.cleanupDisposition as PreviewCleanupDisposition | undefined
+      };
+    })
+  };
+}
+
+async function readPreviewCleanupPlanFile(path: string | undefined): Promise<PreviewCleanupPlanFile> {
+  if (!path) {
+    throw new Error("Missing --cleanup-file for preview destroy.");
+  }
+  return validatePreviewCleanupPlan(assertJsonObject(JSON.parse(await readFile(path, "utf8")), path), path);
+}
+
+function previewResourceKey(resource: { kind: PreviewResourceKind; id: string }): string {
+  return `${resource.kind}:${resource.id}`;
+}
+
+function hydratedCleanupSpec(cleanup: SerializedPreviewCleanupAction, parsed: ParsedArgs): Record<string, unknown> {
+  const spec = { ...cleanup.spec };
+  if (cleanup.kind === "database" && parsed.hardDelete) {
+    spec.hardDelete = true;
+  }
+  if (cleanup.kind === "service") {
+    if (parsed.force) spec.force = true;
+    if (parsed.reason) spec.reason = parsed.reason;
+  }
+  return spec;
+}
+
+function hydratePreviewCleanupResource(resource: SerializedPreviewResourceRecord, parsed: ParsedArgs): PreviewResourceRecord {
+  return {
+    type: resource.type as CapsuleDomain,
+    kind: resource.kind,
+    id: resource.id,
+    provider: resource.provider,
+    name: resource.name,
+    url: resource.url,
+    status: resource.status,
+    receipt: resource.receipt,
+    cleanup: resource.cleanup
+      ? {
+          kind: resource.cleanup.kind,
+          capsule: createPreviewCapsule(resource.cleanup),
+          capabilityPath: resource.cleanup.capabilityPath,
+          spec: hydratedCleanupSpec(resource.cleanup, parsed)
+        }
+      : undefined,
+    cleanupDisposition: resource.cleanupDisposition
+  };
+}
+
+async function createPreviewDestroyReport(parsed: ParsedArgs): Promise<PreviewDestroyReport> {
+  const plan = await readPreviewCleanupPlanFile(parsed.cleanupFile);
+  const sourceByKey = new Map(plan.resources.map((resource) => [previewResourceKey(resource), resource]));
+  const cleanup = await cleanupPreviewEnvironment(plan.preview, plan.resources.map((resource) => hydratePreviewCleanupResource(resource, parsed)));
+  const dispositions = cleanup.dispositions.map((entry) => {
+    const source = sourceByKey.get(previewResourceKey(entry.resource));
+    return {
+      resource: serializePreviewResourceRecord(entry.resource, source?.cleanup),
+      disposition: entry.disposition,
+      receipt: entry.receipt,
+      error: entry.error,
+      notes: entry.notes
+    };
+  });
+  return {
+    previewId: cleanup.previewId,
+    status: cleanup.status,
+    summary: {
+      cleaned: dispositions.filter((entry) => entry.disposition === "cleaned").length,
+      failed: cleanup.failed.length,
+      unsupported: dispositions.filter((entry) => entry.disposition === "unsupported").length,
+      leaked: dispositions.filter((entry) => entry.disposition === "leaked").length
+    },
+    dispositions,
+    receipts: cleanup.receipts,
+    receipt: cleanup.receipt
+  };
 }
 
 export function compareProviderCapabilities(leftProvider: string, rightProvider: string): ProviderCapabilityComparison {
@@ -1493,6 +1957,8 @@ Commands:
   capsule classify provider cloudflare workers
   capsule policy explain --adapter docker --capability job.run --policy-file policy.json --spec-file spec.json
   capsule receipt verify --receipt-file .capsule/receipts.jsonl
+  capsule preview create --config-file preview.json --cleanup-file .capsule/preview-cleanup.json
+  capsule preview destroy --cleanup-file .capsule/preview-cleanup.json
   capsule adapter scaffold acme --domain sandbox
   capsule select provider --recipe sandbox
   capsule select provider --recipe service-api
@@ -1749,6 +2215,21 @@ export async function main(argv: string[]): Promise<void> {
       console.log(JSON.stringify(report, null, 2));
       process.exitCode = report.summary.valid ? 0 : 1;
       return;
+    }
+    case "preview": {
+      const action = parsed.rest[0];
+      if (action === "create") {
+        console.log(JSON.stringify(await createPreviewCreateReport(parsed), null, 2));
+        process.exitCode = 0;
+        return;
+      }
+      if (action === "destroy") {
+        const report = await createPreviewDestroyReport(parsed);
+        console.log(JSON.stringify(report, null, 2));
+        process.exitCode = report.status === "cleaned" ? 0 : 1;
+        return;
+      }
+      throw new Error("Unknown preview command. Use create or destroy.");
     }
     case "classify": {
       const action = parsed.rest[0];
