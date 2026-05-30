@@ -132,7 +132,7 @@ Supply-chain note: CAP-P009 gates production licenses and reviewed direct runtim
 | CAP-P062 | done | Medium | Quarantine flaky live tests | Live tests can be marked flaky with reason, last observed failure, owner, and revalidation command; gates, CLI validation, and the dry-run matrix report `quarantined` until `CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1` is set. | `pnpm vitest run packages/test-utils/src/live-tests.test.ts packages/cli/src/index.test.ts && node --test scripts/live-test-matrix.test.mjs` |
 | CAP-P063 | done | Medium | Add minimal credential checker docs | Docs list the minimum credentials for each live adapter and the command that validates them without side effects. | `git diff --check` |
 | CAP-P064 | done | Medium | Add CI-safe live test opt-in | CI live tests run only with `CAPSULE_LIVE_TEST_CI_OPT_IN=1` or the `capsule:live-tests` label, and the shared gate, CLI validator, and dry-run matrix block untrusted fork pull requests. | `git diff --check && pnpm test` |
-| CAP-P065 | open | Low | Add golden live receipt samples | Store sanitized example receipts for each provider to document real metadata shape. | `git diff --check && pnpm release:markers` |
+| CAP-P065 | done | Low | Add golden live receipt samples | Store sanitized example receipts for each live-test provider to document real metadata shape without provider account data or secrets. | `git diff --check && pnpm release:markers` |
 
 ### CLI And Developer Experience
 

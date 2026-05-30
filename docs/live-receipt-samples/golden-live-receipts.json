@@ -1,0 +1,375 @@
+{
+  "description": "Sanitized placeholder Capsule receipts for live provider documentation. These are not captured provider outputs.",
+  "samples": [
+    {
+      "id": "receipt-sample-e2b-sandbox-create",
+      "type": "sandbox.create",
+      "provider": "e2b",
+      "adapter": "@capsule/adapter-e2b",
+      "capabilityPath": "sandbox.create",
+      "supportLevel": "native",
+      "image": "node:22-slim",
+      "startedAt": "2026-05-30T00:00:00.000Z",
+      "finishedAt": "2026-05-30T00:00:01.250Z",
+      "durationMs": 1250,
+      "policy": {
+        "decision": "allowed",
+        "applied": {
+          "secrets": {
+            "redactionProfile": "strict"
+          }
+        },
+        "notes": ["Sanitized golden sample; no provider credentials or account ids are present."]
+      },
+      "resource": {
+        "id": "e2b_sandbox_sample",
+        "name": "capsule-live-e2b-sandbox-sample",
+        "status": "running"
+      },
+      "metadata": {
+        "runtimeVersion": "v24.0.0",
+        "adapterVersion": "0.1.1",
+        "sampleSanitized": true
+      }
+    },
+    {
+      "id": "receipt-sample-daytona-sandbox-create",
+      "type": "sandbox.create",
+      "provider": "daytona",
+      "adapter": "@capsule/adapter-daytona",
+      "capabilityPath": "sandbox.create",
+      "supportLevel": "native",
+      "image": "node:22-slim",
+      "startedAt": "2026-05-30T00:01:00.000Z",
+      "finishedAt": "2026-05-30T00:01:02.000Z",
+      "durationMs": 2000,
+      "policy": {
+        "decision": "allowed",
+        "applied": {
+          "secrets": {
+            "redactionProfile": "strict"
+          }
+        },
+        "notes": ["Sanitized golden sample; provider sandbox state is illustrative."]
+      },
+      "resource": {
+        "id": "daytona-sandbox-sample",
+        "name": "capsule-live-daytona-sandbox-sample",
+        "status": "started"
+      },
+      "metadata": {
+        "runtimeVersion": "v24.0.0",
+        "adapterVersion": "0.1.1",
+        "state": "started",
+        "sampleSanitized": true
+      }
+    },
+    {
+      "id": "receipt-sample-modal-sandbox-exec",
+      "type": "sandbox.exec",
+      "provider": "modal",
+      "adapter": "@capsule/adapter-modal",
+      "capabilityPath": "sandbox.exec",
+      "supportLevel": "native",
+      "command": ["node", "-e", "console.log('capsule live sample')"],
+      "startedAt": "2026-05-30T00:02:00.000Z",
+      "finishedAt": "2026-05-30T00:02:00.600Z",
+      "durationMs": 600,
+      "exitCode": 0,
+      "stdoutHash": "0000000000000000000000000000000000000000000000000000000000000001",
+      "stderrHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "policy": {
+        "decision": "allowed",
+        "applied": {
+          "secrets": {
+            "redactionProfile": "strict"
+          }
+        },
+        "notes": ["Sanitized golden sample; stdout and stderr are represented by hashes only."]
+      },
+      "resource": {
+        "id": "modal-sandbox-sample",
+        "name": "capsule-live-modal-sandbox-sample",
+        "status": "succeeded"
+      },
+      "metadata": {
+        "runtimeVersion": "v24.0.0",
+        "adapterVersion": "0.1.1",
+        "sampleSanitized": true
+      }
+    },
+    {
+      "id": "receipt-sample-cloud-run-service-status",
+      "type": "service.status",
+      "provider": "cloud-run",
+      "adapter": "@capsule/adapter-cloud-run",
+      "capabilityPath": "service.status",
+      "supportLevel": "native",
+      "startedAt": "2026-05-30T00:03:00.000Z",
+      "finishedAt": "2026-05-30T00:03:00.420Z",
+      "durationMs": 420,
+      "policy": {
+        "decision": "allowed",
+        "applied": {},
+        "notes": ["Read-only status sample; no Cloud Run resource is created."]
+      },
+      "resource": {
+        "id": "projects/sample-project/locations/us-central1/services/capsule-sample-service",
+        "name": "capsule-sample-service",
+        "url": "https://capsule-sample-service-us-central1.example.run.app",
+        "status": "ready"
+      },
+      "metadata": {
+        "providerApiVersion": "run.googleapis.com/v2",
+        "providerRegion": "us-central1",
+        "runtimeVersion": "v24.0.0",
+        "adapterVersion": "0.1.1",
+        "providerRequestId": "cloud-run-request-sample",
+        "sampleSanitized": true
+      }
+    },
+    {
+      "id": "receipt-sample-cloudflare-edge-version",
+      "type": "edge.version",
+      "provider": "cloudflare",
+      "adapter": "@capsule/adapter-cloudflare",
+      "capabilityPath": "edge.version",
+      "supportLevel": "native",
+      "startedAt": "2026-05-30T00:04:00.000Z",
+      "finishedAt": "2026-05-30T00:04:01.100Z",
+      "durationMs": 1100,
+      "policy": {
+        "decision": "allowed",
+        "applied": {
+          "secrets": {
+            "redactionProfile": "strict"
+          }
+        },
+        "notes": ["Creates an unreleased Worker version in the live test; no route is released."]
+      },
+      "resource": {
+        "id": "worker-version-sample",
+        "name": "capsule-sample-worker",
+        "status": "created"
+      },
+      "metadata": {
+        "providerApiVersion": "client/v4",
+        "runtimeVersion": "v24.0.0",
+        "adapterVersion": "0.1.1",
+        "providerRequestId": "cloudflare-request-sample",
+        "sampleSanitized": true
+      }
+    },
+    {
+      "id": "receipt-sample-vercel-edge-status",
+      "type": "edge.status",
+      "provider": "vercel",
+      "adapter": "@capsule/adapter-vercel",
+      "capabilityPath": "edge.status",
+      "supportLevel": "native",
+      "startedAt": "2026-05-30T00:05:00.000Z",
+      "finishedAt": "2026-05-30T00:05:00.300Z",
+      "durationMs": 300,
+      "policy": {
+        "decision": "allowed",
+        "applied": {},
+        "notes": ["Read-only deployment status sample; no Vercel resource is created."]
+      },
+      "resource": {
+        "id": "dpl_sample",
+        "name": "capsule-sample-deployment",
+        "url": "https://capsule-sample.vercel.app",
+        "status": "ready"
+      },
+      "metadata": {
+        "providerApiVersion": "v13",
+        "runtimeVersion": "v24.0.0",
+        "adapterVersion": "0.1.1",
+        "providerRequestId": "vercel-request-sample",
+        "sampleSanitized": true
+      }
+    },
+    {
+      "id": "receipt-sample-neon-branch-create",
+      "type": "database.branch.create",
+      "provider": "neon",
+      "adapter": "@capsule/adapter-neon",
+      "capabilityPath": "database.branch.create",
+      "supportLevel": "native",
+      "startedAt": "2026-05-30T00:06:00.000Z",
+      "finishedAt": "2026-05-30T00:06:02.750Z",
+      "durationMs": 2750,
+      "policy": {
+        "decision": "allowed",
+        "applied": {
+          "ttl": {
+            "maxMs": 3600000
+          },
+          "secrets": {
+            "redactionProfile": "strict"
+          }
+        },
+        "notes": ["Connection URI is omitted from the golden sample."]
+      },
+      "resource": {
+        "id": "br-sample",
+        "name": "capsule-live-neon-branch-sample",
+        "status": "ready"
+      },
+      "metadata": {
+        "providerApiVersion": "v2",
+        "runtimeVersion": "v24.0.0",
+        "adapterVersion": "0.1.1",
+        "providerRequestId": "neon-request-sample",
+        "capsule_ttl_ms": "3600000",
+        "sampleSanitized": true
+      }
+    },
+    {
+      "id": "receipt-sample-kubernetes-job-run",
+      "type": "job.run",
+      "provider": "kubernetes",
+      "adapter": "@capsule/adapter-kubernetes",
+      "capabilityPath": "job.run",
+      "supportLevel": "native",
+      "image": "busybox:1.36",
+      "command": ["sh", "-c", "echo capsule live sample"],
+      "startedAt": "2026-05-30T00:07:00.000Z",
+      "finishedAt": "2026-05-30T00:07:01.000Z",
+      "durationMs": 1000,
+      "policy": {
+        "decision": "allowed",
+        "applied": {
+          "secrets": {
+            "redactionProfile": "strict"
+          }
+        },
+        "notes": ["Kubernetes Pod logs are omitted from the golden sample."]
+      },
+      "resource": {
+        "id": "capsule-live-kubernetes-job-sample",
+        "name": "capsule-live-kubernetes-job-sample",
+        "status": "created"
+      },
+      "metadata": {
+        "providerApiVersion": "batch/v1",
+        "runtimeVersion": "v24.0.0",
+        "adapterVersion": "0.1.1",
+        "providerRequestId": "kubernetes-uid-sample",
+        "sampleSanitized": true
+      }
+    },
+    {
+      "id": "receipt-sample-lambda-job-run",
+      "type": "job.run",
+      "provider": "lambda",
+      "adapter": "@capsule/adapter-lambda",
+      "capabilityPath": "job.run",
+      "supportLevel": "native",
+      "startedAt": "2026-05-30T00:08:00.000Z",
+      "finishedAt": "2026-05-30T00:08:00.850Z",
+      "durationMs": 850,
+      "exitCode": 0,
+      "stdoutHash": "0000000000000000000000000000000000000000000000000000000000000002",
+      "stderrHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "policy": {
+        "decision": "allowed",
+        "applied": {
+          "secrets": {
+            "redactionProfile": "strict"
+          }
+        },
+        "notes": ["Log tail content is represented by hashes and sanitized metadata."]
+      },
+      "resource": {
+        "id": "capsule-sample-function",
+        "name": "capsule-sample-function",
+        "status": "succeeded"
+      },
+      "metadata": {
+        "providerApiVersion": "2015-03-31",
+        "providerRegion": "us-east-1",
+        "runtimeVersion": "v24.0.0",
+        "adapterVersion": "0.1.1",
+        "providerRequestId": "lambda-request-sample",
+        "executedVersion": "$LATEST",
+        "sampleSanitized": true
+      }
+    },
+    {
+      "id": "receipt-sample-fly-machine-create",
+      "type": "machine.create",
+      "provider": "fly",
+      "adapter": "@capsule/adapter-fly",
+      "capabilityPath": "machine.create",
+      "supportLevel": "native",
+      "image": "registry.example/capsule-sample:latest",
+      "startedAt": "2026-05-30T00:09:00.000Z",
+      "finishedAt": "2026-05-30T00:09:02.100Z",
+      "durationMs": 2100,
+      "policy": {
+        "decision": "allowed",
+        "applied": {
+          "ttl": {
+            "maxMs": 3600000
+          },
+          "secrets": {
+            "redactionProfile": "strict"
+          }
+        },
+        "notes": ["Fly app name, machine id, and image registry are placeholders."]
+      },
+      "resource": {
+        "id": "fly-machine-sample",
+        "name": "capsule-live-fly-machine-sample",
+        "status": "created"
+      },
+      "metadata": {
+        "providerApiVersion": "machines/v1",
+        "providerRegion": "iad",
+        "runtimeVersion": "v24.0.0",
+        "adapterVersion": "0.1.1",
+        "providerRequestId": "fly-request-sample",
+        "sampleSanitized": true
+      }
+    },
+    {
+      "id": "receipt-sample-azure-container-apps-service-deploy",
+      "type": "service.deploy",
+      "provider": "azure-container-apps",
+      "adapter": "@capsule/adapter-azure-container-apps",
+      "capabilityPath": "service.deploy",
+      "supportLevel": "native",
+      "image": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest",
+      "startedAt": "2026-05-30T00:10:00.000Z",
+      "finishedAt": "2026-05-30T00:10:06.500Z",
+      "durationMs": 6500,
+      "policy": {
+        "decision": "allowed",
+        "applied": {
+          "ttl": {
+            "maxMs": 3600000
+          },
+          "secrets": {
+            "redactionProfile": "strict"
+          }
+        },
+        "notes": ["Subscription id, resource group, and environment id are omitted."]
+      },
+      "resource": {
+        "id": "azure-container-app-sample",
+        "name": "capsule-live-azure-service-sample",
+        "url": "https://capsule-live-azure-service-sample.example.azurecontainerapps.io",
+        "status": "provisioning"
+      },
+      "metadata": {
+        "providerApiVersion": "2025-07-01",
+        "providerRegion": "eastus",
+        "runtimeVersion": "v24.0.0",
+        "adapterVersion": "0.1.1",
+        "providerRequestId": "azure-request-sample",
+        "sampleSanitized": true
+      }
+    }
+  ]
+}
