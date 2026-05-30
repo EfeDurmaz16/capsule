@@ -207,6 +207,12 @@ describe("vercel adapter", () => {
     expect(JSON.parse(String(calls[0]?.init.body))).toEqual({ alias: "preview.example.com", redirect: null });
   });
 
+  it("rejects traffic splits instead of silently moving the full alias", async () => {
+    const capsule = new Capsule({ adapter: vercel({ token: "vercel-token" }) });
+
+    await expect(capsule.edge.release({ versionId: "dpl_123", alias: "preview.example.com", traffic: 10 })).rejects.toThrow("traffic splits are not implemented");
+  });
+
   it("requires a token only when used", async () => {
     const capsule = new Capsule({ adapter: vercel({ token: "" }) });
     await expect(capsule.edge.deploy({ name: "missing", source: { path: await sourceFile() } })).rejects.toThrow("Vercel adapter requires a token");
