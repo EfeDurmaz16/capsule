@@ -15,7 +15,7 @@ import {
 import { createEvidenceBundle, verifyEvidenceBundle } from "./evidence.js";
 import { AdapterExecutionError, UnsupportedCapabilityError, PolicyViolationError, classifyProviderError } from "./errors.js";
 import { capsuleOperationTag, capsuleOperationTags } from "./idempotency.js";
-import { evaluatePolicy, mergeTimeout, redactError, redactLogEntries, redactSecrets } from "./policy.js";
+import { evaluatePolicy, explainPolicy, mergeTimeout, redactError, redactLogEntries, redactSecrets } from "./policy.js";
 import { edgeWorkerPreset, httpServicePreset, nodeJobPreset, nodeSandboxPreset, previewDatabaseBranchPreset, previewEnvironmentPreset } from "./presets.js";
 import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
 import { canonicalReceiptPayload, createReceipt, providerRuntimeMetadata, verifyReceiptSignature } from "./receipts.js";
@@ -538,6 +538,34 @@ describe("policy", () => {
     expect(receiptStore.receipts[0]?.supportLevel).toBe("native");
     expect(replayed.notes).toContain("Adapter support level for service.delete: native.");
     expect(receiptStore.receipts[0]?.policy).toEqual(replayed);
+  });
+
+  test("explains allowed policy decisions without throwing", () => {
+    expect(
+      explainPolicy(
+        { secrets: { allowed: ["SAFE"] } },
+        {
+          capabilityPath: "job.run",
+          supportLevel: "native",
+          env: { SAFE: "ok" }
+        }
+      )
+    ).toMatchObject({
+      decision: "allowed",
+      violations: [],
+      input: {
+        envKeys: ["SAFE"]
+      },
+      notes: ["Adapter support level for job.run: native."]
+    });
+  });
+
+  test("explains denied policy decisions without throwing", () => {
+    expect(explainPolicy({ approvals: { required: true, reason: "production cleanup" } }, { capabilityPath: "service.delete" })).toMatchObject({
+      decision: "denied",
+      reason: "Approval required by policy: production cleanup",
+      violations: ["production cleanup"]
+    });
   });
 
   test("denies ttl-scoped work above the policy maximum", () => {

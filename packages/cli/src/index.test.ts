@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test, vi } from "vitest";
@@ -373,6 +373,72 @@ describe("CLI capability explanations", () => {
       summary: "The adapter/provider exposes this capability, but behavior may still change or be incomplete.",
       guidance: "sandbox.snapshot should be gated behind explicit opt-in, tests, or provider-specific checks."
     });
+  });
+});
+
+describe("CLI policy explain", () => {
+  test("parses policy explain file inputs", () => {
+    expect(parse(["policy", "explain", "--capability", "job.run", "--policy-file", "policy.json", "--spec-file", "spec.json"])).toMatchObject({
+      command: "policy",
+      rest: ["explain"],
+      capability: "job.run",
+      policyFile: "policy.json",
+      specFile: "spec.json"
+    });
+  });
+
+  test("prints denied policy explanation without executing a provider action", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-policy-explain-"));
+    const policyFile = join(root, "policy.json");
+    const specFile = join(root, "spec.json");
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await writeFile(policyFile, JSON.stringify({ approvals: { required: true, reason: "production cleanup" } }), "utf8");
+      await writeFile(specFile, JSON.stringify({ env: { TOKEN: "secret-token" }, resource: { type: "job", name: "nightly" } }), "utf8");
+
+      await main(["policy", "explain", "--adapter", "docker", "--capability", "job.run", "--policy-file", policyFile, "--spec-file", specFile]);
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as {
+        adapter: string;
+        capabilityPath: string;
+        supportLevel: string;
+        policy: { decision: string; reason?: string; violations: string[]; input: { envKeys?: string[] } };
+      };
+
+      expect(output).toMatchObject({
+        adapter: "docker",
+        capabilityPath: "job.run",
+        supportLevel: "native",
+        policy: {
+          decision: "denied",
+          reason: "Approval required by policy: production cleanup",
+          input: { envKeys: ["TOKEN"] },
+          violations: ["production cleanup"]
+        }
+      });
+      expect(JSON.stringify(output)).not.toContain("secret-token");
+    } finally {
+      log.mockRestore();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("explains policy for unsupported adapter capabilities without executing them", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await main(["policy", "explain", "--adapter", "neon", "--capability", "job.run"]);
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as {
+        supportLevel: string;
+        policy: { decision: string; notes: string[] };
+      };
+
+      expect(output.supportLevel).toBe("unsupported");
+      expect(output.policy).toMatchObject({
+        decision: "allowed",
+        notes: ["Adapter support level for job.run: unsupported."]
+      });
+    } finally {
+      log.mockRestore();
+    }
   });
 });
 

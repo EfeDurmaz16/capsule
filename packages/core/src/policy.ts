@@ -11,6 +11,32 @@ export interface PolicyDecision {
   notes: string[];
 }
 
+export interface PolicyExplanation extends PolicyDecision {
+  input: PolicyExplanationInput;
+  violations: string[];
+  reason?: string;
+}
+
+export interface PolicyExplanationInput {
+  capabilityPath?: string;
+  supportLevel?: SupportLevel;
+  envKeys?: string[];
+  timeoutMs?: number;
+  ttlMs?: number;
+  approval?: {
+    approved: boolean;
+    id?: string;
+    approver?: string;
+    reason?: string;
+    approvedAt?: string;
+    expiresAt?: string;
+    capabilities?: string[];
+    resources?: CapsuleApprovalResourceScope[];
+  };
+  resource?: CapsuleApprovalResourceScope;
+  now?: string;
+}
+
 export interface PolicyInput {
   env?: Record<string, string>;
   timeoutMs?: number;
@@ -93,6 +119,55 @@ export function evaluatePolicy(policy: CapsulePolicy = {}, input: PolicyInput = 
     decision: "allowed",
     applied: policy,
     notes
+  };
+}
+
+export function explainPolicy(policy: CapsulePolicy = {}, input: PolicyInput = {}): PolicyExplanation {
+  try {
+    const decision = evaluatePolicy(policy, input);
+    return {
+      ...decision,
+      input: summarizePolicyInput(input),
+      violations: []
+    };
+  } catch (error) {
+    if (error instanceof PolicyViolationError) {
+      return {
+        decision: "denied",
+        applied: policy,
+        input: summarizePolicyInput(input),
+        notes: [],
+        reason: error.message,
+        violations: error.notes
+      };
+    }
+    throw error;
+  }
+}
+
+function summarizePolicyInput(input: PolicyInput): PolicyExplanationInput {
+  return {
+    ...(input.capabilityPath === undefined ? {} : { capabilityPath: input.capabilityPath }),
+    ...(input.supportLevel === undefined ? {} : { supportLevel: input.supportLevel }),
+    ...(input.env === undefined ? {} : { envKeys: Object.keys(input.env).sort() }),
+    ...(input.timeoutMs === undefined ? {} : { timeoutMs: input.timeoutMs }),
+    ...(input.ttlMs === undefined ? {} : { ttlMs: input.ttlMs }),
+    ...(input.approval === undefined
+      ? {}
+      : {
+          approval: {
+            approved: input.approval.approved,
+            ...(input.approval.id === undefined ? {} : { id: input.approval.id }),
+            ...(input.approval.approver === undefined ? {} : { approver: input.approval.approver }),
+            ...(input.approval.reason === undefined ? {} : { reason: input.approval.reason }),
+            ...(input.approval.approvedAt === undefined ? {} : { approvedAt: input.approval.approvedAt }),
+            ...(input.approval.expiresAt === undefined ? {} : { expiresAt: input.approval.expiresAt }),
+            ...(input.approval.capabilities === undefined ? {} : { capabilities: input.approval.capabilities }),
+            ...(input.approval.resources === undefined ? {} : { resources: input.approval.resources })
+          }
+        }),
+    ...(input.resource === undefined ? {} : { resource: input.resource }),
+    ...(input.now === undefined ? {} : { now: input.now.toISOString() })
   };
 }
 
