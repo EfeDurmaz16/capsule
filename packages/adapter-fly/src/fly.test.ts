@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, ProviderRateLimitError, runAdapterContract } from "@capsule/core";
 import { FlyClient, fly, flyCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -126,6 +126,7 @@ describe("fly adapter", () => {
       thrown = error;
     }
 
+    expect(thrown).toBeInstanceOf(ProviderRateLimitError);
     expect(thrown).toBeInstanceOf(AdapterExecutionError);
     expect((thrown as AdapterExecutionError).cause).toMatchObject({
       providerError: { category: "rate-limit", retryable: true, status: 429, retryAfterMs: 3000 }

@@ -1,4 +1,4 @@
-import { AdapterExecutionError, classifyProviderError } from "@capsule/core";
+import { AdapterExecutionError, classifyProviderError, providerExecutionError } from "@capsule/core";
 
 export interface CloudflareClientOptions {
   apiToken?: string;
@@ -200,11 +200,11 @@ export class CloudflareClient {
     const data = text ? (JSON.parse(text) as CloudflareEnvelope<T>) : undefined;
     if (!response.ok || data?.success === false) {
       const message = data?.errors?.find((error) => error.message)?.message ?? `Cloudflare API request failed with status ${response.status}`;
-      throw new AdapterExecutionError(message, {
+      const providerError = classifyProviderError({ status: response.status, headers: response.headers, error: data });
+      throw providerExecutionError(message, providerError, {
         status: response.status,
         errors: data?.errors,
-        messages: data?.messages,
-        providerError: classifyProviderError({ status: response.status, headers: response.headers, error: data })
+        messages: data?.messages
       });
     }
     return data?.result ?? ({} as T);

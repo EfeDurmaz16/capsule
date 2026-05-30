@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Capsule, MemoryReceiptStore, runAdapterContract } from "@capsule/core";
+import { Capsule, CleanupFailureError, MemoryReceiptStore, runAdapterContract } from "@capsule/core";
 import { daytona, daytonaCapabilities } from "./index.js";
 
 function fakeDaytonaSandbox() {
@@ -151,7 +151,7 @@ describe("daytona adapter", () => {
     expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
   });
 
-  it("keeps the original Daytona exec error when cleanup delete fails", async () => {
+  it("wraps the original Daytona exec error when cleanup delete fails", async () => {
     const { sandbox } = fakeDaytonaSandbox();
     sandbox.commandError = new Error("daytona exec failed");
     sandbox.deleteError = new Error("daytona delete failed");
@@ -166,13 +166,16 @@ describe("daytona adapter", () => {
       thrown = error;
     }
 
-    expect(thrown).toBeInstanceOf(Error);
-    expect((thrown as Error).message).toBe("daytona exec failed");
+    expect(thrown).toBeInstanceOf(CleanupFailureError);
+    expect((thrown as Error).message).toBe("Daytona sandbox cleanup failed after sandbox allocation.");
     expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
       action: "delete-sandbox-after-exec-error",
       sandboxId: "sandbox-1",
       status: "failed",
       error: "daytona delete failed"
+    });
+    expect((thrown as CleanupFailureError).cause).toMatchObject({
+      operationError: expect.objectContaining({ message: "daytona exec failed" })
     });
     expect(sandbox.deleted).toBe(false);
   });

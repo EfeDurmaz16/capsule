@@ -1,5 +1,6 @@
 import {
   AdapterExecutionError,
+  CleanupFailureError,
   capsuleOperationTags,
   providerRuntimeMetadata,
   type AdapterContext,
@@ -253,6 +254,9 @@ async function cleanupGeneratedJobAfterStartFailure(client: AzureContainerAppsCl
   } catch (cleanupError) {
     cleanup.status = "failed";
     cleanup.error = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+  }
+  if (cleanup.status === "failed") {
+    throw new CleanupFailureError("Azure Container Apps job cleanup failed after execution start failure.", cleanup, { operationError: startError });
   }
   if (startError instanceof Error) {
     (startError as CleanupAwareError).cleanup = cleanup;

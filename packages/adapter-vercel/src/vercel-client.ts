@@ -1,4 +1,4 @@
-import { AdapterExecutionError, classifyProviderError } from "@capsule/core";
+import { AdapterExecutionError, classifyProviderError, providerExecutionError } from "@capsule/core";
 
 export interface VercelClientOptions {
   token?: string;
@@ -184,10 +184,10 @@ export class VercelClient {
           : typeof dataRecord?.message === "string"
             ? dataRecord.message
             : `Vercel API request failed with status ${response.status}`;
-      throw new AdapterExecutionError(message, {
+      const providerError = classifyProviderError({ status: response.status, headers: response.headers, error: dataRecord?.error ?? data });
+      throw providerExecutionError(message, providerError, {
         status: response.status,
-        error: dataRecord?.error,
-        providerError: classifyProviderError({ status: response.status, headers: response.headers, error: dataRecord?.error ?? data })
+        error: dataRecord?.error
       });
     }
     return data as T;

@@ -1,6 +1,7 @@
 import { Daytona } from "@daytona/sdk";
 import {
   AdapterExecutionError,
+  CleanupFailureError,
   capsuleOperationTags,
   logsFromOutput,
   providerRuntimeMetadata,
@@ -197,6 +198,9 @@ async function deleteSandboxAfterFailure(
   } catch (cleanupError) {
     cleanup.status = "failed";
     cleanup.error = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+  }
+  if (cleanup.status === "failed") {
+    throw new CleanupFailureError("Daytona sandbox cleanup failed after sandbox allocation.", cleanup, { operationError });
   }
   if (operationError instanceof Error) {
     (operationError as CleanupAwareError).cleanup = cleanup;

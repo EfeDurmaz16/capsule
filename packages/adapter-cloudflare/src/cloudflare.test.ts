@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, ProviderValidationError, runAdapterContract } from "@capsule/core";
 import { cloudflare, cloudflareCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200): Response {
@@ -307,6 +307,7 @@ describe("cloudflare adapter", () => {
       thrown = error;
     }
 
+    expect(thrown).toBeInstanceOf(ProviderValidationError);
     expect(thrown).toBeInstanceOf(AdapterExecutionError);
     expect((thrown as Error).message).not.toContain("secret-token");
     expect((thrown as AdapterExecutionError).cause).toMatchObject({

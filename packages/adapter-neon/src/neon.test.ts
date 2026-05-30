@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, ProviderRetryableError, runAdapterContract } from "@capsule/core";
 import { neon } from "./index.js";
 
 function response(body: unknown, status = 200): Response {
@@ -70,6 +70,7 @@ describe("neon adapter", () => {
       thrown = error;
     }
 
+    expect(thrown).toBeInstanceOf(ProviderRetryableError);
     expect(thrown).toBeInstanceOf(AdapterExecutionError);
     expect((thrown as Error).message).toBe("connection uri failed");
     expect((thrown as AdapterExecutionError).cause).toMatchObject({

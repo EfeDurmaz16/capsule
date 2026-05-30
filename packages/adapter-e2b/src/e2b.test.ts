@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { Capsule, MemoryReceiptStore, runAdapterContract } from "@capsule/core";
+import { Capsule, CleanupFailureError, MemoryReceiptStore, runAdapterContract } from "@capsule/core";
 import { e2b, e2bCapabilities } from "./e2b-adapter.js";
 
 class FakeE2BSandbox {
@@ -182,7 +182,7 @@ describe("e2b adapter", () => {
     expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
   });
 
-  it("keeps the original E2B exec error when cleanup kill fails", async () => {
+  it("wraps the original E2B exec error when cleanup kill fails", async () => {
     const allocated = resetFakeSandbox();
     allocated.commandError = new Error("e2b exec failed");
     allocated.killError = new Error("e2b kill failed");
@@ -199,13 +199,16 @@ describe("e2b adapter", () => {
       thrown = error;
     }
 
-    expect(thrown).toBeInstanceOf(Error);
-    expect((thrown as Error).message).toBe("e2b exec failed");
+    expect(thrown).toBeInstanceOf(CleanupFailureError);
+    expect((thrown as Error).message).toBe("E2B sandbox cleanup failed after sandbox allocation.");
     expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
       action: "kill-sandbox-after-exec-error",
       sandboxId: "e2b_fake_123",
       status: "failed",
       error: "e2b kill failed"
+    });
+    expect((thrown as CleanupFailureError).cause).toMatchObject({
+      operationError: expect.objectContaining({ message: "e2b exec failed" })
     });
     expect(allocated.killed).toBe(false);
   });
