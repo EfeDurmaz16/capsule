@@ -22,6 +22,8 @@ The E2B live integration test is opt-in. It is skipped unless both `CAPSULE_LIVE
 
 The Daytona adapter uses the official Daytona TypeScript SDK for cloud sandbox creation, command execution, file read/write/list, and deletion. Capsule maps `network.none` to Daytona network blocking and `allowlist` to Daytona's network allow list request, while keeping filesystem policy as adapter-boundary enforcement.
 
+If Daytona sandbox creation succeeds but a later local adapter step fails, Capsule attempts to delete the allocated sandbox and attaches cleanup metadata to the thrown error. If Daytona command execution throws before returning an exit code, Capsule attempts to delete the sandbox and records whether cleanup was deleted or failed on the original error. Normal nonzero command exits are still returned as `sandbox.exec` results and do not trigger automatic sandbox deletion.
+
 The Daytona live integration test is opt-in. It is skipped unless both `CAPSULE_LIVE_TESTS=1` and `DAYTONA_API_KEY` are set. The test creates a real Daytona sandbox, executes commands, writes/reads/lists a file, and calls destroy in a `finally` block. Cleanup is best-effort because provider-side delete can still fail during outages or credential revocation, so interrupted live runs should be checked in the Daytona console before rerunning.
 
 The Modal adapter uses the Modal JavaScript SDK for sandbox creation, command execution, file read/write, and termination. Modal's public sandbox file listing surface is not modeled as a stable high-level method in this adapter, so `sandbox.fileList` remains unsupported instead of being faked.

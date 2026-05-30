@@ -97,7 +97,7 @@ try {
 
 Credentials: `DAYTONA_API_KEY`; optional adapter settings include API URL, target, and auto-stop controls.
 
-Cleanup: call `sandbox.destroy()`. If you configure provider-side auto-stop, treat it as a backup, not the only cleanup path.
+Cleanup: call `sandbox.destroy()`. If you configure provider-side auto-stop, treat it as a backup, not the only cleanup path. If sandbox creation succeeds and a later local adapter step fails, or if command execution throws before returning an exit code, Capsule attempts sandbox deletion and attaches cleanup metadata to the original error.
 
 Caveat: workspace lifecycle and image/runtime semantics are provider-specific.
 

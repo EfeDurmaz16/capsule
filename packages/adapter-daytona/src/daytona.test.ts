@@ -2,6 +2,41 @@ import { describe, expect, it } from "vitest";
 import { Capsule, MemoryReceiptStore, runAdapterContract } from "@capsule/core";
 import { daytona, daytonaCapabilities } from "./index.js";
 
+function fakeDaytonaSandbox() {
+  const files = new Map<string, Buffer>();
+  const sandbox: any = {
+    id: "sandbox-1",
+    name: "box",
+    state: "started",
+    createdAt: "2026-05-12T00:00:00.000Z",
+    deleted: false,
+    commandError: undefined as Error | undefined,
+    deleteError: undefined as Error | undefined,
+    process: {
+      executeCommand: async (command: string) => {
+        if (sandbox.commandError) {
+          throw sandbox.commandError;
+        }
+        return { exitCode: 0, result: `ran ${command}` };
+      }
+    },
+    fs: {
+      uploadFile: async (data: Buffer, path: string) => {
+        files.set(path, data);
+      },
+      downloadFile: async (path: string) => files.get(path) ?? Buffer.from(""),
+      listFiles: async (path: string) => [{ name: "index.js", path: `${path}/index.js`, type: "file", size: 20 }]
+    },
+    delete: async () => {
+      if (sandbox.deleteError) {
+        throw sandbox.deleteError;
+      }
+      sandbox.deleted = true;
+    }
+  };
+  return { sandbox, files };
+}
+
 describe("daytona adapter", () => {
   it("runs the shared adapter contract suite", async () => {
     await runAdapterContract(daytona());
@@ -14,24 +49,7 @@ describe("daytona adapter", () => {
 
   it("creates a sandbox and maps exec/files/destroy", async () => {
     const createdWith: any[] = [];
-    const files = new Map<string, Buffer>();
-    const sandbox = {
-      id: "sandbox-1",
-      name: "box",
-      state: "started",
-      createdAt: "2026-05-12T00:00:00.000Z",
-      process: {
-        executeCommand: async (command: string) => ({ exitCode: 0, result: `ran ${command}` })
-      },
-      fs: {
-        uploadFile: async (data: Buffer, path: string) => {
-          files.set(path, data);
-        },
-        downloadFile: async (path: string) => files.get(path) ?? Buffer.from(""),
-        listFiles: async (path: string) => [{ name: "index.js", path: `${path}/index.js`, type: "file", size: 20 }]
-      },
-      delete: async () => undefined
-    };
+    const { sandbox } = fakeDaytonaSandbox();
     const client = {
       create: async (...args: any[]) => {
         createdWith.push(...args);
@@ -65,5 +83,88 @@ describe("daytona adapter", () => {
       "sandbox.exec",
       "sandbox.destroy"
     ]);
+  });
+
+  it("deletes allocated Daytona sandboxes when create fails after provider allocation", async () => {
+    const { sandbox } = fakeDaytonaSandbox();
+    const client = { create: async () => sandbox };
+    const capsule = new Capsule({
+      adapter: daytona({ client }),
+      receipts: true,
+      receiptSigner: {
+        algorithm: "test-signature",
+        sign: () => {
+          throw new Error("receipt signing failed");
+        }
+      }
+    });
+
+    let thrown: unknown;
+    try {
+      await capsule.sandbox.create({ name: "cleanup-after-create" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe("receipt signing failed");
+    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
+      action: "delete-created-sandbox",
+      sandboxId: "sandbox-1",
+      status: "deleted"
+    });
+    expect(sandbox.deleted).toBe(true);
+  });
+
+  it("deletes Daytona sandboxes when command execution throws before a receipt", async () => {
+    const { sandbox } = fakeDaytonaSandbox();
+    sandbox.commandError = new Error("daytona exec failed");
+    const store = new MemoryReceiptStore();
+    const client = { create: async () => sandbox };
+    const capsule = new Capsule({ adapter: daytona({ client }), receipts: true, receiptStore: store });
+    const box = await capsule.sandbox.create({});
+
+    let thrown: unknown;
+    try {
+      await box.exec({ command: "echo never-recorded" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe("daytona exec failed");
+    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
+      action: "delete-sandbox-after-exec-error",
+      sandboxId: "sandbox-1",
+      status: "deleted"
+    });
+    expect(sandbox.deleted).toBe(true);
+    expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
+  });
+
+  it("keeps the original Daytona exec error when cleanup delete fails", async () => {
+    const { sandbox } = fakeDaytonaSandbox();
+    sandbox.commandError = new Error("daytona exec failed");
+    sandbox.deleteError = new Error("daytona delete failed");
+    const client = { create: async () => sandbox };
+    const capsule = new Capsule({ adapter: daytona({ client }), receipts: true });
+    const box = await capsule.sandbox.create({});
+
+    let thrown: unknown;
+    try {
+      await box.exec({ command: "echo cleanup-fails" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe("daytona exec failed");
+    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
+      action: "delete-sandbox-after-exec-error",
+      sandboxId: "sandbox-1",
+      status: "failed",
+      error: "daytona delete failed"
+    });
+    expect(sandbox.deleted).toBe(false);
   });
 });
