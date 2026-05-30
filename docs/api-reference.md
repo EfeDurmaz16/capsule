@@ -308,6 +308,8 @@ Exports:
 
 Exports:
 - `AdapterContext` (interface)
+- `adapterContractFixtureKinds` (const)
+- `adapterContractFixtures` (const)
 - `AdapterExecutionError` (class)
 - `agentSafePolicy` (function)
 - `AgentSafePolicyOptions` (interface)
@@ -329,6 +331,8 @@ Exports:
 - `CapabilityRequirementResult` (interface)
 - `Capsule` (class)
 - `CapsuleAdapter` (interface)
+- `CapsuleAdapterContractFixture` (interface)
+- `CapsuleAdapterContractFixtureKind` (type)
 - `CapsuleAdapterContractOptions` (interface)
 - `CapsuleAdapterFailureScenario` (interface)
 - `CapsuleApprovalGrant` (interface)
