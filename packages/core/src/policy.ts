@@ -10,6 +10,11 @@ export interface PolicyDecision {
 export interface PolicyInput {
   env?: Record<string, string>;
   timeoutMs?: number;
+  ttlMs?: number;
+  approval?: {
+    approved?: boolean;
+    reason?: string;
+  };
 }
 
 export function evaluatePolicy(policy: CapsulePolicy = {}, input: PolicyInput = {}): PolicyDecision {
@@ -28,7 +33,12 @@ export function evaluatePolicy(policy: CapsulePolicy = {}, input: PolicyInput = 
   }
 
   if (policy.approvals?.required) {
-    notes.push(`Approval required: ${policy.approvals.reason ?? "no reason provided"}`);
+    if (!input.approval?.approved) {
+      throw new PolicyViolationError(`Approval required by policy: ${policy.approvals.reason ?? "no reason provided"}`, [
+        policy.approvals.reason ?? "approval required"
+      ]);
+    }
+    notes.push(`Approval satisfied: ${input.approval.reason ?? policy.approvals.reason ?? "no reason provided"}`);
   }
 
   if (policy.secrets && input.env) {
@@ -54,7 +64,12 @@ export function evaluatePolicy(policy: CapsulePolicy = {}, input: PolicyInput = 
     notes.push("Cost policy is a control-plane constraint; provider billing enforcement is not guaranteed by Capsule.");
   }
 
-  if (policy.ttl?.maxMs !== undefined) {
+  if (policy.ttl?.maxMs !== undefined && input.ttlMs !== undefined) {
+    if (input.ttlMs > policy.ttl.maxMs) {
+      throw new PolicyViolationError(`Requested TTL ${input.ttlMs}ms exceeds policy maximum ${policy.ttl.maxMs}ms`, ["ttlMs"]);
+    }
+    notes.push(`TTL policy maximum ${policy.ttl.maxMs}ms applies to this request.`);
+  } else if (policy.ttl?.maxMs !== undefined) {
     notes.push("TTL policy is a control-plane cleanup constraint; cleanup depends on adapter/provider lifecycle support.");
   }
 

@@ -339,6 +339,18 @@ describe("policy", () => {
     expect(() => evaluatePolicy({ secrets: { allowed: ["SAFE"] } }, { env: { TOKEN: "x" } })).toThrow(PolicyViolationError);
   });
 
+  test("fails closed when approval policy is required but not satisfied", () => {
+    expect(() => evaluatePolicy({ approvals: { required: true, reason: "production cleanup" } })).toThrow(PolicyViolationError);
+    expect(evaluatePolicy({ approvals: { required: true, reason: "production cleanup" } }, { approval: { approved: true, reason: "ticket approved" } }).notes).toContain(
+      "Approval satisfied: ticket approved"
+    );
+  });
+
+  test("denies ttl-scoped work above the policy maximum", () => {
+    expect(() => evaluatePolicy({ ttl: { maxMs: 60_000 } }, { ttlMs: 120_000 })).toThrow(PolicyViolationError);
+    expect(evaluatePolicy({ ttl: { maxMs: 60_000 } }, { ttlMs: 30_000 }).notes).toContain("TTL policy maximum 60000ms applies to this request.");
+  });
+
   test("merges timeout against policy maximum", () => {
     expect(mergeTimeout({ limits: { timeoutMs: 1000 } }, 2000)).toBe(1000);
     expect(mergeTimeout({ limits: { timeoutMs: 1000 } }, 500)).toBe(500);
@@ -390,6 +402,62 @@ describe("policy", () => {
       { timestamp: "2026-01-01T00:00:00.000Z", stream: "stdout", message: "first [REDACTED]" },
       { timestamp: "2026-01-01T00:00:00.001Z", stream: "stderr", message: "second [REDACTED] [REDACTED]" }
     ]);
+  });
+
+  test("enforces approval policy before destructive adapter operations", async () => {
+    let called = false;
+    const destructiveAdapter: CapsuleAdapter = {
+      ...adapter,
+      capabilities: {
+        ...capabilities,
+        service: {
+          deploy: "unsupported",
+          update: "unsupported",
+          delete: "native",
+          status: "unsupported",
+          logs: "unsupported",
+          url: "unsupported"
+        }
+      },
+      service: {
+        deploy: async () => ({ id: "svc_123", provider: "test", name: "svc", status: "ready" }),
+        delete: async () => {
+          called = true;
+          return { id: "svc_123", provider: "test", status: "deleted" };
+        }
+      }
+    };
+    const capsule = new Capsule({ adapter: destructiveAdapter, policy: { approvals: { required: true, reason: "production cleanup" } } });
+
+    await expect(capsule.service.delete({ id: "svc_123" })).rejects.toThrow(PolicyViolationError);
+    expect(called).toBe(false);
+  });
+
+  test("enforces ttl policy before creating ttl-scoped resources", async () => {
+    let called = false;
+    const ttlAdapter: CapsuleAdapter = {
+      ...adapter,
+      capabilities: {
+        ...capabilities,
+        database: {
+          branchCreate: "native",
+          branchDelete: "unsupported",
+          connectionString: "unsupported"
+        }
+      },
+      database: {
+        branch: {
+          create: async () => {
+            called = true;
+            return { id: "br_123", provider: "test", project: "app", name: "preview", status: "ready" };
+          }
+        }
+      }
+    };
+    const capsule = new Capsule({ adapter: ttlAdapter, policy: { ttl: { maxMs: 60_000 } } });
+
+    await expect(capsule.database.branch.create({ project: "app", name: "preview", ttlMs: 120_000 })).rejects.toThrow(PolicyViolationError);
+    expect(called).toBe(false);
   });
 });
 
