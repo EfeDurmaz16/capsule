@@ -362,12 +362,14 @@ describe("kubernetes adapter", () => {
     });
 
     expect(deployment).toMatchObject({
-      id: "deployment-uid",
+      id: "api",
       provider: "kubernetes",
       status: "deploying",
       url: "http://api.preview.svc.cluster.local:8080"
     });
     expect(deployment.receipt?.type).toBe("service.deploy");
+    expect(deployment.receipt?.resource).toMatchObject({ id: "api", name: "api" });
+    expect(deployment.receipt?.metadata).toMatchObject({ deploymentUid: "deployment-uid", serviceUid: "service-uid" });
     expect(deployments[0]?.body).toMatchObject({
       apiVersion: "apps/v1",
       kind: "Deployment",
@@ -385,6 +387,95 @@ describe("kubernetes adapter", () => {
       kind: "Service",
       spec: { type: "LoadBalancer", ports: [{ port: 8080, targetPort: 8080, protocol: "TCP" }] }
     });
+  });
+
+  it("returns a service id that can be used for later status and delete calls", async () => {
+    const reads: Array<{ namespace: string; name: string }> = [];
+    const deletions = {
+      deployments: [] as Array<{ namespace: string; name: string }>,
+      services: [] as Array<{ namespace: string; name: string }>
+    };
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "preview",
+        clients: {
+          batch: { createNamespacedJob: async () => ({}) },
+          apps: {
+            createNamespacedDeployment: async () => ({ metadata: { uid: "deployment-uid", name: "api" } }),
+            readNamespacedDeployment: async (input) => {
+              reads.push(input);
+              return { metadata: { uid: "deployment-uid", name: input.name }, spec: { replicas: 1 }, status: { readyReplicas: 1, availableReplicas: 1 } };
+            },
+            deleteNamespacedDeployment: async (input) => {
+              deletions.deployments.push(input);
+              return { metadata: { uid: "deployment-uid", name: input.name } };
+            }
+          },
+          core: {
+            createNamespacedService: async () => ({ metadata: { uid: "service-uid", name: "api" } }),
+            readNamespacedService: async (input) => {
+              reads.push(input);
+              return { metadata: { uid: "service-uid", name: input.name }, spec: { ports: [{ port: 8080 }] } };
+            },
+            deleteNamespacedService: async (input) => {
+              deletions.services.push(input);
+              return { metadata: { uid: "service-uid", name: input.name } };
+            }
+          }
+        }
+      })
+    });
+
+    const deployment = await capsule.service.deploy({ name: "api", image: "ghcr.io/example/api:latest", ports: [{ port: 8080 }] });
+
+    await expect(capsule.service.status({ id: deployment.id })).resolves.toMatchObject({ id: "api", status: "ready" });
+    await expect(capsule.service.delete({ id: deployment.id })).resolves.toMatchObject({ id: "api", status: "deleted" });
+    expect(reads).toEqual([
+      { namespace: "preview", name: "api" },
+      { namespace: "preview", name: "api" }
+    ]);
+    expect(deletions.deployments[0]).toMatchObject({ namespace: "preview", name: "api" });
+    expect(deletions.services[0]).toMatchObject({ namespace: "preview", name: "api" });
+  });
+
+  it("best-effort deletes the Deployment when Service creation fails during deploy", async () => {
+    const deletions: Array<{ namespace: string; name: string; gracePeriodSeconds?: number; propagationPolicy?: string; body?: unknown }> = [];
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "preview",
+        clients: {
+          batch: { createNamespacedJob: async () => ({}) },
+          apps: {
+            createNamespacedDeployment: async () => ({ metadata: { uid: "deployment-uid", name: "api" } }),
+            deleteNamespacedDeployment: async (input) => {
+              deletions.push(input);
+              return { metadata: { uid: "deployment-uid", name: input.name } };
+            }
+          },
+          core: {
+            createNamespacedService: async () => {
+              throw new Error("service create failed");
+            }
+          }
+        }
+      })
+    });
+
+    await expect(capsule.service.deploy({ name: "api", image: "ghcr.io/example/api:latest", ports: [{ port: 8080 }] })).rejects.toThrow("service create failed");
+    expect(deletions).toEqual([
+      {
+        namespace: "preview",
+        name: "api",
+        gracePeriodSeconds: 0,
+        propagationPolicy: "Foreground",
+        body: {
+          apiVersion: "v1",
+          kind: "DeleteOptions",
+          gracePeriodSeconds: 0,
+          propagationPolicy: "Foreground"
+        }
+      }
+    ]);
   });
 
   it("reads Deployment and LoadBalancer Service status with an external URL", async () => {
