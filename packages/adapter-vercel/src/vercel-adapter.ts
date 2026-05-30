@@ -275,6 +275,9 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
         if (!alias) {
           throw new AdapterExecutionError("Vercel edge.release requires spec.alias or the first spec.routes entry.");
         }
+        if (spec.traffic !== undefined && spec.traffic !== 100) {
+          throw new AdapterExecutionError("Vercel edge.release only supports full alias moves today; traffic splits are not implemented.");
+        }
         const result = await getClient().assignAlias(deploymentId, { alias, redirect: spec.redirect });
         const url = deploymentUrl(result.alias) ?? `https://${result.alias}`;
         const receipt = context.receipts
@@ -285,7 +288,7 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
               policy: {
                 decision: "allowed",
                 applied: context.policy,
-                notes: ["Vercel alias assignment is native and moves the alias from any previous deployment."]
+                notes: ["Vercel alias assignment is native and moves the alias from any previous deployment.", "Traffic splits are rejected until Capsule models Vercel canary or split-release semantics explicitly."]
               },
               resource: { id: result.uid, name: result.alias, status: "ready", url },
               metadata: { deploymentId, oldDeploymentId: result.oldDeploymentId, created: result.created }
