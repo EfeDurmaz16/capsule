@@ -321,6 +321,7 @@ Exports:
 - `CapsuleAdapter`
 - `CapsuleAdapterContractOptions`
 - `CapsuleApprovalGrant`
+- `CapsuleApprovalResourceScope`
 - `CapsuleDomain`
 - `CapsuleError`
 - `CapsuleOptions`
