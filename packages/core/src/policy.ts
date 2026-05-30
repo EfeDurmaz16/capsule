@@ -1,5 +1,5 @@
 import { PolicyViolationError } from "./errors.js";
-import type { CapsuleApprovalGrant, CapsuleApprovalResourceScope, CapsulePolicy, LogEntry } from "./types.js";
+import type { CapsuleApprovalGrant, CapsuleApprovalResourceScope, CapsulePolicy, LogEntry, SupportLevel } from "./types.js";
 
 const tokenLikeValue =
   /\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9_-]{16,}\b|\bgh[pousr]_[A-Za-z0-9_]{20,}\b|\bxox[baprs]-[A-Za-z0-9-]{20,}\b|\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b|\b[A-Za-z0-9_-]{48,}\b/g;
@@ -17,6 +17,7 @@ export interface PolicyInput {
   ttlMs?: number;
   approval?: CapsuleApprovalGrant;
   capabilityPath?: string;
+  supportLevel?: SupportLevel;
   resource?: CapsuleApprovalResourceScope;
   now?: Date;
 }
@@ -34,6 +35,10 @@ export function evaluatePolicy(policy: CapsulePolicy = {}, input: PolicyInput = 
 
   if (policy.filesystem) {
     notes.push("Filesystem policy requested; enforcement may be native, emulated at the adapter boundary, or unsupported depending on the runtime.");
+  }
+
+  if (input.capabilityPath && input.supportLevel) {
+    notes.push(`Adapter support level for ${input.capabilityPath}: ${input.supportLevel}.`);
   }
 
   if (policy.approvals?.required) {

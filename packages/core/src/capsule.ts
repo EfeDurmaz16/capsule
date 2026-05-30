@@ -475,14 +475,16 @@ export class Capsule {
   }
 
   private evaluateOperationPolicy(path: CapabilityPath, input: Omit<PolicyInput, "capabilityPath"> = {}) {
-    return evaluatePolicy(this.options.policy, { ...input, capabilityPath: path });
+    return evaluatePolicy(this.options.policy, { ...input, capabilityPath: path, supportLevel: input.supportLevel ?? supportLevel(this.options.adapter.capabilities, path) });
   }
 
   private contextRuntime(defaultOptions: ContextOptions): ContextRuntime {
+    const capabilityPath = defaultOptions.capabilityPath ?? defaultCapabilityPath(defaultOptions.receiptScopes);
     const normalizedOptions: ContextOptions = {
       ...defaultOptions,
-      capabilityPath: defaultOptions.capabilityPath ?? defaultCapabilityPath(defaultOptions.receiptScopes),
-      idempotencyScope: defaultOptions.idempotencyScope ?? (defaultOptions.idempotencyKey ? defaultOptions.capabilityPath ?? defaultCapabilityPath(defaultOptions.receiptScopes) : undefined)
+      capabilityPath,
+      supportLevel: defaultOptions.supportLevel ?? (capabilityPath ? supportLevel(this.options.adapter.capabilities, capabilityPath as CapabilityPath) : undefined),
+      idempotencyScope: defaultOptions.idempotencyScope ?? (defaultOptions.idempotencyKey ? capabilityPath : undefined)
     };
     const runtime: ContextRuntime = {
       context: undefined as unknown as AdapterContext,
@@ -679,10 +681,12 @@ export class Capsule {
       supportLevel: (path: string) => supportLevel(adapter.capabilities, path as CapabilityPath),
       evaluatePolicy: (input = {}) => {
         const options = this.contextOptions.getStore() ?? runtime.defaultOptions;
+        const capabilityPath = input.capabilityPath ?? options.capabilityPath;
         return evaluatePolicy(this.options.policy, {
           ...input,
           approval: input.approval ?? options.approval,
-          capabilityPath: input.capabilityPath ?? options.capabilityPath,
+          capabilityPath,
+          supportLevel: input.supportLevel ?? options.supportLevel ?? (capabilityPath ? supportLevel(adapter.capabilities, capabilityPath as CapabilityPath) : undefined),
           resource: input.resource ?? options.resource
         });
       },
