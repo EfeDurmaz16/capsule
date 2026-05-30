@@ -64,7 +64,7 @@ pnpm --filter @capsule/example-agent-code-execution start
 
 Credentials: `E2B_API_KEY`.
 
-Cleanup: the AI helper destroys the sandbox in `finally`; direct sandbox users should still call `destroy()`.
+Cleanup: the AI helper destroys the sandbox in `finally`; direct sandbox users should still call `destroy()`. If sandbox creation succeeds and a later local adapter step fails, or if command execution throws before returning an exit code, Capsule attempts `sandbox.kill()` and attaches cleanup metadata to the original error.
 
 Caveat: isolation is provided by E2B, not Capsule. Capsule records receipts and policy notes for what it requested and observed.
 

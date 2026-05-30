@@ -1,20 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { Capsule, MemoryReceiptStore, runAdapterContract } from "@capsule/core";
 import { e2b, e2bCapabilities } from "./e2b-adapter.js";
 
 class FakeE2BSandbox {
   static createdWith: unknown[] = [];
-  static instance = new FakeE2BSandbox();
+  static instance: FakeE2BSandbox = new FakeE2BSandbox();
   sandboxId = "e2b_fake_123";
   sandboxDomain = "e2b_fake_123.e2b.dev";
   killed = false;
+  commandError?: Error;
+  killError?: Error;
   written = new Map<string, string | ArrayBuffer | Blob | ReadableStream>();
   commands = {
-    run: async (command: string, options?: { envs?: Record<string, string> }) => ({
-      exitCode: 0,
-      stdout: command.includes("secret") ? `value=${options?.envs?.SECRET ?? ""}` : "hello from e2b\n",
-      stderr: ""
-    })
+    run: async (command: string, options?: { envs?: Record<string, string> }) => {
+      if (this.commandError) {
+        throw this.commandError;
+      }
+      return {
+        exitCode: 0,
+        stdout: command.includes("secret") ? `value=${options?.envs?.SECRET ?? ""}` : "hello from e2b\n",
+        stderr: ""
+      };
+    }
   };
   files = {
     write: async (path: string, data: string | ArrayBuffer | Blob | ReadableStream) => {
@@ -31,11 +38,24 @@ class FakeE2BSandbox {
     return FakeE2BSandbox.instance;
   }
   async kill() {
+    if (this.killError) {
+      throw this.killError;
+    }
     this.killed = true;
   }
 }
 
+function resetFakeSandbox(sandbox = new FakeE2BSandbox()) {
+  FakeE2BSandbox.createdWith = [];
+  FakeE2BSandbox.instance = sandbox;
+  return sandbox;
+}
+
 describe("e2b adapter", () => {
+  beforeEach(() => {
+    resetFakeSandbox();
+  });
+
   it("runs the shared adapter contract suite", async () => {
     await runAdapterContract(e2b());
   });
@@ -92,5 +112,92 @@ describe("e2b adapter", () => {
     const result = await sandbox.exec({ command: "echo secret", env: { SECRET: "token-value" } });
     expect(result.stdout).toBe("value=[REDACTED]");
     expect(result.receipt?.stdoutHash).toBeDefined();
+  });
+
+  it("kills allocated E2B sandboxes when create fails after provider allocation", async () => {
+    const allocated = resetFakeSandbox();
+    const capsule = new Capsule({
+      adapter: e2b({ sandboxClass: FakeE2BSandbox }),
+      receipts: true,
+      receiptSigner: {
+        algorithm: "test-signature",
+        sign: () => {
+          throw new Error("receipt signing failed");
+        }
+      }
+    });
+
+    let thrown: unknown;
+    try {
+      await capsule.sandbox.create({ name: "cleanup-after-create" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe("receipt signing failed");
+    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
+      action: "kill-created-sandbox",
+      sandboxId: "e2b_fake_123",
+      status: "killed"
+    });
+    expect(allocated.killed).toBe(true);
+  });
+
+  it("kills E2B sandboxes when command execution throws before a receipt", async () => {
+    const allocated = resetFakeSandbox();
+    allocated.commandError = new Error("e2b exec failed");
+    const store = new MemoryReceiptStore();
+    const capsule = new Capsule({
+      adapter: e2b({ sandboxClass: FakeE2BSandbox }),
+      receipts: true,
+      receiptStore: store
+    });
+    const sandbox = await capsule.sandbox.create({});
+
+    let thrown: unknown;
+    try {
+      await sandbox.exec({ command: "echo never-recorded" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe("e2b exec failed");
+    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
+      action: "kill-sandbox-after-exec-error",
+      sandboxId: "e2b_fake_123",
+      status: "killed"
+    });
+    expect(allocated.killed).toBe(true);
+    expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
+  });
+
+  it("keeps the original E2B exec error when cleanup kill fails", async () => {
+    const allocated = resetFakeSandbox();
+    allocated.commandError = new Error("e2b exec failed");
+    allocated.killError = new Error("e2b kill failed");
+    const capsule = new Capsule({
+      adapter: e2b({ sandboxClass: FakeE2BSandbox }),
+      receipts: true
+    });
+    const sandbox = await capsule.sandbox.create({});
+
+    let thrown: unknown;
+    try {
+      await sandbox.exec({ command: "echo cleanup-fails" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe("e2b exec failed");
+    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
+      action: "kill-sandbox-after-exec-error",
+      sandboxId: "e2b_fake_123",
+      status: "failed",
+      error: "e2b kill failed"
+    });
+    expect(allocated.killed).toBe(false);
   });
 });
