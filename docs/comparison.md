@@ -2,6 +2,18 @@
 
 Capsule is not trying to replace the tools below. The point of this comparison is to keep Capsule's boundary honest: a small TypeScript adapter/spec layer for runtime actions, capability negotiation, policy notes, logs, artifacts, and receipts.
 
+## Decision Table
+
+| Use case | Best first choice | Why |
+| --- | --- | --- |
+| Agent, CI, or developer tooling needs to run runtime actions across providers with policy decisions and receipts. | Capsule | Capsule owns the cross-provider action contract, support levels, policy evaluation, and observational receipts. |
+| A product is deeply coupled to one provider's native concepts and needs the full API surface. | Provider SDK or API | Provider SDKs expose the complete platform model; Capsule should not flatten every native feature. |
+| Long-lived infrastructure should be planned, reconciled, updated, imported, and drift-checked. | Terraform or Pulumi | IaC tools own desired state, provider schemas, and lifecycle reconciliation; Capsule owns runtime action evidence. |
+| A team wants an app framework that derives cloud resources from application code. | Nitric or Encore | These frameworks own app architecture and deployment semantics; Capsule can be called inside them but should not replace them. |
+| A team wants hosted deployment, auth, domains, logs, dashboards, billing, and operational support more than a local SDK contract. | Managed PaaS | A PaaS owns the operational product surface; Capsule is the lower-level governed action layer. |
+| A workflow only needs sandbox execution with provider routing and no broader deployment/database evidence model. | ComputeSDK or a sandbox provider SDK | Capsule is useful when policy, receipts, or non-sandbox domains matter. |
+| A preview controller needs edge, service, job, and database resources with cleanup evidence. | Capsule plus provider adapters | The value is explicit domain composition and receipts without claiming providers are interchangeable. |
+
 ## Summary Table
 
 | Project | What it is | Source | Capsule boundary |
