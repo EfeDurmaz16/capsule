@@ -24,6 +24,82 @@ export interface CapsuleAdapterContractOptions {
   failureScenarios?: CapsuleAdapterFailureScenario[];
 }
 
+export type CapsuleAdapterContractFixtureKind = "allow" | "deny" | "unsupported" | "partialFailure" | "cleanup" | "receipt" | "liveSkip";
+
+export interface CapsuleAdapterContractFixture {
+  kind: CapsuleAdapterContractFixtureKind;
+  name: string;
+  capabilityPath?: CapabilityPath;
+  capsuleOptions?: Omit<CapsuleOptions, "adapter">;
+  spec?: Record<string, unknown>;
+  expectedError?: "AdapterExecutionError" | "PolicyViolationError" | "UnsupportedCapabilityError";
+  cleanup?: Record<string, unknown>;
+  expectedReceiptTypes?: string[];
+  env?: Record<string, string | undefined>;
+  skipReasonIncludes?: string;
+  notes: string[];
+}
+
+export const adapterContractFixtureKinds = ["allow", "deny", "unsupported", "partialFailure", "cleanup", "receipt", "liveSkip"] as const satisfies readonly CapsuleAdapterContractFixtureKind[];
+
+export const adapterContractFixtures: Record<CapsuleAdapterContractFixtureKind, CapsuleAdapterContractFixture> = {
+  allow: {
+    kind: "allow",
+    name: "allowed job run",
+    capabilityPath: "job.run",
+    capsuleOptions: { policy: {} },
+    spec: { image: "node:22", command: ["node", "-e", "console.log('allow')"] },
+    notes: ["Use this fixture to prove a supported capability can execute under the default allow policy."]
+  },
+  deny: {
+    kind: "deny",
+    name: "approval-denied job run",
+    capabilityPath: "job.run",
+    capsuleOptions: { policy: { approvals: { required: true, reason: "adapter contract deny fixture" } } },
+    spec: { image: "node:22" },
+    expectedError: "PolicyViolationError",
+    notes: ["Use this fixture to prove policy denial happens before provider execution."]
+  },
+  unsupported: {
+    kind: "unsupported",
+    name: "unsupported job run",
+    capabilityPath: "job.run",
+    expectedError: "UnsupportedCapabilityError",
+    notes: ["Use this fixture to prove unsupported declared capabilities fail closed."]
+  },
+  partialFailure: {
+    kind: "partialFailure",
+    name: "partial service deploy failure",
+    capabilityPath: "service.deploy",
+    spec: { name: "partial", image: "node:22" },
+    expectedError: "AdapterExecutionError",
+    notes: ["Use this fixture to prove partial provider allocation surfaces the original provider failure."]
+  },
+  cleanup: {
+    kind: "cleanup",
+    name: "cleanup after partial allocation",
+    capabilityPath: "service.deploy",
+    cleanup: { action: "delete-resource", status: "deleted" },
+    notes: ["Use this fixture to prove cleanup metadata is attached when provider allocation partially succeeds."]
+  },
+  receipt: {
+    kind: "receipt",
+    name: "receipt-enabled job run",
+    capabilityPath: "job.run",
+    capsuleOptions: { receipts: true },
+    spec: { image: "node:22" },
+    expectedReceiptTypes: ["job.run"],
+    notes: ["Use this fixture to prove successful operations produce receipts through Capsule context binding."]
+  },
+  liveSkip: {
+    kind: "liveSkip",
+    name: "live test opt-in skip",
+    env: {},
+    skipReasonIncludes: "CAPSULE_LIVE_TESTS=1",
+    notes: ["Use this fixture to prove live tests skip by default unless explicitly enabled."]
+  }
+};
+
 const publicCapabilities: PublicCapability[] = [
   {
     path: "sandbox.create",

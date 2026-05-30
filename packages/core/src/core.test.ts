@@ -20,7 +20,7 @@ import { edgeWorkerPreset, httpServicePreset, nodeJobPreset, nodeSandboxPreset, 
 import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
 import { canonicalReceiptPayload, createReceipt, providerRuntimeMetadata, verifyReceipt, verifyReceiptSignature } from "./receipts.js";
 import { MemoryReceiptStore } from "./stores.js";
-import { assertAdapterContract, runCapsuleAdapterContract } from "./contract.js";
+import { adapterContractFixtureKinds, adapterContractFixtures, assertAdapterContract, runCapsuleAdapterContract } from "./contract.js";
 import type { CapsuleAdapter, CapabilityMap } from "./index.js";
 
 const capabilities: CapabilityMap = {
@@ -396,6 +396,41 @@ describe("capabilities", () => {
         ]
       })
     ).resolves.toBeUndefined();
+  });
+
+  test("contract exposes reusable fixtures for adapter author scenarios", () => {
+    expect(adapterContractFixtureKinds).toEqual(["allow", "deny", "unsupported", "partialFailure", "cleanup", "receipt", "liveSkip"]);
+    expect(adapterContractFixtures.allow).toMatchObject({
+      kind: "allow",
+      capabilityPath: "job.run",
+      capsuleOptions: { policy: {} }
+    });
+    expect(adapterContractFixtures.deny).toMatchObject({
+      kind: "deny",
+      capabilityPath: "job.run",
+      capsuleOptions: { policy: { approvals: { required: true, reason: "adapter contract deny fixture" } } }
+    });
+    expect(adapterContractFixtures.unsupported).toMatchObject({
+      kind: "unsupported",
+      capabilityPath: "job.run",
+      expectedError: "UnsupportedCapabilityError"
+    });
+    expect(adapterContractFixtures.partialFailure).toMatchObject({
+      kind: "partialFailure",
+      capabilityPath: "service.deploy",
+      spec: { name: "partial", image: "node:22" },
+      expectedError: "AdapterExecutionError"
+    });
+    expect(adapterContractFixtures.cleanup.cleanup).toMatchObject({ action: "delete-resource", status: "deleted" });
+    expect(adapterContractFixtures.receipt).toMatchObject({
+      kind: "receipt",
+      capsuleOptions: { receipts: true },
+      expectedReceiptTypes: ["job.run"]
+    });
+    expect(adapterContractFixtures.liveSkip).toMatchObject({
+      kind: "liveSkip",
+      skipReasonIncludes: "CAPSULE_LIVE_TESTS=1"
+    });
   });
 
   test("contract rejects declared preview lifecycle support without implementation", () => {

@@ -155,7 +155,7 @@ Supply-chain note: CAP-P009 gates production licenses and reviewed direct runtim
 | --- | --- | --- | --- | --- | --- |
 | CAP-P076 | done | High | Audit public type exports | Every public type is intentional, documented, and reachable from package exports without deep imports. | `pnpm docs:api && git diff --exit-code docs/api-reference.md` |
 | CAP-P077 | done | High | Add public API stability tests | Tests import all public packages through their package names and fail on missing or accidental exports. | `pnpm test packages/core/src/package-exports.test.ts` |
-| CAP-P078 | open | Medium | Expand contract fixtures | Add reusable fixtures for allow, deny, unsupported, partial failure, cleanup, receipt, and live-skip cases. | `pnpm test packages/core/src/core.test.ts packages/*/src/*.test.ts` |
+| CAP-P078 | done | Medium | Expand contract fixtures | Add reusable fixtures for allow, deny, unsupported, partial failure, cleanup, receipt, and live-skip cases. | `pnpm test packages/core/src/core.test.ts packages/*/src/*.test.ts` |
 | CAP-P079 | open | High | Normalize error taxonomy | Core and adapters use typed errors for unsupported capability, policy denial, provider auth, provider validation, provider rate limit, and cleanup failure. | `pnpm test packages/core/src/core.test.ts packages/*/src/*.test.ts` |
 | CAP-P080 | open | Medium | Refine capability query types | Capability paths are typed tightly enough that unsupported string literals fail at compile time in SDK examples. | `pnpm typecheck` |
 | CAP-P081 | open | High | Strengthen preview cleanup plans | Preview orchestration stores cleanup plans that are reversible, idempotent, and visible in receipts. | `pnpm test packages/preview/src/*.test.ts packages/core/src/core.test.ts` |
