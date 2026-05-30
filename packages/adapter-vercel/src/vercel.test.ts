@@ -65,8 +65,19 @@ describe("vercel adapter", () => {
   it("does not leak token in API errors", async () => {
     const fetchMock = (async () => response({ error: { message: "deployment failed" } }, 400)) as typeof fetch;
     const capsule = new Capsule({ adapter: vercel({ token: "secret-token", fetch: fetchMock }) });
-    await expect(capsule.edge.deploy({ name: "bad", source: { path: await sourceFile() } })).rejects.toThrow(AdapterExecutionError);
-    await expect(capsule.edge.deploy({ name: "bad", source: { path: await sourceFile() } })).rejects.not.toThrow("secret-token");
+
+    let thrown: unknown;
+    try {
+      await capsule.edge.deploy({ name: "bad", source: { path: await sourceFile() } });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(AdapterExecutionError);
+    expect((thrown as Error).message).not.toContain("secret-token");
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({
+      providerError: { category: "validation", retryable: false, status: 400 }
+    });
   });
 
   it("fetches deployment status with team query parameters", async () => {

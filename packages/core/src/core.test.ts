@@ -13,7 +13,7 @@ import {
   uniqueCapabilityPaths
 } from "./capabilities.js";
 import { createEvidenceBundle, verifyEvidenceBundle } from "./evidence.js";
-import { AdapterExecutionError, UnsupportedCapabilityError, PolicyViolationError } from "./errors.js";
+import { AdapterExecutionError, UnsupportedCapabilityError, PolicyViolationError, classifyProviderError } from "./errors.js";
 import { capsuleOperationTag, capsuleOperationTags } from "./idempotency.js";
 import { evaluatePolicy, mergeTimeout, redactError, redactLogEntries, redactSecrets } from "./policy.js";
 import { edgeWorkerPreset, httpServicePreset, nodeJobPreset, nodeSandboxPreset, previewDatabaseBranchPreset, previewEnvironmentPreset } from "./presets.js";
@@ -512,6 +512,36 @@ describe("policy", () => {
     expect(redacted.cause).toEqual({
       authorization: "[REDACTED]",
       nested: { sessionId: "[REDACTED]" }
+    });
+  });
+
+  test("classifies rate-limit provider errors and retry-after hints", () => {
+    expect(classifyProviderError({ status: 429, headers: { "retry-after": "2" } })).toEqual({
+      category: "rate-limit",
+      retryable: true,
+      status: 429,
+      retryAfterMs: 2000
+    });
+    expect(classifyProviderError({ error: { code: "RESOURCE_EXHAUSTED" } })).toMatchObject({ category: "rate-limit", retryable: true });
+  });
+
+  test("classifies provider auth and validation errors", () => {
+    expect(classifyProviderError({ status: 401 })).toMatchObject({ category: "auth", retryable: false });
+    expect(classifyProviderError({ status: 403, error: { error: { status: "PERMISSION_DENIED" } } })).toMatchObject({ category: "auth", retryable: false });
+    expect(classifyProviderError({ status: 400 })).toMatchObject({ category: "validation", retryable: false });
+    expect(classifyProviderError({ status: 422, error: { code: "INVALID_ARGUMENT" } })).toMatchObject({ category: "validation", retryable: false });
+  });
+
+  test("classifies transient provider and network errors as retryable", () => {
+    expect(classifyProviderError({ status: 503 })).toMatchObject({ category: "retryable", retryable: true });
+    expect(classifyProviderError({ status: 408 })).toMatchObject({ category: "retryable", retryable: true });
+    expect(classifyProviderError({ error: { code: "ECONNRESET" } })).toMatchObject({ category: "retryable", retryable: true, code: "ECONNRESET" });
+  });
+
+  test("falls back to unknown provider error classification", () => {
+    expect(classifyProviderError({ error: { message: "unexpected provider response" } })).toEqual({
+      category: "unknown",
+      retryable: false
     });
   });
 

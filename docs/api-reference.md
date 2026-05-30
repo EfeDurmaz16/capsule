@@ -333,6 +333,8 @@ Exports:
 - `CapsuleReceipt`
 - `capsuleReceiptJsonSchema`
 - `CapsuleReceiptMetadata`
+- `classifyProviderError`
+- `ClassifyProviderErrorInput`
 - `classifyProviderService`
 - `ClassifyProviderServiceInput`
 - `ClassifyProviderServiceResult`
@@ -424,6 +426,8 @@ Exports:
 - `PreviewUrlsSpec`
 - `providerCompatibilityScore`
 - `ProviderCompatibilityScore`
+- `ProviderErrorCategory`
+- `ProviderErrorClassification`
 - `ProviderOptions`
 - `ProviderOptionValue`
 - `ProviderSelectionCandidate`

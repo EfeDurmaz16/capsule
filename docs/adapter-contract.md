@@ -89,6 +89,20 @@ Receipts should include:
 
 Receipt notes should be candid. Say when enforcement is delegated, emulated, best-effort, unsupported, or provider-specific.
 
+## Provider Error Classification
+
+Provider API clients should keep throwing `AdapterExecutionError`, but HTTP or SDK failures with stable status/code metadata should attach `cause.providerError` from `classifyProviderError(...)`. Use the common categories `auth`, `validation`, `rate-limit`, `retryable`, and `unknown`; do not invent adapter-specific retry labels.
+
+```ts
+throw new AdapterExecutionError(message, {
+  status: response.status,
+  error: data,
+  providerError: classifyProviderError({ status: response.status, headers: response.headers, error: data })
+});
+```
+
+Do not classify workload failures as provider failures. For example, a sandbox command exit code or Lambda `FunctionError` is execution state, not a provider transport/control-plane error.
+
 ## Minimal Contract Test Template
 
 Use the core contract helpers first. They verify that declared public capabilities match implemented public methods and that unsupported capabilities throw `UnsupportedCapabilityError`.

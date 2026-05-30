@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { Capsule, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule/core";
 import { neon } from "./index.js";
 
 function response(body: unknown, status = 200): Response {
@@ -58,7 +58,18 @@ describe("neon adapter", () => {
       receipts: true
     });
 
-    await expect(capsule.database.branch.create({ project: "project-1", parent: "br_main", name: "pr-42" })).rejects.toThrow("connection uri failed");
+    let thrown: unknown;
+    try {
+      await capsule.database.branch.create({ project: "project-1", parent: "br_main", name: "pr-42" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(AdapterExecutionError);
+    expect((thrown as Error).message).toBe("connection uri failed");
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({
+      providerError: { category: "retryable", retryable: true, status: 500 }
+    });
     expect(calls.map((call) => [call.init.method ?? "GET", call.url])).toEqual([
       ["POST", "https://console.neon.tech/api/v2/projects/project-1/branches"],
       ["GET", "https://console.neon.tech/api/v2/projects/project-1/connection_uri?branch_id=br_test&database_name=neondb&role_name=neondb_owner"],

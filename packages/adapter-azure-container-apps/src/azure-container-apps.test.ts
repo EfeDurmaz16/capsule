@@ -167,6 +167,9 @@ describe("azure container apps adapter", () => {
 
     expect(thrown).toBeInstanceOf(AdapterExecutionError);
     expect((thrown as Error).message).toBe("Azure start failed");
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({
+      providerError: { category: "validation", retryable: false, status: 409 }
+    });
     expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
       action: "delete-generated-job",
       jobName,
