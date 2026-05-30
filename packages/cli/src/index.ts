@@ -120,6 +120,8 @@ interface LiveTestPlan {
   requiredEnv: string[];
   optionalEnv: string[];
   aliases?: Record<string, string[]>;
+  costRisk: "none" | "read-only" | "billable";
+  costAcknowledgementEnv?: string;
   safeCommands: string[];
   notes: string[];
 }
@@ -155,6 +157,25 @@ interface ProviderVerificationEntry {
 
 interface ProviderVerificationReport {
   providers: ProviderVerificationEntry[];
+}
+
+interface LiveEnvironmentValidationEntry {
+  provider: string;
+  status: "ready" | "blocked";
+  liveTestEnabled: boolean;
+  costRisk: LiveTestPlan["costRisk"];
+  costAcknowledged: boolean;
+  configuredEnv: string[];
+  missingEnv: string[];
+  missingCostEnv: string[];
+  requiredEnv: string[];
+  testPath: string;
+  safeCommands: string[];
+  notes: string[];
+}
+
+interface LiveEnvironmentValidationReport {
+  providers: LiveEnvironmentValidationEntry[];
 }
 
 interface AdapterScaffoldFile {
@@ -240,6 +261,8 @@ const liveTestPlans: LiveTestPlan[] = [
     testPath: "packages/adapter-e2b/src/e2b.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "E2B_API_KEY"],
     optionalEnv: [],
+    costRisk: "billable",
+    costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
     safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-e2b/src/e2b.live.test.ts"],
     notes: ["Creates a sandbox, exercises exec and file operations, then destroys the sandbox."]
   },
@@ -248,6 +271,8 @@ const liveTestPlans: LiveTestPlan[] = [
     testPath: "packages/adapter-daytona/src/daytona.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "DAYTONA_API_KEY"],
     optionalEnv: [],
+    costRisk: "billable",
+    costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
     safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-daytona/src/daytona.live.test.ts"],
     notes: ["Creates an ephemeral sandbox with auto-stop configured and destroys it in finally."]
   },
@@ -256,6 +281,8 @@ const liveTestPlans: LiveTestPlan[] = [
     testPath: "packages/adapter-modal/src/modal.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"],
     optionalEnv: ["MODAL_APP_NAME", "MODAL_IMAGE", "MODAL_ENVIRONMENT"],
+    costRisk: "billable",
+    costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
     safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-modal/src/modal.live.test.ts"],
     notes: ["Creates a Modal sandbox, exercises exec and file operations, then destroys the sandbox."]
   },
@@ -264,6 +291,7 @@ const liveTestPlans: LiveTestPlan[] = [
     testPath: "packages/adapter-cloud-run/src/cloud-run.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_RUN_LOCATION", "GOOGLE_OAUTH_ACCESS_TOKEN", "CAPSULE_CLOUD_RUN_SERVICE_ID"],
     optionalEnv: [],
+    costRisk: "read-only",
     safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-cloud-run/src/cloud-run.live.test.ts"],
     notes: ["Reads an existing Cloud Run service status; no resource is created."]
   },
@@ -272,6 +300,8 @@ const liveTestPlans: LiveTestPlan[] = [
     testPath: "packages/adapter-cloudflare/src/cloudflare.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CAPSULE_CLOUDFLARE_WORKER_NAME", "CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION"],
     optionalEnv: ["CLOUDFLARE_COMPATIBILITY_DATE"],
+    costRisk: "billable",
+    costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
     aliases: {
       CLOUDFLARE_API_TOKEN: ["CAPSULE_WORKER_API_TOKEN", "CLOUDFLARE_WORKERS_FREE_API_TOKEN"],
       CLOUDFLARE_ACCOUNT_ID: ["CAPSULE_WORKER_ACCOUNT_ID", "CLOUDFLARE_WORKERS_FREE_ACCOUNT_ID"]
@@ -286,6 +316,7 @@ const liveTestPlans: LiveTestPlan[] = [
     testPath: "packages/adapter-vercel/src/vercel.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "VERCEL_TOKEN", "CAPSULE_VERCEL_DEPLOYMENT_ID"],
     optionalEnv: ["VERCEL_TEAM_ID", "VERCEL_TEAM_SLUG", "VERCEL_PROJECT_ID"],
+    costRisk: "read-only",
     safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-vercel/src/vercel.live.test.ts"],
     notes: ["Reads an existing Vercel deployment status; no resource is created."]
   },
@@ -294,6 +325,8 @@ const liveTestPlans: LiveTestPlan[] = [
     testPath: "packages/adapter-neon/src/neon.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "NEON_API_KEY", "NEON_PROJECT_ID"],
     optionalEnv: ["NEON_PARENT_BRANCH_ID", "NEON_DATABASE", "NEON_ROLE", "NEON_POOLED"],
+    costRisk: "billable",
+    costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
     aliases: {
       NEON_PROJECT_ID: ["CAPSULE_POSTGRES_PROJECT_ID"]
     },
@@ -307,6 +340,8 @@ const liveTestPlans: LiveTestPlan[] = [
     testPath: "packages/adapter-kubernetes/src/kubernetes.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "CAPSULE_KUBERNETES_NAMESPACE"],
     optionalEnv: ["KUBECONFIG", "KUBECONFIG_CONTEXT", "CAPSULE_KUBERNETES_IMAGE"],
+    costRisk: "billable",
+    costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
     safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-kubernetes/src/kubernetes.live.test.ts"],
     notes: ["Creates a Kubernetes Job and best-effort cancels it in finally."]
   },
@@ -315,6 +350,8 @@ const liveTestPlans: LiveTestPlan[] = [
     testPath: "packages/adapter-lambda/src/lambda.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "AWS_REGION", "CAPSULE_LAMBDA_FUNCTION_NAME"],
     optionalEnv: ["AWS_PROFILE", "AWS_ACCESS_KEY_ID", "AWS_WEB_IDENTITY_TOKEN_FILE"],
+    costRisk: "billable",
+    costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
     safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-lambda/src/lambda.live.test.ts"],
     notes: ["Uses the AWS SDK default credential chain and invokes an existing Lambda function."]
   },
@@ -323,6 +360,8 @@ const liveTestPlans: LiveTestPlan[] = [
     testPath: "packages/adapter-fly/src/fly.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "FLY_API_TOKEN", "FLY_APP_NAME", "CAPSULE_FLY_IMAGE"],
     optionalEnv: ["FLY_REGION", "CAPSULE_FLY_MEMORY_MB", "CAPSULE_FLY_CPUS"],
+    costRisk: "billable",
+    costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
     safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"],
     notes: ["Creates a Fly Machine and destroys it in finally."]
   },
@@ -339,6 +378,8 @@ const liveTestPlans: LiveTestPlan[] = [
       "CAPSULE_AZURE_CONTAINER_IMAGE"
     ],
     optionalEnv: ["CAPSULE_AZURE_CONTAINER_PORT"],
+    costRisk: "billable",
+    costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
     safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-azure-container-apps/src/azure-container-apps.live.test.ts"],
     notes: ["Deploys an Azure Container App service and deletes it in finally."]
   }
@@ -723,6 +764,41 @@ export async function createProviderVerificationReport(options: { env?: NodeJS.P
   return { providers };
 }
 
+export function createLiveEnvironmentValidationReport(options: { env?: NodeJS.ProcessEnv; provider?: string } = {}): LiveEnvironmentValidationReport {
+  const env = options.env ?? process.env;
+  const plans = liveTestCommandPlan(options.provider);
+  const providers = plans.map((plan): LiveEnvironmentValidationEntry => {
+    const diagnostic = livePlanRequirementDiagnostic(plan, env);
+    const liveTestEnabled = env.CAPSULE_LIVE_TESTS === "1";
+    const costEnv = plan.costAcknowledgementEnv;
+    const costAcknowledged = costEnv ? env[costEnv] === "1" : true;
+    const missingCostEnv = costEnv && !costAcknowledged ? [costEnv] : [];
+    return {
+      provider: plan.provider,
+      status: liveTestEnabled && diagnostic.missingEnv.length === 0 && missingCostEnv.length === 0 ? "ready" : "blocked",
+      liveTestEnabled,
+      costRisk: plan.costRisk,
+      costAcknowledged,
+      configuredEnv: [
+        ...(liveTestEnabled ? ["CAPSULE_LIVE_TESTS"] : []),
+        ...diagnostic.configuredEnv,
+        ...(costEnv && costAcknowledged ? [costEnv] : [])
+      ],
+      missingEnv: liveTestEnabled ? diagnostic.missingEnv : ["CAPSULE_LIVE_TESTS", ...diagnostic.missingEnv],
+      missingCostEnv,
+      requiredEnv: plan.requiredEnv.flatMap((name) => [name, ...(plan.aliases?.[name] ?? [])]),
+      testPath: plan.testPath,
+      safeCommands: plan.safeCommands,
+      notes: [
+        ...plan.notes,
+        ...(liveTestEnabled ? [] : ["Set CAPSULE_LIVE_TESTS=1 before running the safe command."]),
+        ...(missingCostEnv.length > 0 ? [`Set ${missingCostEnv[0]}=1 to acknowledge billable or side-effecting live provider work.`] : [])
+      ]
+    };
+  });
+  return { providers };
+}
+
 export function classifyProvider(provider: string, service: string): ClassifyProviderServiceResult {
   return classifyProviderService({ provider, service });
 }
@@ -957,6 +1033,7 @@ Commands:
   capsule verify providers --provider neon
   capsule live-test plan
   capsule live-test plan --provider neon
+  capsule live-test validate --provider neon
   capsule classify provider cloudflare workers
   capsule adapter scaffold acme --domain sandbox
   capsule select provider --recipe sandbox
@@ -1177,11 +1254,17 @@ export async function main(argv: string[]): Promise<void> {
     }
     case "live-test": {
       const action = parsed.rest[0];
-      if (action !== "plan") {
-        throw new Error("Unknown live-test command. Use plan.");
+      if (action === "plan") {
+        console.log(JSON.stringify(liveTestCommandPlan(parsed.provider ?? parsed.adapter), null, 2));
+        return;
       }
-      console.log(JSON.stringify(liveTestCommandPlan(parsed.provider ?? parsed.adapter), null, 2));
-      return;
+      if (action === "validate") {
+        const report = createLiveEnvironmentValidationReport({ provider: parsed.provider ?? parsed.adapter });
+        console.log(JSON.stringify(report, null, 2));
+        process.exitCode = report.providers.every((entry) => entry.status === "ready") ? 0 : 1;
+        return;
+      }
+      throw new Error("Unknown live-test command. Use plan or validate.");
     }
     case "capabilities": {
       const capsule = createCapsule(parsed);

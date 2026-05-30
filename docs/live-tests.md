@@ -25,6 +25,15 @@ pnpm --filter @capsule/cli capsule verify providers --provider neon
 
 The matrix does not run provider-mutating tests by itself. It reports Docker availability, configured or missing provider credential names, the live test path, and the safe command to run when you intentionally opt in with `CAPSULE_LIVE_TESTS=1`.
 
+Before running a provider live test, validate the exact provider environment:
+
+```bash
+pnpm --filter @capsule/cli capsule live-test validate --provider neon
+pnpm --filter @capsule/cli capsule live-test validate --provider fly
+```
+
+The validator is side-effect-free. It checks `CAPSULE_LIVE_TESTS`, required credential/project/region env vars, provider-scoped aliases, and billable-test acknowledgement. Live tests that create resources or invoke billable provider work report `blocked` until `CAPSULE_LIVE_TEST_COST_ACK=1` is set. Read-only status checks, such as Vercel deployment status and Cloud Run service status, do not require that acknowledgement.
+
 | Provider | Test path | Required environment | Operation | Cleanup |
 | --- | --- | --- | --- | --- |
 | E2B | `packages/adapter-e2b/src/e2b.live.test.ts` | `CAPSULE_LIVE_TESTS`, `E2B_API_KEY` | Creates a sandbox, exercises exec and file operations. | Destroys the sandbox in `finally`. |
@@ -49,7 +58,7 @@ Optional environment:
 - `FLY_REGION`, `CAPSULE_FLY_MEMORY_MB`, `CAPSULE_FLY_CPUS`
 - `CAPSULE_AZURE_CONTAINER_PORT`
 
-Run all credential-gated tests:
+Run all credential-gated tests only after the validator reports `ready` for the providers you intend to exercise:
 
 ```bash
 CAPSULE_LIVE_TESTS=1 pnpm test
