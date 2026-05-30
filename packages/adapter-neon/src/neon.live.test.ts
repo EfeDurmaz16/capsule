@@ -34,6 +34,11 @@ describe("neon live smoke", () => {
         expect(branch.connectionString).toBeUndefined();
       }
       expect(branch.receipt?.type).toBe("database.branch.create");
+      expect(branch.receipt?.metadata).toMatchObject({
+        providerApiVersion: "v2",
+        runtimeVersion: process.version,
+        adapterVersion: "0.1.1"
+      });
       expect(branch.receipt?.policy.notes).toContain(
         process.env.NEON_DATABASE && process.env.NEON_ROLE
           ? "Connection URI retrieved from Neon API."

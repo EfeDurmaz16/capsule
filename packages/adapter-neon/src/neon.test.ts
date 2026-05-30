@@ -36,6 +36,11 @@ describe("neon adapter", () => {
     expect(branch.id).toBe("br_test");
     expect(branch.connectionString).toBe("postgresql://role:pass@host/db?sslmode=require");
     expect(branch.receipt?.supportLevel).toBe("native");
+    expect(branch.receipt?.metadata).toMatchObject({
+      providerApiVersion: "v2",
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1"
+    });
     expect(calls[0]?.init.method).toBe("POST");
     expect(calls[0]?.init.headers).toMatchObject({ authorization: "Bearer test" });
     expect(calls[1]?.url).toContain("database_name=neondb");

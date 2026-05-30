@@ -55,6 +55,13 @@ Optional metadata environment:
 
 Provider coverage is intentionally explicit. E2B receives labels as sandbox metadata, Daytona receives labels in create params, Azure Container Apps maps labels to ARM tags, Kubernetes maps labels onto Jobs, and Fly Machines stores labels in Machine config metadata. Neon records labels and TTL in Capsule receipts, while Neon provider-side TTL enforcement is not implemented by the current adapter. Cloudflare Worker tests keep the existing env-provided Worker name and record labels in Capsule receipts only. Modal currently uses deterministic names, but its adapter does not map labels to a provider metadata field. Cloud Run, Vercel, and Lambda tests operate on existing resources and do not create taggable live resources.
 
+Live receipt assertions also check normalized runtime metadata where the adapter can observe it:
+
+- `providerApiVersion` records the provider API surface used for the operation, such as Fly Machines `machines/v1`, Cloud Run `run.googleapis.com/v2`, Cloudflare `client/v4`, Vercel endpoint versions, Neon `v2`, Kubernetes object API versions, Azure Container Apps ARM API version, or Lambda `2015-03-31`.
+- `providerRegion` records the provider location when the operation is region-scoped, such as Fly, Azure Container Apps, Cloud Run, or Lambda.
+- `runtimeVersion` records the local Node.js runtime that produced the receipt, unless the provider supplies a more specific version in a provider-specific metadata field.
+- `adapterVersion` records the Capsule adapter package version that shaped the receipt.
+
 ## Cleanup Sweep
 
 Use the cleanup sweep in dry-run mode before and after live-provider work:

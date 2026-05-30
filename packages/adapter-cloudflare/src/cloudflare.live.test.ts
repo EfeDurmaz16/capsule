@@ -40,6 +40,11 @@ describe("cloudflare live smoke", () => {
       });
       expect(version.provider).toBe("cloudflare");
       expect(version.receipt?.type).toBe("edge.version");
+      expect(version.receipt?.metadata).toMatchObject({
+        providerApiVersion: "client/v4",
+        runtimeVersion: process.version,
+        adapterVersion: "0.1.1"
+      });
     },
     120_000
   );
@@ -80,6 +85,11 @@ describe("cloudflare live smoke", () => {
         resource: { name: process.env.CAPSULE_CLOUDFLARE_WORKER_NAME, status: "ready" }
       });
       expect(deployment.receipt?.metadata?.runtime).toBe("workers");
+      expect(deployment.receipt?.metadata).toMatchObject({
+        providerApiVersion: "client/v4",
+        runtimeVersion: process.version,
+        adapterVersion: "0.1.1"
+      });
       if (process.env.CAPSULE_CLOUDFLARE_WORKERS_DEV_SUBDOMAIN ?? process.env.CAPSULE_WORKER_WORKERS_DEV_SUBDOMAIN) {
         expect(deployment.url).toContain(".workers.dev");
       }
@@ -135,6 +145,11 @@ describe("cloudflare live smoke", () => {
         resource: { name: scriptName, status: "ready" }
       });
       expect(rollback.receipt?.metadata?.targetVersionId).toBe(version.id);
+      expect(rollback.receipt?.metadata).toMatchObject({
+        providerApiVersion: "client/v4",
+        runtimeVersion: process.version,
+        adapterVersion: "0.1.1"
+      });
     },
     120_000
   );

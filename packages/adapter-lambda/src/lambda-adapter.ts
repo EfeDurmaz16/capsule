@@ -1,6 +1,7 @@
 import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
 import {
   logsFromOutput,
+  providerRuntimeMetadata,
   redactLogEntries,
   redactSecrets,
   type AdapterContext,
@@ -35,6 +36,8 @@ export interface LambdaAdapterOptions {
 
 const provider = "lambda";
 const adapter = "lambda";
+const adapterVersion = "0.1.1";
+const providerApiVersion = "2015-03-31";
 
 export const lambdaCapabilities: CapabilityMap = {
   sandbox: {
@@ -139,6 +142,17 @@ function receiptNotes(policyNotes: string[], invocationType: LambdaAdapterOption
   return notes;
 }
 
+function lambdaReceiptMetadata(options: LambdaAdapterOptions, metadata: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ...providerRuntimeMetadata({
+      providerApiVersion,
+      providerRegion: options.region,
+      adapterVersion
+    }),
+    ...metadata
+  };
+}
+
 function defaultClient(options: LambdaAdapterOptions): LambdaClientLike {
   return new LambdaClient({ region: options.region });
 }
@@ -189,7 +203,7 @@ export function lambda(options: LambdaAdapterOptions = {}): CapsuleAdapter {
                 notes: receiptNotes(policy.notes, invocationType)
               },
               resource: { id: functionName, name: functionName, status: runStatus },
-              metadata: {
+              metadata: lambdaReceiptMetadata(options, {
                 invocationType,
                 statusCode: response.StatusCode,
                 functionName,
@@ -203,7 +217,7 @@ export function lambda(options: LambdaAdapterOptions = {}): CapsuleAdapter {
                 functionError: response.FunctionError ?? null,
                 asyncStatusSupport: invocationType === "Event" ? "unsupported" : undefined,
                 logTail: logText || undefined
-              }
+              })
             })
           : undefined;
         const result: ExecResult | undefined =

@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import {
   AdapterExecutionError,
+  providerRuntimeMetadata,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
@@ -32,6 +33,7 @@ export interface VercelAdapterOptions extends VercelClientOptions {
 
 const provider = "vercel";
 const adapter = "vercel";
+const adapterVersion = "0.1.1";
 
 export const vercelCapabilities: CapabilityMap = {
   sandbox: {
@@ -100,6 +102,13 @@ function statusFromReadyState(readyState: string | undefined): EdgeDeployment["s
 function deploymentUrl(url: string | undefined): string | undefined {
   if (!url) return undefined;
   return url.startsWith("http://") || url.startsWith("https://") ? url : `https://${url}`;
+}
+
+function vercelReceiptMetadata(providerApiVersion: string, metadata: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ...providerRuntimeMetadata({ providerApiVersion, adapterVersion }),
+    ...metadata
+  };
 }
 
 function millis(input: string | undefined): number | undefined {
@@ -242,7 +251,7 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
                 ]
               },
               resource: { id: deployment.id, name: deployment.name ?? spec.name, status, url },
-              metadata: { readyState: deployment.readyState, inspectorUrl: deployment.inspectorUrl, target: options.target ?? "preview" }
+              metadata: vercelReceiptMetadata("v13", { readyState: deployment.readyState, inspectorUrl: deployment.inspectorUrl, target: options.target ?? "preview" })
             })
           : undefined;
         return { id: deployment.id, provider, name: deployment.name ?? spec.name, status, url, receipt };
@@ -263,7 +272,7 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
                 notes: ["Vercel deployment status is read from the deployments API."]
               },
               resource: { id: deployment.id, name: deployment.name, status, url },
-              metadata: { readyState: deployment.readyState, inspectorUrl: deployment.inspectorUrl, createdAt: deployment.createdAt }
+              metadata: vercelReceiptMetadata("v13", { readyState: deployment.readyState, inspectorUrl: deployment.inspectorUrl, createdAt: deployment.createdAt })
             })
           : undefined;
         return { id: deployment.id, provider, name: deployment.name, status, url, receipt, metadata: { readyState: deployment.readyState, deployment } };
@@ -291,7 +300,7 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
                 notes: ["Vercel alias assignment is native and moves the alias from any previous deployment.", "Traffic splits are rejected until Capsule models Vercel canary or split-release semantics explicitly."]
               },
               resource: { id: result.uid, name: result.alias, status: "ready", url },
-              metadata: { deploymentId, oldDeploymentId: result.oldDeploymentId, created: result.created }
+              metadata: vercelReceiptMetadata("v2", { deploymentId, oldDeploymentId: result.oldDeploymentId, created: result.created })
             })
           : undefined;
         return {
@@ -348,13 +357,13 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
                 ]
               },
               resource: { id: spec.id },
-              metadata: {
+              metadata: vercelReceiptMetadata(useRuntimeLogs ? "v1" : "v3", {
                 api: useRuntimeLogs ? "runtime" : "deployment-events",
                 since: spec.since,
                 until: spec.until,
                 limit: spec.limit,
                 follow: spec.follow
-              }
+              })
             })
           : undefined;
         return { id: spec.id, provider, logs, receipt, metadata: { api: useRuntimeLogs ? "runtime" : "deployment-events" } };

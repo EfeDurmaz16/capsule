@@ -52,7 +52,13 @@ describe("kubernetes adapter", () => {
     expect(run.id).toBe("build-job");
     expect(run.status).toBe("running");
     expect(run.receipt?.type).toBe("job.run");
-    expect(run.receipt?.metadata).toMatchObject({ kubernetesName: "build-job", uid: "job-uid" });
+    expect(run.receipt?.metadata).toMatchObject({
+      providerApiVersion: "batch/v1",
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1",
+      kubernetesName: "build-job",
+      uid: "job-uid"
+    });
     expect(calls[0]?.namespace).toBe("capsule");
     expect(calls[0]?.body).toMatchObject({
       apiVersion: "batch/v1",

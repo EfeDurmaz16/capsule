@@ -18,7 +18,7 @@ import { capsuleOperationTag, capsuleOperationTags } from "./idempotency.js";
 import { evaluatePolicy, mergeTimeout, redactError, redactLogEntries, redactSecrets } from "./policy.js";
 import { edgeWorkerPreset, httpServicePreset, nodeJobPreset, nodeSandboxPreset, previewDatabaseBranchPreset, previewEnvironmentPreset } from "./presets.js";
 import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
-import { canonicalReceiptPayload, createReceipt, verifyReceiptSignature } from "./receipts.js";
+import { canonicalReceiptPayload, createReceipt, providerRuntimeMetadata, verifyReceiptSignature } from "./receipts.js";
 import { MemoryReceiptStore } from "./stores.js";
 import { assertAdapterContract, runCapsuleAdapterContract } from "./contract.js";
 import type { CapsuleAdapter, CapabilityMap } from "./index.js";
@@ -1042,6 +1042,24 @@ describe("receipts", () => {
     expect(JSON.stringify(receipt)).not.toContain("session-secret");
   });
 
+  test("builds provider runtime receipt metadata without empty fields", () => {
+    expect(
+      providerRuntimeMetadata({
+        providerApiVersion: "v2",
+        providerRegion: "us-central1",
+        adapterVersion: "0.1.1"
+      })
+    ).toEqual({
+      providerApiVersion: "v2",
+      providerRegion: "us-central1",
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1"
+    });
+    expect(providerRuntimeMetadata({ providerApiVersion: "", providerRegion: null, adapterVersion: undefined })).toEqual({
+      runtimeVersion: process.version
+    });
+  });
+
   test("applies strict redaction profile to receipt provider metadata and options", () => {
     const receipt = createReceipt({
       type: "job.run",
@@ -1547,6 +1565,10 @@ describe("receipts", () => {
     );
     expect(capsuleReceiptJsonSchema.properties.metadata.properties).toMatchObject({
       providerRequestId: { type: "string" },
+      providerApiVersion: { type: "string" },
+      providerRegion: { type: "string" },
+      runtimeVersion: { type: "string" },
+      adapterVersion: { type: "string" },
       idempotencyKey: { type: "string" },
       idempotencyScope: { type: "string" },
       operationTag: { type: "string" }

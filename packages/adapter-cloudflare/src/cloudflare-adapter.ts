@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import {
   AdapterExecutionError,
+  providerRuntimeMetadata,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
@@ -20,6 +21,8 @@ export interface CloudflareAdapterOptions extends CloudflareClientOptions {
 
 const provider = "cloudflare";
 const adapter = "cloudflare";
+const adapterVersion = "0.1.1";
+const providerApiVersion = "client/v4";
 
 export const cloudflareCapabilities: CapabilityMap = {
   sandbox: {
@@ -111,6 +114,13 @@ function plainTextBindings(env: Record<string, string> | undefined): Array<Recor
 
 function workerUrl(name: string, subdomain: string | undefined): string | undefined {
   return subdomain ? `https://${name}.${subdomain}.workers.dev` : undefined;
+}
+
+function cloudflareReceiptMetadata(metadata: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ...providerRuntimeMetadata({ providerApiVersion, adapterVersion }),
+    ...metadata
+  };
 }
 
 function resolveEntrypoint(spec: DeployEdgeSpec): string {
@@ -230,13 +240,13 @@ export function cloudflare(options: CloudflareAdapterOptions = {}): CapsuleAdapt
                 status: "ready",
                 url
               },
-              metadata: {
+              metadata: cloudflareReceiptMetadata({
                 runtime: spec.runtime ?? "workers",
                 compatibilityDate: result.compatibility_date ?? options.compatibilityDate,
                 entryPoint: result.entry_point ?? entrypoint,
                 routes,
                 labels: spec.labels
-              }
+              })
             })
           : undefined;
         return {
@@ -286,14 +296,14 @@ export function cloudflare(options: CloudflareAdapterOptions = {}): CapsuleAdapt
                 name: spec.name,
                 status: "ready"
               },
-              metadata: {
+              metadata: cloudflareReceiptMetadata({
                 runtime: spec.runtime ?? "workers",
                 compatibilityDate: stringProviderOption(result.metadata?.compatibility_date) ?? options.compatibilityDate,
                 entryPoint: entrypoint,
                 versionNumber: result.number,
                 deploymentId: spec.deploymentId,
                 labels: spec.labels
-              }
+              })
             })
           : undefined;
         return {
@@ -331,11 +341,11 @@ export function cloudflare(options: CloudflareAdapterOptions = {}): CapsuleAdapt
                 status: "ready"
               },
               providerOptions: spec.providerOptions,
-              metadata: {
+              metadata: cloudflareReceiptMetadata({
                 requestedDeploymentId: spec.deploymentId,
                 targetVersionId,
                 deployment
-              }
+              })
             })
           : undefined;
         return {

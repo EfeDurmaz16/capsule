@@ -55,6 +55,12 @@ describe("azure container apps adapter", () => {
 
     expect(deployment).toMatchObject({ id: "/containerApps/api", provider: "azure-container-apps", status: "ready", url: "https://api.example.azurecontainerapps.io" });
     expect(deployment.receipt?.type).toBe("service.deploy");
+    expect(deployment.receipt?.metadata).toMatchObject({
+      providerApiVersion: "2025-07-01",
+      providerRegion: "eastus",
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1"
+    });
     expect(calls[0]?.url).toBe("https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/containerApps/api?api-version=2025-07-01");
     expect(calls[0]?.init.headers).toMatchObject({ authorization: "Bearer azure-token" });
     expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
@@ -86,6 +92,12 @@ describe("azure container apps adapter", () => {
 
     expect(run).toMatchObject({ id: "/jobs/smoke/executions/exec-1", provider: "azure-container-apps", status: "running" });
     expect(run.receipt?.type).toBe("job.run");
+    expect(run.receipt?.metadata).toMatchObject({
+      providerApiVersion: "2025-07-01",
+      providerRegion: "eastus",
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1"
+    });
     expect(calls.map((call) => [call.init.method, call.url])).toEqual([
       ["GET", "https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/smoke?api-version=2025-07-01"],
       ["PUT", "https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/smoke?api-version=2025-07-01"],

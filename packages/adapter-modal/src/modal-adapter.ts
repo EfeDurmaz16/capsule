@@ -2,6 +2,7 @@ import { Image, ModalClient } from "modal";
 import {
   AdapterExecutionError,
   logsFromOutput,
+  providerRuntimeMetadata,
   redactSecrets,
   type AdapterContext,
   type CapsuleAdapter,
@@ -55,6 +56,7 @@ export interface ModalAdapterOptions {
 
 const provider = "modal";
 const adapter = "modal";
+const adapterVersion = "0.1.1";
 
 export const modalCapabilities: CapabilityMap = {
   sandbox: {
@@ -129,6 +131,13 @@ function removeUndefined(input: Record<string, unknown>): Record<string, unknown
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
 }
 
+function modalReceiptMetadata(metadata: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ...providerRuntimeMetadata({ adapterVersion }),
+    ...metadata
+  };
+}
+
 function policyNotes(context: AdapterContext): string[] {
   const notes = ["Modal sandbox isolation is provided by Modal, not by Capsule itself."];
   if (context.policy.network?.mode === "none") notes.push("Modal blockNetwork is requested for this sandbox.");
@@ -163,7 +172,7 @@ class ModalCapsuleSandbox implements Sandbox {
           stderr,
           policy: { ...policy, notes: [...policy.notes, ...policyNotes(this.context)] },
           resource: { id: this.handle.id, status: "running" },
-          metadata: removeUndefined({ mode: "text", workdir: spec.cwd, timeoutMs: spec.timeoutMs })
+          metadata: modalReceiptMetadata(removeUndefined({ mode: "text", workdir: spec.cwd, timeoutMs: spec.timeoutMs }))
         })
       : undefined;
     return { exitCode, stdout, stderr, logs: logsFromOutput(stdout, stderr), artifacts: [], receipt };
@@ -202,7 +211,7 @@ class ModalCapsuleSandbox implements Sandbox {
         startedAt,
         policy: { decision: "allowed", applied: this.context.policy, notes: policyNotes(this.context) },
         resource: { id: this.handle.id, status: "deleted" },
-        metadata: { terminateWait: false }
+        metadata: modalReceiptMetadata({ terminateWait: false })
       });
     }
   }
@@ -241,13 +250,13 @@ export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
             image: imageTag,
             policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
             resource: { id: sandbox.sandboxId, name: spec.name, status: "running" },
-            metadata: removeUndefined({
+            metadata: modalReceiptMetadata(removeUndefined({
               appName,
               environment: options.environment,
               image: imageTag,
               blockNetwork: context.policy.network?.mode === "none" ? true : undefined,
               cidrAllowlist: context.policy.network?.mode === "allowlist" ? context.policy.network.allowedHosts : undefined
-            })
+            }))
           });
         }
         return new ModalCapsuleSandbox(sandbox, handle, context);

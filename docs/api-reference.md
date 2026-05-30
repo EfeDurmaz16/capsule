@@ -434,6 +434,8 @@ Exports:
 - `ProviderErrorClassification`
 - `ProviderOptions`
 - `ProviderOptionValue`
+- `providerRuntimeMetadata`
+- `ProviderRuntimeMetadataInput`
 - `ProviderSelectionCandidate`
 - `ProviderSelectionRecipe`
 - `ProviderSelectionRecipeId`

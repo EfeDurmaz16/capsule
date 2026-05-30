@@ -95,6 +95,11 @@ describe("vercel adapter", () => {
 
     expect(status).toMatchObject({ id: "dpl_123", provider: "vercel", name: "capsule-edge", status: "ready", url: "https://capsule-edge.vercel.app" });
     expect(status.receipt?.type).toBe("edge.status");
+    expect(status.receipt?.metadata).toMatchObject({
+      providerApiVersion: "v13",
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1"
+    });
     expect(calls[0]).toMatchObject({ url: "https://api.vercel.com/v13/deployments/dpl_123?teamId=team_1", init: { method: "GET" } });
   });
 

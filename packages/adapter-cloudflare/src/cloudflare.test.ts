@@ -63,6 +63,11 @@ describe("cloudflare adapter", () => {
     expect(deployment.receipt?.type).toBe("edge.deploy");
     expect(deployment.receipt?.supportLevel).toBe("native");
     expect(deployment.receipt?.policy.notes?.join(" ")).toContain("Routes were configured");
+    expect(deployment.receipt?.metadata).toMatchObject({
+      providerApiVersion: "client/v4",
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1"
+    });
     expect(calls[0]?.url).toBe("https://api.cloudflare.com/client/v4/accounts/acct/workers/scripts/capsule-test");
     expect(calls[0]?.init.method).toBe("PUT");
     expect(calls[0]?.init.headers).toMatchObject({ authorization: "Bearer cf-token" });
@@ -145,6 +150,11 @@ describe("cloudflare adapter", () => {
     expect(version.receipt?.type).toBe("edge.version");
     expect(version.receipt?.supportLevel).toBe("native");
     expect(version.receipt?.policy.notes?.join(" ")).toContain("does not deploy traffic by itself");
+    expect(version.receipt?.metadata).toMatchObject({
+      providerApiVersion: "client/v4",
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1"
+    });
     expect(calls).toHaveLength(1);
     expect(calls[0]?.url).toBe("https://api.cloudflare.com/client/v4/accounts/acct/workers/scripts/capsule-test/versions");
     expect(calls[0]?.init.method).toBe("POST");

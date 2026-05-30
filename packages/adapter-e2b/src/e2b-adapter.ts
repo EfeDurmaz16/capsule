@@ -3,6 +3,7 @@ import {
   AdapterExecutionError,
   capsuleOperationTags,
   logsFromOutput,
+  providerRuntimeMetadata,
   redactSecrets,
   type AdapterContext,
   type CapsuleAdapter,
@@ -76,6 +77,7 @@ type CleanupAwareError = Error & { cleanup?: E2BSandboxCleanupMetadata };
 
 const provider = "e2b";
 const adapter = "e2b";
+const adapterVersion = "0.1.1";
 
 export const e2bCapabilities: CapabilityMap = {
   sandbox: {
@@ -190,6 +192,13 @@ function removeUndefined(input: Record<string, unknown>): Record<string, unknown
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
 }
 
+function e2bReceiptMetadata(metadata: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ...providerRuntimeMetadata({ adapterVersion }),
+    ...metadata
+  };
+}
+
 function toFileType(type: E2BEntryInfo["type"]): FileEntry["type"] {
   if (type === "file") return "file";
   if (type === "dir" || type === "directory") return "directory";
@@ -257,7 +266,7 @@ class E2BCapsuleSandbox implements Sandbox {
           stderr,
           policy: { ...policy, notes: [...policy.notes, ...policyNotes(this.context)] },
           resource: { id: this.handle.id, status: "running" },
-          metadata: result.error ? { error: result.error } : undefined
+          metadata: e2bReceiptMetadata(result.error ? { error: result.error } : undefined)
         })
       : undefined;
     return { exitCode: result.exitCode, stdout, stderr, logs: logsFromOutput(stdout, stderr), artifacts: [], receipt };
@@ -290,7 +299,8 @@ class E2BCapsuleSandbox implements Sandbox {
         capabilityPath: "sandbox.destroy",
         startedAt,
         policy: { decision: "allowed", applied: this.context.policy, notes: policyNotes(this.context) },
-        resource: { id: this.handle.id, status: "deleted" }
+        resource: { id: this.handle.id, status: "deleted" },
+        metadata: e2bReceiptMetadata()
       });
     }
   }
@@ -328,7 +338,7 @@ export function e2b(options: E2BAdapterOptions = {}): CapsuleAdapter {
               image: template,
               policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
               resource: { id: sandbox.sandboxId, status: "running" },
-              metadata: { domain: sandbox.sandboxDomain, labels: spec.labels }
+              metadata: e2bReceiptMetadata({ domain: sandbox.sandboxDomain, labels: spec.labels })
             });
           }
           return new E2BCapsuleSandbox(sandbox, handle, context, spec.cwd ?? options.defaultCwd);

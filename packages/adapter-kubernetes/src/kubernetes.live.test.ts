@@ -31,6 +31,11 @@ describe("kubernetes live smoke", () => {
         jobId = run.id;
         expect(run.provider).toBe("kubernetes");
         expect(run.receipt?.type).toBe("job.run");
+        expect(run.receipt?.metadata).toMatchObject({
+          providerApiVersion: "batch/v1",
+          runtimeVersion: process.version,
+          adapterVersion: "0.1.1"
+        });
       } finally {
         if (jobId) {
           await capsule.job.cancel({ id: jobId, reason: "capsule live smoke cleanup" }).catch(() => undefined);

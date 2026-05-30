@@ -3,6 +3,7 @@ import {
   AdapterExecutionError,
   type CapsuleAdapter,
   type CapabilityMap,
+  providerRuntimeMetadata,
   type CreateDatabaseBranchSpec,
   type DatabaseBranch,
   type ResetDatabaseBranch,
@@ -36,6 +37,8 @@ interface NeonConnectionUriResponse {
 
 const provider = "neon";
 const adapter = "neon";
+const adapterVersion = "0.1.1";
+const providerApiVersion = "v2";
 
 export const neonCapabilities: CapabilityMap = {
   database: {
@@ -88,6 +91,13 @@ function resetBranchBody(spec: ResetDatabaseBranchSpec) {
     ...(spec.pointInTime ? { source_timestamp: spec.pointInTime } : {}),
     ...(spec.sourceLsn ? { source_lsn: spec.sourceLsn } : {}),
     ...(spec.preserveUnderName ? { preserve_under_name: spec.preserveUnderName } : {})
+  };
+}
+
+function neonReceiptMetadata(metadata: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ...providerRuntimeMetadata({ providerApiVersion, adapterVersion }),
+    ...metadata
   };
 }
 
@@ -160,12 +170,12 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
                   name: response.branch.name,
                   status: response.branch.current_state ?? "ready"
                 },
-                metadata: {
+                metadata: neonReceiptMetadata({
                   parent: response.branch.parent_id,
                   endpointIds: response.endpoints?.map((endpoint) => endpoint.id),
                   ttlMs: spec.ttlMs,
                   labels: spec.labels
-                }
+                })
               })
             : undefined;
           return {
@@ -201,7 +211,7 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
                   ]
                 },
                 resource: { id: spec.branchId, status: "deleted" },
-                metadata: { project: spec.project, hardDelete: spec.hardDelete }
+                metadata: neonReceiptMetadata({ project: spec.project, hardDelete: spec.hardDelete })
               })
             : undefined;
           return { id: spec.branchId, provider, project: spec.project, status: "deleted", receipt };
@@ -234,7 +244,7 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
                   name: response.branch.name,
                   status: response.branch.current_state ?? "ready"
                 },
-                metadata: {
+                metadata: neonReceiptMetadata({
                   project: spec.project,
                   sourceBranchId: body.source_branch_id,
                   sourceTimestamp: spec.pointInTime,
@@ -243,7 +253,7 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
                   parent: response.branch.parent_id,
                   reason: spec.reason,
                   labels: spec.labels
-                }
+                })
               })
             : undefined;
           return {

@@ -3,6 +3,7 @@ import {
   AdapterExecutionError,
   capsuleOperationTags,
   logsFromOutput,
+  providerRuntimeMetadata,
   redactSecrets,
   type AdapterContext,
   type CapsuleAdapter,
@@ -56,6 +57,7 @@ type CleanupAwareError = Error & { cleanup?: DaytonaSandboxCleanupMetadata };
 
 const provider = "daytona";
 const adapter = "daytona";
+const adapterVersion = "0.1.1";
 
 export const daytonaCapabilities: CapabilityMap = {
   sandbox: {
@@ -155,6 +157,13 @@ function removeUndefined(input: Record<string, unknown>): Record<string, unknown
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
 }
 
+function daytonaReceiptMetadata(metadata: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ...providerRuntimeMetadata({ adapterVersion }),
+    ...metadata
+  };
+}
+
 function defaultClient(options: DaytonaAdapterOptions): DaytonaClientLike {
   return new Daytona({ apiKey: options.apiKey, apiUrl: options.apiUrl, target: options.target }) as unknown as DaytonaClientLike;
 }
@@ -225,7 +234,8 @@ class DaytonaCapsuleSandbox implements Sandbox {
           stdout,
           stderr,
           policy: { ...policy, notes: [...policy.notes, ...policyNotes(this.context)] },
-          resource: { id: this.handle.id, status: this.sandbox.state ?? "started" }
+          resource: { id: this.handle.id, status: this.sandbox.state ?? "started" },
+          metadata: daytonaReceiptMetadata({ state: this.sandbox.state })
         })
       : undefined;
     return { exitCode: response.exitCode, stdout, stderr, logs: logsFromOutput(stdout, stderr), artifacts: [], receipt };
@@ -258,7 +268,8 @@ class DaytonaCapsuleSandbox implements Sandbox {
         capabilityPath: "sandbox.destroy",
         startedAt,
         policy: { decision: "allowed", applied: this.context.policy, notes: policyNotes(this.context) },
-        resource: { id: this.handle.id, status: "deleted" }
+        resource: { id: this.handle.id, status: "deleted" },
+        metadata: daytonaReceiptMetadata()
       });
     }
   }
@@ -290,7 +301,8 @@ export function daytona(options: DaytonaAdapterOptions = {}): CapsuleAdapter {
               startedAt,
               image: spec.image,
               policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
-              resource: { id: sandbox.id, name: sandbox.name, status: sandbox.state ?? "started" }
+              resource: { id: sandbox.id, name: sandbox.name, status: sandbox.state ?? "started" },
+              metadata: daytonaReceiptMetadata({ name: sandbox.name, state: sandbox.state })
             });
           }
           return new DaytonaCapsuleSandbox(sandbox, handle, context);

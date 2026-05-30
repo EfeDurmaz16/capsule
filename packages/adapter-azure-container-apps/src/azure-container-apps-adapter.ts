@@ -1,6 +1,7 @@
 import {
   AdapterExecutionError,
   capsuleOperationTags,
+  providerRuntimeMetadata,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
@@ -53,6 +54,7 @@ type CleanupAwareError = Error & { cleanup?: AzureJobCleanupMetadata };
 
 const provider = "azure-container-apps";
 const adapter = "azure-container-apps";
+const adapterVersion = "0.1.1";
 
 export const azureContainerAppsCapabilities: CapabilityMap = {
   job: {
@@ -82,6 +84,25 @@ export const azureContainerAppsCapabilities: CapabilityMap = {
 function required(name: string, value: string | undefined): string {
   if (!value) throw new AdapterExecutionError(`Azure Container Apps adapter requires ${name}.`);
   return value;
+}
+
+function resolvedLocation(options: AzureContainerAppsAdapterOptions): string | undefined {
+  return options.location ?? process.env.AZURE_LOCATION;
+}
+
+function azureReceiptMetadata(
+  client: AzureContainerAppsClient,
+  options: AzureContainerAppsAdapterOptions,
+  metadata: Record<string, unknown> = {}
+): Record<string, unknown> {
+  return {
+    ...providerRuntimeMetadata({
+      providerApiVersion: client.apiVersion,
+      providerRegion: resolvedLocation(options),
+      adapterVersion
+    }),
+    ...metadata
+  };
 }
 
 function env(env: Record<string, string> | undefined): Array<{ name: string; value: string }> | undefined {
@@ -302,7 +323,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
                 ]
               },
               resource: { id, name: job.name ?? jobName, status: execution.properties?.runningStatus ?? job.properties?.provisioningState ?? "running" },
-              metadata: { jobId: job.id, executionId: execution.id, resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId }
+              metadata: azureReceiptMetadata(client, options, { jobId: job.id, executionId: execution.id, resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId })
             })
           : undefined;
         return { id, provider, status: "running", receipt };
@@ -325,7 +346,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
                 notes: ["Azure Container Apps job status is read from the ARM job execution resource."]
               },
               resource: { id, name: execution.name ?? executionName, status },
-              metadata: { jobName, executionName, resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId, execution }
+              metadata: azureReceiptMetadata(client, options, { jobName, executionName, resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId, execution })
             })
           : undefined;
         return {
@@ -356,7 +377,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
                 ]
               },
               resource: { id, name: executionName, status: "cancelling" },
-              metadata: {
+              metadata: azureReceiptMetadata(client, options, {
                 jobName,
                 executionName,
                 reason: spec.reason,
@@ -364,7 +385,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
                 jobResourceDeleted: false,
                 resourceGroupName: client.resourceGroupName,
                 subscriptionId: client.subscriptionId
-              }
+              })
             })
           : undefined;
         return {
@@ -405,7 +426,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
                 ]
               },
               resource: { id, name: resource.name ?? spec.name, url, status },
-              metadata: { provisioningState: resource.properties?.provisioningState, resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId }
+              metadata: azureReceiptMetadata(client, options, { provisioningState: resource.properties?.provisioningState, resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId })
             })
           : undefined;
         return { id, provider, name: resource.name ?? spec.name, status, url, receipt };
@@ -429,7 +450,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
                 notes: ["Azure Container Apps service status is read from the ARM Container App resource."]
               },
               resource: { id, name: resource.name ?? name, status, url },
-              metadata: { resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId, resource }
+              metadata: azureReceiptMetadata(client, options, { resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId, resource })
             })
           : undefined;
         return { id, provider, name: resource.name ?? name, status, url, receipt, metadata: { resource } };
@@ -450,7 +471,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
                 notes: ["Azure Container Apps service deletion maps to the ARM Container Apps delete operation."]
               },
               resource: { id: spec.id, name, status: "deleted" },
-              metadata: { reason: spec.reason, force: spec.force, resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId }
+              metadata: azureReceiptMetadata(client, options, { reason: spec.reason, force: spec.force, resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId })
             })
           : undefined;
         return { id: spec.id, provider, name, status: "deleted", receipt, metadata: { reason: spec.reason, force: spec.force } };

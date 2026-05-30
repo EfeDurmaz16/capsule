@@ -2,6 +2,7 @@ import {
   AdapterExecutionError,
   capsuleOperationTags,
   logsFromOutput,
+  providerRuntimeMetadata,
   redactLogEntries,
   type AdapterContext,
   type CapsuleAdapter,
@@ -41,6 +42,9 @@ export interface CloudRunAdapterOptions extends CloudRunClientOptions {
 
 const provider = "cloud-run";
 const adapter = "cloud-run";
+const adapterVersion = "0.1.1";
+const providerApiVersion = "run.googleapis.com/v2";
+const loggingApiVersion = "logging.googleapis.com/v2";
 
 export const cloudRunCapabilities: CapabilityMap = {
   sandbox: {
@@ -342,6 +346,21 @@ function loggingValue(value: string): string {
   return JSON.stringify(value);
 }
 
+function cloudRunReceiptMetadata(
+  client: CloudRunClient,
+  metadata: Record<string, unknown> = {},
+  apiVersion = providerApiVersion
+): Record<string, unknown> {
+  return {
+    ...providerRuntimeMetadata({
+      providerApiVersion: apiVersion,
+      providerRegion: client.location,
+      adapterVersion
+    }),
+    ...metadata
+  };
+}
+
 function loggingTimeRange(spec: { since?: string; until?: string }): string[] {
   return [
     ...(spec.since ? [`timestamp>=${loggingValue(spec.since)}`] : []),
@@ -449,7 +468,7 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
                 ]
               },
               resource: { id: runId, name: runId, status },
-              metadata: { createOperation: create.name, runOperation: run.name, operation }
+              metadata: cloudRunReceiptMetadata(client, { createOperation: create.name, runOperation: run.name, operation })
             })
           : undefined;
         return {
@@ -500,7 +519,7 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
                 notes: ["Cloud Run job logs are read through Cloud Logging entries:list."]
               },
               resource: { id: spec.id, name: resourceLeaf(spec.id, "jobs") },
-              metadata: { filter, resourceNames: [`projects/${client.projectId}`], orderBy: "timestamp desc", pageSize: spec.limit }
+              metadata: cloudRunReceiptMetadata(client, { filter, resourceNames: [`projects/${client.projectId}`], orderBy: "timestamp desc", pageSize: spec.limit }, loggingApiVersion)
             })
           : undefined;
         return { id: spec.id, provider, logs, receipt, metadata: { filter } };
@@ -533,7 +552,7 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
                 ]
               },
               resource: { id: spec.name, name: serviceName, status, url },
-              metadata: { operation: operation.name, labels: spec.labels }
+              metadata: cloudRunReceiptMetadata(client, { operation: operation.name, labels: spec.labels })
             })
           : undefined;
         return { id: spec.name, provider, name: spec.name, status, url, receipt, metadata: { operation, service } };
@@ -556,7 +575,7 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
                 notes: ["Cloud Run service status is read from the Admin API service resource."]
               },
               resource: { id: spec.id, name: service.name, status, url },
-              metadata: { service }
+              metadata: cloudRunReceiptMetadata(client, { service })
             })
           : undefined;
         return { id: spec.id, provider, name: service.name, status, url, receipt, metadata: { service } };
@@ -591,7 +610,7 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
                 ]
               },
               resource: { id: spec.id, name, status, url },
-              metadata: { operation: operation.name, operationResource: operation, updateMask, revision }
+              metadata: cloudRunReceiptMetadata(client, { operation: operation.name, operationResource: operation, updateMask, revision })
             })
           : undefined;
         return { id: spec.id, provider, name, status, url, receipt, metadata: { operation, service, updateMask, revision } };
@@ -633,7 +652,7 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
                 notes: ["Cloud Run service rollback is native traffic migration to an existing revision."]
               },
               resource: { id: spec.id, name, status, url },
-              metadata: { operation: operation.name, operationResource: operation, revision }
+              metadata: cloudRunReceiptMetadata(client, { operation: operation.name, operationResource: operation, revision })
             })
           : undefined;
         return { id: spec.id, provider, name, status, url, receipt, metadata: { operation, service: updated, revision } };
@@ -658,7 +677,7 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
                 notes: ["Cloud Run service deletion is native through the Admin API."]
               },
               resource: { id: spec.id, name, status: "deleted" },
-              metadata: { operation: waited.name, operationResource: waited }
+              metadata: cloudRunReceiptMetadata(client, { operation: waited.name, operationResource: waited })
             })
           : undefined;
         return { id: spec.id, provider, name, status: "deleted", receipt };
@@ -680,7 +699,7 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
                 notes: ["Cloud Run service logs are read through Cloud Logging entries:list."]
               },
               resource: { id: spec.id, name },
-              metadata: { filter, resourceNames: [`projects/${client.projectId}`], orderBy: "timestamp desc", pageSize: spec.limit }
+              metadata: cloudRunReceiptMetadata(client, { filter, resourceNames: [`projects/${client.projectId}`], orderBy: "timestamp desc", pageSize: spec.limit }, loggingApiVersion)
             })
           : undefined;
         return { id: spec.id, provider, name, logs, receipt, metadata: { filter } };

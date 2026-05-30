@@ -22,6 +22,11 @@ describe("vercel live smoke", () => {
       const status = await capsule.edge.status({ id: process.env.CAPSULE_VERCEL_DEPLOYMENT_ID ?? "" });
       expect(status.provider).toBe("vercel");
       expect(status.receipt?.type).toBe("edge.status");
+      expect(status.receipt?.metadata).toMatchObject({
+        providerApiVersion: "v13",
+        runtimeVersion: process.version,
+        adapterVersion: "0.1.1"
+      });
     },
     60_000
   );
