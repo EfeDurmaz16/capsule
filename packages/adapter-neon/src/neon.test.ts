@@ -41,6 +41,31 @@ describe("neon adapter", () => {
     expect(calls[1]?.url).toContain("database_name=neondb");
   });
 
+  test("best-effort deletes a created branch when connection URI retrieval fails", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      if (String(url).includes("/connection_uri")) {
+        return response({ message: "connection uri failed" }, 500);
+      }
+      if (init?.method === "DELETE") {
+        return response(undefined, 204);
+      }
+      return response({ branch: { id: "br_test", name: "pr-42", parent_id: "br_main", current_state: "ready" } }, 201);
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: neon({ apiKey: "test", databaseName: "neondb", roleName: "neondb_owner", fetch: fetchMock }),
+      receipts: true
+    });
+
+    await expect(capsule.database.branch.create({ project: "project-1", parent: "br_main", name: "pr-42" })).rejects.toThrow("connection uri failed");
+    expect(calls.map((call) => [call.init.method ?? "GET", call.url])).toEqual([
+      ["POST", "https://console.neon.tech/api/v2/projects/project-1/branches"],
+      ["GET", "https://console.neon.tech/api/v2/projects/project-1/connection_uri?branch_id=br_test&database_name=neondb&role_name=neondb_owner"],
+      ["DELETE", "https://console.neon.tech/api/v2/projects/project-1/branches/br_test?hard_delete=true"]
+    ]);
+  });
+
   test("deletes a branch", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
