@@ -63,6 +63,11 @@ export interface CreateWorkerRouteInput {
   zoneId?: string;
 }
 
+export interface DeleteWorkerRouteInput {
+  routeId: string;
+  zoneId?: string;
+}
+
 export interface UploadWorkerVersionInput {
   scriptName: string;
   entrypoint: string;
@@ -128,6 +133,20 @@ export class CloudflareClient {
         "content-type": "application/json"
       },
       body: JSON.stringify({ pattern: input.pattern, script: input.scriptName })
+    });
+  }
+
+  async deleteWorkerRoute(input: DeleteWorkerRouteInput): Promise<CloudflareWorkerRoute> {
+    const zoneId = input.zoneId ?? this.zoneId;
+    if (!zoneId) {
+      throw new AdapterExecutionError("Cloudflare Worker route deletion requires a zone ID. Pass zoneId or set CLOUDFLARE_ZONE_ID.");
+    }
+    const url = `${this.baseUrl}/zones/${encodeURIComponent(zoneId)}/workers/routes/${encodeURIComponent(input.routeId)}`;
+    return await this.request<CloudflareWorkerRoute>(url, {
+      method: "DELETE",
+      headers: {
+        authorization: `Bearer ${this.apiToken}`
+      }
     });
   }
 

@@ -168,6 +168,19 @@ async function resolveRollbackTargetVersion(client: CloudflareClient, scriptName
   return previousVersion.version_id;
 }
 
+async function createRoutesWithCleanup(client: CloudflareClient, routes: string[], scriptName: string) {
+  const createdRoutes = [];
+  try {
+    for (const route of routes) {
+      createdRoutes.push(await client.createWorkerRoute({ pattern: route, scriptName }));
+    }
+    return createdRoutes;
+  } catch (error) {
+    await Promise.allSettled(createdRoutes.flatMap((route) => (route.id ? [client.deleteWorkerRoute({ routeId: route.id })] : [])));
+    throw error;
+  }
+}
+
 export function cloudflare(options: CloudflareAdapterOptions = {}): CapsuleAdapter {
   const getClient = () => new CloudflareClient(options);
   return {
@@ -197,7 +210,7 @@ export function cloudflare(options: CloudflareAdapterOptions = {}): CapsuleAdapt
           source,
           metadata
         });
-        const routes = await Promise.all((spec.routes ?? []).map((route) => client.createWorkerRoute({ pattern: route, scriptName: spec.name })));
+        const routes = await createRoutesWithCleanup(client, spec.routes ?? [], spec.name);
         const url = workerUrl(spec.name, options.workersDevSubdomain);
         const receipt = context.receipts
           ? context.createReceipt({
