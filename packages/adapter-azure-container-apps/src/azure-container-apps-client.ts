@@ -13,6 +13,7 @@ export interface AzureContainerAppsRequestOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   path: string;
   body?: unknown;
+  headers?: Record<string, string>;
 }
 
 export class AzureContainerAppsClient {
@@ -52,7 +53,8 @@ export class AzureContainerAppsClient {
       headers: {
         accept: "application/json",
         authorization: `Bearer ${this.accessToken}`,
-        ...(options.body === undefined ? {} : { "content-type": "application/json" })
+        ...(options.body === undefined ? {} : { "content-type": "application/json" }),
+        ...options.headers
       },
       body: options.body === undefined ? undefined : JSON.stringify(options.body)
     });
