@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import {
   Capsule,
   capabilityDiff,
+  capabilityModelDocsUrl,
   classifyProviderService,
   explainPolicy,
   explainSupportLevel,
@@ -15,6 +16,7 @@ import {
   providerCompatibilityScore,
   rankProvidersByRecipe,
   uniqueCapabilityPaths,
+  unsupportedCapabilitySafeRetryGuidance,
   verifyReceipt,
   type CapabilityDiffEntry,
   type CapabilityMap,
@@ -2387,7 +2389,7 @@ function requireCapability(capsule: Capsule, adapter: string | undefined, path: 
     const adapterName = adapter ?? capsule.adapterName();
     const explanation = explainSupportLevel(capsule.capabilities(), path);
     throw new Error(
-      `${adapterName} does not support ${path}. ${explanation.guidance} Run "capsule capabilities --adapter ${adapterName} --explain" to inspect supported operations.`
+      `${adapterName} does not support ${path}. ${explanation.guidance} Docs: ${capabilityModelDocsUrl}. ${unsupportedCapabilitySafeRetryGuidance} Run "capsule capabilities --adapter ${adapterName} --explain" to inspect supported operations.`
     );
   }
 }

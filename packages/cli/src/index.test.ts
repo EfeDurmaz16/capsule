@@ -281,7 +281,7 @@ describe("CLI capability explanations", () => {
 
   test("prints remediation hints for unsupported CLI capabilities", async () => {
     await expect(main(["job", "run", "--adapter", "neon", "--image", "node:22"])).rejects.toThrow(
-      'neon does not support job.run. Choose another adapter, change the workflow requirements, or use a provider-specific escape hatch for job.run. Run "capsule capabilities --adapter neon --explain" to inspect supported operations.'
+      'neon does not support job.run. Choose another adapter, change the workflow requirements, or use a provider-specific escape hatch for job.run. Docs: https://github.com/EfeDurmaz16/capsule/blob/main/docs/capability-model.md. Safe retry: inspect adapter capabilities or choose a supported adapter before retrying; Capsule failed before provider execution. Run "capsule capabilities --adapter neon --explain" to inspect supported operations.'
     );
   });
 
