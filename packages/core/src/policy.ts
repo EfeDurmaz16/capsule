@@ -1,6 +1,10 @@
 import { PolicyViolationError } from "./errors.js";
 import type { CapsuleApprovalGrant, CapsuleApprovalResourceScope, CapsulePolicy, LogEntry } from "./types.js";
 
+const tokenLikeValue =
+  /\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9_-]{16,}\b|\bgh[pousr]_[A-Za-z0-9_]{20,}\b|\bxox[baprs]-[A-Za-z0-9-]{20,}\b|\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b|\b[A-Za-z0-9_-]{48,}\b/g;
+const defaultSensitiveKey = /(api[-_]?key|auth|credential|password|private[-_]?key|secret|token)/i;
+
 export interface PolicyDecision {
   decision: "allowed" | "denied";
   applied: CapsulePolicy;
@@ -174,8 +178,12 @@ export function mergeTimeout(policy: CapsulePolicy = {}, requested?: number): nu
 }
 
 export function redactSecrets(value: string, env: Record<string, string> | undefined, policy: CapsulePolicy = {}): string {
+  return redactSensitiveText(value, env, policy);
+}
+
+export function redactSensitiveText(value: string, env: Record<string, string> | undefined, policy: CapsulePolicy = {}): string {
   if (!policy.secrets?.redactFromLogs || !env) {
-    return value;
+    return redactTokenLikeText(value, policy);
   }
   let output = value;
   for (const key of policy.secrets.allowed ?? []) {
@@ -184,7 +192,58 @@ export function redactSecrets(value: string, env: Record<string, string> | undef
       output = output.split(secret).join("[REDACTED]");
     }
   }
-  return output;
+  return redactTokenLikeText(output, policy);
+}
+
+export function isSensitiveKey(key: string, policy: CapsulePolicy = {}): boolean {
+  if (defaultSensitiveKey.test(key)) {
+    return true;
+  }
+  return (policy.secrets?.redactKeys ?? []).some((redactKey) => redactKey.toLowerCase() === key.toLowerCase());
+}
+
+export function redactError(error: unknown, env: Record<string, string> | undefined, policy: CapsulePolicy = {}): unknown {
+  if (error instanceof Error) {
+    const message = redactSensitiveText(error.message, env, policy);
+    if (message !== error.message) {
+      Object.defineProperty(error, "message", { value: message, configurable: true });
+    }
+    const cause = (error as { cause?: unknown }).cause;
+    if (cause !== undefined) {
+      Object.defineProperty(error, "cause", { value: redactUnknownValue("cause", cause, env, policy), configurable: true });
+    }
+    return error;
+  }
+  if (typeof error === "string") {
+    return redactSensitiveText(error, env, policy);
+  }
+  return redactUnknownValue("error", error, env, policy);
+}
+
+function redactTokenLikeText(value: string, policy: CapsulePolicy): string {
+  if (policy.secrets?.redactionProfile !== "strict") {
+    return value;
+  }
+  return value.replace(tokenLikeValue, "[REDACTED]");
+}
+
+function redactUnknownValue(key: string, value: unknown, env: Record<string, string> | undefined, policy: CapsulePolicy): unknown {
+  if (isSensitiveKey(key, policy)) {
+    return "[REDACTED]";
+  }
+  if (typeof value === "string") {
+    return redactSensitiveText(value, env, policy);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redactUnknownValue(key, item, env, policy));
+  }
+  if (value instanceof Error) {
+    return redactError(value, env, policy);
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(Object.entries(value).map(([childKey, childValue]) => [childKey, redactUnknownValue(childKey, childValue, env, policy)]));
+  }
+  return value;
 }
 
 export function redactLogEntries(logs: LogEntry[], env: Record<string, string> | undefined, policy: CapsulePolicy = {}): LogEntry[] {

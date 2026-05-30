@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { sha256 } from "./artifacts.js";
+import { isSensitiveKey, redactSensitiveText } from "./policy.js";
 import type { Artifact, CapsulePolicy, CapsuleReceipt, CapsuleReceiptMetadata, ProviderOptions, ProviderOptionValue, SupportLevel } from "./types.js";
 
 export interface CreateReceiptInput {
@@ -34,17 +35,18 @@ export interface ReceiptSigner {
   sign(receipt: Omit<CapsuleReceipt, "signature">): string;
 }
 
-const secretOptionKey = /(api[-_]?key|auth|credential|password|private[-_]?key|secret|token)/i;
-
-function sanitizeProviderOptionValue(key: string, value: ProviderOptionValue): ProviderOptionValue {
-  if (secretOptionKey.test(key)) {
+function sanitizeProviderOptionValue(key: string, value: ProviderOptionValue, policy: CapsulePolicy): ProviderOptionValue {
+  if (isSensitiveKey(key, policy)) {
     return "[REDACTED]";
   }
   if (Array.isArray(value)) {
-    return value.map((item) => sanitizeProviderOptionValue(key, item));
+    return value.map((item) => sanitizeProviderOptionValue(key, item, policy));
   }
   if (typeof value === "object" && value !== null) {
-    return Object.fromEntries(Object.entries(value).map(([childKey, childValue]) => [childKey, sanitizeProviderOptionValue(childKey, childValue)]));
+    return Object.fromEntries(Object.entries(value).map(([childKey, childValue]) => [childKey, sanitizeProviderOptionValue(childKey, childValue, policy)]));
+  }
+  if (typeof value === "string") {
+    return redactSensitiveText(value, undefined, policy);
   }
   return value;
 }
@@ -53,31 +55,34 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function sanitizeMetadataValue(key: string, value: unknown): unknown {
-  if (secretOptionKey.test(key)) {
+function sanitizeMetadataValue(key: string, value: unknown, policy: CapsulePolicy): unknown {
+  if (isSensitiveKey(key, policy)) {
     return "[REDACTED]";
   }
   if (Array.isArray(value)) {
-    return value.map((item) => (isPlainObject(item) ? sanitizeReceiptMetadata(item) : item));
+    return value.map((item) => sanitizeMetadataValue(key, item, policy));
   }
   if (isPlainObject(value)) {
-    return sanitizeReceiptMetadata(value);
+    return sanitizeReceiptMetadata(value, policy);
+  }
+  if (typeof value === "string") {
+    return redactSensitiveText(value, undefined, policy);
   }
   return value;
 }
 
-export function sanitizeProviderOptions(providerOptions: ProviderOptions | undefined): ProviderOptions | undefined {
+export function sanitizeProviderOptions(providerOptions: ProviderOptions | undefined, policy: CapsulePolicy = {}): ProviderOptions | undefined {
   if (!providerOptions) {
     return undefined;
   }
-  return Object.fromEntries(Object.entries(providerOptions).map(([key, value]) => [key, sanitizeProviderOptionValue(key, value)]));
+  return Object.fromEntries(Object.entries(providerOptions).map(([key, value]) => [key, sanitizeProviderOptionValue(key, value, policy)]));
 }
 
-export function sanitizeReceiptMetadata(metadata: Record<string, unknown> | undefined): CapsuleReceiptMetadata | undefined {
+export function sanitizeReceiptMetadata(metadata: Record<string, unknown> | undefined, policy: CapsulePolicy = {}): CapsuleReceiptMetadata | undefined {
   if (!metadata) {
     return undefined;
   }
-  return Object.fromEntries(Object.entries(metadata).map(([key, value]) => [key, sanitizeMetadataValue(key, value)]));
+  return Object.fromEntries(Object.entries(metadata).map(([key, value]) => [key, sanitizeMetadataValue(key, value, policy)]));
 }
 
 export function createReceipt(input: CreateReceiptInput, signer?: ReceiptSigner): CapsuleReceipt {
@@ -94,7 +99,7 @@ export function createReceipt(input: CreateReceiptInput, signer?: ReceiptSigner)
     image: input.image,
     source: input.source,
     cwd: input.cwd,
-    providerOptions: sanitizeProviderOptions(input.providerOptions),
+    providerOptions: sanitizeProviderOptions(input.providerOptions, input.policy?.applied),
     startedAt: input.startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),
     durationMs: finishedAt.getTime() - input.startedAt.getTime(),
@@ -104,7 +109,7 @@ export function createReceipt(input: CreateReceiptInput, signer?: ReceiptSigner)
     artifactHashes,
     policy: input.policy ?? { decision: "allowed", applied: {} },
     resource: input.resource,
-    metadata: sanitizeReceiptMetadata(input.metadata)
+    metadata: sanitizeReceiptMetadata(input.metadata, input.policy?.applied)
   };
   if (!signer) {
     return receipt;
