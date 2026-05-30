@@ -268,6 +268,7 @@ export interface CreateSandboxSpec {
   cwd?: string;
   timeoutMs?: number;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   labels?: Record<string, string>;
   providerOptions?: ProviderOptions;
   exposedPorts?: Array<{
@@ -290,6 +291,7 @@ export interface ExecSpec {
   cwd?: string;
   env?: Record<string, string>;
   timeoutMs?: number;
+  idempotencyKey?: string;
   input?: string;
   providerOptions?: ProviderOptions;
 }
@@ -317,6 +319,7 @@ export interface RunJobSpec {
   env?: Record<string, string>;
   timeoutMs?: number;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   resources?: {
     cpu?: number;
     memoryMb?: number;
@@ -353,6 +356,7 @@ export interface CancelJobSpec {
   id: string;
   reason?: string;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   providerOptions?: ProviderOptions;
 }
 
@@ -396,6 +400,7 @@ export interface DeployServiceSpec {
   }>;
   env?: Record<string, string>;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   resources?: {
     cpu?: number;
     memoryMb?: number;
@@ -454,6 +459,7 @@ export interface UpdateServiceSpec {
   }>;
   env?: Record<string, string>;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   resources?: {
     cpu?: number;
     memoryMb?: number;
@@ -474,6 +480,7 @@ export interface RollbackServiceSpec {
   id: string;
   revision?: string;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   providerOptions?: ProviderOptions;
 }
 
@@ -482,6 +489,7 @@ export interface DeleteServiceSpec {
   force?: boolean;
   reason?: string;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   providerOptions?: ProviderOptions;
 }
 
@@ -523,6 +531,7 @@ export interface DeployEdgeSpec {
   runtime?: "node" | "workers" | "edge" | "deno" | "bun";
   env?: Record<string, string>;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   routes?: string[];
   bindings?: Record<string, unknown>;
   labels?: Record<string, string>;
@@ -560,6 +569,7 @@ export interface VersionEdgeSpec {
   runtime?: DeployEdgeSpec["runtime"];
   env?: Record<string, string>;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   bindings?: Record<string, unknown>;
   labels?: Record<string, string>;
   providerOptions?: ProviderOptions;
@@ -583,6 +593,7 @@ export interface ReleaseEdgeVersionSpec {
   routes?: string[];
   traffic?: number;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   labels?: Record<string, string>;
   providerOptions?: ProviderOptions;
 }
@@ -604,6 +615,7 @@ export interface RollbackEdgeSpec {
   targetVersionId?: string;
   reason?: string;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   providerOptions?: ProviderOptions;
 }
 
@@ -641,6 +653,7 @@ export interface CreateDatabaseBranchSpec {
   name: string;
   ttlMs?: number;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   labels?: Record<string, string>;
   providerOptions?: ProviderOptions;
 }
@@ -650,6 +663,7 @@ export interface DeleteDatabaseBranchSpec {
   branchId: string;
   hardDelete?: boolean;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   providerOptions?: ProviderOptions;
 }
 
@@ -663,6 +677,7 @@ export interface ResetDatabaseBranchSpec {
   pointInTime?: string;
   reason?: string;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   labels?: Record<string, string>;
   providerOptions?: ProviderOptions;
 }
@@ -681,6 +696,7 @@ export interface MigrateDatabaseSpec {
   env?: Record<string, string>;
   timeoutMs?: number;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   labels?: Record<string, string>;
   providerOptions?: ProviderOptions;
 }
@@ -734,6 +750,7 @@ export interface CreatePreviewSpec {
   };
   ttlMs?: number;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   services?: DeployServiceSpec[];
   edges?: DeployEdgeSpec[];
   databases?: CreateDatabaseBranchSpec[];
@@ -762,6 +779,7 @@ export interface DestroyPreviewSpec {
   force?: boolean;
   reason?: string;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   providerOptions?: ProviderOptions;
 }
 
@@ -816,6 +834,7 @@ export interface CleanupPreviewSpec {
   force?: boolean;
   reason?: string;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   providerOptions?: ProviderOptions;
 }
 
@@ -844,6 +863,7 @@ export interface CreateMachineSpec {
   size?: string;
   env?: Record<string, string>;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   labels?: Record<string, string>;
   providerOptions?: ProviderOptions;
 }
@@ -874,6 +894,7 @@ export interface StartMachineSpec {
   id: string;
   reason?: string;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   providerOptions?: ProviderOptions;
 }
 
@@ -882,6 +903,7 @@ export interface StopMachineSpec {
   force?: boolean;
   reason?: string;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   providerOptions?: ProviderOptions;
 }
 
@@ -890,6 +912,7 @@ export interface DestroyMachineSpec {
   force?: boolean;
   reason?: string;
   approval?: CapsuleApprovalGrant;
+  idempotencyKey?: string;
   providerOptions?: ProviderOptions;
 }
 
