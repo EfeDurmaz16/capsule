@@ -5,14 +5,21 @@ export class CapsuleError extends Error {
   }
 }
 
+export const capabilityModelDocsUrl = "https://github.com/EfeDurmaz16/capsule/blob/main/docs/capability-model.md";
+
+export const unsupportedCapabilitySafeRetryGuidance =
+  "Safe retry: inspect adapter capabilities or choose a supported adapter before retrying; Capsule failed before provider execution.";
+
 export class UnsupportedCapabilityError extends CapsuleError {
   constructor(public readonly capabilityPath: string, public readonly remediation?: string) {
-    super(
-      remediation ? `Capability is unsupported: ${capabilityPath}. ${remediation}` : `Capability is unsupported: ${capabilityPath}`,
-      "CAPSULE_UNSUPPORTED_CAPABILITY"
-    );
+    super(unsupportedCapabilityMessage(capabilityPath, remediation), "CAPSULE_UNSUPPORTED_CAPABILITY");
     this.name = "UnsupportedCapabilityError";
   }
+}
+
+function unsupportedCapabilityMessage(capabilityPath: string, remediation?: string): string {
+  const remediationText = remediation ?? `Choose an adapter that supports ${capabilityPath} or change the workflow requirements.`;
+  return `Capability is unsupported: ${capabilityPath}. ${remediationText} Docs: ${capabilityModelDocsUrl}. ${unsupportedCapabilitySafeRetryGuidance}`;
 }
 
 export class PolicyViolationError extends CapsuleError {

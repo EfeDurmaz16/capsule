@@ -321,6 +321,7 @@ Exports:
 - `capabilityDiff`
 - `CapabilityDiffEntry`
 - `CapabilityMap`
+- `capabilityModelDocsUrl`
 - `CapabilityPath`
 - `CapabilityRequirement`
 - `CapabilityRequirementInput`
@@ -495,6 +496,7 @@ Exports:
 - `unsignedReceipt`
 - `UnsignedReceipt`
 - `UnsupportedCapabilityError`
+- `unsupportedCapabilitySafeRetryGuidance`
 - `UpdateServiceSpec`
 - `verifyEvidenceBundle`
 - `verifyReceipt`
