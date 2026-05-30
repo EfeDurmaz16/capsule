@@ -14,7 +14,7 @@ pnpm --filter @capsule/cli capsule live-test plan --provider neon
 pnpm --filter @capsule/cli capsule live-test plan --provider cloudflare
 ```
 
-The planner prints only env-var names, Stripe Projects aliases, notes, and copy-safe commands. It does not read or print secret values.
+The planner prints only env-var names, project-scoped aliases, notes, and copy-safe commands. It does not read or print secret values.
 
 Use the verification matrix before running live tests:
 
@@ -27,6 +27,9 @@ The matrix does not run provider-mutating tests by itself. It reports Docker ava
 
 | Provider | Test path | Required environment | Operation | Cleanup |
 | --- | --- | --- | --- | --- |
+| E2B | `packages/adapter-e2b/src/e2b.live.test.ts` | `CAPSULE_LIVE_TESTS`, `E2B_API_KEY` | Creates a sandbox, exercises exec and file operations. | Destroys the sandbox in `finally`. |
+| Daytona | `packages/adapter-daytona/src/daytona.live.test.ts` | `CAPSULE_LIVE_TESTS`, `DAYTONA_API_KEY` | Creates an ephemeral sandbox, exercises exec and file operations. | Destroys the sandbox in `finally`; provider-side auto-stop is a backup, not the primary cleanup path. |
+| Modal | `packages/adapter-modal/src/modal.live.test.ts` | `CAPSULE_LIVE_TESTS`, `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET` | Creates a Modal sandbox, exercises exec and file operations, and verifies unsupported file listing. | Destroys the sandbox in `finally`. |
 | Cloud Run | `packages/adapter-cloud-run/src/cloud-run.live.test.ts` | `CAPSULE_LIVE_TESTS`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_RUN_LOCATION`, `GOOGLE_OAUTH_ACCESS_TOKEN`, `CAPSULE_CLOUD_RUN_SERVICE_ID` | Reads an existing service status. | No resource is created. |
 | Cloudflare | `packages/adapter-cloudflare/src/cloudflare.live.test.ts` | `CAPSULE_LIVE_TESTS`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CAPSULE_CLOUDFLARE_WORKER_NAME`, `CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION`; set `CAPSULE_CLOUDFLARE_LIVE_DEPLOY=1` for the deploy smoke and `CAPSULE_CLOUDFLARE_LIVE_ROLLBACK=1` for rollback smoke | Creates an unreleased Worker version by default; deploys a Worker script or creates a rollback deployment only behind explicit flags. | No route is released; deploy and rollback smokes update the named Worker script/deployment. Remove Worker versions/scripts from Cloudflare if your account policy requires it. |
 | Vercel | `packages/adapter-vercel/src/vercel.live.test.ts` | `CAPSULE_LIVE_TESTS`, `VERCEL_TOKEN`, `CAPSULE_VERCEL_DEPLOYMENT_ID` | Reads an existing deployment status. | No resource is created. |
@@ -38,6 +41,7 @@ The matrix does not run provider-mutating tests by itself. It reports Docker ava
 
 Optional environment:
 
+- `MODAL_APP_NAME`, `MODAL_IMAGE`, `MODAL_ENVIRONMENT`
 - `NEON_PARENT_BRANCH_ID`, `NEON_DATABASE`, `NEON_ROLE`, `NEON_POOLED`
 - `VERCEL_TEAM_ID`, `VERCEL_TEAM_SLUG`, `VERCEL_PROJECT_ID`
 - `CLOUDFLARE_COMPATIBILITY_DATE`, `CAPSULE_CLOUDFLARE_WORKERS_DEV_SUBDOMAIN`, `CAPSULE_CLOUDFLARE_LIVE_DEPLOY`, `CAPSULE_CLOUDFLARE_LIVE_ROLLBACK`
@@ -63,9 +67,9 @@ Ask the CLI for the canonical command when in doubt:
 pnpm --filter @capsule/cli capsule live-test plan --provider vercel
 ```
 
-## Stripe Projects Env Mapping
+## Project-Scoped Env Mapping
 
-Stripe Projects resources may expose credentials with resource-scoped names. Keep those names local and map them to Capsule's canonical live-test variables at command time:
+Local project vaults may expose credentials with resource-scoped names. Keep those names local and map them to Capsule's canonical live-test variables at command time:
 
 ```bash
 set -a
@@ -104,4 +108,4 @@ pnpm vitest run packages/adapter-cloudflare/src/cloudflare.live.test.ts
 
 The same mappings are included in `capsule live-test plan --provider neon` and `capsule live-test plan --provider cloudflare`.
 
-Do not commit `.env`, `.projects/`, Stripe Projects vault files, or live-test logs that include provider IDs, tokens, connection strings, or account URLs.
+Do not commit `.env`, `.projects/`, local project vault files, or live-test logs that include provider IDs, tokens, connection strings, or account URLs.

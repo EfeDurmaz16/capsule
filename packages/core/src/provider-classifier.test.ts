@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { classifyProviderService, providerServiceClassifications } from "./index.js";
 
 describe("provider service classifier", () => {
-  test("classifies Stripe Projects style Neon Postgres resources as database resources", () => {
+  test("classifies Neon Postgres resources as database resources", () => {
     expect(classifyProviderService({ provider: "neon", service: "postgres" })).toMatchObject({
       provider: "neon",
       service: "postgres",

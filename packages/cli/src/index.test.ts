@@ -52,7 +52,7 @@ describe("CLI doctor credential diagnostics", () => {
     ]);
   });
 
-  test("recognizes Stripe Projects env aliases without exposing values", () => {
+  test("recognizes project-scoped env aliases without exposing values", () => {
     const diagnostics = providerCredentialDiagnostics(
       {
         CAPSULE_WORKER_API_TOKEN: "secret-cloudflare-token",
@@ -286,7 +286,7 @@ describe("CLI live-test planner", () => {
     });
   });
 
-  test("returns a safe Neon plan with Stripe Projects aliases and no secret values", () => {
+  test("returns a safe Neon plan with project-scoped aliases and no secret values", () => {
     const plan = liveTestCommandPlan("neon");
 
     expect(plan).toEqual([
@@ -302,7 +302,7 @@ describe("CLI live-test planner", () => {
     expect(JSON.stringify(plan)).not.toContain("sk_");
   });
 
-  test("returns a safe Cloudflare plan with Stripe Projects aliases", () => {
+  test("returns a safe Cloudflare plan with project-scoped aliases", () => {
     const plan = liveTestCommandPlan("cloudflare")[0];
 
     expect(plan).toMatchObject({

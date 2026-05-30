@@ -37,7 +37,7 @@ When the audit PR for this file is merged, the v2 issue set is closed by merged 
 5. import smoke for all packed packages;
 6. `@capsule/cli` bin smoke through `pnpm exec capsule capabilities`.
 
-The pack smoke covered 20 public packages:
+The pack smoke covers 22 public packages:
 
 - `@capsule/core`
 - `@capsule/adapter-docker`
@@ -57,8 +57,10 @@ The pack smoke covered 20 public packages:
 - `@capsule/adapter-azure-container-apps`
 - `@capsule/ai`
 - `@capsule/cli`
+- `@capsule/presets`
 - `@capsule/preview`
 - `@capsule/store-jsonl`
+- `@capsule/store-sqlite`
 
 ## Marker Audit
 
@@ -74,7 +76,7 @@ Docs and tests may still describe marker policy or unsupported provider behavior
 
 ## Verification
 
-Commands run locally on 2026-05-13:
+Commands refreshed locally on 2026-05-30:
 
 ```bash
 pnpm capsule:gap
@@ -91,10 +93,10 @@ Results:
 
 - `pnpm capsule:gap`: passed and produced adapter capability counts.
 - `pnpm release:markers`: passed.
-- `pnpm release:audit`: passed metadata audit, marker gate, and pack smoke for 20 public packages.
+- `pnpm release:audit`: passed metadata audit, marker gate, and pack smoke for 22 public packages.
 - `pnpm typecheck`: passed.
-- `pnpm test`: passed with 22 test files passed and 11 skipped; 178 tests passed and 16 skipped.
-- `pnpm build`: passed across 31 workspace projects.
+- `pnpm test`: passed with 27 test files passed and 11 skipped; 232 tests passed and 19 skipped.
+- `pnpm build`: passed across 34 workspace projects.
 - `pnpm docs:api`: passed.
 - `git diff --exit-code docs/api-reference.md`: passed; generated API reference is current.
 
