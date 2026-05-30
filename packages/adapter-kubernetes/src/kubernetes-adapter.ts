@@ -281,6 +281,26 @@ function serviceUrl(service: KubernetesObject, name: string, namespace: string, 
   return clusterUrl(name, namespace, port);
 }
 
+function foregroundDeleteOptions() {
+  return {
+    apiVersion: "v1",
+    kind: "DeleteOptions",
+    gracePeriodSeconds: 0,
+    propagationPolicy: "Foreground"
+  };
+}
+
+async function deleteDeploymentForeground(apps: AppsApi, namespace: string, name: string): Promise<void> {
+  const deleteNamespacedDeployment = requireAppsMethod(apps, "deleteNamespacedDeployment");
+  await deleteNamespacedDeployment.call(apps, {
+    namespace,
+    name,
+    gracePeriodSeconds: 0,
+    propagationPolicy: "Foreground",
+    body: foregroundDeleteOptions()
+  });
+}
+
 function conditionIsTrue(condition: unknown, type: string): boolean {
   return Boolean(
     condition &&
@@ -700,8 +720,16 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
         const name = normalizeName(spec.name);
         const clients = getClients();
         const deployment = await clients.apps.createNamespacedDeployment({ namespace, body: deploymentBody(name, namespace, spec) });
-        const service = await clients.core.createNamespacedService({ namespace, body: serviceBody(name, namespace, spec) });
-        const url = serviceUrl(service, service.metadata?.name ?? name, namespace, spec.ports?.[0]?.port);
+        const deploymentName = deployment.metadata?.name ?? name;
+        let service: KubernetesObject;
+        try {
+          service = await clients.core.createNamespacedService({ namespace, body: serviceBody(name, namespace, spec) });
+        } catch (error) {
+          await deleteDeploymentForeground(clients.apps, namespace, deploymentName).catch(() => undefined);
+          throw error;
+        }
+        const serviceName = service.metadata?.name ?? name;
+        const url = serviceUrl(service, serviceName, namespace, spec.ports?.[0]?.port);
         const receipt = context.receipts
           ? context.createReceipt({
               type: "service.deploy",
@@ -718,11 +746,17 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
                   "Capsule does not mutate ingress, certificates, external DNS, or cluster admission policy."
                 ]
               },
-              resource: { id: deployment.metadata?.uid ?? name, name, status: "deploying", url },
-              metadata: { namespace, deploymentName: deployment.metadata?.name ?? name, serviceName: service.metadata?.name ?? name }
+              resource: { id: deploymentName, name: deploymentName, status: "deploying", url },
+              metadata: {
+                namespace,
+                deploymentName,
+                serviceName,
+                deploymentUid: deployment.metadata?.uid,
+                serviceUid: service.metadata?.uid
+              }
             })
           : undefined;
-        return { id: deployment.metadata?.uid ?? name, provider, name, status: "deploying", url, receipt };
+        return { id: deploymentName, provider, name: deploymentName, status: "deploying", url, receipt };
       },
       status: async (spec: ServiceStatusSpec, context: AdapterContext): Promise<ServiceStatusResult> => {
         const startedAt = new Date();
@@ -761,12 +795,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
         const deleteNamespacedDeployment = requireAppsMethod(clients.apps, "deleteNamespacedDeployment");
         const deleteNamespacedService = requireCoreMethod(clients.core, "deleteNamespacedService");
         const name = spec.id;
-        const deleteOptions = {
-          apiVersion: "v1",
-          kind: "DeleteOptions",
-          gracePeriodSeconds: 0,
-          propagationPolicy: "Foreground"
-        };
+        const deleteOptions = foregroundDeleteOptions();
         const deployment = await deleteNamespacedDeployment.call(clients.apps, {
           namespace,
           name,
