@@ -248,6 +248,10 @@ export interface CapsuleReceipt {
 
 export interface CapsuleReceiptMetadata extends Record<string, unknown> {
   providerRequestId?: string;
+  providerApiVersion?: string;
+  providerRegion?: string;
+  runtimeVersion?: string;
+  adapterVersion?: string;
   idempotencyKey?: string;
   idempotencyScope?: string;
   operationTag?: string;

@@ -57,6 +57,12 @@ describe("cloud-run adapter", () => {
     expect(run.status).toBe("succeeded");
     expect(run.id).toBe("projects/proj/locations/us-central1/jobs/capsule-job/executions/execution-1");
     expect(run.receipt?.type).toBe("job.run");
+    expect(run.receipt?.metadata).toMatchObject({
+      providerApiVersion: "run.googleapis.com/v2",
+      providerRegion: "us-central1",
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1"
+    });
     expect(calls[0]?.url).toContain("/projects/proj/locations/us-central1/jobs?jobId=capsule-job");
     expect(calls[0]?.init.headers).toMatchObject({ authorization: "Bearer token" });
     expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({

@@ -178,6 +178,22 @@
           "type": "string",
           "description": "Opaque request id returned by the provider control plane for the API call Capsule observed. This must not contain credentials or bearer tokens."
         },
+        "providerApiVersion": {
+          "type": "string",
+          "description": "Provider API surface version used by the adapter for the observed operation, when known."
+        },
+        "providerRegion": {
+          "type": "string",
+          "description": "Provider region or location that scoped the observed operation, when known."
+        },
+        "runtimeVersion": {
+          "type": "string",
+          "description": "Runtime version of the process or provider execution environment observed by the adapter, when known."
+        },
+        "adapterVersion": {
+          "type": "string",
+          "description": "Published Capsule adapter package version that produced the receipt, when available."
+        },
         "idempotencyKey": {
           "type": "string",
           "description": "Opaque idempotency key supplied to or observed from the provider request, when the adapter can safely record it."

@@ -60,7 +60,13 @@ describe("fly adapter", () => {
         guest: { cpu_kind: "shared", cpus: 1, memory_mb: 512 }
       }
     });
-    expect(machine.receipt?.metadata).toMatchObject({ labels: { capsule_live_test: "true" } });
+    expect(machine.receipt?.metadata).toMatchObject({
+      providerApiVersion: "machines/v1",
+      providerRegion: "iad",
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1",
+      labels: { capsule_live_test: "true" }
+    });
   });
 
   test("runs a job as an auto-destroy Fly Machine", async () => {

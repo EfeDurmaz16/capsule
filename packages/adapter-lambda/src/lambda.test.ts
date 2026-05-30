@@ -26,7 +26,7 @@ describe("lambda adapter", () => {
         };
       }
     };
-    const capsule = new Capsule({ adapter: lambda({ functionName: "capsule-worker", qualifier: "live", client }), receipts: true });
+    const capsule = new Capsule({ adapter: lambda({ region: "us-east-1", functionName: "capsule-worker", qualifier: "live", client }), receipts: true });
     const run = await capsule.job.run({
       image: "ignored-by-lambda",
       command: ["node", "index.js"],
@@ -39,6 +39,10 @@ describe("lambda adapter", () => {
     expect(run.receipt?.type).toBe("job.run");
     expect(run.receipt?.metadata).toMatchObject({
       invocationType: "RequestResponse",
+      providerApiVersion: "2015-03-31",
+      providerRegion: "us-east-1",
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1",
       statusCode: 200,
       functionName: "capsule-worker",
       qualifier: "live",

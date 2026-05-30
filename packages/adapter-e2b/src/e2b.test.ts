@@ -92,6 +92,14 @@ describe("e2b adapter", () => {
     expect(entries[0]).toMatchObject({ name: "index.js", type: "file" });
     expect(result.stdout).toBe("hello from e2b\n");
     expect(result.receipt?.provider).toBe("e2b");
+    expect(store.receipts.find((receipt) => receipt.type === "sandbox.create")?.metadata).toMatchObject({
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1"
+    });
+    expect(result.receipt?.metadata).toMatchObject({
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1"
+    });
     expect(FakeE2BSandbox.instance.killed).toBe(true);
     expect(store.receipts.map((receipt) => receipt.type)).toEqual([
       "sandbox.create",

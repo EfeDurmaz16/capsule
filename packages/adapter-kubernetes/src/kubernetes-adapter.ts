@@ -3,6 +3,7 @@ import {
   AdapterExecutionError,
   capsuleOperationTags,
   logsFromOutput,
+  providerRuntimeMetadata,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
@@ -87,6 +88,7 @@ export interface KubernetesAdapterOptions {
 
 const provider = "kubernetes";
 const adapter = "kubernetes";
+const adapterVersion = "0.1.1";
 
 export const kubernetesCapabilities: CapabilityMap = {
   sandbox: {
@@ -342,6 +344,13 @@ function serviceStatus(deployment: KubernetesObject): ServiceStatusResult["statu
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
+}
+
+function kubernetesReceiptMetadata(providerApiVersion: string, metadata: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ...providerRuntimeMetadata({ providerApiVersion, adapterVersion }),
+    ...metadata
+  };
 }
 
 function stringRecord(value: unknown): Record<string, string> | undefined {
@@ -621,7 +630,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
                 ]
               },
               resource: { id: created.metadata?.name ?? name, name, status: "running" },
-              metadata: { namespace, kubernetesName: created.metadata?.name ?? name, uid: created.metadata?.uid }
+              metadata: kubernetesReceiptMetadata("batch/v1", { namespace, kubernetesName: created.metadata?.name ?? name, uid: created.metadata?.uid })
             })
           : undefined;
         return {
@@ -708,7 +717,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
                 ]
               },
               resource: { id: name, name, status: jobStatus(job) },
-              metadata: { ...result.metadata, kubernetesName: name, uid: job.metadata?.uid }
+              metadata: kubernetesReceiptMetadata("batch/v1+v1", { ...result.metadata, kubernetesName: name, uid: job.metadata?.uid })
             })
           : undefined;
         return { id: name, provider, logs: result.logs, metadata: result.metadata, receipt };
@@ -748,13 +757,13 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
                 ]
               },
               resource: { id: deploymentName, name: deploymentName, status: "deploying", url },
-              metadata: {
+              metadata: kubernetesReceiptMetadata("apps/v1+v1", {
                 namespace,
                 deploymentName,
                 serviceName,
                 deploymentUid: deployment.metadata?.uid,
                 serviceUid: service.metadata?.uid
-              }
+              })
             })
           : undefined;
         return { id: deploymentName, provider, name: deploymentName, status: "deploying", url, receipt };
@@ -777,7 +786,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
               startedAt,
               policy: context.evaluatePolicy(),
               resource: { id: resolvedName, name: resolvedName, status, url },
-              metadata: { namespace, deploymentName: deployment.metadata?.name ?? name, serviceName: service.metadata?.name ?? name }
+              metadata: kubernetesReceiptMetadata("apps/v1+v1", { namespace, deploymentName: deployment.metadata?.name ?? name, serviceName: service.metadata?.name ?? name })
             })
           : undefined;
         return {
@@ -819,12 +828,12 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
               startedAt,
               policy: context.evaluatePolicy(),
               resource: { id: resolvedName, name: resolvedName, status: "deleted" },
-              metadata: {
+              metadata: kubernetesReceiptMetadata("apps/v1+v1", {
                 namespace,
                 deploymentName: deployment.metadata?.name ?? name,
                 serviceName: service.metadata?.name ?? name,
                 reason: spec.reason
-              }
+              })
             })
           : undefined;
         return {
@@ -870,7 +879,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
                 ]
               },
               resource: { id: name, name },
-              metadata: { ...result.metadata, serviceName: name, uid: service.metadata?.uid }
+              metadata: kubernetesReceiptMetadata("v1", { ...result.metadata, serviceName: name, uid: service.metadata?.uid })
             })
           : undefined;
         return { id: name, provider, name, logs: result.logs, metadata: result.metadata, receipt };

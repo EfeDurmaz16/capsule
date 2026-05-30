@@ -31,6 +31,13 @@ export interface CreateReceiptInput {
   metadata?: CapsuleReceiptMetadata;
 }
 
+export interface ProviderRuntimeMetadataInput {
+  providerApiVersion?: string | null;
+  providerRegion?: string | null;
+  runtimeVersion?: string | null;
+  adapterVersion?: string | null;
+}
+
 export interface ReceiptSigner {
   algorithm: string;
   keyId?: string;
@@ -122,6 +129,21 @@ export function sanitizeReceiptMetadata(metadata: Record<string, unknown> | unde
     return undefined;
   }
   return Object.fromEntries(Object.entries(metadata).map(([key, value]) => [key, sanitizeMetadataValue(key, value, policy)]));
+}
+
+function nonEmptyString(value: string | null | undefined): string | undefined {
+  return value && value.length > 0 ? value : undefined;
+}
+
+export function providerRuntimeMetadata(input: ProviderRuntimeMetadataInput = {}): CapsuleReceiptMetadata {
+  return Object.fromEntries(
+    Object.entries({
+      providerApiVersion: nonEmptyString(input.providerApiVersion),
+      providerRegion: nonEmptyString(input.providerRegion),
+      runtimeVersion: nonEmptyString(input.runtimeVersion) ?? process.version,
+      adapterVersion: nonEmptyString(input.adapterVersion)
+    }).filter(([, value]) => value !== undefined)
+  );
 }
 
 export function createReceipt(input: CreateReceiptInput, signer?: ReceiptSigner): CapsuleReceipt {

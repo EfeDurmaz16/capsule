@@ -58,6 +58,9 @@ describe("modal live adapter", () => {
       }
 
       expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create", "sandbox.exec", "sandbox.exec", "sandbox.destroy"]);
+      for (const receipt of store.receipts) {
+        expect(receipt.metadata).toMatchObject({ runtimeVersion: process.version, adapterVersion: "0.1.1" });
+      }
     },
     120_000
   );

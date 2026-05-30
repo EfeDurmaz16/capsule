@@ -1,6 +1,7 @@
 import {
   AdapterExecutionError,
   capsuleOperationTags,
+  providerRuntimeMetadata,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
@@ -36,6 +37,8 @@ interface FlyMachine {
 
 const provider = "fly";
 const adapter = "fly";
+const adapterVersion = "0.1.1";
+const providerApiVersion = "machines/v1";
 
 export const flyCapabilities: CapabilityMap = {
   job: {
@@ -109,6 +112,17 @@ function labelsWithOperationTag(labels: Record<string, string> | undefined, idem
   return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
+function flyReceiptMetadata(metadata: Record<string, unknown> | undefined = {}): Record<string, unknown> {
+  return {
+    ...providerRuntimeMetadata({
+      providerApiVersion,
+      providerRegion: typeof metadata.region === "string" ? metadata.region : undefined,
+      adapterVersion
+    }),
+    ...metadata
+  };
+}
+
 function receipt(context: AdapterContext, input: { type: "machine.create" | "machine.status" | "machine.start" | "machine.stop" | "machine.destroy" | "job.run"; path: string; startedAt: Date; id: string; name?: string; status: string; metadata?: Record<string, unknown> }) {
   return context.receipts
     ? context.createReceipt({
@@ -124,7 +138,7 @@ function receipt(context: AdapterContext, input: { type: "machine.create" | "mac
           ]
         },
         resource: { id: input.id, name: input.name, status: input.status },
-        metadata: input.metadata
+        metadata: flyReceiptMetadata(input.metadata)
       })
     : undefined;
 }
@@ -162,13 +176,13 @@ export function fly(options: FlyAdapterOptions = {}): CapsuleAdapter {
                 ]
               },
               resource: { id: response.id, name: response.name ?? spec.name, status },
-              metadata: {
+              metadata: flyReceiptMetadata({
                 appName: getApp(),
                 region: response.region ?? spec.region ?? options.region,
                 state: response.state,
                 instanceId: response.instance_id,
                 ...(spec.labels ? { labels: spec.labels } : {})
-              }
+              })
             })
           : undefined;
         return { id: response.id, provider, name: response.name ?? spec.name, status, receipt: createdReceipt };
@@ -182,7 +196,7 @@ export function fly(options: FlyAdapterOptions = {}): CapsuleAdapter {
           provider,
           name: response.name,
           status,
-          receipt: receipt(context, { type: "machine.status", path: "machine.status", startedAt, id: response.id, name: response.name, status, metadata: { state: response.state } }),
+          receipt: receipt(context, { type: "machine.status", path: "machine.status", startedAt, id: response.id, name: response.name, status, metadata: { state: response.state, region: response.region ?? options.region } }),
           metadata: { state: response.state, region: response.region }
         };
       },
@@ -238,7 +252,7 @@ export function fly(options: FlyAdapterOptions = {}): CapsuleAdapter {
                   ]
                 },
                 resource: { id: response.id, name: response.name ?? spec.name, status: response.state },
-                metadata: { appName: getApp(), region: response.region ?? options.region, autoDestroy: true, ...(spec.labels ? { labels: spec.labels } : {}) }
+                metadata: flyReceiptMetadata({ appName: getApp(), region: response.region ?? options.region, autoDestroy: true, ...(spec.labels ? { labels: spec.labels } : {}) })
               })
             : undefined
         };

@@ -41,6 +41,12 @@ describe("azure container apps live smoke", () => {
         });
         expect(service.provider).toBe("azure-container-apps");
         expect(service.receipt?.type).toBe("service.deploy");
+        expect(service.receipt?.metadata).toMatchObject({
+          providerApiVersion: "2025-07-01",
+          providerRegion: process.env.AZURE_LOCATION,
+          runtimeVersion: process.version,
+          adapterVersion: "0.1.1"
+        });
       } finally {
         await capsule.service.delete({ id: name, reason: "capsule live smoke cleanup" }).catch(() => undefined);
       }

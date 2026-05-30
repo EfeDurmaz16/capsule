@@ -24,6 +24,12 @@ describe("cloud run live smoke", () => {
       const status = await capsule.service.status({ id: process.env.CAPSULE_CLOUD_RUN_SERVICE_ID ?? "" });
       expect(status.provider).toBe("cloud-run");
       expect(status.receipt?.type).toBe("service.status");
+      expect(status.receipt?.metadata).toMatchObject({
+        providerApiVersion: "run.googleapis.com/v2",
+        providerRegion: process.env.GOOGLE_CLOUD_RUN_LOCATION,
+        runtimeVersion: process.version,
+        adapterVersion: "0.1.1"
+      });
     },
     60_000
   );

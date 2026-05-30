@@ -78,13 +78,25 @@ describe("modal adapter", () => {
     expect(new TextDecoder().decode(data)).toBe("console.log('hi')");
     expect(result.stdout).toContain("node");
     expect(store.receipts.find((receipt) => receipt.type === "sandbox.create")?.metadata).toMatchObject({
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1",
       appName: "capsule-test",
       environment: "test-env",
       image: "node:22",
       blockNetwork: true
     });
-    expect(result.receipt?.metadata).toMatchObject({ mode: "text", workdir: "/workspace", timeoutMs: 5_000 });
-    expect(store.receipts.find((receipt) => receipt.type === "sandbox.destroy")?.metadata).toMatchObject({ terminateWait: false });
+    expect(result.receipt?.metadata).toMatchObject({
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1",
+      mode: "text",
+      workdir: "/workspace",
+      timeoutMs: 5_000
+    });
+    expect(store.receipts.find((receipt) => receipt.type === "sandbox.destroy")?.metadata).toMatchObject({
+      runtimeVersion: process.version,
+      adapterVersion: "0.1.1",
+      terminateWait: false
+    });
     expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create", "sandbox.file.write", "sandbox.file.read", "sandbox.exec", "sandbox.destroy"]);
   });
 

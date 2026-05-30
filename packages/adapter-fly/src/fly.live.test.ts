@@ -31,6 +31,12 @@ describe("fly live smoke", () => {
         machineId = machine.id;
         expect(machine.provider).toBe("fly");
         expect(machine.receipt?.type).toBe("machine.create");
+        expect(machine.receipt?.metadata).toMatchObject({
+          providerApiVersion: "machines/v1",
+          providerRegion: expect.any(String),
+          runtimeVersion: process.version,
+          adapterVersion: "0.1.1"
+        });
       } finally {
         if (machineId) {
           await capsule.machine.destroy({ id: machineId, force: true, reason: "capsule live smoke cleanup" });

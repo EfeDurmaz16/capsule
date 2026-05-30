@@ -20,6 +20,10 @@ The schema includes:
 Receipt metadata uses these common provider fields when an adapter can observe them:
 
 - `providerRequestId`: opaque provider control-plane request id for the API call Capsule observed. This is for correlation and support/debugging only; it must not contain credentials, bearer tokens, signed URLs, or other secrets.
+- `providerApiVersion`: provider API surface version used by the adapter for the observed operation, when known. For providers with multiple APIs, this is operation-specific rather than package-wide.
+- `providerRegion`: provider region or location that scoped the observed operation, when known.
+- `runtimeVersion`: runtime version observed by the adapter. For SDK-backed adapters this is the local Node.js runtime; provider-specific runtime/version fields may still appear separately when the provider returns them.
+- `adapterVersion`: published Capsule adapter package version that produced the receipt, when available.
 - `idempotencyKey`: opaque idempotency key supplied to or observed from the provider request when the adapter can safely record it. Callers should generate non-secret keys and avoid embedding user data or credentials.
 - `idempotencyScope`: provider-specific operation or resource scope where the idempotency key applies, such as `job.run` or a provider resource path.
 - `operationTag`: deterministic non-secret hash derived from `idempotencyKey` plus scope. Adapters use this tag for provider labels/tags where those channels already exist, avoiding raw caller idempotency keys in provider-visible metadata.
