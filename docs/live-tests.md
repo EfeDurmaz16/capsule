@@ -36,6 +36,24 @@ pnpm --filter @capsule/cli capsule live-test validate --provider fly
 
 The validator is side-effect-free. It checks `CAPSULE_LIVE_TESTS`, required credential/project/region env vars, provider-scoped aliases, billable-test acknowledgement, and max resource count. Live tests that create resources or invoke billable provider work report `blocked` until `CAPSULE_LIVE_TEST_COST_ACK=1` and `CAPSULE_LIVE_TEST_MAX_RESOURCES` are set. Read-only status checks, such as Vercel deployment status and Cloud Run service status, do not require those billable-test controls.
 
+## Flaky Test Quarantine
+
+Known-flaky live tests can be marked with quarantine metadata: reason, owner, last observed failure, and a revalidation command. A quarantined test stays disabled even when the provider credentials, live-test flag, cost acknowledgement, and max resource count are all configured.
+
+Quarantines show up as `quarantined` in both the CLI validator and `scripts/live-test-matrix.mjs --dry-run`. The reports include the revalidation environment variable name and do not print secret values.
+
+Only re-run a quarantined test intentionally:
+
+```bash
+CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 \
+CAPSULE_LIVE_TESTS=1 \
+CAPSULE_LIVE_TEST_COST_ACK=1 \
+CAPSULE_LIVE_TEST_MAX_RESOURCES=1 \
+pnpm vitest run packages/adapter-fly/src/fly.live.test.ts
+```
+
+Keep the quarantine metadata current when a failure is revalidated. If the test passes repeatedly under revalidation, remove the quarantine instead of leaving a stale exception in the matrix.
+
 ## Live Resource Metadata
 
 Mutating live tests use deterministic names and portable metadata from `@capsule/test-utils`:
@@ -52,6 +70,7 @@ Optional metadata environment:
 - `CAPSULE_LIVE_TEST_TTL_MS`: positive integer TTL override.
 - `CAPSULE_LIVE_TEST_COST_ACK=1`: required before billable live tests run.
 - `CAPSULE_LIVE_TEST_MAX_RESOURCES`: positive integer maximum resource count for a billable live test invocation; set at least `1` for the current single-resource live tests.
+- `CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1`: explicit opt-in to run a quarantined flaky live test for revalidation.
 
 Provider coverage is intentionally explicit. E2B receives labels as sandbox metadata, Daytona receives labels in create params, Azure Container Apps maps labels to ARM tags, Kubernetes maps labels onto Jobs, and Fly Machines stores labels in Machine config metadata. Neon records labels and TTL in Capsule receipts, while Neon provider-side TTL enforcement is not implemented by the current adapter. Cloudflare Worker tests keep the existing env-provided Worker name and record labels in Capsule receipts only. Modal currently uses deterministic names, but its adapter does not map labels to a provider metadata field. Cloud Run, Vercel, and Lambda tests operate on existing resources and do not create taggable live resources.
 

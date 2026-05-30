@@ -149,6 +149,51 @@ describe("live test gates", () => {
     expect(names).toEqual(["reads provider state (skipped: neon live tests require CAPSULE_LIVE_TESTS=1.)"]);
   });
 
+  test("quarantines flaky live tests with owner and revalidation metadata", () => {
+    const quarantine = {
+      reason: "provider control plane intermittently returns 503",
+      lastObservedFailure: "2026-05-30T10:00:00Z",
+      owner: "runtime-team",
+      revalidationCommand: "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"
+    };
+
+    expect(
+      liveTestGate({
+        provider: "fly",
+        credentials: liveProviderCredentials.fly,
+        quarantine,
+        env: {
+          CAPSULE_LIVE_TESTS: "1",
+          FLY_API_TOKEN: "token",
+          FLY_APP_NAME: "app",
+          CAPSULE_LIVE_TEST_COST_ACK: "1",
+          CAPSULE_LIVE_TEST_MAX_RESOURCES: "1"
+        }
+      })
+    ).toEqual({
+      enabled: false,
+      quarantine,
+      skipReason:
+        "fly live test is quarantined: provider control plane intermittently returns 503. Owner: runtime-team. Last observed failure: 2026-05-30T10:00:00Z. Revalidate with: CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"
+    });
+
+    expect(
+      liveTestGate({
+        provider: "fly",
+        credentials: liveProviderCredentials.fly,
+        quarantine,
+        env: {
+          CAPSULE_LIVE_TEST_REVALIDATE_FLAKY: "1",
+          CAPSULE_LIVE_TESTS: "1",
+          FLY_API_TOKEN: "token",
+          FLY_APP_NAME: "app",
+          CAPSULE_LIVE_TEST_COST_ACK: "1",
+          CAPSULE_LIVE_TEST_MAX_RESOURCES: "1"
+        }
+      })
+    ).toEqual({ enabled: true, quarantine });
+  });
+
   test("gates Daytona live tests on Daytona credentials", () => {
     expect(providerLiveTestGate("daytona", { env: { CAPSULE_LIVE_TESTS: "1" } })).toEqual({
       enabled: false,

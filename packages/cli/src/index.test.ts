@@ -425,6 +425,49 @@ describe("CLI live-test planner", () => {
     expect(JSON.stringify(report)).not.toContain("secret-vercel");
   });
 
+  test("validates quarantined flaky live tests with revalidation metadata", () => {
+    const quarantine = {
+      reason: "provider control plane intermittently returns 503",
+      lastObservedFailure: "2026-05-30T10:00:00Z",
+      owner: "runtime-team",
+      revalidationCommand: "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"
+    };
+    const report = createLiveEnvironmentValidationReport({
+      provider: "fly",
+      plans: [
+        {
+          provider: "fly",
+          testPath: "packages/adapter-fly/src/fly.live.test.ts",
+          requiredEnv: ["CAPSULE_LIVE_TESTS", "FLY_API_TOKEN", "FLY_APP_NAME"],
+          optionalEnv: [],
+          costRisk: "billable",
+          costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
+          safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"],
+          quarantine,
+          notes: []
+        }
+      ],
+      env: {
+        CAPSULE_LIVE_TESTS: "1",
+        FLY_API_TOKEN: "secret-token",
+        FLY_APP_NAME: "capsule-app",
+        CAPSULE_LIVE_TEST_COST_ACK: "1",
+        CAPSULE_LIVE_TEST_MAX_RESOURCES: "1"
+      }
+    });
+
+    expect(report.providers[0]).toMatchObject({
+      provider: "fly",
+      status: "quarantined",
+      quarantine,
+      quarantineRevalidationEnv: "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY"
+    });
+    expect(report.providers[0]?.notes).toContain(
+      "Quarantined flaky live test: provider control plane intermittently returns 503. Owner: runtime-team. Last observed failure: 2026-05-30T10:00:00Z. Revalidate with: CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"
+    );
+    expect(JSON.stringify(report)).not.toContain("secret-token");
+  });
+
   test("prints the selected live-test environment validation report", async () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     const envKeys = ["CAPSULE_LIVE_TESTS", "NEON_API_KEY", "NEON_PROJECT_ID", "CAPSULE_POSTGRES_PROJECT_ID", "CAPSULE_LIVE_TEST_COST_ACK"];
