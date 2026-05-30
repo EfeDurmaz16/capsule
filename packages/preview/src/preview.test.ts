@@ -324,7 +324,30 @@ describe("preview orchestration", () => {
     expect(result.preview.status).toBe("ready");
     expect(result.preview.urls).toEqual(["https://api.example.test", "https://web.edge.test"]);
     expect(result.resources.map((resource) => resource.kind)).toEqual(["database", "service", "edge", "job"]);
-    expect(result.receipts.map((receipt) => receipt.type)).toEqual(["database.branch.create", "service.deploy", "edge.deploy", "job.run"]);
+    expect(result.receipts.map((receipt) => receipt.type)).toEqual(["database.branch.create", "service.deploy", "edge.deploy", "job.run", "preview.create"]);
+    expect(result.cleanupPlan).toMatchObject({
+      schema: "capsule.preview.cleanup.v1",
+      previewId: result.preview.id,
+      cleanupOrder: "reverse-create-order",
+      cleanupActionCount: 2,
+      unsupportedCleanupCount: 2
+    });
+    expect(result.cleanupPlan.actions.map((action) => [action.kind, action.capabilityPath, action.resourceId, action.cleanupOrder])).toEqual([
+      ["service", "service.delete", "svc-api", 0],
+      ["database", "database.branchDelete", "db-pr-42-db", 1]
+    ]);
+    expect(result.cleanupPlan.actions.every((action) => action.reversible && action.idempotencyKey.startsWith(`${result.preview.id}:cleanup:`))).toBe(true);
+    expect(result.receipts.at(-1)?.metadata).toMatchObject({
+      cleanupPlan: {
+        id: result.cleanupPlan.id,
+        cleanupActionCount: 2,
+        unsupportedCleanupCount: 2,
+        actions: [
+          { kind: "service", capabilityPath: "service.delete", resourceId: "svc-api" },
+          { kind: "database", capabilityPath: "database.branchDelete", resourceId: "db-pr-42-db" }
+        ]
+      }
+    });
     expect(events).toEqual(["database.create:pr-42-db", "service.deploy:api", "edge.deploy:web", "job.run:smoke"]);
   });
 
@@ -365,10 +388,11 @@ describe("preview orchestration", () => {
   test("cleans resources in reverse dependency order", async () => {
     const events: string[] = [];
     const result = await createPreviewGraph(plan(fakeCapsule(events)));
-    const cleanup = await cleanupPreviewEnvironment(result.preview, result.resources);
+    const cleanup = await cleanupPreviewEnvironment(result.preview, result.resources, { cleanupPlan: result.cleanupPlan });
 
     expect(cleanup.status).toBe("partial");
     expect(cleanup.receipt.type).toBe("preview.cleanup");
+    expect(cleanup.receipt.metadata).toMatchObject({ cleanupPlanId: result.cleanupPlan.id });
     expect(cleanup.receipts.map((receipt) => receipt.type)).toEqual(["service.delete", "database.branch.delete", "preview.cleanup"]);
     expect(cleanup.dispositions.map((entry) => [entry.resource.kind, entry.disposition])).toEqual([
       ["job", "unsupported"],

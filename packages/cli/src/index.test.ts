@@ -790,14 +790,18 @@ describe("CLI preview lifecycle", () => {
       await main(["preview", "create", "--config-file", configFile, "--cleanup-file", cleanupFile]);
       const createOutput = JSON.parse(String(log.mock.calls[0]?.[0])) as {
         preview: { name: string; status: string; resources: Array<{ type: string; provider: string; name: string }> };
-        cleanupPlan: { path: string; resourceCount: number; cleanupActionCount: number };
+        cleanupPlan: { id: string; previewId: string; cleanupOrder: string; path: string; resourceCount: number; cleanupActionCount: number };
         receipts: Array<{ type: string; capabilityPath: string }>;
       };
       const cleanupPlanText = await readFile(cleanupFile, "utf8");
       const cleanupPlan = JSON.parse(cleanupPlanText) as {
         schema: string;
+        id: string;
+        previewId: string;
+        cleanupOrder: string;
+        actions: Array<{ actionId: string; idempotencyKey: string; reversible: boolean; capabilityPath: string; spec: Record<string, unknown> }>;
         preview: { name: string; status: string };
-        resources: Array<{ kind: string; provider: string; cleanup?: { adapter: string; capabilityPath: string; spec: Record<string, unknown> } }>;
+        resources: Array<{ kind: string; provider: string; cleanupActionId?: string; cleanup?: { adapter: string; capabilityPath: string; idempotencyKey?: string; spec: Record<string, unknown> } }>;
       };
 
       expect(createOutput).toMatchObject({
@@ -809,25 +813,44 @@ describe("CLI preview lifecycle", () => {
         cleanupPlan: {
           path: cleanupFile,
           resourceCount: 1,
-          cleanupActionCount: 1
+          cleanupActionCount: 1,
+          cleanupOrder: "reverse-create-order"
         },
-        receipts: [{ type: "database.branch.create", capabilityPath: "database.branchCreate" }]
+        receipts: [
+          { type: "database.branch.create", capabilityPath: "database.branchCreate" },
+          { type: "preview.create", capabilityPath: "preview.create" }
+        ]
       });
+      expect(createOutput.cleanupPlan.id).toBe(cleanupPlan.id);
+      expect(createOutput.cleanupPlan.previewId).toBe(cleanupPlan.previewId);
       expect(cleanupPlan).toMatchObject({
         schema: "capsule.preview.cleanup.v1",
+        id: createOutput.cleanupPlan.id,
+        previewId: createOutput.cleanupPlan.previewId,
+        cleanupOrder: "reverse-create-order",
         preview: { name: "pr-70", status: "ready" },
+        actions: [
+          {
+            capabilityPath: "database.branchDelete",
+            reversible: true,
+            spec: { project: "app", branchId: "neon_branch_pr-70-db" }
+          }
+        ],
         resources: [
           {
             kind: "database",
             provider: "neon",
+            cleanupActionId: cleanupPlan.actions[0]?.actionId,
             cleanup: {
               adapter: "mock-neon",
               capabilityPath: "database.branchDelete",
-              spec: { project: "app", branchId: "neon_branch_pr-70-db" }
+              idempotencyKey: cleanupPlan.actions[0]?.idempotencyKey,
+              spec: { project: "app", branchId: "neon_branch_pr-70-db", idempotencyKey: cleanupPlan.actions[0]?.idempotencyKey }
             }
           }
         ]
       });
+      expect(cleanupPlan.actions[0]?.actionId).toBe(cleanupPlan.actions[0]?.idempotencyKey);
       expect(cleanupPlanText).not.toContain("postgresql://");
 
       log.mockClear();

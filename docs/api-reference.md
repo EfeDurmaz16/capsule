@@ -548,8 +548,11 @@ Exports:
 
 Exports:
 - `cleanupPreviewEnvironment` (function)
+- `CleanupPreviewEnvironmentOptions` (interface)
 - `compilePreviewPlan` (function)
 - `compilePreviewSpec` (function)
+- `createPreviewCleanupPlan` (function)
+- `CreatePreviewCleanupPlanOptions` (interface)
 - `createPreviewDryRunReceiptBundle` (function)
 - `CreatePreviewDryRunReceiptBundleOptions` (interface)
 - `createPreviewEnvironment` (function)
@@ -563,6 +566,10 @@ Exports:
 - `PreviewCleanupAction` (interface)
 - `PreviewCleanupDisposition` (type)
 - `PreviewCleanupDispositionRecord` (interface)
+- `PreviewCleanupPlan` (interface)
+- `PreviewCleanupPlanAction` (interface)
+- `PreviewCleanupPlanResource` (interface)
+- `previewCleanupPlanSchema` (const)
 - `PreviewCleanupResult` (interface)
 - `PreviewCompiledPlan` (interface)
 - `PreviewCreationError` (class)
