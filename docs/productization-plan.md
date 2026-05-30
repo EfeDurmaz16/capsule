@@ -70,7 +70,7 @@
 | CAP-P017 | open | Medium | Add provider quickstart status badges | Each real-provider quickstart states credential requirements, cost risk, supported capabilities, and cleanup command. | `git diff --check` |
 | CAP-P018 | open | Medium | Add comparison decision table | Comparison doc explains when to use Capsule, provider SDKs, Terraform, Pulumi, Nitric, Encore, or a managed PaaS. | `git diff --check` |
 | CAP-P019 | done | Medium | Add ADR for evidence-grade receipts | Record the difference between observational receipts and evidence-grade receipts, including failure modes. | `git diff --check` |
-| CAP-P020 | open | Low | Add issue-label taxonomy | Document labels for core, adapter, docs, release, security, live-test, good-first-issue, and commercial-surface work. | `git diff --check` |
+| CAP-P020 | done | Low | Add issue-label taxonomy | Document labels for core, adapter, docs, release, security, live-test, good-first-issue, and commercial-surface work. | `git diff --check` |
 
 ### Core Policy And Evidence
 
