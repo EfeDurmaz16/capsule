@@ -204,6 +204,7 @@ Mock modeling package:
 - [Real provider quickstarts](docs/real-provider-quickstarts.md)
 - [Live provider tests](docs/live-tests.md)
 - [Publish readiness](docs/publish-readiness.md)
+- [Release rollback](docs/release-rollback.md)
 - [Unfinished marker gate](docs/unfinished-marker-gate.md)
 - [V2 readiness audit](docs/v2-readiness-audit.md)
 - [API reference](docs/api-reference.md) (`pnpm docs:api`)

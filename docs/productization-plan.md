@@ -55,7 +55,7 @@
 | CAP-P007 | open | Medium | Add release notes template by domain | Add a release notes template that groups core, adapter, docs, and breaking changes. | `git diff --check && pnpm release:markers` |
 | CAP-P008 | open | High | Verify package exports on Node 20 and 22 | Add CI matrix coverage that imports every public package on supported Node versions. | `pnpm test packages/core/src/package-exports.test.ts` plus CI matrix |
 | CAP-P009 | open | High | Add dependency and license audit | Add a lightweight script that reports non-MIT-compatible licenses and unexpected new runtime dependencies. | `pnpm release:audit` |
-| CAP-P010 | open | Medium | Add release rollback runbook | Document how to yank, deprecate, or hotfix a bad package release without rewriting history. | `git diff --check` |
+| CAP-P010 | done | Medium | Add release rollback runbook | Document how to yank, deprecate, or hotfix a bad package release without rewriting history. | `git diff --check` |
 
 ### Public Surface And Documentation Truth
 
