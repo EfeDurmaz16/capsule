@@ -153,6 +153,49 @@ describe("ecs adapter", () => {
     expect(sent[0]).toMatchObject({ cluster: "cluster-a", serviceName: "api", taskDefinition: "api:3", launchType: "EC2", desiredCount: 2 });
   });
 
+  it("deletes created ECS services when deploy fails after CreateService", async () => {
+    const sent: any[] = [];
+    const client = {
+      send: async (command: any) => {
+        sent.push({ name: command.constructor.name, input: command.input });
+        if (command.constructor.name === "CreateServiceCommand") {
+          return { service: { serviceArn: "arn:service/api", serviceName: "api" } };
+        }
+        return { service: { serviceArn: "arn:service/api", serviceName: "api", status: "DRAINING" } };
+      }
+    };
+    const capsule = new Capsule({
+      adapter: ecs({ cluster: "cluster-a", taskDefinition: "api:3", containerName: "main", client }),
+      receipts: true,
+      receiptSigner: {
+        algorithm: "test-signature",
+        sign: () => {
+          throw new Error("receipt signing failed");
+        }
+      }
+    });
+
+    let thrown: unknown;
+    try {
+      await capsule.service.deploy({ name: "api", image: "ignored", scale: { min: 2 } });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe("receipt signing failed");
+    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
+      action: "delete-created-service",
+      service: "arn:service/api",
+      status: "deleted",
+      cluster: "cluster-a"
+    });
+    expect(sent).toEqual([
+      { name: "CreateServiceCommand", input: { cluster: "cluster-a", serviceName: "api", taskDefinition: "api:3", launchType: "FARGATE", desiredCount: 2 } },
+      { name: "DeleteServiceCommand", input: { cluster: "cluster-a", service: "arn:service/api", force: true } }
+    ]);
+  });
+
   it("describes ECS service rollout status from DescribeServices", async () => {
     const sent: any[] = [];
     const client = {

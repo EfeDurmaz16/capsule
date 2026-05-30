@@ -400,7 +400,7 @@ console.log(run.status, run.receipt);
 
 Credentials: AWS default credential chain plus region, cluster, networking, and existing task definition settings required by your ECS setup.
 
-Cleanup: stopped one-shot tasks eventually disappear from active listings; services created by `service.deploy` must be deleted through ECS tooling or future lifecycle APIs.
+Cleanup: stopped one-shot tasks eventually disappear from active listings; services created by `service.deploy` can be deleted with `capsule.service.delete(...)` or ECS tooling. If `CreateService` succeeds and a later adapter step fails, Capsule best-effort deletes the created Service and reports cleanup metadata on the thrown error.
 
 Caveat: task definition registration, load balancers, IAM roles, logs, and service discovery are provider-specific and not faked.
 

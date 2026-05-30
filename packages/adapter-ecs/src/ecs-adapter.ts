@@ -13,6 +13,7 @@ import {
 import {
   logsFromOutput,
   type AdapterContext,
+  AdapterExecutionError,
   type CapsuleAdapter,
   type CapabilityMap,
   type CancelJobResult,
@@ -55,6 +56,16 @@ export interface ECSAdapterOptions {
   launchType?: "FARGATE" | "EC2" | "EXTERNAL";
   client?: ECSClientLike;
 }
+
+interface ECSServiceCleanupMetadata {
+  action: "delete-created-service";
+  service: string;
+  status: "deleted" | "failed";
+  cluster: string;
+  error?: string;
+}
+
+type CleanupAwareError = Error & { cleanup?: ECSServiceCleanupMetadata };
 
 const provider = "ecs";
 const adapter = "ecs";
@@ -220,6 +231,33 @@ function defaultClient(options: ECSAdapterOptions): ECSClientLike {
   return new ECSClient({ region: options.region });
 }
 
+async function cleanupCreatedServiceAfterDeployFailure(
+  client: ECSClientLike,
+  cluster: string,
+  service: Service,
+  serviceName: string,
+  deployError: unknown
+): Promise<never> {
+  const serviceId = service.serviceArn ?? service.serviceName ?? serviceName;
+  const cleanup: ECSServiceCleanupMetadata = {
+    action: "delete-created-service",
+    service: serviceId,
+    status: "deleted",
+    cluster
+  };
+  try {
+    await client.send(new DeleteServiceCommand({ cluster, service: serviceId, force: true }));
+  } catch (cleanupError) {
+    cleanup.status = "failed";
+    cleanup.error = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+  }
+  if (deployError instanceof Error) {
+    (deployError as CleanupAwareError).cleanup = cleanup;
+    throw deployError;
+  }
+  throw new AdapterExecutionError("ECS service deploy failed after service creation.", { deployError, cleanup });
+}
+
 export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
   const getClient = () => options.client ?? defaultClient(options);
   return {
@@ -335,7 +373,8 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
       deploy: async (spec: DeployServiceSpec, context: AdapterContext): Promise<ServiceDeployment> => {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env });
-        const response = await getClient().send(
+        const client = getClient();
+        const response = await client.send(
           new CreateServiceCommand({
             cluster: options.cluster,
             serviceName: spec.name,
@@ -347,26 +386,33 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
           })
         );
         const service = response.service;
-        const receipt = context.receipts
-          ? context.createReceipt({
-              type: "service.deploy",
-              capabilityPath: "service.deploy",
-              startedAt,
-              image: spec.image,
-              source: spec.source,
-              policy: {
-                ...policy,
-                notes: [
-                  ...policy.notes,
-                  "ECS CreateService is native for an existing task definition.",
-                  "Capsule does not create load balancers, target groups, service discovery, or task definitions in this adapter."
-                ]
-              },
-              resource: { id: service?.serviceArn ?? spec.name, name: spec.name, status: "deploying" },
-              metadata: serviceMetadata(service, { cluster: options.cluster, taskDefinition: options.taskDefinition })
-            })
-          : undefined;
-        return { id: service?.serviceArn ?? spec.name, provider, name: spec.name, status: "deploying", receipt };
+        try {
+          const receipt = context.receipts
+            ? context.createReceipt({
+                type: "service.deploy",
+                capabilityPath: "service.deploy",
+                startedAt,
+                image: spec.image,
+                source: spec.source,
+                policy: {
+                  ...policy,
+                  notes: [
+                    ...policy.notes,
+                    "ECS CreateService is native for an existing task definition.",
+                    "Capsule does not create load balancers, target groups, service discovery, or task definitions in this adapter."
+                  ]
+                },
+                resource: { id: service?.serviceArn ?? spec.name, name: spec.name, status: "deploying" },
+                metadata: serviceMetadata(service, { cluster: options.cluster, taskDefinition: options.taskDefinition })
+              })
+            : undefined;
+          return { id: service?.serviceArn ?? spec.name, provider, name: spec.name, status: "deploying", receipt };
+        } catch (error) {
+          if (service) {
+            await cleanupCreatedServiceAfterDeployFailure(client, options.cluster, service, spec.name, error);
+          }
+          throw error;
+        }
       },
       status: async (spec: ServiceStatusSpec, context: AdapterContext): Promise<ServiceStatusResult> => {
         const startedAt = new Date();
