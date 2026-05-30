@@ -6,12 +6,13 @@ Do not enable these tests in routine CI without dedicated test accounts, quotas,
 
 `@capsule/test-utils` exports `liveProviderRegistry` and `liveProviderCredentials` for all real adapters: Docker, E2B, Daytona, Modal, Cloud Run, Cloudflare, Vercel, Neon, Kubernetes, Lambda, ECS, EC2, Fly, and Azure Container Apps. `@capsule/adapter-mock` is deliberately excluded because mock success is not live provider verification.
 
-Before exporting credentials, use the CLI planner to inspect the required env-var names and the provider-specific Vitest command:
+Before exporting credentials, build the workspace CLI once, then use the planner to inspect the required env-var names and the provider-specific Vitest command:
 
 ```bash
-pnpm --filter @capsule/cli capsule live-test plan
-pnpm --filter @capsule/cli capsule live-test plan --provider neon
-pnpm --filter @capsule/cli capsule live-test plan --provider cloudflare
+pnpm --filter @capsule/cli build
+pnpm --filter @capsule/cli exec node dist/index.js live-test plan
+pnpm --filter @capsule/cli exec node dist/index.js live-test plan --provider neon
+pnpm --filter @capsule/cli exec node dist/index.js live-test plan --provider cloudflare
 ```
 
 The planner prints only env-var names, project-scoped aliases, notes, and copy-safe commands. It does not read or print secret values.
@@ -19,8 +20,8 @@ The planner prints only env-var names, project-scoped aliases, notes, and copy-s
 Use the verification matrix before running live tests:
 
 ```bash
-pnpm --filter @capsule/cli capsule verify providers
-pnpm --filter @capsule/cli capsule verify providers --provider neon
+pnpm --filter @capsule/cli exec node dist/index.js verify providers
+pnpm --filter @capsule/cli exec node dist/index.js verify providers --provider neon
 node scripts/live-test-matrix.mjs --dry-run
 node scripts/live-test-matrix.mjs --dry-run --provider neon
 ```
@@ -30,11 +31,30 @@ The CLI provider matrix reports Docker availability and provider credential read
 Before running a provider live test, validate the exact provider environment:
 
 ```bash
-pnpm --filter @capsule/cli capsule live-test validate --provider neon
-pnpm --filter @capsule/cli capsule live-test validate --provider fly
+pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider neon
+pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider fly
 ```
 
 The validator is side-effect-free. It checks `CAPSULE_LIVE_TESTS`, required credential/project/region env vars, provider-scoped aliases, billable-test acknowledgement, and max resource count. Live tests that create resources or invoke billable provider work report `blocked` until `CAPSULE_LIVE_TEST_COST_ACK=1` and `CAPSULE_LIVE_TEST_MAX_RESOURCES` are set. Read-only status checks, such as Vercel deployment status and Cloud Run service status, do not require those billable-test controls.
+
+## Minimal Credential Checks
+
+The checks below do not create resources or call mutating provider APIs. They print only env-var names and readiness metadata, never secret values. Set `CAPSULE_LIVE_TESTS=1` for live-test validation; billable providers also need `CAPSULE_LIVE_TEST_COST_ACK=1` and `CAPSULE_LIVE_TEST_MAX_RESOURCES=1` before the report can become `ready`.
+
+| Provider | Side-effect-free checker | Minimum provider-specific inputs |
+| --- | --- | --- |
+| Docker | `pnpm --filter @capsule/cli exec node dist/index.js verify providers --provider docker` | No credentials; Docker daemon must be reachable. |
+| E2B | `pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider e2b` | `E2B_API_KEY` |
+| Daytona | `pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider daytona` | `DAYTONA_API_KEY` |
+| Modal | `pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider modal` | `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET` |
+| Cloud Run | `pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider cloud-run` | `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_RUN_LOCATION`, `GOOGLE_OAUTH_ACCESS_TOKEN`, `CAPSULE_CLOUD_RUN_SERVICE_ID` |
+| Cloudflare Workers | `pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider cloudflare` | `CLOUDFLARE_API_TOKEN`, `CAPSULE_WORKER_API_TOKEN`, or `CLOUDFLARE_WORKERS_FREE_API_TOKEN`; `CLOUDFLARE_ACCOUNT_ID`, `CAPSULE_WORKER_ACCOUNT_ID`, or `CLOUDFLARE_WORKERS_FREE_ACCOUNT_ID`; `CAPSULE_CLOUDFLARE_WORKER_NAME`; `CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION` |
+| Vercel | `pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider vercel` | `VERCEL_TOKEN`, `CAPSULE_VERCEL_DEPLOYMENT_ID` |
+| Neon | `pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider neon` | `NEON_API_KEY`; `NEON_PROJECT_ID` or `CAPSULE_POSTGRES_PROJECT_ID` |
+| Kubernetes | `pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider kubernetes` | `CAPSULE_KUBERNETES_NAMESPACE`; reachable default kubeconfig, `KUBECONFIG`, or in-cluster config |
+| AWS Lambda | `pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider lambda` | `AWS_REGION`, `CAPSULE_LAMBDA_FUNCTION_NAME`; AWS auth uses the SDK credential chain, such as `AWS_PROFILE`, `AWS_ACCESS_KEY_ID`, or `AWS_WEB_IDENTITY_TOKEN_FILE` |
+| Fly Machines | `pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider fly` | `FLY_API_TOKEN`, `FLY_APP_NAME`, `CAPSULE_FLY_IMAGE` |
+| Azure Container Apps | `pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider azure-container-apps` | `AZURE_ACCESS_TOKEN`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION`, `AZURE_CONTAINERAPPS_ENVIRONMENT_ID`, `CAPSULE_AZURE_CONTAINER_IMAGE` |
 
 ## Flaky Test Quarantine
 
@@ -142,7 +162,7 @@ pnpm vitest run packages/adapter-neon/src/neon.live.test.ts
 Ask the CLI for the canonical command when in doubt:
 
 ```bash
-pnpm --filter @capsule/cli capsule live-test plan --provider vercel
+pnpm --filter @capsule/cli exec node dist/index.js live-test plan --provider vercel
 ```
 
 ## Project-Scoped Env Mapping
