@@ -56,6 +56,18 @@ The checks below do not create resources or call mutating provider APIs. They pr
 | Fly Machines | `pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider fly` | `FLY_API_TOKEN`, `FLY_APP_NAME`, `CAPSULE_FLY_IMAGE` |
 | Azure Container Apps | `pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider azure-container-apps` | `AZURE_ACCESS_TOKEN`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION`, `AZURE_CONTAINERAPPS_ENVIRONMENT_ID`, `CAPSULE_AZURE_CONTAINER_IMAGE` |
 
+## CI Safe Opt-In
+
+Live tests remain disabled in CI unless there is an explicit CI opt-in. The shared gate, CLI validator, and dry-run matrix all require one of these signals when `CI=true` or `GITHUB_ACTIONS=true`:
+
+- `CAPSULE_LIVE_TEST_CI_OPT_IN=1`
+- GitHub pull request label `capsule:live-tests`, read from `GITHUB_EVENT_PATH`
+- `CAPSULE_LIVE_TEST_GITHUB_LABELS=capsule:live-tests` for non-GitHub CI label mirroring
+
+Untrusted fork pull requests are always blocked even when the opt-in env var or label is present. GitHub fork detection uses the pull request event payload, and non-GitHub CI can force the same deny path with `CAPSULE_LIVE_TEST_UNTRUSTED_FORK=1`.
+
+Do not run live tests from `pull_request_target`, forked pull requests, or any workflow that exposes provider secrets to untrusted code. Prefer manual `workflow_dispatch` jobs or trusted-branch jobs that set `CAPSULE_LIVE_TEST_CI_OPT_IN=1` and scoped provider credentials.
+
 ## Flaky Test Quarantine
 
 Known-flaky live tests can be marked with quarantine metadata: reason, owner, last observed failure, and a revalidation command. A quarantined test stays disabled even when the provider credentials, live-test flag, cost acknowledgement, and max resource count are all configured.
@@ -91,6 +103,9 @@ Optional metadata environment:
 - `CAPSULE_LIVE_TEST_COST_ACK=1`: required before billable live tests run.
 - `CAPSULE_LIVE_TEST_MAX_RESOURCES`: positive integer maximum resource count for a billable live test invocation; set at least `1` for the current single-resource live tests.
 - `CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1`: explicit opt-in to run a quarantined flaky live test for revalidation.
+- `CAPSULE_LIVE_TEST_CI_OPT_IN=1`: explicit CI opt-in for trusted live-test jobs.
+- `CAPSULE_LIVE_TEST_GITHUB_LABELS`: comma-separated CI label mirror; include `capsule:live-tests` to opt in when a CI provider cannot expose `GITHUB_EVENT_PATH`.
+- `CAPSULE_LIVE_TEST_UNTRUSTED_FORK=1`: forces the untrusted-fork deny path in non-GitHub CI.
 
 Provider coverage is intentionally explicit. E2B receives labels as sandbox metadata, Daytona receives labels in create params, Azure Container Apps maps labels to ARM tags, Kubernetes maps labels onto Jobs, and Fly Machines stores labels in Machine config metadata. Neon records labels and TTL in Capsule receipts, while Neon provider-side TTL enforcement is not implemented by the current adapter. Cloudflare Worker tests keep the existing env-provided Worker name and record labels in Capsule receipts only. Modal currently uses deterministic names, but its adapter does not map labels to a provider metadata field. Cloud Run, Vercel, and Lambda tests operate on existing resources and do not create taggable live resources.
 

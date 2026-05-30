@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from "node:fs";
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -155,7 +156,7 @@ interface ProviderSelectionReport {
 
 interface ProviderVerificationEntry {
   provider: string;
-  status: "passed" | "ready" | "missing" | "unavailable" | "quarantined";
+  status: "passed" | "ready" | "missing" | "unavailable" | "quarantined" | "blocked";
   liveTestEnabled: boolean;
   configuredEnv: string[];
   missingEnv: string[];
@@ -165,6 +166,10 @@ interface ProviderVerificationEntry {
   notes: string[];
   quarantine?: LiveTestQuarantine;
   quarantineRevalidationEnv?: string;
+  missingCiOptInEnv?: string[];
+  ciOptInEnv?: string;
+  ciOptInLabel?: string;
+  ciUntrustedFork?: boolean;
 }
 
 interface ProviderVerificationReport {
@@ -193,6 +198,10 @@ interface LiveEnvironmentValidationEntry {
   notes: string[];
   quarantine?: LiveTestQuarantine;
   quarantineRevalidationEnv?: string;
+  missingCiOptInEnv?: string[];
+  ciOptInEnv?: string;
+  ciOptInLabel?: string;
+  ciUntrustedFork?: boolean;
 }
 
 interface LiveEnvironmentValidationReport {
@@ -218,6 +227,9 @@ type AdapterScaffoldDomain = Extract<CapsuleDomain, "sandbox" | "job" | "service
 const adapterScaffoldDomains = ["sandbox", "job", "service", "edge", "database", "preview", "machine"] as const satisfies readonly AdapterScaffoldDomain[];
 const liveTestMaxResourcesEnv = "CAPSULE_LIVE_TEST_MAX_RESOURCES";
 const liveTestFlakyRevalidationEnv = "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY";
+const liveTestCiOptInEnv = "CAPSULE_LIVE_TEST_CI_OPT_IN";
+const liveTestCiUntrustedForkEnv = "CAPSULE_LIVE_TEST_UNTRUSTED_FORK";
+const liveTestCiLabel = "capsule:live-tests";
 
 const credentialRequirements: CredentialRequirement[] = [
   { provider: "e2b", requiredAll: ["E2B_API_KEY"] },
@@ -758,6 +770,65 @@ function livePlanQuarantineNote(quarantine: LiveTestQuarantine): string {
   return `Quarantined flaky live test: ${quarantine.reason}. Owner: ${quarantine.owner}. Last observed failure: ${quarantine.lastObservedFailure}. Revalidate with: ${quarantine.revalidationCommand}`;
 }
 
+function readGitHubEvent(env: NodeJS.ProcessEnv): Record<string, any> | undefined {
+  const eventPath = env.GITHUB_EVENT_PATH;
+  if (!eventPath) return undefined;
+  try {
+    return JSON.parse(readFileSync(eventPath, "utf8")) as Record<string, any>;
+  } catch {
+    return undefined;
+  }
+}
+
+function githubEventLabels(env: NodeJS.ProcessEnv, event: Record<string, any> | undefined): string[] {
+  const eventLabels = [...(event?.pull_request?.labels ?? []), event?.label].flatMap((label) => (typeof label?.name === "string" ? [label.name] : []));
+  const envLabels = (env.CAPSULE_LIVE_TEST_GITHUB_LABELS ?? "")
+    .split(",")
+    .map((label) => label.trim())
+    .filter(Boolean);
+  return [...eventLabels, ...envLabels];
+}
+
+function githubEventIsUntrustedFork(env: NodeJS.ProcessEnv, event: Record<string, any> | undefined): boolean {
+  if (env[liveTestCiUntrustedForkEnv] === "1") return true;
+  const pullRequest = event?.pull_request;
+  if (!pullRequest && env.GITHUB_EVENT_NAME !== "pull_request") return false;
+  if (pullRequest?.head?.repo?.fork === true) return true;
+
+  const baseRepo = pullRequest?.base?.repo?.full_name ?? event?.repository?.full_name ?? env.GITHUB_REPOSITORY;
+  const headRepo = pullRequest?.head?.repo?.full_name ?? env.GITHUB_HEAD_REPO_FULL_NAME;
+  return Boolean(baseRepo && headRepo && baseRepo !== headRepo);
+}
+
+function liveTestCiSafety(env: NodeJS.ProcessEnv): { ci: boolean; optedIn: boolean; untrustedFork: boolean } {
+  const ci = env.CI === "true" || env.GITHUB_ACTIONS === "true";
+  if (!ci) return { ci: false, optedIn: true, untrustedFork: false };
+  const event = readGitHubEvent(env);
+  const labels = githubEventLabels(env, event);
+  return {
+    ci: true,
+    optedIn: env[liveTestCiOptInEnv] === "1" || labels.includes(liveTestCiLabel),
+    untrustedFork: githubEventIsUntrustedFork(env, event)
+  };
+}
+
+function liveTestCiNotes(ciSafety: { ci: boolean; optedIn: boolean; untrustedFork: boolean }): string[] {
+  if (!ciSafety.ci) return [];
+  if (ciSafety.untrustedFork) return ["Live tests are disabled for untrusted fork pull requests."];
+  if (!ciSafety.optedIn) return [`Set ${liveTestCiOptInEnv}=1 or apply the ${liveTestCiLabel} label before running live tests in CI.`];
+  return [];
+}
+
+function liveTestCiFields(ciSafety: { ci: boolean; optedIn: boolean; untrustedFork: boolean }): Pick<ProviderVerificationEntry, "missingCiOptInEnv" | "ciOptInEnv" | "ciOptInLabel" | "ciUntrustedFork"> {
+  if (!ciSafety.ci) return {};
+  return {
+    missingCiOptInEnv: ciSafety.optedIn || ciSafety.untrustedFork ? [] : [liveTestCiOptInEnv],
+    ciOptInEnv: liveTestCiOptInEnv,
+    ciOptInLabel: liveTestCiLabel,
+    ciUntrustedFork: ciSafety.untrustedFork
+  };
+}
+
 function livePlanRequirementDiagnostic(plan: LiveTestPlan, env: NodeJS.ProcessEnv): Omit<ProviderVerificationEntry, "provider" | "status" | "testPath" | "safeCommands" | "notes" | "liveTestEnabled"> {
   const required = plan.requiredEnv.filter((name) => name !== "CAPSULE_LIVE_TESTS");
   const configuredEnv = required.flatMap((name) => configuredCredentialNames(name, plan.aliases, env));
@@ -802,18 +873,23 @@ export async function createProviderVerificationReport(options: { env?: NodeJS.P
     const diagnostic = livePlanRequirementDiagnostic(plan, env);
     const liveTestEnabled = env.CAPSULE_LIVE_TESTS === "1";
     const quarantineActive = livePlanQuarantineActive(plan, env);
+    const ciSafety = liveTestCiSafety(env);
+    const ciBlocked = ciSafety.ci && (!ciSafety.optedIn || ciSafety.untrustedFork);
     providers.push({
       provider: plan.provider,
-      status: quarantineActive ? "quarantined" : diagnostic.missingEnv.length === 0 ? "ready" : "missing",
+      status: ciBlocked ? "blocked" : quarantineActive ? "quarantined" : diagnostic.missingEnv.length === 0 ? "ready" : "missing",
       liveTestEnabled,
       ...diagnostic,
       testPath: plan.testPath,
       safeCommands: plan.safeCommands,
       notes: [
         ...plan.notes,
+        ...liveTestCiNotes(ciSafety),
         ...(plan.quarantine ? [livePlanQuarantineNote(plan.quarantine)] : []),
         ...(liveTestEnabled ? [] : ["Set CAPSULE_LIVE_TESTS=1 before running the safe command."])
       ],
+      ...(ciSafety.ci && env[liveTestCiOptInEnv] === "1" ? { configuredEnv: [...diagnostic.configuredEnv, liveTestCiOptInEnv] } : {}),
+      ...liveTestCiFields(ciSafety),
       ...(plan.quarantine
         ? {
             quarantine: plan.quarantine,
@@ -833,15 +909,17 @@ export function createLiveEnvironmentValidationReport(options: { env?: NodeJS.Pr
     const diagnostic = livePlanRequirementDiagnostic(plan, env);
     const liveTestEnabled = env.CAPSULE_LIVE_TESTS === "1";
     const quarantineActive = livePlanQuarantineActive(plan, env);
+    const ciSafety = liveTestCiSafety(env);
+    const ciBlocked = ciSafety.ci && (!ciSafety.optedIn || ciSafety.untrustedFork);
     const costEnv = plan.costAcknowledgementEnv;
     const costAcknowledged = costEnv ? env[costEnv] === "1" : true;
     const missingCostEnv = costEnv && !costAcknowledged ? [costEnv] : [];
     const resourceLimit = livePlanResourceLimit(plan, env);
     const missingResourceLimitEnv = resourceLimit && !resourceLimit.satisfied ? [resourceLimit.env] : [];
-    const ready = liveTestEnabled && diagnostic.missingEnv.length === 0 && missingCostEnv.length === 0 && missingResourceLimitEnv.length === 0;
+    const ready = !ciBlocked && liveTestEnabled && diagnostic.missingEnv.length === 0 && missingCostEnv.length === 0 && missingResourceLimitEnv.length === 0;
     return {
       provider: plan.provider,
-      status: quarantineActive ? "quarantined" : ready ? "ready" : "blocked",
+      status: ciBlocked ? "blocked" : quarantineActive ? "quarantined" : ready ? "ready" : "blocked",
       liveTestEnabled,
       costRisk: plan.costRisk,
       costAcknowledged,
@@ -851,6 +929,7 @@ export function createLiveEnvironmentValidationReport(options: { env?: NodeJS.Pr
         ...diagnostic.configuredEnv,
         ...(costEnv && costAcknowledged ? [costEnv] : []),
         ...(resourceLimit?.satisfied ? [resourceLimit.env] : []),
+        ...(ciSafety.ci && env[liveTestCiOptInEnv] === "1" ? [liveTestCiOptInEnv] : []),
         ...(plan.quarantine && env[liveTestFlakyRevalidationEnv] === "1" ? [liveTestFlakyRevalidationEnv] : [])
       ],
       missingEnv: liveTestEnabled ? diagnostic.missingEnv : ["CAPSULE_LIVE_TESTS", ...diagnostic.missingEnv],
@@ -861,6 +940,7 @@ export function createLiveEnvironmentValidationReport(options: { env?: NodeJS.Pr
       safeCommands: plan.safeCommands,
       notes: [
         ...plan.notes,
+        ...liveTestCiNotes(ciSafety),
         ...(plan.quarantine ? [livePlanQuarantineNote(plan.quarantine)] : []),
         ...(liveTestEnabled ? [] : ["Set CAPSULE_LIVE_TESTS=1 before running the safe command."]),
         ...(missingCostEnv.length > 0 ? [`Set ${missingCostEnv[0]}=1 to acknowledge billable or side-effecting live provider work.`] : []),
@@ -868,6 +948,7 @@ export function createLiveEnvironmentValidationReport(options: { env?: NodeJS.Pr
           ? [`Set ${missingResourceLimitEnv[0]} to a positive integer >= ${resourceLimit?.required ?? 1} before running billable live provider work.`]
           : [])
       ],
+      ...liveTestCiFields(ciSafety),
       ...(plan.quarantine
         ? {
             quarantine: plan.quarantine,
