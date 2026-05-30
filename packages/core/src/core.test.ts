@@ -12,6 +12,7 @@ import {
   supports,
   uniqueCapabilityPaths
 } from "./capabilities.js";
+import { createEvidenceBundle, verifyEvidenceBundle } from "./evidence.js";
 import { AdapterExecutionError, UnsupportedCapabilityError, PolicyViolationError } from "./errors.js";
 import { evaluatePolicy, mergeTimeout, redactError, redactLogEntries, redactSecrets } from "./policy.js";
 import { edgeWorkerPreset, httpServicePreset, nodeJobPreset, nodeSandboxPreset, previewDatabaseBranchPreset, previewEnvironmentPreset } from "./presets.js";
@@ -768,6 +769,71 @@ describe("receipts", () => {
 
     const tampered = { ...receipt, resource: { ...receipt.resource, status: "succeeded" } };
     expect(verifyReceiptSignature(tampered, verifier)).toEqual({ valid: false, reason: "signature-mismatch" });
+  });
+
+  test("exports verifiable evidence bundles from receipts logs artifacts and provider metadata", () => {
+    const receipt = createReceipt({
+      type: "job.run",
+      provider: "test",
+      adapter: "test",
+      capabilityPath: "job.run",
+      supportLevel: "native",
+      startedAt: new Date("2026-01-01T00:00:00.000Z"),
+      finishedAt: new Date("2026-01-01T00:00:00.500Z"),
+      stdout: "ok",
+      stderr: "",
+      policy: { decision: "allowed", applied: { network: { mode: "none" } }, notes: ["observed"] },
+      resource: { id: "job_123", status: "succeeded" },
+      metadata: { providerRequestId: "req_123", idempotencyKey: "idem_123" }
+    });
+    const logs = [{ timestamp: "2026-01-01T00:00:00.250Z", stream: "stdout" as const, message: "ok" }];
+    const artifacts = [{ name: "stdout.txt", sha256: receipt.stdoutHash }];
+
+    const bundle = createEvidenceBundle({
+      receipts: [receipt],
+      logs,
+      artifacts,
+      createdAt: new Date("2026-01-01T00:00:01.000Z")
+    });
+
+    expect(bundle).toMatchObject({
+      schema: "capsule.evidence.bundle.v1",
+      createdAt: "2026-01-01T00:00:01.000Z",
+      receipts: [receipt],
+      logs,
+      artifacts,
+      policyDecisions: [
+        {
+          receiptId: receipt.id,
+          type: "job.run",
+          capabilityPath: "job.run",
+          decision: "allowed",
+          applied: { network: { mode: "none" } },
+          notes: ["observed"]
+        }
+      ],
+      providerMetadata: [
+        {
+          receiptId: receipt.id,
+          provider: "test",
+          adapter: "test",
+          capabilityPath: "job.run",
+          supportLevel: "native",
+          resource: { id: "job_123", status: "succeeded" },
+          metadata: { providerRequestId: "req_123", idempotencyKey: "idem_123" }
+        }
+      ],
+      digest: { algorithm: "sha256" }
+    });
+    expect(verifyEvidenceBundle(bundle)).toEqual({ valid: true });
+    expect(verifyEvidenceBundle({ ...bundle, digest: { ...bundle.digest, algorithm: "sha1" } } as any)).toEqual({
+      valid: false,
+      reason: "digest-algorithm-mismatch"
+    });
+    expect(verifyEvidenceBundle({ ...bundle, logs: [{ ...logs[0], message: "tampered" }] })).toMatchObject({
+      valid: false,
+      reason: "digest-mismatch"
+    });
   });
 
   test("records sanitized provider options on receipts", () => {

@@ -336,6 +336,8 @@ Exports:
 - `ClassifyProviderServiceResult`
 - `CleanupPreviewSpec`
 - `CreateDatabaseBranchSpec`
+- `createEvidenceBundle`
+- `CreateEvidenceBundleInput`
 - `CreateMachineSpec`
 - `CreatePreviewSpec`
 - `createReceipt`
@@ -368,6 +370,8 @@ Exports:
 - `EdgeWorkerPresetOptions`
 - `evaluateCapabilityRequirements`
 - `evaluatePolicy`
+- `EvidenceBundle`
+- `EvidenceBundleVerificationResult`
 - `ExecResult`
 - `ExecSpec`
 - `explainSupportLevel`
@@ -472,6 +476,7 @@ Exports:
 - `UnsignedReceipt`
 - `UnsupportedCapabilityError`
 - `UpdateServiceSpec`
+- `verifyEvidenceBundle`
 - `verifyReceiptSignature`
 - `VersionEdgeSpec`
 

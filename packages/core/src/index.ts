@@ -4,6 +4,7 @@ export * from "./capabilities.js";
 export * from "./capsule.js";
 export * from "./contract.js";
 export * from "./errors.js";
+export * from "./evidence.js";
 export * from "./logs.js";
 export * from "./policy.js";
 export * from "./presets.js";
