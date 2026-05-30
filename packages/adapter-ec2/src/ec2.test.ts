@@ -83,25 +83,41 @@ describe("ec2 adapter", () => {
         if (command.constructor.name === "StopInstancesCommand") {
           return { StoppingInstances: [{ InstanceId: "i-123", CurrentState: { Name: "stopping" } }] };
         }
-        return { TerminatingInstances: [{ InstanceId: "i-123", CurrentState: { Name: "shutting-down" } }] };
+        return { TerminatingInstances: [{ InstanceId: "i-123", PreviousState: { Name: "running" }, CurrentState: { Name: "shutting-down" } }] };
       }
     };
     const capsule = new Capsule({ adapter: ec2({ region: "us-east-1", client }), receipts: true });
 
     const started = await capsule.machine.start({ id: "i-123", reason: "resume checks" });
     const stopped = await capsule.machine.stop({ id: "i-123", force: true });
-    const destroyed = await capsule.machine.destroy({ id: "i-123", reason: "ttl expired" });
+    const destroyed = await capsule.machine.destroy({ id: "i-123", force: true, reason: "ttl expired", providerOptions: { skipOsShutdown: true } });
 
     expect(started).toMatchObject({ id: "i-123", status: "starting" });
     expect(stopped).toMatchObject({ id: "i-123", status: "stopping" });
     expect(destroyed).toMatchObject({ id: "i-123", status: "destroying" });
+    expect(destroyed.metadata).toMatchObject({ awsState: "shutting-down", previousAwsState: "running", force: true, skipOsShutdown: true });
     expect(started.receipt?.type).toBe("machine.start");
     expect(stopped.receipt?.type).toBe("machine.stop");
     expect(destroyed.receipt?.type).toBe("machine.destroy");
+    expect(destroyed.receipt?.metadata).toMatchObject({ awsState: "shutting-down", previousAwsState: "running", force: true, skipOsShutdown: true });
+    expect(destroyed.receipt?.policy.notes).toContain(
+      "EC2 TerminateInstances force requests still attempt graceful shutdown first; providerOptions.skipOsShutdown bypasses OS shutdown and can risk data integrity."
+    );
     expect(sent).toEqual([
       { name: "StartInstancesCommand", input: { InstanceIds: ["i-123"] } },
       { name: "StopInstancesCommand", input: { InstanceIds: ["i-123"], Force: true } },
-      { name: "TerminateInstancesCommand", input: { InstanceIds: ["i-123"] } }
+      { name: "TerminateInstancesCommand", input: { InstanceIds: ["i-123"], Force: true, SkipOsShutdown: true } }
     ]);
+  });
+
+  it("does not hide EC2 termination responses without instance state", async () => {
+    const client = {
+      send: async () => ({ TerminatingInstances: [] })
+    };
+    const capsule = new Capsule({ adapter: ec2({ region: "us-east-1", client }), receipts: true });
+
+    await expect(capsule.machine.destroy({ id: "i-missing", reason: "cleanup" })).rejects.toThrow(
+      "EC2 machine.destroy did not return termination state for i-missing."
+    );
   });
 });

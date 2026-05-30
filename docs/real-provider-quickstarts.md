@@ -433,7 +433,7 @@ console.log(machine.status, machine.receipt);
 
 Credentials: AWS default credential chain and region; `image` must be a valid AMI for that region.
 
-Cleanup: terminate machines with `capsule.machine.destroy(...)` or EC2 tooling. Stopping is not the same as deleting and may still incur storage cost.
+Cleanup: terminate machines with `capsule.machine.destroy(...)` or EC2 tooling. Stopping is not the same as deleting and may still incur storage cost. `force: true` forwards EC2 forced termination semantics; `providerOptions.skipOsShutdown` bypasses OS shutdown and should be used only when that data-integrity risk is acceptable.
 
 Caveat: machines are the leakiest Capsule primitive. Networking, security groups, AMIs, instance profiles, SSH/SSM access, EBS volumes, and cost controls should remain visible to the caller.
 

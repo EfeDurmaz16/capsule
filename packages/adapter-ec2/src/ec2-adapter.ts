@@ -126,6 +126,13 @@ function capsuleMachineState(state: string | undefined): Machine["status"] {
   return "failed";
 }
 
+function providerBoolean(options: DestroyMachineSpec["providerOptions"], key: string): boolean | undefined {
+  const value = options?.[key];
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === "boolean") return value;
+  throw new AdapterExecutionError(`EC2 machine.destroy providerOptions.${key} must be a boolean.`);
+}
+
 function lifecycleReceipt(
   context: AdapterContext,
   input: {
@@ -135,6 +142,7 @@ function lifecycleReceipt(
     id: string;
     state: string;
     metadata?: Record<string, unknown>;
+    notes?: string[];
   }
 ) {
   return context.receipts
@@ -147,7 +155,8 @@ function lifecycleReceipt(
           applied: context.policy,
           notes: [
             "EC2 machine lifecycle operation is native.",
-            "AWS state transitions are asynchronous; returned state is what EC2 reported for this API response."
+            "AWS state transitions are asynchronous; returned state is what EC2 reported for this API response.",
+            ...(input.notes ?? [])
           ]
         },
         resource: { id: input.id, status: input.state },
@@ -261,8 +270,14 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
       },
       destroy: async (spec: DestroyMachineSpec, context: AdapterContext): Promise<MachineLifecycleResult> => {
         const startedAt = new Date();
-        const response = await getClient().send(new TerminateInstancesCommand({ InstanceIds: [spec.id] }));
-        const stateName = response.TerminatingInstances?.[0]?.CurrentState?.Name ?? "shutting-down";
+        const skipOsShutdown = providerBoolean(spec.providerOptions, "skipOsShutdown");
+        const response = await getClient().send(new TerminateInstancesCommand({ InstanceIds: [spec.id], Force: spec.force, SkipOsShutdown: skipOsShutdown }));
+        const termination = response.TerminatingInstances?.find((instance: any) => instance.InstanceId === spec.id) ?? response.TerminatingInstances?.[0];
+        const stateName = termination?.CurrentState?.Name;
+        if (!stateName) {
+          throw new AdapterExecutionError(`EC2 machine.destroy did not return termination state for ${spec.id}.`, { response, instanceId: spec.id });
+        }
+        const previousStateName = termination?.PreviousState?.Name;
         const status = stateName === "terminated" ? "deleted" : "destroying";
         const receipt = lifecycleReceipt(context, {
           type: "machine.destroy",
@@ -270,9 +285,25 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
           startedAt,
           id: spec.id,
           state: status,
-          metadata: { awsState: stateName, force: spec.force, reason: spec.reason, region: options.region }
+          metadata: {
+            awsState: stateName,
+            previousAwsState: previousStateName,
+            force: spec.force,
+            skipOsShutdown,
+            reason: spec.reason,
+            region: options.region
+          },
+          notes: [
+            "EC2 TerminateInstances force requests still attempt graceful shutdown first; providerOptions.skipOsShutdown bypasses OS shutdown and can risk data integrity."
+          ]
         });
-        return { id: spec.id, provider, status, receipt, metadata: { awsState: stateName } };
+        return {
+          id: spec.id,
+          provider,
+          status,
+          receipt,
+          metadata: { awsState: stateName, previousAwsState: previousStateName, force: spec.force, skipOsShutdown }
+        };
       }
     }
   };
