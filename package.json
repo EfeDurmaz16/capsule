@@ -6,7 +6,7 @@
   "packageManager": "pnpm@10.32.1",
   "scripts": {
     "build": "pnpm clean:build && pnpm -r build && pnpm prune:build",
-    "test": "vitest run",
+    "test": "vitest run && node --test scripts/*.test.mjs",
     "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
     "lint": "tsc -p tsconfig.typecheck.json --noEmit --pretty false",
     "clean:build": "node scripts/clean-build-artifacts.mjs",
@@ -15,7 +15,7 @@
     "version-packages": "changeset version && pnpm install --lockfile-only",
     "release": "pnpm typecheck && pnpm test && pnpm build && pnpm release:audit && changeset publish",
     "release:audit": "pnpm release:metadata-audit && pnpm release:markers && pnpm release:pack-smoke",
-    "release:metadata-audit": "node scripts/package-publish-audit.mjs",
+    "release:metadata-audit": "node scripts/package-publish-audit.mjs --dry-run",
     "release:markers": "node scripts/no-unfinished-markers.mjs",
     "release:pack-smoke": "node scripts/package-pack-smoke.mjs",
     "release:provenance": "node scripts/verify-published-provenance.mjs --dry-run",

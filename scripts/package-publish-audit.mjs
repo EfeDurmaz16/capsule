@@ -1,14 +1,56 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const rootFlagIndex = process.argv.indexOf("--root");
-const root = rootFlagIndex === -1 ? process.cwd() : process.argv[rootFlagIndex + 1];
+function parseArgs(argv) {
+  const options = {
+    root: process.cwd()
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+
+    if (arg === "--root") {
+      const value = argv[index + 1];
+      if (!value) {
+        throw new Error("--root requires a path.");
+      }
+      options.root = value;
+      index += 1;
+    } else if (arg === "--dry-run") {
+      continue;
+    } else if (arg === "--help") {
+      options.help = true;
+    } else {
+      throw new Error(`Unknown argument: ${arg}`);
+    }
+  }
+
+  return options;
+}
+
+function printUsage() {
+  console.log(`Usage: node scripts/package-publish-audit.mjs [--root <path>] [--dry-run]
+
+Audits publishable Capsule package metadata without contacting npm. This is a
+dry-run release gate for manifest shape, package entrypoints, publishConfig
+access, dist hygiene, private workspace ignore rules, and example privacy.`);
+}
+
+const options = parseArgs(process.argv.slice(2));
+
+if (options.help) {
+  printUsage();
+  process.exit(0);
+}
+
+const root = options.root;
 const packagesDir = join(root, "packages");
 const examplesDir = join(root, "examples");
 const changesetConfigPath = join(root, ".changeset", "config.json");
 const allowedFiles = ["dist"];
 const requiredPackageFields = ["description", "license", "repository", "homepage", "bugs", "keywords", "engines"];
 const errors = [];
+let auditedPublicPackages = 0;
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
@@ -38,6 +80,8 @@ function auditPackage(packageDir) {
   if (pkg.private === true) {
     return;
   }
+
+  auditedPublicPackages += 1;
 
   if (!pkg.name?.startsWith("@capsule/")) {
     errors.push(`${pkg.name ?? packageDir}: public package name must use @capsule scope.`);
@@ -127,27 +171,33 @@ const changesetConfig = existsSync(changesetConfigPath) ? readJson(changesetConf
 const changesetIgnore = new Set(changesetConfig.ignore ?? []);
 const privateWorkspacePackages = [];
 
-for (const dir of readdirSync(packagesDir)) {
-  const packageDir = join(packagesDir, dir);
-  if (existsSync(join(packageDir, "package.json"))) {
-    const pkg = readJson(join(packageDir, "package.json"));
-    if (pkg.private === true && typeof pkg.name === "string") {
-      privateWorkspacePackages.push(pkg.name);
+if (!existsSync(packagesDir)) {
+  errors.push(`missing packages directory at ${packagesDir}.`);
+} else {
+  for (const dir of readdirSync(packagesDir)) {
+    const packageDir = join(packagesDir, dir);
+    if (existsSync(join(packageDir, "package.json"))) {
+      const pkg = readJson(join(packageDir, "package.json"));
+      if (pkg.private === true && typeof pkg.name === "string") {
+        privateWorkspacePackages.push(pkg.name);
+      }
+      auditPackage(packageDir);
     }
-    auditPackage(packageDir);
   }
 }
 
-for (const dir of readdirSync(examplesDir)) {
-  const packageJsonPath = join(examplesDir, dir, "package.json");
-  if (!existsSync(packageJsonPath)) {
-    continue;
-  }
-  const pkg = readJson(packageJsonPath);
-  if (pkg.private !== true) {
-    errors.push(`${pkg.name ?? `examples/${dir}`}: examples must remain private.`);
-  } else if (typeof pkg.name === "string") {
-    privateWorkspacePackages.push(pkg.name);
+if (existsSync(examplesDir)) {
+  for (const dir of readdirSync(examplesDir)) {
+    const packageJsonPath = join(examplesDir, dir, "package.json");
+    if (!existsSync(packageJsonPath)) {
+      continue;
+    }
+    const pkg = readJson(packageJsonPath);
+    if (pkg.private !== true) {
+      errors.push(`${pkg.name ?? `examples/${dir}`}: examples must remain private.`);
+    } else if (typeof pkg.name === "string") {
+      privateWorkspacePackages.push(pkg.name);
+    }
   }
 }
 
@@ -165,4 +215,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log("Package publish audit passed.");
+console.log(`Package publish metadata dry-run audit passed for ${auditedPublicPackages} public packages.`);
