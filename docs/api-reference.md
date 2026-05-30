@@ -453,6 +453,7 @@ Exports:
 - `ReceiptSignatureVerificationResult`
 - `ReceiptSigner`
 - `ReceiptStore`
+- `ReceiptVerificationReport`
 - `ReceiptVerifier`
 - `redactError`
 - `redactLogEntries`
@@ -492,6 +493,8 @@ Exports:
 - `UnsupportedCapabilityError`
 - `UpdateServiceSpec`
 - `verifyEvidenceBundle`
+- `verifyReceipt`
+- `VerifyReceiptOptions`
 - `verifyReceiptSignature`
 - `VersionEdgeSpec`
 

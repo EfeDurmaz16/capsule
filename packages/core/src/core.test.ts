@@ -18,7 +18,7 @@ import { capsuleOperationTag, capsuleOperationTags } from "./idempotency.js";
 import { evaluatePolicy, explainPolicy, mergeTimeout, redactError, redactLogEntries, redactSecrets } from "./policy.js";
 import { edgeWorkerPreset, httpServicePreset, nodeJobPreset, nodeSandboxPreset, previewDatabaseBranchPreset, previewEnvironmentPreset } from "./presets.js";
 import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
-import { canonicalReceiptPayload, createReceipt, providerRuntimeMetadata, verifyReceiptSignature } from "./receipts.js";
+import { canonicalReceiptPayload, createReceipt, providerRuntimeMetadata, verifyReceipt, verifyReceiptSignature } from "./receipts.js";
 import { MemoryReceiptStore } from "./stores.js";
 import { assertAdapterContract, runCapsuleAdapterContract } from "./contract.js";
 import type { CapsuleAdapter, CapabilityMap } from "./index.js";
@@ -910,6 +910,69 @@ describe("receipts", () => {
 
     const tampered = { ...receipt, resource: { ...receipt.resource, status: "succeeded" } };
     expect(verifyReceiptSignature(tampered, verifier)).toEqual({ valid: false, reason: "signature-mismatch" });
+  });
+
+  test("verifies receipt schema and optional signatures", () => {
+    const receipt = createReceipt(
+      {
+        type: "job.run",
+        provider: "test",
+        adapter: "test",
+        capabilityPath: "job.run",
+        supportLevel: "native",
+        startedAt: new Date("2026-01-01T00:00:00.000Z"),
+        finishedAt: new Date("2026-01-01T00:00:00.500Z"),
+        policy: { decision: "allowed", applied: {} },
+        resource: { id: "job_123" }
+      },
+      {
+        algorithm: "canonical-test",
+        keyId: "test-key",
+        sign: (_unsigned, payload) => `sig:${payload}`
+      }
+    );
+    const verifier = {
+      algorithm: "canonical-test",
+      keyId: "test-key",
+      verify: (payload: string, signature: string) => signature === `sig:${payload}`
+    };
+
+    expect(verifyReceipt(receipt, { verifier })).toMatchObject({
+      valid: true,
+      schema: { valid: true, errors: [] },
+      signature: { status: "valid" },
+      redaction: { status: "passed", findings: [] }
+    });
+    expect(verifyReceipt({ ...receipt, supportLevel: "imaginary" }, { verifier })).toMatchObject({
+      valid: false,
+      schema: { valid: false, errors: expect.arrayContaining(["supportLevel must be one of native, emulated, unsupported, experimental."]) }
+    });
+    expect(verifyReceipt({ ...receipt, resource: { ...receipt.resource, status: "tampered" } }, { verifier })).toMatchObject({
+      valid: false,
+      signature: { status: "invalid", reason: "signature-mismatch" }
+    });
+  });
+
+  test("detects unredacted sensitive receipt fields", () => {
+    const receipt = {
+      ...createReceipt({
+        type: "job.run",
+        provider: "test",
+        adapter: "test",
+        capabilityPath: "job.run",
+        supportLevel: "native",
+        startedAt: new Date("2026-01-01T00:00:00.000Z")
+      }),
+      metadata: { apiKey: "secret-token" }
+    };
+
+    expect(verifyReceipt(receipt)).toMatchObject({
+      valid: false,
+      redaction: {
+        status: "failed",
+        findings: ["metadata.apiKey contains an unredacted sensitive value."]
+      }
+    });
   });
 
   test("exports verifiable evidence bundles from receipts logs artifacts and provider metadata", () => {

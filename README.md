@@ -335,6 +335,7 @@ capsule capabilities --adapter neon
 capsule capabilities --adapter docker --explain
 capsule capabilities --adapter docker --json
 capsule policy explain --adapter docker --capability job.run --policy-file policy.json --spec-file job-spec.json
+capsule receipt verify --receipt-file .capsule/receipts.jsonl
 capsule service deploy --adapter cloud-run --project-id "$GOOGLE_CLOUD_PROJECT" --location us-central1 --name api --image us-docker.pkg.dev/project/repo/api:tag --port 8080
 capsule service status --adapter cloud-run --project-id "$GOOGLE_CLOUD_PROJECT" --location us-central1 --id api
 capsule service delete --adapter cloud-run --project-id "$GOOGLE_CLOUD_PROJECT" --location us-central1 --id api --reason cleanup
