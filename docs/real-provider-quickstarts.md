@@ -9,12 +9,13 @@ Do not run live provider operations from examples, scripts, or CI unless both co
 
 Capsule adapters do not make a provider safe by themselves. Isolation, billing, network controls, IAM, and cleanup still depend on the underlying provider.
 
-Use the CLI planner before running a live provider test. It maps provider names to required env vars, optional env vars, project-scoped aliases, and copy-safe commands without printing secret values:
+Build the workspace CLI once, then use the planner before running a live provider test. It maps provider names to required env vars, optional env vars, project-scoped aliases, and copy-safe commands without printing secret values:
 
 ```bash
-pnpm --filter @capsule/cli capsule live-test plan
-pnpm --filter @capsule/cli capsule live-test plan --provider neon
-pnpm --filter @capsule/cli capsule live-test plan --provider cloudflare
+pnpm --filter @capsule/cli build
+pnpm --filter @capsule/cli exec node dist/index.js live-test plan
+pnpm --filter @capsule/cli exec node dist/index.js live-test plan --provider neon
+pnpm --filter @capsule/cli exec node dist/index.js live-test plan --provider cloudflare
 ```
 
 ## Docker
@@ -169,7 +170,7 @@ Credentials: `NEON_API_KEY`, `NEON_PROJECT_ID`. `NEON_DATABASE` and `NEON_ROLE` 
 Project-scoped alias: `CAPSULE_POSTGRES_PROJECT_ID` can be mapped to `NEON_PROJECT_ID` at command time. The planner includes the safe alias command:
 
 ```bash
-pnpm --filter @capsule/cli capsule live-test plan --provider neon
+pnpm --filter @capsule/cli exec node dist/index.js live-test plan --provider neon
 ```
 
 Cleanup: delete the created branch with `capsule.database.branch.delete(...)` or in the Neon console. The example creates a branch and does not delete it automatically so you can inspect the receipt and resource.
@@ -221,7 +222,7 @@ Credentials: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`; `CLOUDFLARE_ZONE_I
 Project-scoped aliases: `CAPSULE_WORKER_API_TOKEN` can be mapped to `CLOUDFLARE_API_TOKEN`, and `CAPSULE_WORKER_ACCOUNT_ID` can be mapped to `CLOUDFLARE_ACCOUNT_ID`. The planner includes the safe alias command:
 
 ```bash
-pnpm --filter @capsule/cli capsule live-test plan --provider cloudflare
+pnpm --filter @capsule/cli exec node dist/index.js live-test plan --provider cloudflare
 ```
 
 Live verification: the default Cloudflare live test creates only an unreleased Worker version. Add `CAPSULE_CLOUDFLARE_LIVE_DEPLOY=1` when you intentionally want the same live test to call `edge.deploy` and update the named Worker script. Add `CAPSULE_CLOUDFLARE_LIVE_ROLLBACK=1` when you intentionally want it to create a Worker deployment that moves traffic to a freshly uploaded version. Set `CAPSULE_CLOUDFLARE_WORKERS_DEV_SUBDOMAIN` or map local `CAPSULE_WORKER_WORKERS_DEV_SUBDOMAIN` when you want the receipt URL populated.
