@@ -42,6 +42,20 @@ describe("jsonlReceiptStore", () => {
     }
   });
 
+  test("ready preflights append access and creates the parent directory", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "capsule-jsonl-test-"));
+    try {
+      const path = join(dir, "nested", "receipts.jsonl");
+      const store = jsonlReceiptStore(path);
+
+      await store.ready();
+
+      await expect(readFile(path, "utf8")).resolves.toBe("");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test("readAll preserves append order and skips blank lines", async () => {
     const dir = await mkdtemp(join(tmpdir(), "capsule-jsonl-test-"));
     try {

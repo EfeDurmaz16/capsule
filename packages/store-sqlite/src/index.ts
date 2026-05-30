@@ -43,6 +43,10 @@ export class SqliteReceiptStore implements ReceiptStore {
     this.db.exec(`CREATE INDEX IF NOT EXISTS ${this.tableName}_started_at_idx ON ${this.tableName} (started_at)`);
   }
 
+  ready(): void {
+    this.db.prepare("SELECT 1").get();
+  }
+
   write(receipt: CapsuleReceipt): void {
     this.db
       .prepare(

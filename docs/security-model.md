@@ -141,4 +141,4 @@ If a capability is unsupported, Capsule should throw `UnsupportedCapabilityError
 
 Security-sensitive adapters should fail closed when required identity, project, region, namespace, or network configuration is missing.
 
-Receipt durability is explicit. Best-effort receipt persistence may drop failed store writes after the provider action succeeds. Required receipt persistence rejects the Capsule operation when a configured store write fails, but today that rejection happens after an adapter creates the receipt. Use it to detect evidence loss, not as a guarantee that no provider side effect occurred. A pre-execution evidence profile is future work.
+Receipt durability is explicit. Best-effort receipt persistence may drop failed store writes after the provider action succeeds. Required receipt persistence preflights that a store is configured and ready before adapter execution starts. A later store `write()` failure still rejects the Capsule operation after the adapter creates the receipt, so required mode detects evidence loss but is not yet a full evidence-grade transaction boundary. A stricter pre-execution evidence profile is future work.

@@ -10,6 +10,18 @@ export interface JsonlReceiptStoreOptions {
 export class JsonlReceiptStore implements ReceiptStore {
   constructor(private readonly options: JsonlReceiptStoreOptions) {}
 
+  async ready(): Promise<void> {
+    await mkdir(dirname(this.options.path), { recursive: true });
+    const file = await open(this.options.path, "a");
+    try {
+      if (this.options.flush ?? true) {
+        await file.sync();
+      }
+    } finally {
+      await file.close();
+    }
+  }
+
   async write(receipt: CapsuleReceipt): Promise<void> {
     await mkdir(dirname(this.options.path), { recursive: true });
     const file = await open(this.options.path, "a");

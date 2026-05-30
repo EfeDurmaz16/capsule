@@ -49,4 +49,17 @@ describe("sqliteReceiptStore", () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  test("ready verifies the open database handle", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "capsule-sqlite-test-"));
+    try {
+      const store = sqliteReceiptStore(join(dir, "receipts.sqlite"));
+
+      expect(() => store.ready()).not.toThrow();
+      store.close();
+      expect(() => store.ready()).toThrow();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });
