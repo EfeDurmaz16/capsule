@@ -62,7 +62,7 @@
 | ID | Status | Priority | Title | Acceptance criteria | Verification |
 | --- | --- | --- | --- | --- | --- |
 | CAP-P011 | done | High | Refresh public project surface | README and docs describe Capsule as an OSS runtime control-plane interface without private project phrasing or overclaiming. | `git diff --check` |
-| CAP-P012 | open | High | Add README first-release checklist | README states package status, install path before npm publication, minimal quickstart, and release readiness without ambiguity. | `git diff --check && pnpm release:markers` |
+| CAP-P012 | done | High | Add README first-release checklist | README states package status, install path before npm publication, minimal quickstart, and release readiness without ambiguity. | `git diff --check && pnpm release:markers` |
 | CAP-P013 | open | Medium | Generate provider matrix from adapters | Provider matrix docs are generated from adapter capability declarations instead of duplicated manual tables. | `pnpm capsule:gap && git diff --check` |
 | CAP-P014 | open | Medium | Add architecture diagram source | Add Mermaid or text diagrams for Capsule, adapters, policy, receipts, stores, and live tests. | `git diff --check` |
 | CAP-P015 | done | High | Align security model with current enforcement | `docs/security-model.md` states what is enforced, what is best-effort, and what is not evidence-grade yet. | `git diff --check && pnpm test packages/core/src/core.test.ts` |
