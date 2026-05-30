@@ -284,6 +284,7 @@ Exports:
 - `compareProviderCapabilities`
 - `createAdapterScaffoldPlan`
 - `createDoctorReport`
+- `createExamplesReport`
 - `createLiveEnvironmentValidationReport`
 - `createProjectInitPlan`
 - `createProviderVerificationReport`
@@ -291,6 +292,7 @@ Exports:
 - `main`
 - `parse`
 - `providerCredentialDiagnostics`
+- `runExampleCommand`
 - `selectProvidersForRecipe`
 - `writeAdapterScaffold`
 - `writeProjectInitFiles`
