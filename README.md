@@ -209,6 +209,7 @@ Mock modeling package:
 - [API reference](docs/api-reference.md) (`pnpm docs:api`)
 - [Security model](docs/security-model.md)
 - [Roadmap](docs/roadmap.md)
+- [Productization plan](docs/productization-plan.md)
 - [Real provider gap register](docs/real-provider-gap-register.md)
 - [Contributing](docs/contributing.md)
 - [Comparison](docs/comparison.md)
