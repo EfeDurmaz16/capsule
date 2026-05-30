@@ -51,7 +51,7 @@
 | CAP-P003 | done | High | Add post-publish provenance verification | Add a script that verifies published package provenance metadata for every public package after a release. | `pnpm release:audit && node scripts/verify-published-provenance.mjs --dry-run` |
 | CAP-P004 | done | Medium | Add package tarball size budgets | Add per-package packed size budgets and fail release audit when a package grows unexpectedly. | `pnpm release:pack-smoke` |
 | CAP-P005 | open | High | Add public API drift gate | Add a generated API snapshot or extractor-style check so changed exports require intentional review. | `pnpm docs:api && git diff --exit-code docs/api-reference.md` |
-| CAP-P006 | open | Medium | Add npm metadata dry-run audit | Verify package names, descriptions, repository links, keywords, license, files, bin targets, and publish access before publish. | `pnpm release:metadata-audit` |
+| CAP-P006 | done | Medium | Add npm metadata dry-run audit | Verify package names, descriptions, repository links, keywords, license, files, bin targets, and publish access before publish. | `pnpm test && pnpm release:metadata-audit` |
 | CAP-P007 | open | Medium | Add release notes template by domain | Add a release notes template that groups core, adapter, docs, and breaking changes. | `git diff --check && pnpm release:markers` |
 | CAP-P008 | open | High | Verify package exports on Node 20 and 22 | Add CI matrix coverage that imports every public package on supported Node versions. | `pnpm test packages/core/src/package-exports.test.ts` plus CI matrix |
 | CAP-P009 | open | High | Add dependency and license audit | Add a lightweight script that reports non-MIT-compatible licenses and unexpected new runtime dependencies. | `pnpm release:audit` |
