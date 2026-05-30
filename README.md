@@ -272,7 +272,7 @@ Before removing the `npm-not_published_yet` badge or treating the install comman
 - `@capsule/preview`: preview environment composition helpers for Capsule-backed services, edges, database branches, and jobs.
 - `@capsule/store-jsonl`: local append-only JSONL receipt persistence.
 - `@capsule/store-sqlite`: optional Node 24 SQLite receipt persistence for local audit trails and indexed receipt lookup.
-- `@capsule/cli`: small CLI with `init`, `doctor`, `verify providers`, `classify provider`, `adapter scaffold`, `capabilities`, `policy explain`, `receipt verify`, `preview create`, `preview destroy`, `run`, and `sandbox`.
+- `@capsule/cli`: small CLI with `init`, `doctor`, `verify providers`, `classify provider`, `adapter scaffold`, `capabilities`, `policy explain`, `receipt verify`, `preview create`, `preview destroy`, `examples list`, `examples run`, `run`, and `sandbox`.
 
 ## Examples
 
@@ -331,6 +331,8 @@ CLI examples:
 
 ```bash
 capsule init --adapter docker --out-dir .
+capsule examples list
+capsule examples run capability-check
 capsule doctor
 capsule doctor --adapter cloudflare
 capsule capabilities --adapter neon
@@ -347,7 +349,7 @@ capsule neon branch-create --project "$NEON_PROJECT_ID" --name pr-42 --database 
 capsule neon branch-delete --project "$NEON_PROJECT_ID" --branch-id br_xxx --hard-delete --receipt-file .capsule/receipts.jsonl
 ```
 
-`capsule init` writes `capsule.config.json` and `capsule.policy.json`, prints the adapter install hint, and does not write provider credentials or secret placeholders. `capsule doctor` reports Node support, workspace health, package versions, release-audit script availability, Docker daemon availability, and provider credential env-var status without printing secret values.
+`capsule init` writes `capsule.config.json` and `capsule.policy.json`, prints the adapter install hint, and does not write provider credentials or secret placeholders. `capsule examples run <id>` runs credential-free examples in mock/no-provider mode and blocks Docker-gated examples by default. `capsule doctor` reports Node support, workspace health, package versions, release-audit script availability, Docker daemon availability, and provider credential env-var status without printing secret values.
 
 Known limitations:
 

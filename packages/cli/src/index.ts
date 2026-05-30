@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -129,6 +130,7 @@ interface ParsedArgs {
   explain?: boolean;
   json?: boolean;
   requireSignature?: boolean;
+  dryRun?: boolean;
   reason?: string;
   rest: string[];
 }
@@ -411,6 +413,44 @@ interface ProjectInitPlan {
   files: ProjectInitFile[];
   installHint: string;
   notes: string[];
+}
+
+type ExampleCredentialMode = "mock" | "no-provider" | "local-docker";
+
+interface RunnableExample {
+  id: string;
+  packageName: string;
+  directory: string;
+  command: string[];
+  credentialMode: ExampleCredentialMode;
+  runnableWithoutCredentials: boolean;
+  notes: string[];
+}
+
+interface ExamplesReport {
+  examples: RunnableExample[];
+}
+
+interface ExampleRunnerOptions {
+  cwd: string;
+  env: NodeJS.ProcessEnv;
+}
+
+interface ExampleRunnerResult {
+  status: number | null;
+  stdout?: string;
+  stderr?: string;
+  error?: unknown;
+}
+
+interface RunExampleReport {
+  status: "planned" | "passed" | "failed";
+  example: RunnableExample;
+  command: string[];
+  exitCode?: number;
+  stdout?: string;
+  stderr?: string;
+  error?: string;
 }
 
 type AdapterScaffoldDomain = Extract<CapsuleDomain, "sandbox" | "job" | "service" | "edge" | "database" | "preview" | "machine">;
@@ -889,6 +929,10 @@ export function parse(argv: string[]): ParsedArgs {
     }
     if (arg === "--require-signature") {
       parsed.requireSignature = true;
+      continue;
+    }
+    if (arg === "--dry-run") {
+      parsed.dryRun = true;
       continue;
     }
     if (arg === "--force") {
@@ -2010,6 +2054,139 @@ export async function writeProjectInitFiles(plan: ProjectInitPlan, options: { fo
   return plan;
 }
 
+const localDockerExampleIds = new Set(["job-docker", "sandbox-docker"]);
+const noProviderExampleIds = new Set(["provider-presets"]);
+const liveProviderCredentialEnv = [
+  "CAPSULE_LIVE_TESTS",
+  "E2B_API_KEY",
+  "NEON_API_KEY",
+  "NEON_PROJECT_ID",
+  "VERCEL_TOKEN",
+  "GOOGLE_CLOUD_PROJECT",
+  "GOOGLE_CLOUD_RUN_LOCATION",
+  "GOOGLE_OAUTH_ACCESS_TOKEN"
+];
+
+function exampleId(packageName: string): string {
+  return packageName.replace(/^@capsule\/example-/, "");
+}
+
+function exampleCredentialMode(id: string): ExampleCredentialMode {
+  if (localDockerExampleIds.has(id)) return "local-docker";
+  if (noProviderExampleIds.has(id)) return "no-provider";
+  return "mock";
+}
+
+function exampleNotes(mode: ExampleCredentialMode): string[] {
+  if (mode === "local-docker") {
+    return ["Requires a local Docker daemon and may pull container images."];
+  }
+  if (mode === "no-provider") {
+    return ["Does not call provider APIs."];
+  }
+  return ["Runs in mock mode without provider credentials; live-provider opt-in is disabled by the CLI runner."];
+}
+
+export async function createExamplesReport(options: { workspaceRoot?: string } = {}): Promise<ExamplesReport> {
+  const workspaceRoot = options.workspaceRoot ?? process.cwd();
+  const examplesDir = join(workspaceRoot, "examples");
+  let entries;
+  try {
+    entries = await readdir(examplesDir, { withFileTypes: true });
+  } catch {
+    return { examples: [] };
+  }
+
+  const examples = await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory())
+      .map(async (entry) => {
+        const packageDir = join(examplesDir, entry.name);
+        const pkg = await readJsonFile(join(packageDir, "package.json"));
+        if (!pkg?.name || !pkg.scripts?.start) return undefined;
+        const id = exampleId(pkg.name);
+        const credentialMode = exampleCredentialMode(id);
+        return {
+          id,
+          packageName: pkg.name,
+          directory: join("examples", entry.name),
+          command: ["pnpm", "--filter", pkg.name, "start"],
+          credentialMode,
+          runnableWithoutCredentials: credentialMode !== "local-docker",
+          notes: exampleNotes(credentialMode)
+        };
+      })
+  );
+
+  return {
+    examples: examples.filter((example): example is RunnableExample => Boolean(example)).sort((left, right) => left.id.localeCompare(right.id))
+  };
+}
+
+function credentialFreeExampleEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const next = { ...env };
+  for (const name of liveProviderCredentialEnv) {
+    delete next[name];
+  }
+  return next;
+}
+
+function defaultExampleRunner(command: string, args: string[], options: ExampleRunnerOptions): ExampleRunnerResult {
+  return spawnSync(command, args, {
+    cwd: options.cwd,
+    env: options.env,
+    encoding: "utf8"
+  });
+}
+
+function errorText(error: unknown): string | undefined {
+  if (error === undefined) return undefined;
+  return error instanceof Error ? error.message : String(error);
+}
+
+export async function runExampleCommand(
+  id: string,
+  options: {
+    workspaceRoot?: string;
+    dryRun?: boolean;
+    env?: NodeJS.ProcessEnv;
+    runner?: (command: string, args: string[], options: ExampleRunnerOptions) => ExampleRunnerResult;
+  } = {}
+): Promise<RunExampleReport> {
+  const workspaceRoot = options.workspaceRoot ?? process.cwd();
+  const report = await createExamplesReport({ workspaceRoot });
+  const example = report.examples.find((entry) => entry.id === id || entry.packageName === id);
+  if (!example) {
+    throw new Error(`Unknown example "${id}". Run "capsule examples list" to inspect available examples.`);
+  }
+  if (!example.runnableWithoutCredentials) {
+    throw new Error(`Example "${example.id}" requires local Docker and is not runnable by the credential-free examples command.`);
+  }
+  if (options.dryRun) {
+    return {
+      status: "planned",
+      example,
+      command: example.command
+    };
+  }
+
+  const [command, ...args] = example.command;
+  const result = (options.runner ?? defaultExampleRunner)(command!, args, {
+    cwd: workspaceRoot,
+    env: credentialFreeExampleEnv(options.env)
+  });
+  const exitCode = result.status ?? 1;
+  return {
+    status: exitCode === 0 ? "passed" : "failed",
+    example,
+    command: example.command,
+    exitCode,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    error: errorText(result.error)
+  };
+}
+
 function createCapsuleForCapabilityInspection(provider: string): Capsule {
   if (provider === "ecs") {
     return createCapsule({ adapter: provider, cluster: "capability-inspection", taskDefinition: "capability-inspection:1", containerName: "main", rest: [] });
@@ -2039,6 +2216,9 @@ Commands:
   capsule preview create --config-file preview.json --cleanup-file .capsule/preview-cleanup.json
   capsule preview destroy --cleanup-file .capsule/preview-cleanup.json
   capsule init --adapter docker --out-dir .
+  capsule examples list
+  capsule examples run capability-check
+  capsule examples run capability-check --dry-run
   capsule adapter scaffold acme --domain sandbox
   capsule select provider --recipe sandbox
   capsule select provider --recipe service-api
@@ -2343,6 +2523,24 @@ export async function main(argv: string[]): Promise<void> {
       await writeProjectInitFiles(plan, { force: parsed.force });
       console.log(JSON.stringify({ adapter: plan.adapter, outDir: plan.outDir, files: plan.files.map((file) => file.path), installHint: plan.installHint, notes: plan.notes }, null, 2));
       return;
+    }
+    case "examples": {
+      const action = parsed.rest[0];
+      if (action === "list") {
+        console.log(JSON.stringify(await createExamplesReport(), null, 2));
+        return;
+      }
+      if (action === "run") {
+        const id = parsed.rest[1] ?? parsed.name;
+        if (!id) {
+          throw new Error("Missing example id. Use capsule examples run <id>.");
+        }
+        const report = await runExampleCommand(id, { dryRun: parsed.dryRun });
+        console.log(JSON.stringify(report, null, 2));
+        process.exitCode = report.status === "failed" ? (report.exitCode ?? 1) : 0;
+        return;
+      }
+      throw new Error("Unknown examples command. Use list or run.");
     }
     case "select": {
       const action = parsed.rest[0];

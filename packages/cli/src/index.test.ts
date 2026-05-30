@@ -9,6 +9,7 @@ import {
   capabilityExplanations,
   createAdapterScaffoldPlan,
   createDoctorReport,
+  createExamplesReport,
   createLiveEnvironmentValidationReport,
   createProviderVerificationReport,
   createProjectInitPlan,
@@ -16,6 +17,7 @@ import {
   main,
   parse,
   selectProvidersForRecipe,
+  runExampleCommand,
   writeAdapterScaffold,
   writeProjectInitFiles,
   providerCredentialDiagnostics
@@ -438,6 +440,73 @@ describe("CLI project init", () => {
       log.mockRestore();
       await rm(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe("CLI runnable examples", () => {
+  test("lists credential-free examples and marks Docker examples as gated", async () => {
+    expect(parse(["examples", "run", "capability-check", "--dry-run"])).toMatchObject({
+      command: "examples",
+      rest: ["run", "capability-check"],
+      dryRun: true
+    });
+
+    const report = await createExamplesReport({ workspaceRoot: process.cwd() });
+
+    expect(report.examples.find((example) => example.id === "capability-check")).toMatchObject({
+      packageName: "@capsule/example-capability-check",
+      runnableWithoutCredentials: true,
+      command: ["pnpm", "--filter", "@capsule/example-capability-check", "start"]
+    });
+    expect(report.examples.find((example) => example.id === "sandbox-docker")).toMatchObject({
+      runnableWithoutCredentials: false,
+      credentialMode: "local-docker"
+    });
+  });
+
+  test("prints example list and dry-run run commands", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await main(["examples", "list"]);
+      const listOutput = JSON.parse(String(log.mock.calls[0]?.[0])) as Awaited<ReturnType<typeof createExamplesReport>>;
+      expect(listOutput.examples.map((example) => example.id)).toContain("policy-receipts");
+
+      log.mockClear();
+      await main(["examples", "run", "policy-receipts", "--dry-run"]);
+      const runOutput = JSON.parse(String(log.mock.calls[0]?.[0])) as { status: string; command: string[]; example: { id: string } };
+      expect(runOutput).toMatchObject({
+        status: "planned",
+        command: ["pnpm", "--filter", "@capsule/example-policy-receipts", "start"],
+        example: { id: "policy-receipts" }
+      });
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  test("runs credential-free examples with live-provider opt-in disabled", async () => {
+    const calls: Array<{ command: string; args: string[]; env: NodeJS.ProcessEnv }> = [];
+    const result = await runExampleCommand("agent-code-execution", {
+      workspaceRoot: process.cwd(),
+      runner: (command, args, options) => {
+        calls.push({ command, args, env: options.env });
+        return { status: 0, stdout: "mock example ok\n", stderr: "" };
+      }
+    });
+
+    expect(result).toMatchObject({
+      status: "passed",
+      exitCode: 0,
+      stdout: "mock example ok\n"
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      command: "pnpm",
+      args: ["--filter", "@capsule/example-agent-code-execution", "start"]
+    });
+    expect(calls[0]?.env.CAPSULE_LIVE_TESTS).toBeUndefined();
+
+    await expect(runExampleCommand("sandbox-docker", { workspaceRoot: process.cwd() })).rejects.toThrow("requires local Docker");
   });
 });
 
