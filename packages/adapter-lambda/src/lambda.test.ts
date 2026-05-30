@@ -21,12 +21,12 @@ describe("lambda adapter", () => {
           $metadata: { requestId: "req-123" },
           StatusCode: 200,
           Payload: new TextEncoder().encode(JSON.stringify({ ok: true })),
-          LogResult: Buffer.from("done\n").toString("base64"),
-          ExecutedVersion: "$LATEST"
+          LogResult: Buffer.from("START RequestId: lambda-req-123 Version: 42\ndone\n").toString("base64"),
+          ExecutedVersion: "42"
         };
       }
     };
-    const capsule = new Capsule({ adapter: lambda({ functionName: "capsule-worker", client }), receipts: true });
+    const capsule = new Capsule({ adapter: lambda({ functionName: "capsule-worker", qualifier: "live", client }), receipts: true });
     const run = await capsule.job.run({
       image: "ignored-by-lambda",
       command: ["node", "index.js"],
@@ -40,15 +40,22 @@ describe("lambda adapter", () => {
     expect(run.receipt?.metadata).toMatchObject({
       invocationType: "RequestResponse",
       statusCode: 200,
+      functionName: "capsule-worker",
+      qualifier: "live",
       providerRequestId: "req-123",
       requestId: "req-123",
-      executedVersion: "$LATEST",
+      executedVersion: "42",
+      functionVersion: "42",
+      logType: "Tail",
+      logRequestId: "lambda-req-123",
       functionError: null,
-      logTail: "done\n"
+      logTail: "START RequestId: lambda-req-123 Version: 42\ndone\n"
     });
+    expect(run.receipt?.capabilityPath).toBe("job.run");
     expect(sent[0]).toMatchObject({
       FunctionName: "capsule-worker",
       InvocationType: "RequestResponse",
+      Qualifier: "live",
       LogType: "Tail"
     });
     expect(JSON.parse(new TextDecoder().decode(sent[0].Payload))).toMatchObject({

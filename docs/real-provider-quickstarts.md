@@ -361,7 +361,7 @@ Credentials: `AWS_PROFILE`, static AWS keys, web identity, or another AWS SDK cr
 
 Cleanup: no Lambda function is created by this adapter path. It invokes an existing function, so cleanup is limited to logs, test payloads, and any side effects of the function itself.
 
-Caveat: Capsule models existing Lambda invocation as `job.run`; function deployment, IAM mutation, and event-source configuration are not implemented.
+Caveat: Capsule models existing Lambda invocation as `job.run`; function deployment, IAM mutation, and event-source configuration are not implemented. Receipts include invoke request ids, requested qualifier, executed version, and log-tail request id when AWS returns those fields.
 
 ## ECS/Fargate
 

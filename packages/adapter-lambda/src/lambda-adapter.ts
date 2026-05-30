@@ -116,6 +116,10 @@ function decodeLog(value: string | undefined): string {
   return value ? Buffer.from(value, "base64").toString("utf8") : "";
 }
 
+function logRequestId(logTail: string): string | undefined {
+  return logTail.match(/\bRequestId:\s*([^\s]+)/)?.[1];
+}
+
 function status(statusCode: number | undefined, functionError: string | undefined, invocationType: LambdaAdapterOptions["invocationType"]): JobRun["status"] {
   if (invocationType === "Event") return statusCode && statusCode >= 200 && statusCode < 300 ? "queued" : "failed";
   if (functionError) return "failed";
@@ -155,11 +159,12 @@ export function lambda(options: LambdaAdapterOptions = {}): CapsuleAdapter {
           throw new Error("Lambda adapter requires functionName option or RunJobSpec.name.");
         }
         const invocationType = options.invocationType ?? "RequestResponse";
+        const logType = options.logType ?? "Tail";
         const response = await getClient().send(
           new InvokeCommand({
             FunctionName: functionName,
             InvocationType: invocationType,
-            LogType: options.logType ?? "Tail",
+            LogType: logType,
             Qualifier: options.qualifier,
             Payload: payload(spec)
           })
@@ -187,9 +192,14 @@ export function lambda(options: LambdaAdapterOptions = {}): CapsuleAdapter {
               metadata: {
                 invocationType,
                 statusCode: response.StatusCode,
+                functionName,
+                qualifier: options.qualifier ?? null,
                 providerRequestId: response.$metadata?.requestId,
                 requestId: response.$metadata?.requestId,
                 executedVersion: response.ExecutedVersion ?? null,
+                functionVersion: response.ExecutedVersion ?? options.qualifier ?? null,
+                logType,
+                logRequestId: logRequestId(logText),
                 functionError: response.FunctionError ?? null,
                 asyncStatusSupport: invocationType === "Event" ? "unsupported" : undefined,
                 logTail: logText || undefined
