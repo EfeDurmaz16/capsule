@@ -129,7 +129,19 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
             path: `/projects/${encodeURIComponent(spec.project)}/branches`,
             body: createBranchBody(spec, options)
           });
-          const connectionString = await getConnectionString(client, spec.project, response.branch.id, options);
+          let connectionString: string | undefined;
+          try {
+            connectionString = await getConnectionString(client, spec.project, response.branch.id, options);
+          } catch (error) {
+            await client
+              .request<unknown>({
+                method: "DELETE",
+                path: `/projects/${encodeURIComponent(spec.project)}/branches/${encodeURIComponent(response.branch.id)}`,
+                query: { hard_delete: true }
+              })
+              .catch(() => undefined);
+            throw error;
+          }
           const receipt = context.receipts
             ? context.createReceipt({
                 type: "database.branch.create",
