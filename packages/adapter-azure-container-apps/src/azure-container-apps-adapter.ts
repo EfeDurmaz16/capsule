@@ -344,10 +344,21 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
               policy: {
                 decision: "allowed",
                 applied: context.policy,
-                notes: ["Azure Container Apps job cancel maps to the ARM stop execution operation."]
+                notes: [
+                  "Azure Container Apps job cancel maps to the ARM stop execution operation.",
+                  "Azure Container Apps job.cancel stops an execution only; it does not delete the Container Apps Job resource."
+                ]
               },
               resource: { id, name: executionName, status: "cancelling" },
-              metadata: { jobName, executionName, reason: spec.reason, resourceGroupName: client.resourceGroupName, subscriptionId: client.subscriptionId }
+              metadata: {
+                jobName,
+                executionName,
+                reason: spec.reason,
+                cleanupScope: "execution-only",
+                jobResourceDeleted: false,
+                resourceGroupName: client.resourceGroupName,
+                subscriptionId: client.subscriptionId
+              }
             })
           : undefined;
         return {
@@ -355,7 +366,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
           provider,
           status: "cancelling",
           receipt,
-          metadata: { jobName, executionName, reason: spec.reason }
+          metadata: { jobName, executionName, reason: spec.reason, cleanupScope: "execution-only", jobResourceDeleted: false }
         };
       }
     },
