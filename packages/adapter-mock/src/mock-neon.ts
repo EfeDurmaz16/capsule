@@ -3,6 +3,7 @@ import { capabilities } from "./capabilities.js";
 
 export const mockNeonCapabilities = capabilities({
   databaseBranchCreate: "native",
+  databaseBranchDelete: "native",
   databaseConnectionString: "native",
   preview: "experimental"
 });

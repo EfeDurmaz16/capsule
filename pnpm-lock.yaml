@@ -542,6 +542,9 @@ importers:
       '@capsule/adapter-lambda':
         specifier: workspace:*
         version: link:../adapter-lambda
+      '@capsule/adapter-mock':
+        specifier: workspace:*
+        version: link:../adapter-mock
       '@capsule/adapter-modal':
         specifier: workspace:*
         version: link:../adapter-modal
@@ -554,6 +557,9 @@ importers:
       '@capsule/core':
         specifier: workspace:*
         version: link:../core
+      '@capsule/preview':
+        specifier: workspace:*
+        version: link:../preview
       '@capsule/store-jsonl':
         specifier: workspace:*
         version: link:../store-jsonl

@@ -545,6 +545,112 @@ describe("CLI receipt verify", () => {
   });
 });
 
+describe("CLI preview lifecycle", () => {
+  test("parses preview create and destroy files", () => {
+    expect(parse(["preview", "create", "--config-file", "preview.json", "--cleanup-file", "cleanup.json"])).toMatchObject({
+      command: "preview",
+      rest: ["create"],
+      configFile: "preview.json",
+      cleanupFile: "cleanup.json"
+    });
+    expect(parse(["preview", "destroy", "--cleanup-file", "cleanup.json"])).toMatchObject({
+      command: "preview",
+      rest: ["destroy"],
+      cleanupFile: "cleanup.json"
+    });
+  });
+
+  test("creates a preview from config and destroys it from the recorded cleanup plan", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-preview-cli-"));
+    const configFile = join(root, "preview.json");
+    const cleanupFile = join(root, "cleanup.json");
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await writeFile(
+        configFile,
+        JSON.stringify({
+          name: "pr-70",
+          requireRealProviders: true,
+          allowMockProviders: true,
+          labels: { pullRequest: "70" },
+          databases: [
+            {
+              adapter: "mock-neon",
+              spec: { project: "app", name: "pr-70-db" }
+            }
+          ]
+        }),
+        "utf8"
+      );
+
+      await main(["preview", "create", "--config-file", configFile, "--cleanup-file", cleanupFile]);
+      const createOutput = JSON.parse(String(log.mock.calls[0]?.[0])) as {
+        preview: { name: string; status: string; resources: Array<{ type: string; provider: string; name: string }> };
+        cleanupPlan: { path: string; resourceCount: number; cleanupActionCount: number };
+        receipts: Array<{ type: string; capabilityPath: string }>;
+      };
+      const cleanupPlanText = await readFile(cleanupFile, "utf8");
+      const cleanupPlan = JSON.parse(cleanupPlanText) as {
+        schema: string;
+        preview: { name: string; status: string };
+        resources: Array<{ kind: string; provider: string; cleanup?: { adapter: string; capabilityPath: string; spec: Record<string, unknown> } }>;
+      };
+
+      expect(createOutput).toMatchObject({
+        preview: {
+          name: "pr-70",
+          status: "ready",
+          resources: [{ type: "database", provider: "neon", name: "pr-70-db" }]
+        },
+        cleanupPlan: {
+          path: cleanupFile,
+          resourceCount: 1,
+          cleanupActionCount: 1
+        },
+        receipts: [{ type: "database.branch.create", capabilityPath: "database.branchCreate" }]
+      });
+      expect(cleanupPlan).toMatchObject({
+        schema: "capsule.preview.cleanup.v1",
+        preview: { name: "pr-70", status: "ready" },
+        resources: [
+          {
+            kind: "database",
+            provider: "neon",
+            cleanup: {
+              adapter: "mock-neon",
+              capabilityPath: "database.branchDelete",
+              spec: { project: "app", branchId: "neon_branch_pr-70-db" }
+            }
+          }
+        ]
+      });
+      expect(cleanupPlanText).not.toContain("postgresql://");
+
+      log.mockClear();
+      await main(["preview", "destroy", "--cleanup-file", cleanupFile]);
+      const destroyOutput = JSON.parse(String(log.mock.calls[0]?.[0])) as {
+        status: string;
+        summary: { cleaned: number; failed: number; unsupported: number; leaked: number };
+        receipts: Array<{ type: string; capabilityPath: string }>;
+      };
+
+      expect(destroyOutput).toMatchObject({
+        status: "cleaned",
+        summary: { cleaned: 1, failed: 0, unsupported: 0, leaked: 0 },
+        receipts: [
+          { type: "database.branch.delete", capabilityPath: "database.branchDelete" },
+          { type: "preview.cleanup", capabilityPath: "preview.cleanup" }
+        ]
+      });
+      expect(process.exitCode).toBe(0);
+    } finally {
+      log.mockRestore();
+      process.exitCode = undefined;
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("CLI live-test planner", () => {
   test("parses the live-test provider flag", () => {
     expect(parse(["live-test", "plan", "--provider", "neon"])).toMatchObject({
