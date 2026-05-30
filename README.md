@@ -212,6 +212,7 @@ Mock modeling package:
 - [Productization plan](docs/productization-plan.md)
 - [Real provider gap register](docs/real-provider-gap-register.md)
 - [Contributing](docs/contributing.md)
+- [Issue labels](docs/issue-labels.md)
 - [Comparison](docs/comparison.md)
 - [Technical decisions](docs/technical-decisions.md)
 - [Architecture decision records](docs/adr/README.md)
