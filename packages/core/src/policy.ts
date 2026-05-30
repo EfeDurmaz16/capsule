@@ -1,5 +1,5 @@
 import { PolicyViolationError } from "./errors.js";
-import type { CapsulePolicy, LogEntry } from "./types.js";
+import type { CapsuleApprovalGrant, CapsulePolicy, LogEntry } from "./types.js";
 
 export interface PolicyDecision {
   decision: "allowed" | "denied";
@@ -11,10 +11,7 @@ export interface PolicyInput {
   env?: Record<string, string>;
   timeoutMs?: number;
   ttlMs?: number;
-  approval?: {
-    approved?: boolean;
-    reason?: string;
-  };
+  approval?: CapsuleApprovalGrant;
 }
 
 export function evaluatePolicy(policy: CapsulePolicy = {}, input: PolicyInput = {}): PolicyDecision {
@@ -38,7 +35,7 @@ export function evaluatePolicy(policy: CapsulePolicy = {}, input: PolicyInput = 
         policy.approvals.reason ?? "approval required"
       ]);
     }
-    notes.push(`Approval satisfied: ${input.approval.reason ?? policy.approvals.reason ?? "no reason provided"}`);
+    notes.push(`Approval satisfied: ${input.approval.id ?? input.approval.reason ?? policy.approvals.reason ?? "no reason provided"}`);
   }
 
   if (policy.secrets && input.env) {

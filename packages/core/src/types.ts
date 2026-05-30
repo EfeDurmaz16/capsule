@@ -132,6 +132,15 @@ export interface CapsulePolicy {
   };
 }
 
+export interface CapsuleApprovalGrant {
+  approved: boolean;
+  id?: string;
+  approver?: string;
+  reason?: string;
+  approvedAt?: string;
+  metadata?: Record<string, string>;
+}
+
 export interface LogEntry {
   timestamp: string;
   stream: "stdout" | "stderr" | "system";
@@ -241,6 +250,7 @@ export interface CreateSandboxSpec {
   env?: Record<string, string>;
   cwd?: string;
   timeoutMs?: number;
+  approval?: CapsuleApprovalGrant;
   labels?: Record<string, string>;
   providerOptions?: ProviderOptions;
   exposedPorts?: Array<{
@@ -289,6 +299,7 @@ export interface RunJobSpec {
   command?: string[] | string;
   env?: Record<string, string>;
   timeoutMs?: number;
+  approval?: CapsuleApprovalGrant;
   resources?: {
     cpu?: number;
     memoryMb?: number;
@@ -324,6 +335,7 @@ export interface JobStatusResult {
 export interface CancelJobSpec {
   id: string;
   reason?: string;
+  approval?: CapsuleApprovalGrant;
   providerOptions?: ProviderOptions;
 }
 
@@ -366,6 +378,7 @@ export interface DeployServiceSpec {
     protocol?: "http" | "tcp";
   }>;
   env?: Record<string, string>;
+  approval?: CapsuleApprovalGrant;
   resources?: {
     cpu?: number;
     memoryMb?: number;
@@ -423,6 +436,7 @@ export interface UpdateServiceSpec {
     protocol?: "http" | "tcp";
   }>;
   env?: Record<string, string>;
+  approval?: CapsuleApprovalGrant;
   resources?: {
     cpu?: number;
     memoryMb?: number;
@@ -442,6 +456,7 @@ export interface UpdateServiceSpec {
 export interface RollbackServiceSpec {
   id: string;
   revision?: string;
+  approval?: CapsuleApprovalGrant;
   providerOptions?: ProviderOptions;
 }
 
@@ -449,6 +464,7 @@ export interface DeleteServiceSpec {
   id: string;
   force?: boolean;
   reason?: string;
+  approval?: CapsuleApprovalGrant;
   providerOptions?: ProviderOptions;
 }
 
@@ -489,6 +505,7 @@ export interface DeployEdgeSpec {
   };
   runtime?: "node" | "workers" | "edge" | "deno" | "bun";
   env?: Record<string, string>;
+  approval?: CapsuleApprovalGrant;
   routes?: string[];
   bindings?: Record<string, unknown>;
   labels?: Record<string, string>;
@@ -525,6 +542,7 @@ export interface VersionEdgeSpec {
   source?: DeployEdgeSpec["source"];
   runtime?: DeployEdgeSpec["runtime"];
   env?: Record<string, string>;
+  approval?: CapsuleApprovalGrant;
   bindings?: Record<string, unknown>;
   labels?: Record<string, string>;
   providerOptions?: ProviderOptions;
@@ -547,6 +565,7 @@ export interface ReleaseEdgeVersionSpec {
   redirect?: string | null;
   routes?: string[];
   traffic?: number;
+  approval?: CapsuleApprovalGrant;
   labels?: Record<string, string>;
   providerOptions?: ProviderOptions;
 }
@@ -567,6 +586,7 @@ export interface RollbackEdgeSpec {
   deploymentId: string;
   targetVersionId?: string;
   reason?: string;
+  approval?: CapsuleApprovalGrant;
   providerOptions?: ProviderOptions;
 }
 
@@ -603,6 +623,7 @@ export interface CreateDatabaseBranchSpec {
   parent?: string;
   name: string;
   ttlMs?: number;
+  approval?: CapsuleApprovalGrant;
   labels?: Record<string, string>;
   providerOptions?: ProviderOptions;
 }
@@ -611,6 +632,7 @@ export interface DeleteDatabaseBranchSpec {
   project: string;
   branchId: string;
   hardDelete?: boolean;
+  approval?: CapsuleApprovalGrant;
   providerOptions?: ProviderOptions;
 }
 
@@ -623,6 +645,7 @@ export interface ResetDatabaseBranchSpec {
   parent?: string;
   pointInTime?: string;
   reason?: string;
+  approval?: CapsuleApprovalGrant;
   labels?: Record<string, string>;
   providerOptions?: ProviderOptions;
 }
@@ -640,6 +663,7 @@ export interface MigrateDatabaseSpec {
   dryRun?: boolean;
   env?: Record<string, string>;
   timeoutMs?: number;
+  approval?: CapsuleApprovalGrant;
   labels?: Record<string, string>;
   providerOptions?: ProviderOptions;
 }
@@ -692,6 +716,7 @@ export interface CreatePreviewSpec {
     path?: string;
   };
   ttlMs?: number;
+  approval?: CapsuleApprovalGrant;
   services?: DeployServiceSpec[];
   edges?: DeployEdgeSpec[];
   databases?: CreateDatabaseBranchSpec[];
@@ -719,6 +744,7 @@ export interface DestroyPreviewSpec {
   id: string;
   force?: boolean;
   reason?: string;
+  approval?: CapsuleApprovalGrant;
   providerOptions?: ProviderOptions;
 }
 
@@ -772,6 +798,7 @@ export interface CleanupPreviewSpec {
   id: string;
   force?: boolean;
   reason?: string;
+  approval?: CapsuleApprovalGrant;
   providerOptions?: ProviderOptions;
 }
 
@@ -799,6 +826,7 @@ export interface CreateMachineSpec {
   region?: string;
   size?: string;
   env?: Record<string, string>;
+  approval?: CapsuleApprovalGrant;
   labels?: Record<string, string>;
   providerOptions?: ProviderOptions;
 }
@@ -828,6 +856,7 @@ export interface MachineStatusResult {
 export interface StartMachineSpec {
   id: string;
   reason?: string;
+  approval?: CapsuleApprovalGrant;
   providerOptions?: ProviderOptions;
 }
 
@@ -835,6 +864,7 @@ export interface StopMachineSpec {
   id: string;
   force?: boolean;
   reason?: string;
+  approval?: CapsuleApprovalGrant;
   providerOptions?: ProviderOptions;
 }
 
@@ -842,6 +872,7 @@ export interface DestroyMachineSpec {
   id: string;
   force?: boolean;
   reason?: string;
+  approval?: CapsuleApprovalGrant;
   providerOptions?: ProviderOptions;
 }
 

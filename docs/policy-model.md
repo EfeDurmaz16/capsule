@@ -10,7 +10,7 @@ Filesystem policy may be native in some sandbox providers and emulated in local 
 
 Limit policy includes timeout, output size, memory, and CPU. Timeout is straightforward for local process management; memory and CPU depend on provider support.
 
-Approval policies fail closed in core when `policy.approvals.required` is set and no approved policy input is supplied. TTL policy fails closed in core when a request includes `ttlMs` above `policy.ttl.maxMs`; provider-side cleanup still depends on adapter/provider lifecycle support.
+Approval policies fail closed in core when `policy.approvals.required` is set and the operation spec does not include `approval: { approved: true, ... }`. Approval grants can carry an approval id, approver, reason, timestamp, and small metadata for audit context. TTL policy fails closed in core when a request includes `ttlMs` above `policy.ttl.maxMs`; provider-side cleanup still depends on adapter/provider lifecycle support.
 
 Cost policies are control-plane constraints. Adapters should record whether enforcement is native, delegated, emulated, or unsupported.
 
