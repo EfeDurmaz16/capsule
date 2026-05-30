@@ -404,6 +404,58 @@ describe("policy", () => {
     ).toContain("Approval resource scope satisfied: service:svc_123");
   });
 
+  test("records replayable policy decisions with adapter support level", async () => {
+    const receiptStore = new MemoryReceiptStore();
+    const policy = { approvals: { required: true, reason: "production cleanup" } };
+    const approval = {
+      approved: true,
+      id: "ticket-123",
+      capabilities: ["service.delete"],
+      resources: [{ type: "service", id: "svc_123" }]
+    };
+    const replayAdapter: CapsuleAdapter = {
+      ...adapter,
+      capabilities: {
+        ...capabilities,
+        service: {
+          deploy: "unsupported",
+          update: "unsupported",
+          delete: "native",
+          status: "unsupported",
+          logs: "unsupported",
+          url: "unsupported"
+        }
+      },
+      service: {
+        deploy: async () => ({ id: "svc_123", provider: "test", name: "svc", status: "ready" }),
+        delete: async (_spec, context) => {
+          const policyDecision = context.evaluatePolicy();
+          context.createReceipt({
+            type: "service.delete",
+            capabilityPath: "service.delete",
+            startedAt: new Date("2026-01-01T00:00:00.000Z"),
+            policy: policyDecision,
+            resource: { id: "svc_123", status: "deleted" }
+          });
+          return { id: "svc_123", provider: "test", status: "deleted" };
+        }
+      }
+    };
+    const capsule = new Capsule({ adapter: replayAdapter, policy, receipts: true, receiptStore });
+
+    await capsule.service.delete({ id: "svc_123", approval });
+
+    const replayed = evaluatePolicy(policy, {
+      approval,
+      capabilityPath: "service.delete",
+      resource: { type: "service", id: "svc_123" },
+      supportLevel: "native"
+    });
+    expect(receiptStore.receipts[0]?.supportLevel).toBe("native");
+    expect(replayed.notes).toContain("Adapter support level for service.delete: native.");
+    expect(receiptStore.receipts[0]?.policy).toEqual(replayed);
+  });
+
   test("denies ttl-scoped work above the policy maximum", () => {
     expect(() => evaluatePolicy({ ttl: { maxMs: 60_000 } }, { ttlMs: 120_000 })).toThrow(PolicyViolationError);
     expect(evaluatePolicy({ ttl: { maxMs: 60_000 } }, { ttlMs: 30_000 }).notes).toContain("TTL policy maximum 60000ms applies to this request.");

@@ -2,7 +2,7 @@
 
 Capsule policies cover network, filesystem, secrets, limits, cost, TTL, and approvals.
 
-Core can validate env and secret keys, merge timeout limits, enforce approval requirements, enforce requested TTL maxima for TTL-scoped create operations, redact configured secret values from stdout, stderr, and Capsule-observed log entries, and record policy decisions. Adapters enforce what the provider can enforce. Providers enforce runtime-specific controls.
+Core can validate env and secret keys, merge timeout limits, enforce approval requirements, enforce requested TTL maxima for TTL-scoped create operations, redact configured secret values from stdout, stderr, and Capsule-observed log entries, and record policy decisions. Policy decisions include the operation capability path and adapter support level when Capsule can infer them, so an audit can replay the decision from the operation spec, default policy, approval grant, resource hint, and adapter capability map. Adapters enforce what the provider can enforce. Providers enforce runtime-specific controls.
 
 Network policy can be `none`, `allowlist`, or `all`. Docker can apply `none` with `--network none`, which removes container network access through Docker's own network mode for that container. It is still local Docker, not a complete hostile-code sandbox. Docker allowlists are not natively enforced by the adapter, so allowlist requests are recorded as unsupported/best-effort notes.
 
