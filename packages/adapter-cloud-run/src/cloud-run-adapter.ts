@@ -1,5 +1,6 @@
 import {
   AdapterExecutionError,
+  capsuleOperationTags,
   logsFromOutput,
   redactLogEntries,
   type AdapterContext,
@@ -120,6 +121,11 @@ function timeout(timeoutMs?: number): string | undefined {
   return timeoutMs === undefined ? undefined : `${Math.ceil(timeoutMs / 1000)}s`;
 }
 
+function labelsWithOperationTag(labels: Record<string, string> | undefined, idempotencyKey: string | undefined, capabilityPath: string): Record<string, string> | undefined {
+  const merged = { ...(labels ?? {}), ...(capsuleOperationTags({ idempotencyKey, capabilityPath }) ?? {}) };
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
+
 function container(image: string, command: string[] | string | undefined, envVars: Record<string, string> | undefined, limits?: Record<string, string>) {
   return {
     image,
@@ -131,7 +137,7 @@ function container(image: string, command: string[] | string | undefined, envVar
 
 function jobBody(spec: RunJobSpec) {
   return {
-    labels: spec.labels,
+    labels: labelsWithOperationTag(spec.labels, spec.idempotencyKey, "job.run"),
     template: {
       template: {
         timeout: timeout(spec.timeoutMs),
@@ -146,7 +152,7 @@ function serviceBody(spec: DeployServiceSpec) {
     throw new AdapterExecutionError("Cloud Run service.deploy requires spec.image. Source deploy is not implemented.");
   }
   return {
-    labels: spec.labels,
+    labels: labelsWithOperationTag(spec.labels, spec.idempotencyKey, "service.deploy"),
     template: {
       scaling: {
         minInstanceCount: spec.scale?.min,
@@ -177,8 +183,9 @@ function serviceUpdateBody(name: string, spec: UpdateServiceSpec): { body: Recor
   const body: Record<string, unknown> = { name };
   const updateMask: string[] = [];
 
-  if (spec.labels) {
-    body.labels = spec.labels;
+  const labels = labelsWithOperationTag(spec.labels, hasContainerUpdate || spec.scale || spec.labels ? spec.idempotencyKey : undefined, "service.update");
+  if (labels) {
+    body.labels = labels;
     updateMask.push("labels");
   }
 

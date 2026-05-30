@@ -62,6 +62,7 @@ describe("docker adapter", () => {
       name: "capsule-port-test",
       workdir: "/workspace",
       image: "node:22",
+      labels: { capsule_operation_key: "abc123", capsule_operation_scope: "sandbox_create" },
       exposedPorts: [
         { containerPort: 3000, hostPort: 13000 },
         { containerPort: 9229, protocol: "tcp" },
@@ -73,6 +74,7 @@ describe("docker adapter", () => {
     expect(args).toContain("127.0.0.1:13000:3000/tcp");
     expect(args).toContain("127.0.0.1::9229/tcp");
     expect(args).toContain("127.0.0.2:15353:5353/udp");
+    expect(args).toEqual(expect.arrayContaining(["--label", "capsule_operation_key=abc123", "--label", "capsule_operation_scope=sandbox_create"]));
   });
 
   test("keeps sandbox port exposure compatible with network none", () => {

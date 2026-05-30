@@ -33,7 +33,8 @@ describe("ec2 adapter", () => {
       image: "ami-123",
       size: "t3.micro",
       env: { NODE_ENV: "test" },
-      labels: { purpose: "test" }
+      labels: { purpose: "test" },
+      idempotencyKey: "ec2-create-key"
     });
 
     expect(machine).toMatchObject({ id: "i-123", provider: "ec2", status: "creating" });
@@ -48,6 +49,7 @@ describe("ec2 adapter", () => {
       KeyName: "dev-key"
     });
     expect(sent[0].TagSpecifications[0].Tags).toContainEqual({ Key: "Name", Value: "capsule-dev" });
+    expect(sent[0].TagSpecifications[0].Tags).toContainEqual({ Key: "capsule_operation_scope", Value: "machine_create" });
     expect(Buffer.from(sent[0].UserData, "base64").toString("utf8")).toContain("NODE_ENV");
   });
 

@@ -101,7 +101,8 @@ export const capsuleReceiptJsonSchema = {
         idempotencyScope: {
           type: "string",
           description: "Provider-specific operation or resource scope where the idempotency key applies."
-        }
+        },
+        operationTag: { type: "string" }
       }
     },
     signature: {

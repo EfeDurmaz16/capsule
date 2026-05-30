@@ -1,6 +1,7 @@
 import { DescribeInstancesCommand, EC2Client, RunInstancesCommand, StartInstancesCommand, StopInstancesCommand, TerminateInstancesCommand } from "@aws-sdk/client-ec2";
 import {
   AdapterExecutionError,
+  capsuleOperationTags,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
@@ -94,14 +95,14 @@ function defaultClient(options: EC2AdapterOptions): EC2ClientLike {
   return new EC2Client({ region: options.region });
 }
 
-function tags(name: string, labels?: Record<string, string>) {
+function tags(name: string, labels?: Record<string, string>, idempotencyKey?: string) {
   return [
     {
       ResourceType: "instance",
       Tags: [
         { Key: "Name", Value: name },
         { Key: "ManagedBy", Value: "capsule" },
-        ...Object.entries(labels ?? {}).map(([Key, Value]) => ({ Key, Value }))
+        ...Object.entries({ ...(labels ?? {}), ...(capsuleOperationTags({ idempotencyKey, capabilityPath: "machine.create" }) ?? {}) }).map(([Key, Value]) => ({ Key, Value }))
       ]
     }
   ];
@@ -195,7 +196,7 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
             KeyName: options.keyName,
             IamInstanceProfile: options.iamInstanceProfileArn ? { Arn: options.iamInstanceProfileArn } : undefined,
             UserData: userData(options, spec),
-            TagSpecifications: tags(spec.name, spec.labels) as any
+            TagSpecifications: tags(spec.name, spec.labels, spec.idempotencyKey) as any
           })
         );
         const instance = response.Instances?.[0];

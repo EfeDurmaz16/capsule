@@ -14,7 +14,7 @@ import {
   type Sandbox,
   type SandboxHandle
 } from "@capsule/core";
-import { logsFromOutput, redactSecrets } from "@capsule/core";
+import { capsuleOperationTags, logsFromOutput, redactSecrets } from "@capsule/core";
 import { dockerAvailable, runDocker } from "./docker-cli.js";
 
 export interface DockerAdapterOptions {
@@ -26,6 +26,7 @@ interface DockerSandboxCreateArgsInput {
   workdir: string;
   image: string;
   env?: Record<string, string>;
+  labels?: Record<string, string>;
   networkNone?: boolean;
   exposedPorts?: CreateSandboxSpec["exposedPorts"];
 }
@@ -122,6 +123,10 @@ function resourceArgs(resources?: { cpu?: number; memoryMb?: number }): string[]
   ];
 }
 
+function labelArgs(labels?: Record<string, string>): string[] {
+  return Object.entries(labels ?? {}).flatMap(([key, value]) => ["--label", `${key}=${value}`]);
+}
+
 function assertPort(value: number, label: string): void {
   if (!Number.isInteger(value) || value < 1 || value > 65_535) {
     throw new AdapterExecutionError(`${label} must be an integer between 1 and 65535.`);
@@ -153,6 +158,7 @@ export function dockerSandboxCreateArgs(input: DockerSandboxCreateArgsInput): st
     input.workdir,
     ...(input.networkNone ? ["--network", "none"] : []),
     ...publishPortArgs(input.exposedPorts),
+    ...labelArgs(input.labels),
     ...envArgs(input.env),
     input.image,
     "sh",
@@ -296,6 +302,7 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
             workdir: spec.cwd ?? "/workspace",
             image,
             env: spec.env,
+            labels: { ...(spec.labels ?? {}), ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "sandbox.create" }) ?? {}) },
             networkNone: context.policy.network?.mode === "none",
             exposedPorts: spec.exposedPorts
           }),
@@ -340,6 +347,7 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
             "run",
             "--rm",
             ...(context.policy.network?.mode === "none" ? ["--network", "none"] : []),
+            ...labelArgs({ ...(spec.labels ?? {}), ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "job.run" }) ?? {}) }),
             ...envArgs(spec.env),
             ...resourceArgs(spec.resources),
             spec.image,

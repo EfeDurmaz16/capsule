@@ -64,7 +64,7 @@ describe("daytona adapter", () => {
       receiptStore: store
     });
 
-    const box = await capsule.sandbox.create({ image: "node:22", name: "box", env: { NODE_ENV: "test" } });
+    const box = await capsule.sandbox.create({ image: "node:22", name: "box", env: { NODE_ENV: "test" }, idempotencyKey: "daytona-create-key" });
     await box.writeFile("/workspace/index.js", "console.log('hi')");
     const data = await box.readFile("/workspace/index.js");
     const entries = await box.listFiles("/workspace");
@@ -72,6 +72,7 @@ describe("daytona adapter", () => {
     await box.destroy();
 
     expect(createdWith[0]).toMatchObject({ image: "node:22", name: "box", networkBlockAll: true, ephemeral: true });
+    expect(createdWith[0]).toMatchObject({ labels: { capsule_operation_scope: "sandbox_create" } });
     expect(new TextDecoder().decode(data)).toBe("console.log('hi')");
     expect(entries[0]).toMatchObject({ name: "index.js", type: "file" });
     expect(result.stdout).toContain("node");

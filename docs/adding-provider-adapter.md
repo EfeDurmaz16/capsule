@@ -44,7 +44,7 @@ packages/adapter-<provider>/
   src/<provider>.test.ts
 ```
 
-Generated capabilities start as `unsupported`. This is deliberate. Moving a capability from `unsupported` to `experimental` or `native` requires request-mapping tests, receipt shape coverage, policy notes, docs, and optionally live tests.
+Generated capabilities start as `unsupported`. This is deliberate. Moving a capability from `unsupported` to `experimental` or `native` requires request-mapping tests, receipt shape coverage, policy notes, docs, and optionally live tests. If the provider supports labels or tags for created resources, include Capsule operation tags from caller idempotency keys without exposing the raw key in provider-visible metadata.
 
 Use `--out-dir` when testing the scaffold outside the workspace:
 

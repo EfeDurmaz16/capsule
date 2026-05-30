@@ -1,5 +1,6 @@
 import {
   AdapterExecutionError,
+  capsuleOperationTags,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
@@ -92,6 +93,11 @@ function resources(spec: RunJobSpec | DeployServiceSpec) {
   return spec.resources ? { cpu: spec.resources.cpu, memory: spec.resources.memoryMb ? `${spec.resources.memoryMb / 1024}Gi` : undefined } : undefined;
 }
 
+function tagsWithOperationTag(labels: Record<string, string> | undefined, idempotencyKey: string | undefined, capabilityPath: string): Record<string, string> | undefined {
+  const merged = { ...(labels ?? {}), ...(capsuleOperationTags({ idempotencyKey, capabilityPath }) ?? {}) };
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
+
 function serviceBody(spec: DeployServiceSpec, options: AzureContainerAppsAdapterOptions) {
   const image = required("service image", spec.image);
   const port = spec.ports?.[0]?.port;
@@ -115,7 +121,7 @@ function serviceBody(spec: DeployServiceSpec, options: AzureContainerAppsAdapter
         scale: spec.scale ? { minReplicas: spec.scale.min, maxReplicas: spec.scale.max } : undefined
       }
     },
-    tags: spec.labels
+    tags: tagsWithOperationTag(spec.labels, spec.idempotencyKey, "service.deploy")
   };
 }
 
@@ -142,7 +148,7 @@ function jobBody(spec: RunJobSpec, options: AzureContainerAppsAdapterOptions) {
         ]
       }
     },
-    tags: spec.labels
+    tags: tagsWithOperationTag(spec.labels, spec.idempotencyKey, "job.run")
   };
 }
 

@@ -49,7 +49,8 @@ describe("azure container apps adapter", () => {
       name: "api",
       image: "ghcr.io/acme/api:latest",
       ports: [{ port: 8080, public: true, protocol: "http" }],
-      resources: { cpu: 0.5, memoryMb: 1024 }
+      resources: { cpu: 0.5, memoryMb: 1024 },
+      idempotencyKey: "azure-service-key"
     });
 
     expect(deployment).toMatchObject({ id: "/containerApps/api", provider: "azure-container-apps", status: "ready", url: "https://api.example.azurecontainerapps.io" });
@@ -58,6 +59,7 @@ describe("azure container apps adapter", () => {
     expect(calls[0]?.init.headers).toMatchObject({ authorization: "Bearer azure-token" });
     expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
       location: "eastus",
+      tags: { capsule_operation_scope: "service_deploy" },
       properties: {
         environmentId: options.environmentId,
         configuration: { ingress: { external: true, targetPort: 8080, transport: "http" } },
@@ -80,7 +82,7 @@ describe("azure container apps adapter", () => {
     }) as typeof fetch;
     const capsule = new Capsule({ adapter: azureContainerApps({ ...options, fetch: fetchMock }), receipts: true });
 
-    const run = await capsule.job.run({ name: "smoke", image: "node:22", command: "node smoke.js", timeoutMs: 60_000, env: { NODE_ENV: "test" } });
+    const run = await capsule.job.run({ name: "smoke", image: "node:22", command: "node smoke.js", timeoutMs: 60_000, env: { NODE_ENV: "test" }, idempotencyKey: "azure-job-key" });
 
     expect(run).toMatchObject({ id: "/jobs/smoke/executions/exec-1", provider: "azure-container-apps", status: "running" });
     expect(run.receipt?.type).toBe("job.run");
@@ -91,6 +93,7 @@ describe("azure container apps adapter", () => {
     ]);
     expect(calls[1]?.init.headers).toMatchObject({ "if-none-match": "*" });
     expect(JSON.parse(String(calls[1]?.init.body))).toMatchObject({
+      tags: { capsule_operation_scope: "job_run" },
       properties: {
         configuration: { triggerType: "Manual", replicaTimeout: 60 },
         template: { containers: [{ name: "smoke", image: "node:22", command: ["sh", "-lc", "node smoke.js"], env: [{ name: "NODE_ENV", value: "test" }] }] }
