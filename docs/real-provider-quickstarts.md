@@ -270,7 +270,7 @@ Credentials: `GOOGLE_APPLICATION_CREDENTIALS`, `GOOGLE_APPLICATION_CREDENTIALS_J
 
 Cleanup: Cloud Run job/service resources remain in the project unless you delete them through Google Cloud tooling or future Capsule lifecycle methods.
 
-Caveat: IAM, public access, networking, logging, and billing are Google Cloud concerns delegated to Cloud Run.
+Caveat: IAM, public access, networking, logging, and billing are Google Cloud concerns delegated to Cloud Run. Service rollback moves 100% of traffic to one revision; partial traffic splits are rejected until Capsule has an explicit split-release contract.
 
 ## Vercel
 

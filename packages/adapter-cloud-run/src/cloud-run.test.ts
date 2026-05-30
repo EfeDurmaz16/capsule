@@ -419,6 +419,26 @@ describe("cloud-run adapter", () => {
     await expect(capsule.service.rollback({ id: "api", revision })).resolves.toMatchObject({ status: "failed" });
   });
 
+  it("rejects partial Cloud Run rollback traffic before patching service traffic", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const capsule = new Capsule({
+      adapter: cloudRun({
+        projectId: "proj",
+        location: "europe-west1",
+        accessToken: "token",
+        fetch: (async (url: string | URL | Request, init?: RequestInit) => {
+          calls.push({ url: String(url), init: init ?? {} });
+          return response({ name: "unexpected" });
+        }) as typeof fetch
+      })
+    });
+
+    await expect(capsule.service.rollback({ id: "api", revision: "api-00001-abc", providerOptions: { traffic: 50 } })).rejects.toThrow(
+      "Cloud Run service.rollback only supports full 100% traffic moves today"
+    );
+    expect(calls).toHaveLength(0);
+  });
+
   it("selects the previous Cloud Run revision when rollback revision is omitted", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const serviceName = "projects/proj/locations/europe-west1/services/api";

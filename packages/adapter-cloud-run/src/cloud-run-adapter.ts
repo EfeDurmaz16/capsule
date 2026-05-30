@@ -294,6 +294,25 @@ function providerBoolean(options: UpdateServiceSpec["providerOptions"], key: str
   return typeof value === "boolean" ? value : fallback;
 }
 
+function providerNumber(options: RollbackServiceSpec["providerOptions"], key: string): number | undefined {
+  const value = options?.[key];
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === "number") return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+  throw new AdapterExecutionError(`Cloud Run service.rollback providerOptions.${key} must be a number.`);
+}
+
+function rejectUnsupportedRollbackTraffic(options: RollbackServiceSpec["providerOptions"]): void {
+  const traffic = providerNumber(options, "traffic");
+  if (traffic === undefined || traffic === 100) return;
+  throw new AdapterExecutionError(
+    "Cloud Run service.rollback only supports full 100% traffic moves today; partial traffic splits must be modeled explicitly before execution."
+  );
+}
+
 async function previousRevision(client: CloudRunClient, name: string, service: CloudRunService): Promise<string> {
   const revisions = (await client.listRevisions(name)).revisions ?? [];
   const [revision] = revisions
@@ -572,6 +591,7 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
       },
       rollback: async (spec: RollbackServiceSpec, context: AdapterContext): Promise<ServiceDeployment> => {
         const startedAt = new Date();
+        rejectUnsupportedRollbackTraffic(spec.providerOptions);
         const client = getClient();
         const name = serviceName(client, spec.id);
         const service = await client.getService(name);
