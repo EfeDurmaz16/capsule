@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Capsule, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule/core";
 import { CloudRunClient, cloudRun, cloudRunCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200): Response {
@@ -96,6 +96,23 @@ describe("cloud-run adapter", () => {
 
     await expect(client.deleteExecution(execution)).resolves.toMatchObject({ name: "operations/delete", done: true });
     expect(calls[0]).toMatchObject({ url: expect.stringContaining(`/v2/${execution}`), init: { method: "DELETE" } });
+  });
+
+  it("classifies Cloud Run API errors", async () => {
+    const fetchMock = (async () => response({ error: { message: "service unavailable", status: "UNAVAILABLE" } }, 503)) as typeof fetch;
+    const client = new CloudRunClient({ projectId: "proj", location: "us-central1", accessToken: "token", fetch: fetchMock });
+
+    let thrown: unknown;
+    try {
+      await client.getExecution("projects/proj/locations/us-central1/jobs/job/executions/exec");
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(AdapterExecutionError);
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({
+      providerError: { category: "retryable", retryable: true, status: 503, code: "UNAVAILABLE" }
+    });
   });
 
   it("fetches Cloud Run job logs through Cloud Logging and redacts configured secrets", async () => {

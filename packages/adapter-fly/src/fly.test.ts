@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { Capsule, runAdapterContract } from "@capsule/core";
-import { fly, flyCapabilities } from "./index.js";
+import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule/core";
+import { FlyClient, fly, flyCapabilities } from "./index.js";
 
-function response(body: unknown, status = 200): Response {
+function response(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(body === undefined ? undefined : JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json" }
+    headers: { "content-type": "application/json", ...headers }
   });
 }
 
@@ -95,5 +95,22 @@ describe("fly adapter", () => {
       ["POST", "https://api.machines.dev/v1/apps/capsule-app/machines/fly-machine-1/stop"],
       ["DELETE", "https://api.machines.dev/v1/apps/capsule-app/machines/fly-machine-1?force=true"]
     ]);
+  });
+
+  test("classifies Fly API rate limits", async () => {
+    const fetchMock = (async () => response({ error: "rate limited" }, 429, { "retry-after": "3" })) as typeof fetch;
+    const client = new FlyClient({ apiToken: "fly-token", fetch: fetchMock });
+
+    let thrown: unknown;
+    try {
+      await client.request({ path: "/v1/apps/capsule-app/machines" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(AdapterExecutionError);
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({
+      providerError: { category: "rate-limit", retryable: true, status: 429, retryAfterMs: 3000 }
+    });
   });
 });

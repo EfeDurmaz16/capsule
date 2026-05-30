@@ -290,8 +290,18 @@ describe("cloudflare adapter", () => {
     const fetchMock = (async () => response({ success: false, errors: [{ message: "script upload failed" }] }, 400)) as typeof fetch;
     const capsule = new Capsule({ adapter: cloudflare({ apiToken: "secret-token", accountId: "acct", fetch: fetchMock }) });
 
-    await expect(capsule.edge.deploy({ name: "bad", source: { path: file, entrypoint: "worker.js" } })).rejects.toThrow(AdapterExecutionError);
-    await expect(capsule.edge.deploy({ name: "bad", source: { path: file, entrypoint: "worker.js" } })).rejects.not.toThrow("secret-token");
+    let thrown: unknown;
+    try {
+      await capsule.edge.deploy({ name: "bad", source: { path: file, entrypoint: "worker.js" } });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(AdapterExecutionError);
+    expect((thrown as Error).message).not.toContain("secret-token");
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({
+      providerError: { category: "validation", retryable: false, status: 400 }
+    });
   });
 
   it("requires token and account id only when used", async () => {

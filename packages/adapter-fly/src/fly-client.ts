@@ -1,4 +1,4 @@
-import { AdapterExecutionError } from "@capsule/core";
+import { AdapterExecutionError, classifyProviderError } from "@capsule/core";
 
 export interface FlyClientOptions {
   apiToken?: string;
@@ -49,7 +49,11 @@ export class FlyClient {
     const data = text ? JSON.parse(text) : undefined;
     if (!response.ok) {
       const message = typeof data?.error === "string" ? data.error : typeof data?.message === "string" ? data.message : `Fly API request failed with status ${response.status}`;
-      throw new AdapterExecutionError(message, { status: response.status, data });
+      throw new AdapterExecutionError(message, {
+        status: response.status,
+        data,
+        providerError: classifyProviderError({ status: response.status, headers: response.headers, error: data })
+      });
     }
     return data as T;
   }

@@ -1,4 +1,4 @@
-import { AdapterExecutionError } from "@capsule/core";
+import { AdapterExecutionError, classifyProviderError } from "@capsule/core";
 
 export interface NeonClientOptions {
   apiKey?: string;
@@ -60,7 +60,11 @@ export class NeonClient {
           : typeof data?.error === "string"
             ? data.error
             : `Neon API request failed with status ${response.status}`;
-      throw new AdapterExecutionError(message, data);
+      throw new AdapterExecutionError(message, {
+        status: response.status,
+        data,
+        providerError: classifyProviderError({ status: response.status, headers: response.headers, error: data })
+      });
     }
 
     return data as T;

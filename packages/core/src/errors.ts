@@ -28,3 +28,108 @@ export class AdapterExecutionError extends CapsuleError {
     this.name = "AdapterExecutionError";
   }
 }
+
+export type ProviderErrorCategory = "retryable" | "rate-limit" | "auth" | "validation" | "unknown";
+
+export interface ProviderErrorClassification {
+  category: ProviderErrorCategory;
+  retryable: boolean;
+  status?: number;
+  retryAfterMs?: number;
+  code?: string;
+}
+
+export interface ClassifyProviderErrorInput {
+  status?: number;
+  code?: string | number;
+  headers?: { get(name: string): string | null } | Record<string, string | null | undefined>;
+  error?: unknown;
+}
+
+const rateLimitSignals = ["rate_limited", "too_many_requests", "resource_exhausted"];
+const authSignals = ["unauthenticated", "permission_denied", "unauthorized", "forbidden", "invalid_token", "missing_credentials"];
+const retryableSignals = ["unavailable", "deadline_exceeded", "internal", "timeout", "timedout", "etimedout", "econnreset", "temporarily_unavailable"];
+const validationSignals = ["invalid_argument", "failed_precondition", "not_found", "already_exists", "bad_request", "conflict", "invalid", "missing"];
+
+export function classifyProviderError(input: ClassifyProviderErrorInput): ProviderErrorClassification {
+  const status = normalizeStatus(input.status);
+  const code = normalizeCode(input.code ?? extractErrorField(input.error, ["code", "status", "reason"]));
+  const signal = `${code ?? ""} ${normalizeCode(extractErrorField(input.error, ["message", "error_description"])) ?? ""}`.toLowerCase().replace(/[\s-]+/g, "_");
+  const retryAfterMs = retryAfter(input.headers);
+
+  if (status === 429 || matches(signal, rateLimitSignals)) {
+    return classification("rate-limit", true, status, retryAfterMs, code);
+  }
+  if (status === 401 || status === 403 || matches(signal, authSignals)) {
+    return classification("auth", false, status, retryAfterMs, code);
+  }
+  if (status === 408 || status === 425 || (status !== undefined && status >= 500) || matches(signal, retryableSignals)) {
+    return classification("retryable", true, status, retryAfterMs, code);
+  }
+  if (status === 400 || status === 404 || status === 409 || status === 422 || matches(signal, validationSignals)) {
+    return classification("validation", false, status, retryAfterMs, code);
+  }
+  return classification("unknown", false, status, retryAfterMs, code);
+}
+
+function classification(category: ProviderErrorCategory, retryable: boolean, status?: number, retryAfterMs?: number, code?: string): ProviderErrorClassification {
+  return {
+    category,
+    retryable,
+    ...(status === undefined ? {} : { status }),
+    ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
+    ...(code === undefined ? {} : { code })
+  };
+}
+
+function normalizeStatus(status: number | undefined): number | undefined {
+  return typeof status === "number" && Number.isInteger(status) && status > 0 ? status : undefined;
+}
+
+function normalizeCode(value: unknown): string | undefined {
+  return typeof value === "string" || typeof value === "number" ? String(value) : undefined;
+}
+
+function extractErrorField(error: unknown, keys: string[]): unknown {
+  if (!error || typeof error !== "object") {
+    return typeof error === "string" ? error : undefined;
+  }
+  const record = error as Record<string, unknown>;
+  for (const key of keys) {
+    if (record[key] !== undefined) return record[key];
+  }
+  for (const nestedKey of ["error", "data"]) {
+    const nested = extractErrorField(record[nestedKey], keys);
+    if (nested !== undefined) return nested;
+  }
+  if (Array.isArray(record.errors)) {
+    for (const item of record.errors) {
+      const nested = extractErrorField(item, keys);
+      if (nested !== undefined) return nested;
+    }
+  }
+  return undefined;
+}
+
+function matches(signal: string, values: string[]): boolean {
+  return values.some((value) => signal.includes(value));
+}
+
+function retryAfter(headers: ClassifyProviderErrorInput["headers"]): number | undefined {
+  const value = headerValue(headers, "retry-after");
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.round(seconds * 1000);
+  const date = Date.parse(value);
+  return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now());
+}
+
+function headerValue(headers: ClassifyProviderErrorInput["headers"], name: string): string | undefined {
+  if (!headers) return undefined;
+  if ("get" in headers && typeof headers.get === "function") return headers.get(name) ?? undefined;
+  const lowerName = name.toLowerCase();
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === lowerName) return value ?? undefined;
+  }
+  return undefined;
+}
