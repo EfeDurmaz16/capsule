@@ -25,13 +25,15 @@ Receipt metadata uses these common provider fields when an adapter can observe t
 
 Adapters may include additional provider-specific metadata, but receipt creation redacts known secret-bearing metadata keys before signing or storing a receipt. Adapters should still avoid placing secrets in metadata at all; redaction is a last boundary check, not a substitute for careful provider mapping.
 
+Receipts created through Capsule's adapter context are operation-scoped. Capsule stamps the active provider and adapter, computes the support level from the declared capability path, and rejects mismatched receipt type/capability pairs for the active operation. For example, an adapter handling `service.delete` cannot persist a `job.run` receipt through the same context. The current sandbox context allows `sandbox.create`, `sandbox.exec`, and `sandbox.destroy` receipts because returned sandbox objects still hold the context created by `sandbox.create`; core-wrapped sandbox sub-operations are a planned hardening step.
+
 Receipts prove what Capsule observed. They do not prove absolute provider truth or complete runtime isolation.
 
 Receipt signing is optional and disabled by default. `@capsule/core` exposes a small synchronous `ReceiptSigner` interface that receives the unsigned receipt and returns a signature value plus algorithm/key metadata. This keeps v1 dependency-free while allowing tests, CI systems, or future FIDES-style integrations to attach deterministic signatures.
 
 Signatures cover Capsule's receipt object before the `signature` field is attached. They are not provider attestations unless the caller's signer explicitly binds provider evidence.
 
-Receipt persistence is explicit. `receiptPersistence: "best-effort"` is the default and keeps provider operations moving if an optional store write fails. Use `receiptPersistence: "required"` when the caller must know that every receipt created during a Capsule operation was durably accepted by the configured `receiptStore`; in required mode, a missing store or failed store write rejects the Capsule operation instead of returning a result with uncertain evidence.
+Receipt persistence is explicit. `receiptPersistence: "best-effort"` is the default and keeps provider operations moving if an optional store write fails. Use `receiptPersistence: "required"` when the caller must know that every receipt created during a Capsule operation was accepted by the configured `receiptStore`; in required mode, a missing store or failed store write rejects the Capsule operation instead of returning a result with uncertain evidence. This is detection, not pre-execution prevention: the provider side effect may already have happened before a receipt write fails. Evidence profiles that preflight store health before destructive or billable operations are future work.
 
 `@capsule/store-jsonl` is the local file store. Its writes create parent directories, append one receipt per line, and flush by default before `write` resolves. It is intentionally an optional package, not a core database.
 
