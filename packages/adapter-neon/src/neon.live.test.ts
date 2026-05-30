@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { Capsule } from "@capsule/core";
-import { liveTest, providerLiveTestGate } from "@capsule/test-utils";
+import { liveResourceMetadata, liveTest, providerLiveTestGate } from "@capsule/test-utils";
 import { neon } from "./index.js";
 
 describe("neon live smoke", () => {
@@ -14,7 +14,8 @@ describe("neon live smoke", () => {
       }),
       receipts: true
     });
-    const name = `capsule-live-${Date.now().toString(36)}`;
+    const liveResource = liveResourceMetadata({ provider: "neon", resource: "branch", ttlMs: 30 * 60 * 1000 });
+    const name = liveResource.name;
     let branchId: string | undefined;
 
     try {
@@ -22,8 +23,8 @@ describe("neon live smoke", () => {
         project: process.env.NEON_PROJECT_ID ?? "",
         parent: process.env.NEON_PARENT_BRANCH_ID,
         name,
-        ttlMs: 30 * 60 * 1000,
-        labels: { "capsule.dev/live-test": "true" }
+        ttlMs: liveResource.ttlMs,
+        labels: liveResource.labels
       });
       branchId = branch.id;
       expect(branch.status).toBe("ready");

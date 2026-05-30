@@ -1,4 +1,5 @@
 export type LiveTestEnv = Record<string, string | undefined>;
+export { liveResourceMetadata, type LiveResourceMetadata, type LiveResourceMetadataOptions } from "./live-resources.js";
 
 export interface LiveTestGate {
   enabled: boolean;

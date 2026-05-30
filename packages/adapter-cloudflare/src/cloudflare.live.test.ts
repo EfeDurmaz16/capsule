@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { Capsule } from "@capsule/core";
-import { liveTest, liveTestGate } from "@capsule/test-utils";
+import { liveResourceMetadata, liveTest, liveTestGate } from "@capsule/test-utils";
 import { cloudflare } from "./index.js";
 
 async function workerFile(message = "capsule live smoke"): Promise<string> {
@@ -30,11 +30,13 @@ describe("cloudflare live smoke", () => {
         }),
         receipts: true
       });
+      const liveResource = liveResourceMetadata({ provider: "cloudflare", resource: "worker-version" });
 
       const version = await capsule.edge.version({
         name: process.env.CAPSULE_CLOUDFLARE_WORKER_NAME ?? "",
         runtime: "workers",
-        source: { path: await workerFile(), entrypoint: "worker.js" }
+        source: { path: await workerFile(), entrypoint: "worker.js" },
+        labels: liveResource.labels
       });
       expect(version.provider).toBe("cloudflare");
       expect(version.receipt?.type).toBe("edge.version");
@@ -59,12 +61,14 @@ describe("cloudflare live smoke", () => {
         }),
         receipts: true
       });
+      const liveResource = liveResourceMetadata({ provider: "cloudflare", resource: "worker-deploy" });
 
       const deployment = await capsule.edge.deploy({
         name: process.env.CAPSULE_CLOUDFLARE_WORKER_NAME ?? "",
         runtime: "workers",
         source: { path: await workerFile(), entrypoint: "worker.js" },
-        env: { CAPSULE_LIVE_DEPLOY: "true" }
+        env: { CAPSULE_LIVE_DEPLOY: "true" },
+        labels: liveResource.labels
       });
 
       expect(deployment.provider).toBe("cloudflare");
@@ -106,14 +110,16 @@ describe("cloudflare live smoke", () => {
         receipts: true
       });
       const scriptName = process.env.CAPSULE_CLOUDFLARE_WORKER_NAME ?? "";
+      const liveResource = liveResourceMetadata({ provider: "cloudflare", resource: "worker-rollback" });
       const version = await capsule.edge.version({
         name: scriptName,
         runtime: "workers",
-        source: { path: await workerFile("capsule rollback smoke"), entrypoint: "worker.js" }
+        source: { path: await workerFile("capsule rollback smoke"), entrypoint: "worker.js" },
+        labels: liveResource.labels
       });
 
       const rollback = await capsule.edge.rollback({
-        deploymentId: "capsule-live-rollback-smoke",
+        deploymentId: liveResource.name,
         targetVersionId: version.id,
         reason: "Capsule live rollback smoke",
         providerOptions: { scriptName }

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { Capsule } from "@capsule/core";
-import { liveTest, liveTestGate } from "@capsule/test-utils";
+import { liveResourceMetadata, liveTest, liveTestGate } from "@capsule/test-utils";
 import { azureContainerApps } from "./index.js";
 
 describe("azure container apps live smoke", () => {
@@ -29,14 +29,15 @@ describe("azure container apps live smoke", () => {
         }),
         receipts: true
       });
-      const name = `capsule-live-${Date.now().toString(36)}`;
+      const liveResource = liveResourceMetadata({ provider: "azure-container-apps", resource: "service", maxNameLength: 32 });
+      const name = liveResource.name;
 
       try {
         const service = await capsule.service.deploy({
           name,
           image: process.env.CAPSULE_AZURE_CONTAINER_IMAGE,
           ports: [{ port: Number(process.env.CAPSULE_AZURE_CONTAINER_PORT ?? 8080), public: true, protocol: "http" }],
-          labels: { "capsule.dev/live-test": "true" }
+          labels: liveResource.labels
         });
         expect(service.provider).toBe("azure-container-apps");
         expect(service.receipt?.type).toBe("service.deploy");

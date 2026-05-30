@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Capsule, MemoryReceiptStore } from "@capsule/core";
+import { liveResourceMetadata } from "@capsule/test-utils";
 import { e2b } from "./e2b-adapter.js";
 
 const liveTestsEnabled = process.env.CAPSULE_LIVE_TESTS === "1";
@@ -19,14 +20,15 @@ describe("e2b live adapter", () => {
       receiptStore: store
     });
 
+    const liveResource = liveResourceMetadata({ provider: "e2b", resource: "sandbox" });
     const sandbox = await capsule.sandbox.create({
-      name: "capsule-e2b-live-test",
+      name: liveResource.name,
       cwd: "/tmp",
       timeoutMs: 30_000,
-      labels: { capsule_test: "e2b-live" }
+      labels: liveResource.labels
     });
 
-    const testDir = `/tmp/capsule-e2b-live-${Date.now()}`;
+    const testDir = `/tmp/${liveResource.name}`;
     const testFile = `${testDir}/message.txt`;
 
     try {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { Capsule } from "@capsule/core";
-import { liveTest, liveTestGate } from "@capsule/test-utils";
+import { liveResourceMetadata, liveTest, liveTestGate } from "@capsule/test-utils";
 import { kubernetes } from "./index.js";
 
 describe("kubernetes live smoke", () => {
@@ -17,7 +17,8 @@ describe("kubernetes live smoke", () => {
         }),
         receipts: true
       });
-      const name = `capsule-live-${Date.now().toString(36)}`;
+      const liveResource = liveResourceMetadata({ provider: "kubernetes", resource: "job" });
+      const name = liveResource.name;
       let jobId: string | undefined;
 
       try {
@@ -25,7 +26,7 @@ describe("kubernetes live smoke", () => {
           name,
           image: process.env.CAPSULE_KUBERNETES_IMAGE ?? "busybox:1.36",
           command: ["sh", "-c", "echo capsule live smoke"],
-          labels: { "capsule.dev/live-test": "true" }
+          labels: liveResource.labels
         });
         jobId = run.id;
         expect(run.provider).toBe("kubernetes");

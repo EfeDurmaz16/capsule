@@ -1,13 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { AdapterExecutionError, Capsule, MemoryReceiptStore } from "@capsule/core";
-import { liveTest, providerLiveTestGate } from "@capsule/test-utils";
+import { liveResourceMetadata, liveTest, providerLiveTestGate } from "@capsule/test-utils";
 import { modal } from "./modal-adapter.js";
 
 const modalLiveGate = providerLiveTestGate("modal");
-
-function uniqueName(label: string): string {
-  return `capsule-${label}-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
 
 describe("modal live adapter", () => {
   liveTest(
@@ -32,13 +28,14 @@ describe("modal live adapter", () => {
         receiptStore: store
       });
 
+      const liveResource = liveResourceMetadata({ provider: "modal", resource: "sandbox" });
       const sandbox = await capsule.sandbox.create({
         image: process.env.MODAL_IMAGE ?? "debian:bookworm-slim",
-        name: uniqueName("modal-live"),
+        name: liveResource.name,
         cwd: "/tmp",
         timeoutMs: 30_000
       });
-      const testDir = `/tmp/capsule-modal-live-${Date.now()}`;
+      const testDir = `/tmp/${liveResource.name}`;
       const testFile = `${testDir}/message.txt`;
 
       try {

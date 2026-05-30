@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { Capsule } from "@capsule/core";
-import { liveTest, liveTestGate } from "@capsule/test-utils";
+import { liveResourceMetadata, liveTest, liveTestGate } from "@capsule/test-utils";
 import { fly } from "./index.js";
 
 describe("fly live smoke", () => {
@@ -20,11 +20,13 @@ describe("fly live smoke", () => {
         receipts: true
       });
       let machineId: string | undefined;
+      const liveResource = liveResourceMetadata({ provider: "fly", resource: "machine" });
 
       try {
         const machine = await capsule.machine.create({
-          name: `capsule-live-${Date.now().toString(36)}`,
-          image: process.env.CAPSULE_FLY_IMAGE
+          name: liveResource.name,
+          image: process.env.CAPSULE_FLY_IMAGE,
+          labels: liveResource.labels
         });
         machineId = machine.id;
         expect(machine.provider).toBe("fly");
