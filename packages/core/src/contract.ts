@@ -1,28 +1,39 @@
-import { UnsupportedCapabilityError } from "./errors.js";
-import { Capsule } from "./capsule.js";
+import { PolicyViolationError, UnsupportedCapabilityError } from "./errors.js";
+import { Capsule, type CapsuleOptions } from "./capsule.js";
 import { supportLevel, type CapabilityPath } from "./capabilities.js";
 import type { CapsuleAdapter } from "./adapters.js";
 import type { CapsuleDomain } from "./types.js";
 
 type PublicCapability = {
   path: CapabilityPath;
+  requiresApproval?: boolean;
   isImplemented(adapter: CapsuleAdapter): boolean;
   exercise(capsule: Capsule): Promise<unknown>;
 };
 
+export interface CapsuleAdapterFailureScenario {
+  name: string;
+  exercise(capsule: Capsule): Promise<unknown>;
+  expectError(error: unknown): void;
+  capsuleOptions?: Omit<CapsuleOptions, "adapter">;
+}
+
 export interface CapsuleAdapterContractOptions {
   domains?: CapsuleDomain[];
   capabilities?: CapabilityPath[];
+  failureScenarios?: CapsuleAdapterFailureScenario[];
 }
 
 const publicCapabilities: PublicCapability[] = [
   {
     path: "sandbox.create",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.sandbox?.create === "function",
     exercise: (capsule) => capsule.sandbox.create({ image: "capsule-contract-test" })
   },
   {
     path: "job.run",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.job?.run === "function",
     exercise: (capsule) => capsule.job.run({ image: "capsule-contract-test" })
   },
@@ -33,6 +44,7 @@ const publicCapabilities: PublicCapability[] = [
   },
   {
     path: "job.cancel",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.job?.cancel === "function",
     exercise: (capsule) => capsule.job.cancel({ id: "capsule-contract-test" })
   },
@@ -43,6 +55,7 @@ const publicCapabilities: PublicCapability[] = [
   },
   {
     path: "service.deploy",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.service?.deploy === "function",
     exercise: (capsule) => capsule.service.deploy({ name: "capsule-contract-test", image: "capsule-contract-test" })
   },
@@ -53,16 +66,19 @@ const publicCapabilities: PublicCapability[] = [
   },
   {
     path: "service.update",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.service?.update === "function",
     exercise: (capsule) => capsule.service.update({ id: "capsule-contract-test", image: "capsule-contract-test" })
   },
   {
     path: "service.rollback",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.service?.rollback === "function",
     exercise: (capsule) => capsule.service.rollback({ id: "capsule-contract-test", revision: "capsule-contract-revision" })
   },
   {
     path: "service.delete",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.service?.delete === "function",
     exercise: (capsule) => capsule.service.delete({ id: "capsule-contract-test" })
   },
@@ -73,6 +89,7 @@ const publicCapabilities: PublicCapability[] = [
   },
   {
     path: "edge.deploy",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.edge?.deploy === "function",
     exercise: (capsule) => capsule.edge.deploy({ name: "capsule-contract-test", source: { path: "/tmp/capsule-contract-test.js" } })
   },
@@ -83,16 +100,19 @@ const publicCapabilities: PublicCapability[] = [
   },
   {
     path: "edge.version",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.edge?.version === "function",
     exercise: (capsule) => capsule.edge.version({ name: "capsule-contract-test", source: { path: "/tmp/capsule-contract-test.js" } })
   },
   {
     path: "edge.release",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.edge?.release === "function",
     exercise: (capsule) => capsule.edge.release({ versionId: "capsule-contract-test" })
   },
   {
     path: "edge.rollback",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.edge?.rollback === "function",
     exercise: (capsule) => capsule.edge.rollback({ deploymentId: "capsule-contract-test" })
   },
@@ -103,16 +123,19 @@ const publicCapabilities: PublicCapability[] = [
   },
   {
     path: "database.branchCreate",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.database?.branch.create === "function",
     exercise: (capsule) => capsule.database.branch.create({ project: "capsule-contract-test", name: "capsule-contract-test" })
   },
   {
     path: "database.branchDelete",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.database?.branch.delete === "function",
     exercise: (capsule) => capsule.database.branch.delete({ project: "capsule-contract-test", branchId: "capsule-contract-test" })
   },
   {
     path: "database.branchReset",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.database?.branch.reset === "function",
     exercise: (capsule) =>
       capsule.database.branch.reset({
@@ -123,16 +146,19 @@ const publicCapabilities: PublicCapability[] = [
   },
   {
     path: "database.migrate",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.database?.migrate === "function",
     exercise: (capsule) => capsule.database.migrate({ project: "capsule-contract-test", branchId: "capsule-contract-test", dryRun: true })
   },
   {
     path: "preview.create",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.preview?.create === "function",
     exercise: (capsule) => capsule.preview.create({ name: "capsule-contract-test" })
   },
   {
     path: "preview.destroy",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.preview?.destroy === "function",
     exercise: (capsule) => capsule.preview.destroy({ id: "capsule-contract-test" })
   },
@@ -153,11 +179,13 @@ const publicCapabilities: PublicCapability[] = [
   },
   {
     path: "preview.cleanup",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.preview?.cleanup === "function",
     exercise: (capsule) => capsule.preview.cleanup({ id: "capsule-contract-test" })
   },
   {
     path: "machine.create",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.machine?.create === "function",
     exercise: (capsule) => capsule.machine.create({ name: "capsule-contract-test", image: "capsule-contract-test", size: "capsule-contract-test" })
   },
@@ -168,16 +196,19 @@ const publicCapabilities: PublicCapability[] = [
   },
   {
     path: "machine.start",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.machine?.start === "function",
     exercise: (capsule) => capsule.machine.start({ id: "capsule-contract-test" })
   },
   {
     path: "machine.stop",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.machine?.stop === "function",
     exercise: (capsule) => capsule.machine.stop({ id: "capsule-contract-test" })
   },
   {
     path: "machine.destroy",
+    requiresApproval: true,
     isImplemented: (adapter) => typeof adapter.machine?.destroy === "function",
     exercise: (capsule) => capsule.machine.destroy({ id: "capsule-contract-test" })
   }
@@ -232,9 +263,45 @@ export async function assertUnsupportedCapabilityGuards(adapter: CapsuleAdapter,
   }
 }
 
+export async function assertPolicyDenialGuards(adapter: CapsuleAdapter, options: CapsuleAdapterContractOptions = {}): Promise<void> {
+  assertAdapterContract(adapter, options);
+  const capsule = new Capsule({ adapter, policy: { approvals: { required: true, reason: "adapter contract policy denial check" } } });
+
+  for (const capability of selectedPublicCapabilities(options)) {
+    if (!capability.requiresApproval || supportLevel(adapter.capabilities, capability.path) === "unsupported") {
+      continue;
+    }
+    try {
+      await capability.exercise(capsule);
+    } catch (error) {
+      if (error instanceof PolicyViolationError) {
+        continue;
+      }
+      throw error;
+    }
+    throw new Error(`Adapter ${adapter.name} did not fail closed for policy-denied capability ${capability.path}.`);
+  }
+}
+
+export async function assertAdapterFailureScenarios(adapter: CapsuleAdapter, options: CapsuleAdapterContractOptions = {}): Promise<void> {
+  assertAdapterContract(adapter, options);
+  for (const scenario of options.failureScenarios ?? []) {
+    const capsule = new Capsule({ receipts: true, ...scenario.capsuleOptions, adapter });
+    try {
+      await scenario.exercise(capsule);
+    } catch (error) {
+      scenario.expectError(error);
+      continue;
+    }
+    throw new Error(`Adapter ${adapter.name} contract failure scenario "${scenario.name}" did not throw.`);
+  }
+}
+
 export async function runAdapterContract(adapter: CapsuleAdapter, options: CapsuleAdapterContractOptions = {}): Promise<void> {
   assertAdapterContract(adapter, options);
   await assertUnsupportedCapabilityGuards(adapter, options);
+  await assertPolicyDenialGuards(adapter, options);
+  await assertAdapterFailureScenarios(adapter, options);
 }
 
 export async function runCapsuleAdapterContract(adapter: CapsuleAdapter, options: CapsuleAdapterContractOptions = {}): Promise<void> {

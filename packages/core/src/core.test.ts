@@ -306,6 +306,88 @@ describe("capabilities", () => {
     await expect(runCapsuleAdapterContract(partialAdapter, { domains: ["service"] })).rejects.toThrow("declares service.deploy as native but does not implement the public contract");
   });
 
+  test("contract verifies supported mutating capabilities fail closed under approval policy", async () => {
+    let calls = 0;
+    const guardedAdapter: CapsuleAdapter = {
+      name: "guarded",
+      provider: "test",
+      capabilities: {
+        job: {
+          run: "native",
+          status: "unsupported",
+          cancel: "unsupported",
+          logs: "unsupported",
+          artifacts: "unsupported",
+          timeout: "unsupported",
+          env: "unsupported"
+        }
+      },
+      job: {
+        run: async () => {
+          calls += 1;
+          return { id: "job_123", provider: "test", status: "succeeded" };
+        }
+      }
+    };
+
+    await expect(runCapsuleAdapterContract(guardedAdapter, { capabilities: ["job.run"] })).resolves.toBeUndefined();
+    expect(calls).toBe(0);
+  });
+
+  test("contract runs adapter-specific failure scenarios for cleanup metadata and receipt binding", async () => {
+    const failingAdapter: CapsuleAdapter = {
+      name: "failure-contract",
+      provider: "test",
+      capabilities: {
+        service: {
+          deploy: "native",
+          update: "unsupported",
+          delete: "unsupported",
+          status: "unsupported",
+          logs: "unsupported",
+          url: "unsupported"
+        }
+      },
+      service: {
+        deploy: async (spec, context) => {
+          if (spec.name === "bad-receipt") {
+            context.createReceipt({
+              type: "job.run",
+              capabilityPath: "job.run",
+              startedAt: new Date(),
+              policy: { decision: "allowed", applied: context.policy }
+            });
+          }
+          const error = new AdapterExecutionError("service deploy failed after partial allocation");
+          (error as AdapterExecutionError & { cleanup?: Record<string, unknown> }).cleanup = { action: "delete-service", status: "deleted" };
+          throw error;
+        }
+      }
+    };
+
+    await expect(
+      runCapsuleAdapterContract(failingAdapter, {
+        capabilities: ["service.deploy"],
+        failureScenarios: [
+          {
+            name: "partial cleanup",
+            exercise: (capsule) => capsule.service.deploy({ name: "partial", image: "node:22" }),
+            expectError: (error) => {
+              expect(error).toMatchObject({ cleanup: { action: "delete-service", status: "deleted" } });
+            }
+          },
+          {
+            name: "receipt binding",
+            exercise: (capsule) => capsule.service.deploy({ name: "bad-receipt", image: "node:22" }),
+            expectError: (error) => {
+              expect((error as Error).message).toContain("outside active operation receipt scope");
+            }
+          }
+        ]
+      })
+    ).resolves.toBeUndefined();
+  });
+
   test("contract rejects declared preview lifecycle support without implementation", () => {
     const dishonestAdapter: CapsuleAdapter = {
       ...adapter,

@@ -105,7 +105,7 @@ Do not classify workload failures as provider failures. For example, a sandbox c
 
 ## Minimal Contract Test Template
 
-Use the core contract helpers first. They verify that declared public capabilities match implemented public methods and that unsupported capabilities throw `UnsupportedCapabilityError`.
+Use the core contract helpers first. They verify that declared public capabilities match implemented public methods, unsupported capabilities throw `UnsupportedCapabilityError`, and supported mutating capabilities fail closed under an approval-required policy before adapter code runs.
 
 ```ts
 import { describe, expect, test } from "vitest";
@@ -146,6 +146,23 @@ describe("example adapter", () => {
     });
     expect(result.receipt?.policy.notes?.join(" ")).toContain("network");
   });
+});
+```
+
+Adapter-specific partial-failure behavior can be added with `failureScenarios`. Use this for cleanup metadata, provider rollback behavior, and receipt-binding regressions that only a given fake client can trigger:
+
+```ts
+await runCapsuleAdapterContract(exampleAdapter({ fakeClient: true }), {
+  capabilities: ["service.deploy"],
+  failureScenarios: [
+    {
+      name: "cleans up service after route failure",
+      exercise: (capsule) => capsule.service.deploy({ name: "partial", image: "node:22" }),
+      expectError: (error) => {
+        expect(error).toMatchObject({ cleanup: { status: "deleted" } });
+      }
+    }
+  ]
 });
 ```
 
