@@ -16,6 +16,50 @@ function providerOptions(input: Record<string, ProviderOptionValue | undefined>)
   return Object.fromEntries(Object.entries(input).filter((entry): entry is [string, ProviderOptionValue] => entry[1] !== undefined));
 }
 
+function requireNonEmptyString(value: string | undefined, field: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new TypeError(`${field} is required`);
+  }
+  return value;
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function validatePositiveNumber(value: number | undefined, field: string): void {
+  if (value !== undefined && (!Number.isFinite(value) || value <= 0)) {
+    throw new RangeError(`${field} must be greater than 0`);
+  }
+}
+
+function validateNonNegativeInteger(value: number | undefined, field: string): void {
+  if (value !== undefined && (!Number.isInteger(value) || value < 0)) {
+    throw new RangeError(`${field} must be greater than or equal to 0`);
+  }
+}
+
+function validatePort(port: number, field: string): number {
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+    throw new RangeError(`${field} must be between 1 and 65535`);
+  }
+  return port;
+}
+
+function validateScale(minScale: number | undefined, maxScale: number | undefined, preset: string): void {
+  validateNonNegativeInteger(minScale, `${preset} minScale`);
+  validateNonNegativeInteger(maxScale, `${preset} maxScale`);
+  if (minScale !== undefined && maxScale !== undefined && minScale > maxScale) {
+    throw new RangeError(`${preset} minScale must be less than or equal to maxScale`);
+  }
+}
+
+function validatePolicyCompatibility(policy: CapsulePolicy): void {
+  if (policy.network?.mode === "allowlist" && !(policy.network.allowedHosts ?? []).some(isNonEmptyString)) {
+    throw new TypeError("network allowlist requires at least one allowed host");
+  }
+}
+
 export interface FlyMachinePresetOptions {
   name: string;
   image: string;
@@ -27,13 +71,18 @@ export interface FlyMachinePresetOptions {
 }
 
 export function flyMachinePreset(options: FlyMachinePresetOptions): CapsulePreset<CreateMachineSpec> {
+  const name = requireNonEmptyString(options.name, "fly-machine name");
+  const image = requireNonEmptyString(options.image, "fly-machine image");
+  validatePositiveNumber(options.memoryMb, "fly-machine memoryMb");
+  validatePositiveNumber(options.cpu, "fly-machine cpu");
+
   return {
     name: "fly-machine",
     domain: "machine",
     capabilityPaths: ["machine.create", "machine.status", "machine.start", "machine.stop", "machine.destroy"],
     spec: {
-      name: options.name,
-      image: options.image,
+      name,
+      image,
       region: options.region,
       env: options.env,
       labels: { ...options.labels, "capsule.io/preset": "fly-machine" },
@@ -56,14 +105,21 @@ export interface FlyHttpServicePresetOptions extends FlyMachinePresetOptions {
 }
 
 export function flyHttpServicePreset(options: FlyHttpServicePresetOptions): CapsulePreset<DeployServiceSpec> {
+  const name = requireNonEmptyString(options.name, "fly-http-service name");
+  const image = requireNonEmptyString(options.image, "fly-http-service image");
+  const port = validatePort(options.port ?? 8080, "fly-http-service port");
+  validatePositiveNumber(options.memoryMb, "fly-http-service memoryMb");
+  validatePositiveNumber(options.cpu, "fly-http-service cpu");
+  validateScale(options.minScale, options.maxScale, "fly-http-service");
+
   return {
     name: "fly-http-service",
     domain: "service",
     capabilityPaths: ["service.deploy", "service.status", "service.url"],
     spec: {
-      name: options.name,
-      image: options.image,
-      ports: [{ port: options.port ?? 8080, public: true, protocol: "http" }],
+      name,
+      image,
+      ports: [{ port, public: true, protocol: "http" }],
       env: options.env,
       resources: {
         memoryMb: options.memoryMb,
@@ -100,14 +156,17 @@ export interface VercelWebPresetOptions {
 }
 
 export function vercelWebPreset(options: VercelWebPresetOptions): CapsulePreset<DeployEdgeSpec> {
+  const name = requireNonEmptyString(options.name, "vercel-web name");
+  const sourcePath = requireNonEmptyString(options.sourcePath, "vercel-web sourcePath");
+
   return {
     name: "vercel-web",
     domain: "edge",
     capabilityPaths: ["edge.deploy", "edge.status", "edge.release", "edge.url"],
     spec: {
-      name: options.name,
+      name,
       source: {
-        path: options.sourcePath,
+        path: sourcePath,
         entrypoint: options.entrypoint
       },
       runtime: "edge",
@@ -136,14 +195,17 @@ export interface CloudflareWorkerPresetOptions {
 }
 
 export function cloudflareWorkerPreset(options: CloudflareWorkerPresetOptions): CapsulePreset<DeployEdgeSpec> {
+  const name = requireNonEmptyString(options.name, "cloudflare-worker name");
+  const sourcePath = requireNonEmptyString(options.sourcePath, "cloudflare-worker sourcePath");
+
   return {
     name: "cloudflare-worker",
     domain: "edge",
     capabilityPaths: ["edge.deploy", "edge.version", "edge.rollback", "edge.routes"],
     spec: {
-      name: options.name,
+      name,
       source: {
-        path: options.sourcePath,
+        path: sourcePath,
         entrypoint: options.entrypoint
       },
       runtime: "workers",
@@ -170,13 +232,17 @@ export interface NeonPreviewBranchPresetOptions {
 }
 
 export function neonPreviewBranchPreset(options: NeonPreviewBranchPresetOptions): CapsulePreset<CreateDatabaseBranchSpec> {
+  const project = requireNonEmptyString(options.project, "neon-preview-branch project");
+  const name = requireNonEmptyString(options.name, "neon-preview-branch name");
+  validatePositiveNumber(options.ttlMs, "neon-preview-branch ttlMs");
+
   return {
     name: "neon-preview-branch",
     domain: "database",
     capabilityPaths: ["database.branchCreate", "database.connectionString", "database.branchDelete"],
     spec: {
-      project: options.project,
-      name: options.name,
+      project,
+      name,
       parent: options.parent,
       ttlMs: options.ttlMs,
       labels: { ...options.labels, "capsule.io/preset": "neon-preview-branch" },
@@ -219,6 +285,8 @@ export interface ProviderPreviewPreset {
 }
 
 export function flyVercelNeonPreviewPreset(options: ProviderPreviewPresetOptions): ProviderPreviewPreset {
+  const name = requireNonEmptyString(options.name, "fly-vercel-neon-preview name");
+  validatePositiveNumber(options.ttlMs, "fly-vercel-neon-preview ttlMs");
   const web = options.web ? vercelWebPreset(options.web) : undefined;
   const api = options.api ? flyHttpServicePreset(options.api) : undefined;
   const database = options.database ? neonPreviewBranchPreset(options.database) : undefined;
@@ -232,7 +300,10 @@ export function flyVercelNeonPreviewPreset(options: ProviderPreviewPresetOptions
     },
     notes: ["Runs a preview verification job; timeout, logs, artifacts, and cancellation support remain adapter-specific."]
   }));
-  const policy = options.policy ?? agentSafePolicy({ network: { mode: "allowlist" }, timeoutMs: 300_000 });
+  const policy =
+    options.policy ??
+    agentSafePolicy({ network: { mode: "allowlist", allowedHosts: ["*.fly.dev", "*.vercel.app", "*.neon.tech"] }, timeoutMs: 300_000 });
+  validatePolicyCompatibility(policy);
 
   return {
     name: "fly-vercel-neon-preview",
@@ -249,7 +320,7 @@ export function flyVercelNeonPreviewPreset(options: ProviderPreviewPresetOptions
         ...checks.flatMap((check) => check.capabilityPaths)
       ],
       spec: {
-        name: options.name,
+        name,
         source: options.source,
         ttlMs: options.ttlMs,
         services: api ? [api.spec] : undefined,

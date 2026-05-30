@@ -27,7 +27,15 @@ import {
 } from "./errors.js";
 import { capsuleOperationTag, capsuleOperationTags } from "./idempotency.js";
 import { evaluatePolicy, explainPolicy, mergeTimeout, redactError, redactLogEntries, redactSecrets } from "./policy.js";
-import { edgeWorkerPreset, httpServicePreset, nodeJobPreset, nodeSandboxPreset, previewDatabaseBranchPreset, previewEnvironmentPreset } from "./presets.js";
+import {
+  agentSafePolicy,
+  edgeWorkerPreset,
+  httpServicePreset,
+  nodeJobPreset,
+  nodeSandboxPreset,
+  previewDatabaseBranchPreset,
+  previewEnvironmentPreset
+} from "./presets.js";
 import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
 import { canonicalReceiptPayload, createReceipt, providerRuntimeMetadata, verifyReceipt, verifyReceiptSignature } from "./receipts.js";
 import { MemoryReceiptStore } from "./stores.js";
@@ -917,6 +925,26 @@ describe("presets", () => {
     expect(edgeWorkerPreset({ name: "worker" }).spec.runtime).toBe("workers");
     expect(previewDatabaseBranchPreset({ project: "app", name: "pr-42", ttlMs: 60_000 }).policy).toEqual({ ttl: { maxMs: 60_000 } });
     expect(previewEnvironmentPreset({ name: "pr-42" }).capabilityPaths).toEqual(["preview.create", "preview.destroy", "preview.urls"]);
+  });
+
+  test("rejects invalid core preset inputs before adapter execution", () => {
+    expect(() => nodeJobPreset({ command: "" })).toThrow("node-job command is required");
+    expect(() => nodeJobPreset({ command: [] })).toThrow("node-job command is required");
+    expect(() => httpServicePreset({ name: "", image: "example/api" })).toThrow("http-service name is required");
+    expect(() => httpServicePreset({ name: "api" } as any)).toThrow("http-service requires image or source");
+    expect(() => httpServicePreset({ name: "api", image: "example/api", port: 70_000 })).toThrow(
+      "http-service port must be between 1 and 65535"
+    );
+    expect(() => previewDatabaseBranchPreset({ project: "", name: "pr-42" })).toThrow("preview-database-branch project is required");
+    expect(() => previewEnvironmentPreset({ name: "pr-42", ttlMs: 0 })).toThrow("preview-environment ttlMs must be greater than 0");
+  });
+
+  test("requires agent-safe allowlist policies to include explicit hosts", () => {
+    expect(() => agentSafePolicy({ network: { mode: "allowlist" } })).toThrow("network allowlist requires at least one allowed host");
+    expect(agentSafePolicy({ network: { mode: "allowlist", allowedHosts: ["api.example.com"] } }).network).toEqual({
+      mode: "allowlist",
+      allowedHosts: ["api.example.com"]
+    });
   });
 });
 
