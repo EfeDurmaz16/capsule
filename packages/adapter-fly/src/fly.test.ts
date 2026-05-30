@@ -35,7 +35,13 @@ describe("fly adapter", () => {
       receipts: true
     });
 
-    const machine = await capsule.machine.create({ name: "dev", image: "registry.example/app:latest", env: { NODE_ENV: "test" } });
+    const machine = await capsule.machine.create({
+      name: "dev",
+      image: "registry.example/app:latest",
+      env: { NODE_ENV: "test" },
+      idempotencyKey: "fly-machine-create-key",
+      labels: { capsule_live_test: "true" }
+    });
 
     expect(machine).toMatchObject({ id: "fly-machine-1", provider: "fly", status: "running" });
     expect(machine.receipt?.type).toBe("machine.create");
@@ -46,9 +52,15 @@ describe("fly adapter", () => {
       config: {
         image: "registry.example/app:latest",
         env: { NODE_ENV: "test" },
+        metadata: {
+          capsule_live_test: "true",
+          capsule_operation_key: expect.any(String),
+          capsule_operation_scope: "machine_create"
+        },
         guest: { cpu_kind: "shared", cpus: 1, memory_mb: 512 }
       }
     });
+    expect(machine.receipt?.metadata).toMatchObject({ labels: { capsule_live_test: "true" } });
   });
 
   test("runs a job as an auto-destroy Fly Machine", async () => {

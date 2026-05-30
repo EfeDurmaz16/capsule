@@ -34,6 +34,23 @@ pnpm --filter @capsule/cli capsule live-test validate --provider fly
 
 The validator is side-effect-free. It checks `CAPSULE_LIVE_TESTS`, required credential/project/region env vars, provider-scoped aliases, and billable-test acknowledgement. Live tests that create resources or invoke billable provider work report `blocked` until `CAPSULE_LIVE_TEST_COST_ACK=1` is set. Read-only status checks, such as Vercel deployment status and Cloud Run service status, do not require that acknowledgement.
 
+## Live Resource Metadata
+
+Mutating live tests use deterministic names and portable metadata from `@capsule/test-utils`:
+
+- Name shape: `capsule-live-<provider>-<resource>-<run-id>`, truncated with a stable hash when a provider has shorter name limits.
+- Labels/tags: `capsule_live_test`, `capsule_managed_by`, `capsule_owner`, `capsule_repo`, `capsule_provider`, `capsule_resource`, `capsule_run_id`, `capsule_ttl_ms`, and `capsule_expires_at`.
+- TTL: metadata defaults to 60 minutes. Neon keeps its 30 minute branch TTL input unless `CAPSULE_LIVE_TEST_TTL_MS` overrides it.
+
+Optional metadata environment:
+
+- `CAPSULE_LIVE_TEST_OWNER`: owner label; falls back to `GITHUB_ACTOR`, `USER`, then `local`.
+- `CAPSULE_LIVE_TEST_REPO`: repo label; falls back to `GITHUB_REPOSITORY`, then `capsule`.
+- `CAPSULE_LIVE_TEST_RUN_ID`: deterministic run scope; falls back to `GITHUB_RUN_ID` plus `GITHUB_RUN_ATTEMPT`, `CI_PIPELINE_ID`, `BUILD_ID`, then `local`.
+- `CAPSULE_LIVE_TEST_TTL_MS`: positive integer TTL override.
+
+Provider coverage is intentionally explicit. E2B receives labels as sandbox metadata, Daytona receives labels in create params, Azure Container Apps maps labels to ARM tags, Kubernetes maps labels onto Jobs, and Fly Machines stores labels in Machine config metadata. Neon records labels and TTL in Capsule receipts, while Neon provider-side TTL enforcement is not implemented by the current adapter. Cloudflare Worker tests keep the existing env-provided Worker name and record labels in Capsule receipts only. Modal currently uses deterministic names, but its adapter does not map labels to a provider metadata field. Cloud Run, Vercel, and Lambda tests operate on existing resources and do not create taggable live resources.
+
 | Provider | Test path | Required environment | Operation | Cleanup |
 | --- | --- | --- | --- | --- |
 | E2B | `packages/adapter-e2b/src/e2b.live.test.ts` | `CAPSULE_LIVE_TESTS`, `E2B_API_KEY` | Creates a sandbox, exercises exec and file operations. | Destroys the sandbox in `finally`. |

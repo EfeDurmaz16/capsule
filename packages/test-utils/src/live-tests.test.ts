@@ -1,5 +1,13 @@
 import { describe, expect, test } from "vitest";
-import { liveProviderCredentials, liveProviderRegistry, liveTest, liveTestGate, providerLiveTestGate, type LiveTestApi } from "./index.js";
+import {
+  liveProviderCredentials,
+  liveProviderRegistry,
+  liveResourceMetadata,
+  liveTest,
+  liveTestGate,
+  providerLiveTestGate,
+  type LiveTestApi
+} from "./index.js";
 
 describe("live test gates", () => {
   test("skips live tests unless CAPSULE_LIVE_TESTS is enabled", () => {
@@ -100,5 +108,65 @@ describe("live test gates", () => {
     expect(providerLiveTestGate("modal", { env: { CAPSULE_LIVE_TESTS: "1", MODAL_TOKEN_ID: "id", MODAL_TOKEN_SECRET: "secret" } })).toEqual({
       enabled: true
     });
+  });
+
+  test("builds deterministic live resource names and portable TTL labels", () => {
+    const metadata = liveResourceMetadata({
+      provider: "azure-container-apps",
+      resource: "service",
+      env: {
+        CAPSULE_LIVE_TEST_OWNER: "Efe Baran",
+        GITHUB_REPOSITORY: "capsule-labs/capsule",
+        GITHUB_RUN_ID: "12345",
+        GITHUB_RUN_ATTEMPT: "2"
+      },
+      now: new Date("2026-05-30T12:00:00.000Z"),
+      ttlMs: 1_800_000,
+      maxNameLength: 32
+    });
+
+    expect(metadata.name).toBe("capsule-live-azure-cont-58f792aa");
+    expect(metadata.ttlMs).toBe(1_800_000);
+    expect(metadata.labels).toEqual({
+      capsule_live_test: "true",
+      capsule_managed_by: "capsule",
+      capsule_owner: "efe-baran",
+      capsule_provider: "azure-container-apps",
+      capsule_repo: "capsule",
+      capsule_resource: "service",
+      capsule_run_id: "12345-2",
+      capsule_ttl_ms: "1800000",
+      capsule_expires_at: "1780144200"
+    });
+  });
+
+  test("uses explicit run and TTL env overrides for live resource metadata", () => {
+    const metadata = liveResourceMetadata({
+      provider: "neon",
+      resource: "branch",
+      env: {
+        CAPSULE_LIVE_TEST_OWNER: "Capsule Ops",
+        CAPSULE_LIVE_TEST_REPO: "capsule",
+        CAPSULE_LIVE_TEST_RUN_ID: "manual-run-7",
+        CAPSULE_LIVE_TEST_TTL_MS: "900000"
+      },
+      now: new Date("2026-05-30T12:00:00.000Z")
+    });
+
+    expect(metadata.name).toBe("capsule-live-neon-branch-manual-run-7");
+    expect(metadata.ttlMs).toBe(900_000);
+    expect(metadata.labels.capsule_owner).toBe("capsule-ops");
+    expect(metadata.labels.capsule_run_id).toBe("manual-run-7");
+    expect(metadata.labels.capsule_expires_at).toBe("1780143300");
+  });
+
+  test("rejects invalid live resource TTL overrides", () => {
+    expect(() =>
+      liveResourceMetadata({
+        provider: "e2b",
+        resource: "sandbox",
+        env: { CAPSULE_LIVE_TEST_TTL_MS: "0" }
+      })
+    ).toThrow("CAPSULE_LIVE_TEST_TTL_MS must be a positive integer.");
   });
 });

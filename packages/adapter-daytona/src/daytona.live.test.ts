@@ -1,13 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { Capsule, MemoryReceiptStore } from "@capsule/core";
-import { liveTest, providerLiveTestGate } from "@capsule/test-utils";
+import { liveResourceMetadata, liveTest, providerLiveTestGate } from "@capsule/test-utils";
 import { daytona } from "./daytona-adapter.js";
 
 const daytonaLiveGate = providerLiveTestGate("daytona");
-
-function uniqueName(label: string): string {
-  return `capsule-${label}-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
 
 function runLiveDaytona(name: string, fn: () => unknown | Promise<unknown>, timeout?: number): void {
   liveTest(test, name, daytonaLiveGate, fn, timeout);
@@ -26,14 +22,15 @@ describe("daytona live adapter", () => {
       receiptStore: store
     });
 
+    const liveResource = liveResourceMetadata({ provider: "daytona", resource: "sandbox" });
     const sandbox = await capsule.sandbox.create({
-      name: uniqueName("daytona-live"),
+      name: liveResource.name,
       image: "node:22",
       timeoutMs: 60_000,
-      labels: { capsule_test: "daytona-live" }
+      labels: liveResource.labels
     });
 
-    const testDir = `/workspace/${uniqueName("live")}`;
+    const testDir = `/workspace/${liveResource.name}`;
     const testFile = `${testDir}/message.txt`;
 
     try {
