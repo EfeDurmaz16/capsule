@@ -53,14 +53,17 @@ function writeFixture(fixtureDir, tarballs) {
         name: "capsule-pack-smoke-fixture",
         private: true,
         type: "module",
-        dependencies,
-        pnpm: {
-          overrides: dependencies
-        }
+        dependencies
       },
       null,
       2
     )}\n`
+  );
+  writeFileSync(
+    join(fixtureDir, "pnpm-workspace.yaml"),
+    `overrides:\n${Object.entries(dependencies)
+      .map(([name, spec]) => `  ${JSON.stringify(name)}: ${JSON.stringify(spec)}`)
+      .join("\n")}\n`
   );
 }
 
