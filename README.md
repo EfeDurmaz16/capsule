@@ -194,6 +194,7 @@ Mock modeling package:
 
 - [Manifesto](docs/manifesto.md)
 - [Architecture](docs/architecture.md)
+- [Architecture diagrams](docs/architecture-diagrams.md)
 - [Primitive taxonomy](docs/primitive-taxonomy.md)
 - [Adapter contract](docs/adapter-contract.md)
 - [Adding a provider adapter](docs/adding-provider-adapter.md)
