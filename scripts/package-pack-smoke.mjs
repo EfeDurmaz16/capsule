@@ -80,7 +80,7 @@ const packedSizeBudgetBytes = {
   "@capsule/adapter-neon": 6 * kib,
   "@capsule/adapter-vercel": 10 * kib,
   "@capsule/ai": 6 * kib,
-  "@capsule/cli": 23 * kib,
+  "@capsule/cli": 25 * kib,
   "@capsule/core": 38 * kib,
   "@capsule/presets": 6 * kib,
   "@capsule/preview": 9 * kib,

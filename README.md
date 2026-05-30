@@ -272,7 +272,7 @@ Before removing the `npm-not_published_yet` badge or treating the install comman
 - `@capsule/preview`: preview environment composition helpers for Capsule-backed services, edges, database branches, and jobs.
 - `@capsule/store-jsonl`: local append-only JSONL receipt persistence.
 - `@capsule/store-sqlite`: optional Node 24 SQLite receipt persistence for local audit trails and indexed receipt lookup.
-- `@capsule/cli`: small CLI with `init`, `doctor`, `verify providers`, `classify provider`, `adapter scaffold`, `capabilities`, `policy explain`, `receipt verify`, `preview create`, `preview destroy`, `examples list`, `examples run`, `run`, and `sandbox`.
+- `@capsule/cli`: small CLI with `init`, `doctor`, `verify providers`, `classify provider`, `adapter scaffold`, `capabilities`, `completion`, `policy explain`, `receipt verify`, `preview create`, `preview destroy`, `examples list`, `examples run`, `run`, and `sandbox`.
 
 ## Examples
 
@@ -338,6 +338,7 @@ capsule doctor --adapter cloudflare
 capsule capabilities --adapter neon
 capsule capabilities --adapter docker --explain
 capsule capabilities --adapter docker --json
+capsule completion zsh
 capsule policy explain --adapter docker --capability job.run --policy-file policy.json --spec-file job-spec.json
 capsule receipt verify --receipt-file .capsule/receipts.jsonl
 capsule service deploy --adapter cloud-run --project-id "$GOOGLE_CLOUD_PROJECT" --location us-central1 --name api --image us-docker.pkg.dev/project/repo/api:tag --port 8080
@@ -349,7 +350,7 @@ capsule neon branch-create --project "$NEON_PROJECT_ID" --name pr-42 --database 
 capsule neon branch-delete --project "$NEON_PROJECT_ID" --branch-id br_xxx --hard-delete --receipt-file .capsule/receipts.jsonl
 ```
 
-`capsule init` writes `capsule.config.json` and `capsule.policy.json`, prints the adapter install hint, and does not write provider credentials or secret placeholders. `capsule examples run <id>` runs credential-free examples in mock/no-provider mode and blocks Docker-gated examples by default. `capsule doctor` reports Node support, workspace health, package versions, release-audit script availability, Docker daemon availability, and provider credential env-var status without printing secret values.
+`capsule init` writes `capsule.config.json` and `capsule.policy.json`, prints the adapter install hint, and does not write provider credentials or secret placeholders. `capsule examples run <id>` runs credential-free examples in mock/no-provider mode and blocks Docker-gated examples by default. `capsule doctor` reports Node support, workspace health, package versions, release-audit script availability, Docker daemon availability, and provider credential env-var status without printing secret values. Report commands default to table output; add `--json` for stable automation output. `capsule completion bash|zsh|fish` prints shell completion scripts without adding a CLI framework dependency.
 
 Known limitations:
 
