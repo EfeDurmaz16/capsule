@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createReceipt } from "@capsule/core";
 import { describe, expect, test, vi } from "vitest";
 import {
   classifyProvider,
@@ -438,6 +439,108 @@ describe("CLI policy explain", () => {
       });
     } finally {
       log.mockRestore();
+    }
+  });
+});
+
+describe("CLI receipt verify", () => {
+  test("parses receipt verify flags", () => {
+    expect(parse(["receipt", "verify", "--receipt-file", "receipts.jsonl", "--require-signature"])).toMatchObject({
+      command: "receipt",
+      rest: ["verify"],
+      receiptFile: "receipts.jsonl",
+      requireSignature: true
+    });
+  });
+
+  test("verifies readable JSONL receipt stores", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-receipt-verify-"));
+    const receiptFile = join(root, "receipts.jsonl");
+    const receipt = createReceipt({
+      type: "job.run",
+      provider: "test",
+      adapter: "test",
+      capabilityPath: "job.run",
+      supportLevel: "native",
+      startedAt: new Date("2026-01-01T00:00:00.000Z"),
+      finishedAt: new Date("2026-01-01T00:00:01.000Z"),
+      policy: { decision: "allowed", applied: {} }
+    });
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await writeFile(receiptFile, `${JSON.stringify(receipt)}\n`, "utf8");
+
+      await main(["receipt", "verify", "--receipt-file", receiptFile]);
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as {
+        store: { readable: boolean; receiptCount: number };
+        summary: { valid: boolean; checked: number; failed: number };
+        receipts: Array<{ id: string; valid: boolean; schema: { valid: boolean }; signature: { status: string }; redaction: { status: string } }>;
+      };
+
+      expect(output).toMatchObject({
+        store: { readable: true, receiptCount: 1 },
+        summary: { valid: true, checked: 1, failed: 0 },
+        receipts: [
+          {
+            id: receipt.id,
+            valid: true,
+            schema: { valid: true },
+            signature: { status: "missing" },
+            redaction: { status: "passed" }
+          }
+        ]
+      });
+      expect(process.exitCode).toBe(0);
+    } finally {
+      log.mockRestore();
+      process.exitCode = undefined;
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("fails receipt verification without leaking unredacted values", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-receipt-verify-"));
+    const receiptFile = join(root, "receipts.jsonl");
+    const receipt = {
+      ...createReceipt({
+        type: "job.run",
+        provider: "test",
+        adapter: "test",
+        capabilityPath: "job.run",
+        supportLevel: "native",
+        startedAt: new Date("2026-01-01T00:00:00.000Z"),
+        policy: { decision: "allowed", applied: {} }
+      }),
+      metadata: { apiKey: "secret-token" }
+    };
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await writeFile(receiptFile, `${JSON.stringify(receipt)}\n`, "utf8");
+
+      await main(["receipt", "verify", "--receipt-file", receiptFile]);
+      const outputText = String(log.mock.calls[0]?.[0]);
+      const output = JSON.parse(outputText) as {
+        summary: { valid: boolean; failed: number };
+        receipts: Array<{ redaction: { status: string; findings: string[] } }>;
+      };
+
+      expect(output).toMatchObject({
+        summary: { valid: false, failed: 1 },
+        receipts: [
+          {
+            redaction: {
+              status: "failed",
+              findings: ["metadata.apiKey contains an unredacted sensitive value."]
+            }
+          }
+        ]
+      });
+      expect(outputText).not.toContain("secret-token");
+      expect(process.exitCode).toBe(1);
+    } finally {
+      log.mockRestore();
+      process.exitCode = undefined;
+      await rm(root, { recursive: true, force: true });
     }
   });
 });

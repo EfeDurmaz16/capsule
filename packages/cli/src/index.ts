@@ -14,6 +14,7 @@ import {
   providerCompatibilityScore,
   rankProvidersByRecipe,
   uniqueCapabilityPaths,
+  verifyReceipt,
   type CapabilityDiffEntry,
   type CapabilityMap,
   type CapabilityPath,
@@ -96,6 +97,7 @@ interface ParsedArgs {
   hardDelete?: boolean;
   explain?: boolean;
   json?: boolean;
+  requireSignature?: boolean;
   reason?: string;
   rest: string[];
 }
@@ -191,6 +193,27 @@ interface PolicyExplainReport {
   capabilityPath: CapabilityPath;
   supportLevel: string;
   policy: ReturnType<typeof explainPolicy>;
+}
+
+interface ReceiptVerifyReport {
+  store: {
+    path: string;
+    readable: boolean;
+    receiptCount: number;
+    error?: string;
+  };
+  summary: {
+    valid: boolean;
+    checked: number;
+    failed: number;
+  };
+  receipts: Array<
+    ReturnType<typeof verifyReceipt> & {
+      id?: string;
+      type?: string;
+      capabilityPath?: string;
+    }
+  >;
 }
 
 interface ProviderSelectionReport {
@@ -716,6 +739,10 @@ export function parse(argv: string[]): ParsedArgs {
       parsed.json = true;
       continue;
     }
+    if (arg === "--require-signature") {
+      parsed.requireSignature = true;
+      continue;
+    }
     if (arg === "--force") {
       parsed.force = true;
       continue;
@@ -930,6 +957,50 @@ async function createPolicyExplainReport(parsed: ParsedArgs): Promise<PolicyExpl
       supportLevel: support
     })
   };
+}
+
+async function createReceiptVerifyReport(parsed: ParsedArgs): Promise<ReceiptVerifyReport> {
+  if (!parsed.receiptFile) {
+    throw new Error("Missing --receipt-file for receipt verify.");
+  }
+  try {
+    const receipts = await jsonlReceiptStore(parsed.receiptFile).readAll();
+    const verified = receipts.map((receipt) => ({
+      id: receipt.id,
+      type: receipt.type,
+      capabilityPath: receipt.capabilityPath,
+      ...verifyReceipt(receipt, { requireSignature: parsed.requireSignature })
+    }));
+    const failed = verified.filter((entry) => !entry.valid).length;
+    return {
+      store: {
+        path: parsed.receiptFile,
+        readable: true,
+        receiptCount: receipts.length
+      },
+      summary: {
+        valid: failed === 0,
+        checked: verified.length,
+        failed
+      },
+      receipts: verified
+    };
+  } catch (error) {
+    return {
+      store: {
+        path: parsed.receiptFile,
+        readable: false,
+        receiptCount: 0,
+        error: error instanceof Error ? error.message : String(error)
+      },
+      summary: {
+        valid: false,
+        checked: 0,
+        failed: 0
+      },
+      receipts: []
+    };
+  }
 }
 
 export function compareProviderCapabilities(leftProvider: string, rightProvider: string): ProviderCapabilityComparison {
@@ -1421,6 +1492,7 @@ Commands:
   capsule live-test validate --provider neon
   capsule classify provider cloudflare workers
   capsule policy explain --adapter docker --capability job.run --policy-file policy.json --spec-file spec.json
+  capsule receipt verify --receipt-file .capsule/receipts.jsonl
   capsule adapter scaffold acme --domain sandbox
   capsule select provider --recipe sandbox
   capsule select provider --recipe service-api
@@ -1666,6 +1738,16 @@ export async function main(argv: string[]): Promise<void> {
         throw new Error("Unknown policy command. Use explain.");
       }
       console.log(JSON.stringify(await createPolicyExplainReport(parsed), null, 2));
+      return;
+    }
+    case "receipt": {
+      const action = parsed.rest[0];
+      if (action !== "verify") {
+        throw new Error("Unknown receipt command. Use verify.");
+      }
+      const report = await createReceiptVerifyReport(parsed);
+      console.log(JSON.stringify(report, null, 2));
+      process.exitCode = report.summary.valid ? 0 : 1;
       return;
     }
     case "classify": {

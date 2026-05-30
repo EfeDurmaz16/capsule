@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { sha256 } from "./artifacts.js";
 import { isSensitiveKey, redactSensitiveText } from "./policy.js";
+import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
 import type { Artifact, CapsulePolicy, CapsuleReceipt, CapsuleReceiptMetadata, ProviderOptions, ProviderOptionValue, SupportLevel } from "./types.js";
 
 export type UnsignedReceipt = Omit<CapsuleReceipt, "signature">;
@@ -54,6 +55,28 @@ export type ReceiptSignatureVerificationResult =
   | { valid: true }
   | { valid: false; reason: "missing-signature" | "algorithm-mismatch" | "key-id-mismatch" | "signature-mismatch" };
 
+export interface ReceiptVerificationReport {
+  valid: boolean;
+  schema: {
+    valid: boolean;
+    errors: string[];
+  };
+  signature: {
+    status: "missing" | "present-unverified" | "valid" | "invalid";
+    reason?: "missing-signature" | "algorithm-mismatch" | "key-id-mismatch" | "signature-mismatch";
+  };
+  redaction: {
+    status: "passed" | "failed";
+    findings: string[];
+  };
+}
+
+export interface VerifyReceiptOptions {
+  verifier?: ReceiptVerifier;
+  requireSignature?: boolean;
+  redactionPolicy?: CapsulePolicy;
+}
+
 export function unsignedReceipt(receipt: CapsuleReceipt): UnsignedReceipt {
   const { signature: _signature, ...unsigned } = receipt;
   return unsigned;
@@ -79,6 +102,115 @@ export function verifyReceiptSignature(receipt: CapsuleReceipt, verifier: Receip
     return { valid: false, reason: "signature-mismatch" };
   }
   return { valid: true };
+}
+
+const receiptTypes = new Set<string>(capsuleReceiptJsonSchema.properties.type.enum);
+const supportLevels = new Set<string>(["native", "emulated", "unsupported", "experimental"]);
+const credentialLikeValue =
+  /\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9_-]{16,}\b|\bgh[pousr]_[A-Za-z0-9_]{20,}\b|\bxox[baprs]-[A-Za-z0-9-]{20,}\b|\bBearer\s+[A-Za-z0-9._~+/-]+=*\b|\bpassword=[^\s&]+\b|\bpostgres(?:ql)?:\/\/[^\s]+|\bAKIA[A-Z0-9]{16}\b/i;
+
+export function verifyReceipt(receipt: unknown, options: VerifyReceiptOptions = {}): ReceiptVerificationReport {
+  const schemaErrors = receiptSchemaErrors(receipt);
+  const schema = { valid: schemaErrors.length === 0, errors: schemaErrors };
+  const signature = receiptSignatureStatus(receipt, options);
+  const findings = receiptRedactionFindings(receipt, options.redactionPolicy);
+  const redaction = { status: findings.length === 0 ? "passed" : "failed", findings } as ReceiptVerificationReport["redaction"];
+
+  return {
+    valid: schema.valid && signature.status !== "invalid" && redaction.status === "passed",
+    schema,
+    signature,
+    redaction
+  };
+}
+
+function receiptSchemaErrors(receipt: unknown): string[] {
+  if (!isPlainObject(receipt)) {
+    return ["receipt must be an object."];
+  }
+  const errors: string[] = [];
+  const required = ["id", "type", "provider", "adapter", "capabilityPath", "supportLevel", "startedAt", "finishedAt", "durationMs", "policy"];
+  for (const key of required) {
+    if (!(key in receipt)) {
+      errors.push(`${key} is required.`);
+    }
+  }
+  for (const key of ["id", "provider", "adapter", "capabilityPath", "startedAt", "finishedAt"]) {
+    if (key in receipt && typeof receipt[key] !== "string") {
+      errors.push(`${key} must be a string.`);
+    }
+  }
+  if ("type" in receipt && (typeof receipt.type !== "string" || !receiptTypes.has(receipt.type))) {
+    errors.push("type must be a known Capsule receipt type.");
+  }
+  if ("supportLevel" in receipt && (typeof receipt.supportLevel !== "string" || !supportLevels.has(receipt.supportLevel))) {
+    errors.push("supportLevel must be one of native, emulated, unsupported, experimental.");
+  }
+  if ("durationMs" in receipt && typeof receipt.durationMs !== "number") {
+    errors.push("durationMs must be a number.");
+  }
+  if ("policy" in receipt) {
+    if (!isPlainObject(receipt.policy)) {
+      errors.push("policy must be an object.");
+    } else {
+      if (receipt.policy.decision !== "allowed" && receipt.policy.decision !== "denied") {
+        errors.push("policy.decision must be allowed or denied.");
+      }
+      if (!isPlainObject(receipt.policy.applied)) {
+        errors.push("policy.applied must be an object.");
+      }
+    }
+  }
+  if ("signature" in receipt && receipt.signature !== undefined) {
+    if (!isPlainObject(receipt.signature)) {
+      errors.push("signature must be an object.");
+    } else {
+      if (typeof receipt.signature.algorithm !== "string") {
+        errors.push("signature.algorithm must be a string.");
+      }
+      if (typeof receipt.signature.value !== "string") {
+        errors.push("signature.value must be a string.");
+      }
+      if ("keyId" in receipt.signature && typeof receipt.signature.keyId !== "string") {
+        errors.push("signature.keyId must be a string.");
+      }
+    }
+  }
+  return errors;
+}
+
+function receiptSignatureStatus(receipt: unknown, options: VerifyReceiptOptions): ReceiptVerificationReport["signature"] {
+  if (!isPlainObject(receipt) || !("signature" in receipt) || receipt.signature === undefined) {
+    return options.requireSignature ? { status: "invalid", reason: "missing-signature" } : { status: "missing" };
+  }
+  if (!options.verifier) {
+    return { status: "present-unverified" };
+  }
+  const result = verifyReceiptSignature(receipt as unknown as CapsuleReceipt, options.verifier);
+  return result.valid ? { status: "valid" } : { status: "invalid", reason: result.reason };
+}
+
+function receiptRedactionFindings(value: unknown, policy: CapsulePolicy | undefined, path: string[] = []): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) => receiptRedactionFindings(item, policy, [...path, String(index)]));
+  }
+  if (!isPlainObject(value)) {
+    if (typeof value === "string" && value !== "[REDACTED]" && credentialLikeValue.test(value) && path.join(".") !== "signature.value") {
+      return [`${path.join(".") || "receipt"} contains credential-shaped text.`];
+    }
+    return [];
+  }
+
+  const findings: string[] = [];
+  for (const [key, child] of Object.entries(value)) {
+    const childPath = [...path, key];
+    if (typeof child === "string" && child !== "[REDACTED]" && isSensitiveKey(key, policy)) {
+      findings.push(`${childPath.join(".")} contains an unredacted sensitive value.`);
+      continue;
+    }
+    findings.push(...receiptRedactionFindings(child, policy, childPath));
+  }
+  return findings;
 }
 
 function sanitizeProviderOptionValue(key: string, value: ProviderOptionValue, policy: CapsulePolicy): ProviderOptionValue {

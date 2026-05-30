@@ -44,6 +44,16 @@ Receipt signing is optional and disabled by default. `@capsule/core` exposes a s
 
 Signatures cover Capsule's unsigned receipt object before the `signature` field is attached. They are not provider attestations unless the caller's signer explicitly binds provider evidence.
 
+`verifyReceipt(receipt, options)` checks the receipt shape, optional signature status, and obvious redaction failures without adding a JSON Schema dependency. It reports `missing`, `present-unverified`, `valid`, or `invalid` signature status. Use `requireSignature` when unsigned receipts should fail a local audit.
+
+The CLI can verify a JSONL receipt store without executing provider actions:
+
+```bash
+capsule receipt verify --receipt-file .capsule/receipts.jsonl
+```
+
+The CLI report includes store readability, receipt counts, schema errors, signature status, and redaction findings. Redaction findings name the unsafe field path and do not echo the unsafe value.
+
 Evidence bundles are explicit exports above individual receipts. `createEvidenceBundle` collects receipts, normalized logs, artifact metadata, policy decisions, and provider metadata into a `capsule.evidence.bundle.v1` object and adds a SHA-256 digest over the canonical bundle payload. `verifyEvidenceBundle` recomputes that digest to detect local bundle tampering. Bundle verification does not replace receipt signature verification or provider-native audit evidence.
 
 Receipt persistence is explicit. `receiptPersistence: "best-effort"` is the default and keeps provider operations moving if an optional store write fails. Use `receiptPersistence: "required"` when the caller must know that every receipt created during a Capsule operation was accepted by the configured `receiptStore`; in required mode, Capsule rejects before adapter execution starts if no store is configured or the store `ready()` preflight fails. A later store `write()` failure still rejects after the adapter creates the receipt, so the provider side effect may already have happened before Capsule reports evidence loss. Evidence profiles that make destructive or billable operations transactional with evidence persistence are future work.
