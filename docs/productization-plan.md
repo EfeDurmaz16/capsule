@@ -146,7 +146,7 @@ Supply-chain note: CAP-P009 gates production licenses and reviewed direct runtim
 | CAP-P071 | done | Medium | Add project init command | CLI creates a minimal Capsule config, example policy, and adapter install hint without adding secrets. | `pnpm test packages/cli/src/*.test.ts` |
 | CAP-P072 | done | Medium | Add runnable examples command | CLI can list and run local examples with mock adapters and no provider credentials. | `pnpm test packages/cli/src/*.test.ts` |
 | CAP-P073 | done | High | Improve actionable error messages | Common errors include provider, capability path, remediation, docs link, and safe retry guidance. | `pnpm test packages/core/src/core.test.ts packages/cli/src/*.test.ts` |
-| CAP-P074 | open | Medium | Add JSON output mode | CLI commands support stable JSON output for automation and table output for humans. | `pnpm test packages/cli/src/*.test.ts` |
+| CAP-P074 | done | Medium | Add JSON output mode | CLI commands support stable JSON output for automation and table output for humans. | `pnpm test packages/cli/src/*.test.ts` |
 | CAP-P075 | open | Low | Add shell completions | CLI can generate shell completion scripts for bash, zsh, and fish without adding a heavy framework. | `pnpm test packages/cli/src/*.test.ts` |
 
 ### SDK And API Quality
