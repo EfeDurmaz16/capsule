@@ -873,6 +873,82 @@ describe("receipts", () => {
     expect(receiptStore.receipts).toEqual([]);
   });
 
+  test("records operation idempotency keys on adapter receipts", async () => {
+    const receiptStore = new MemoryReceiptStore();
+    const receiptAdapter: CapsuleAdapter = {
+      ...adapter,
+      capabilities: {
+        ...capabilities,
+        service: {
+          deploy: "unsupported",
+          update: "unsupported",
+          delete: "native",
+          status: "unsupported",
+          logs: "unsupported",
+          url: "unsupported"
+        }
+      },
+      service: {
+        deploy: async () => ({ id: "svc_123", provider: "test", name: "svc", status: "ready" }),
+        delete: async (_spec, context) => {
+          context.createReceipt({
+            type: "service.delete",
+            capabilityPath: "service.delete",
+            startedAt: new Date("2026-01-01T00:00:00.000Z")
+          });
+          return { id: "svc_123", provider: "test", status: "deleted" };
+        }
+      }
+    };
+    const capsule = new Capsule({ adapter: receiptAdapter, receipts: true, receiptStore });
+
+    await capsule.service.delete({ id: "svc_123", idempotencyKey: "delete-svc-123" });
+
+    expect(receiptStore.receipts[0]?.metadata).toMatchObject({
+      idempotencyKey: "delete-svc-123",
+      idempotencyScope: "service.delete"
+    });
+  });
+
+  test("operation idempotency keys override conflicting adapter receipt metadata", async () => {
+    const receiptStore = new MemoryReceiptStore();
+    const receiptAdapter: CapsuleAdapter = {
+      ...adapter,
+      capabilities: {
+        ...capabilities,
+        service: {
+          deploy: "unsupported",
+          update: "unsupported",
+          delete: "native",
+          status: "unsupported",
+          logs: "unsupported",
+          url: "unsupported"
+        }
+      },
+      service: {
+        deploy: async () => ({ id: "svc_123", provider: "test", name: "svc", status: "ready" }),
+        delete: async (_spec, context) => {
+          context.createReceipt({
+            type: "service.delete",
+            capabilityPath: "service.delete",
+            startedAt: new Date("2026-01-01T00:00:00.000Z"),
+            metadata: { idempotencyKey: "adapter-key", idempotencyScope: "adapter-scope", providerRequestId: "req_123" }
+          });
+          return { id: "svc_123", provider: "test", status: "deleted" };
+        }
+      }
+    };
+    const capsule = new Capsule({ adapter: receiptAdapter, receipts: true, receiptStore });
+
+    await capsule.service.delete({ id: "svc_123", idempotencyKey: "caller-key" });
+
+    expect(receiptStore.receipts[0]?.metadata).toMatchObject({
+      idempotencyKey: "caller-key",
+      idempotencyScope: "service.delete",
+      providerRequestId: "req_123"
+    });
+  });
+
   test("allows only sandbox lifecycle receipts on sandbox contexts", async () => {
     const receiptStore = new MemoryReceiptStore();
     const sandboxAdapter: CapsuleAdapter = {
