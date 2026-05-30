@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
-import { access, mkdir, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -112,6 +112,30 @@ interface ProviderCredentialDiagnostic {
 
 interface DoctorReport {
   docker: "available" | "unavailable";
+  node: {
+    version: string;
+    requirement: string;
+    supported: boolean;
+  };
+  workspace: {
+    root: string;
+    status: "ok" | "missing-files";
+    packageManager?: string;
+    rootVersion?: string;
+    missingFiles: string[];
+  };
+  packages: Array<{
+    name: string;
+    version: string;
+    private: boolean;
+    path: string;
+  }>;
+  releaseAudit: {
+    status: "available" | "missing-scripts";
+    command: string;
+    scripts: string[];
+    missingScripts: string[];
+  };
   providers: ProviderCredentialDiagnostic[];
 }
 
@@ -696,10 +720,106 @@ export function providerCredentialDiagnostics(env: NodeJS.ProcessEnv = process.e
   return credentialRequirements.filter((requirement) => !adapter || requirement.provider === adapter || (adapter === "lambda" || adapter === "ecs" || adapter === "ec2" ? requirement.provider === "aws" : false)).map((requirement) => credentialDiagnostic(requirement, env));
 }
 
-export async function createDoctorReport(options: { env?: NodeJS.ProcessEnv; adapter?: string; dockerCheck?: () => Promise<boolean> } = {}): Promise<DoctorReport> {
+const minimumNodeRequirement = ">=20.11";
+const releaseAuditScripts = ["release:audit", "release:metadata-audit", "release:dependency-audit", "release:markers", "release:pack-smoke"];
+const workspaceRequiredFiles = ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig.typecheck.json"];
+
+interface PackageJsonShape {
+  name?: string;
+  version?: string;
+  private?: boolean;
+  packageManager?: string;
+  scripts?: Record<string, string>;
+}
+
+async function readJsonFile(path: string): Promise<PackageJsonShape | undefined> {
+  try {
+    return JSON.parse(await readFile(path, "utf8")) as PackageJsonShape;
+  } catch {
+    return undefined;
+  }
+}
+
+async function missingWorkspaceFiles(root: string): Promise<string[]> {
+  const missing: string[] = [];
+  for (const file of workspaceRequiredFiles) {
+    try {
+      await access(join(root, file));
+    } catch {
+      missing.push(file);
+    }
+  }
+  return missing;
+}
+
+function nodeVersionSupported(version: string): boolean {
+  const [major = 0, minor = 0] = version
+    .replace(/^v/, "")
+    .split(".")
+    .map((part) => Number(part));
+  return major > 20 || (major === 20 && minor >= 11);
+}
+
+async function workspacePackageVersions(root: string): Promise<DoctorReport["packages"]> {
+  const packagesDir = join(root, "packages");
+  let entries;
+  try {
+    entries = await readdir(packagesDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const packages = await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory())
+      .map(async (entry) => {
+        const packagePath = join("packages", entry.name, "package.json");
+        const pkg = await readJsonFile(join(root, packagePath));
+        if (!pkg?.name || !pkg.version) return undefined;
+        return {
+          name: pkg.name,
+          version: pkg.version,
+          private: pkg.private === true,
+          path: packagePath
+        };
+      })
+  );
+
+  return packages.filter((pkg): pkg is NonNullable<(typeof packages)[number]> => Boolean(pkg)).sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function releaseAuditStatus(rootPackage: PackageJsonShape | undefined): DoctorReport["releaseAudit"] {
+  const scripts = rootPackage?.scripts ?? {};
+  const missingScripts = releaseAuditScripts.filter((script) => !scripts[script]);
+  return {
+    status: missingScripts.length === 0 ? "available" : "missing-scripts",
+    command: "pnpm release:audit",
+    scripts: releaseAuditScripts.filter((script) => Boolean(scripts[script])),
+    missingScripts
+  };
+}
+
+export async function createDoctorReport(options: { env?: NodeJS.ProcessEnv; adapter?: string; dockerCheck?: () => Promise<boolean>; workspaceRoot?: string } = {}): Promise<DoctorReport> {
+  const workspaceRoot = options.workspaceRoot ?? process.cwd();
+  const rootPackage = await readJsonFile(join(workspaceRoot, "package.json"));
+  const missingFiles = await missingWorkspaceFiles(workspaceRoot);
   const dockerOk = await (options.dockerCheck ?? dockerAvailable)();
   return {
     docker: dockerOk ? "available" : "unavailable",
+    node: {
+      version: process.version,
+      requirement: minimumNodeRequirement,
+      supported: nodeVersionSupported(process.version)
+    },
+    workspace: {
+      root: workspaceRoot,
+      status: missingFiles.length === 0 ? "ok" : "missing-files",
+      packageManager: rootPackage?.packageManager,
+      rootVersion: rootPackage?.version,
+      missingFiles
+    },
+    packages: await workspacePackageVersions(workspaceRoot),
+    releaseAudit: releaseAuditStatus(rootPackage),
     providers: providerCredentialDiagnostics(options.env ?? process.env, options.adapter)
   };
 }
@@ -1400,7 +1520,7 @@ export async function main(argv: string[]): Promise<void> {
     case "doctor": {
       const report = await createDoctorReport({ adapter: parsed.adapter });
       console.log(JSON.stringify(report, null, 2));
-      process.exitCode = report.docker === "available" ? 0 : 1;
+      process.exitCode = report.docker === "available" && report.node.supported && report.workspace.status === "ok" && report.releaseAudit.status === "available" ? 0 : 1;
       return;
     }
     case "verify": {
