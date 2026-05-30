@@ -764,10 +764,12 @@ describe("receipts", () => {
   });
 
   test("required receipt persistence rejects when no store is configured", async () => {
+    let called = false;
     const receiptAdapter: CapsuleAdapter = {
       ...adapter,
       sandbox: {
         create: async (_spec, context) => {
+          called = true;
           context.createReceipt({ type: "sandbox.create", capabilityPath: "sandbox.create", startedAt: new Date("2026-01-01T00:00:00.000Z") });
           return adapter.sandbox!.create({}, context);
         }
@@ -776,6 +778,35 @@ describe("receipts", () => {
     const capsule = new Capsule({ adapter: receiptAdapter, receipts: true, receiptPersistence: "required" });
 
     await expect(capsule.sandbox.create({})).rejects.toThrow("Receipt persistence is required but no receiptStore is configured");
+    expect(called).toBe(false);
+  });
+
+  test("required receipt persistence preflights store readiness before adapter calls", async () => {
+    let called = false;
+    const receiptAdapter: CapsuleAdapter = {
+      ...adapter,
+      sandbox: {
+        create: async (_spec, context) => {
+          called = true;
+          context.createReceipt({ type: "sandbox.create", capabilityPath: "sandbox.create", startedAt: new Date("2026-01-01T00:00:00.000Z") });
+          return adapter.sandbox!.create({}, context);
+        }
+      }
+    };
+    const capsule = new Capsule({
+      adapter: receiptAdapter,
+      receipts: true,
+      receiptPersistence: "required",
+      receiptStore: {
+        ready: async () => {
+          throw new Error("receipt store unavailable");
+        },
+        write: async () => undefined
+      }
+    });
+
+    await expect(capsule.sandbox.create({})).rejects.toThrow("receipt store unavailable");
+    expect(called).toBe(false);
   });
 
   test("lets adapters propagate typed provider options into receipts without leaking secrets", async () => {

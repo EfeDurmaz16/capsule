@@ -418,6 +418,7 @@ export class Capsule {
 
   private async withContext<T>(operation: (context: AdapterContext) => Promise<T>, options: ContextOptions = {}): Promise<T> {
     const pendingWrites: Promise<void>[] = [];
+    await this.preflightReceiptPersistence();
     const context = this.context(pendingWrites, options);
     const result = await operation(context);
     if (this.receiptPersistenceMode() === "required") {
@@ -428,6 +429,16 @@ export class Capsule {
 
   private receiptPersistenceMode(): ReceiptPersistenceMode {
     return this.options.receiptPersistence ?? "best-effort";
+  }
+
+  private async preflightReceiptPersistence(): Promise<void> {
+    if (!(this.options.receipts ?? false) || this.receiptPersistenceMode() !== "required") {
+      return;
+    }
+    if (!this.options.receiptStore) {
+      throw new Error("Receipt persistence is required but no receiptStore is configured.");
+    }
+    await this.options.receiptStore.ready?.();
   }
 
   private persistReceipt(receipt: CapsuleReceipt, pendingWrites: Promise<void>[]): Promise<void> {
