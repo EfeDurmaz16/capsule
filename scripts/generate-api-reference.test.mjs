@@ -64,10 +64,10 @@ test("resolves barrel exports into public symbol names", () => {
     });
 
     const generated = readFileSync(join(fixtureRoot, "docs", "api-reference.md"), "utf8");
-    assert.match(generated, /- `agentSafePolicy`/);
-    assert.match(generated, /- `CapsulePolicy`/);
-    assert.match(generated, /- `publicValue`/);
-    assert.match(generated, /- `PublicOptions`/);
+    assert.match(generated, /- `agentSafePolicy` \(const\)/);
+    assert.match(generated, /- `CapsulePolicy` \(interface\)/);
+    assert.match(generated, /- `publicValue` \(const\)/);
+    assert.match(generated, /- `PublicOptions` \(interface\)/);
     assert.doesNotMatch(generated, /barrel:/);
     assert.doesNotMatch(generated, /renamedValue/);
     assert.doesNotMatch(generated, /InternalOptions/);
