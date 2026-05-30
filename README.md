@@ -341,7 +341,7 @@ capsule neon branch-create --project "$NEON_PROJECT_ID" --name pr-42 --database 
 capsule neon branch-delete --project "$NEON_PROJECT_ID" --branch-id br_xxx --hard-delete --receipt-file .capsule/receipts.jsonl
 ```
 
-`capsule doctor` reports Docker daemon availability plus provider credential env-var status without printing secret values.
+`capsule doctor` reports Node support, workspace health, package versions, release-audit script availability, Docker daemon availability, and provider credential env-var status without printing secret values.
 
 Known limitations:
 

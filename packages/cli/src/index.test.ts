@@ -84,7 +84,7 @@ describe("CLI doctor credential diagnostics", () => {
   });
 
   test("creates the doctor output shape", async () => {
-    await expect(createDoctorReport({ env: { NEON_API_KEY: "secret-neon" }, adapter: "neon", dockerCheck: async () => false })).resolves.toEqual({
+    await expect(createDoctorReport({ env: { NEON_API_KEY: "secret-neon" }, adapter: "neon", dockerCheck: async () => false })).resolves.toMatchObject({
       docker: "unavailable",
       providers: [
         expect.objectContaining({
@@ -94,6 +94,39 @@ describe("CLI doctor credential diagnostics", () => {
         })
       ]
     });
+  });
+
+  test("reports runtime, workspace, package versions, and release audit availability", async () => {
+    const report = await createDoctorReport({ env: {}, dockerCheck: async () => true });
+
+    expect(report.node).toMatchObject({
+      version: process.version,
+      requirement: ">=20.11",
+      supported: true
+    });
+    expect(report.workspace).toMatchObject({
+      status: "ok",
+      packageManager: "pnpm@10.32.1",
+      missingFiles: []
+    });
+    expect(report.packages.find((pkg) => pkg.name === "@capsule/core")).toMatchObject({
+      name: "@capsule/core",
+      version: "0.1.1",
+      private: false
+    });
+    expect(report.packages.find((pkg) => pkg.name === "@capsule/test-utils")).toMatchObject({
+      name: "@capsule/test-utils",
+      version: "0.1.0",
+      private: true
+    });
+    expect(report.releaseAudit).toMatchObject({
+      status: "available",
+      command: "pnpm release:audit",
+      missingScripts: []
+    });
+    expect(report.releaseAudit.scripts).toEqual(
+      expect.arrayContaining(["release:audit", "release:metadata-audit", "release:dependency-audit", "release:markers", "release:pack-smoke"])
+    );
   });
 });
 

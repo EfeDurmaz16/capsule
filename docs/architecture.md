@@ -10,7 +10,7 @@ Capsule is a pnpm monorepo with focused packages:
 - `@capsule/adapter-ec2`: machine lifecycle adapter.
 - `@capsule/adapter-mock`: realistic mock providers for examples, tests, and future adapter design.
 - `@capsule/ai`: framework-agnostic code execution tool helper and dependency-free framework descriptors for Vercel AI SDK, OpenAI Agents/Responses, LangChain, Mastra, and CrewAI.
-- `@capsule/cli`: CLI for capabilities, provider comparison, live-test planning, Docker runs, sandbox smoke tests, adapter scaffolding, and doctor checks. `capsule doctor` checks Docker availability and reports provider credential env-var presence without printing secret values.
+- `@capsule/cli`: CLI for capabilities, provider comparison, live-test planning, Docker runs, sandbox smoke tests, adapter scaffolding, and doctor checks. `capsule doctor` reports Node support, workspace health, package versions, release-audit script availability, Docker availability, and provider credential env-var presence without printing secret values.
 - `@capsule/presets`: provider-oriented runtime and preview preset factories.
 - `@capsule/preview`: preview environment composition helpers for resources, cleanup evidence, and receipts.
 - `@capsule/store-jsonl` and `@capsule/store-sqlite`: receipt persistence packages.
