@@ -1,8 +1,12 @@
 #!/usr/bin/env node
+import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 const liveTestMaxResourcesEnv = "CAPSULE_LIVE_TEST_MAX_RESOURCES";
 const liveTestFlakyRevalidationEnv = "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY";
+const liveTestCiOptInEnv = "CAPSULE_LIVE_TEST_CI_OPT_IN";
+const liveTestCiUntrustedForkEnv = "CAPSULE_LIVE_TEST_UNTRUSTED_FORK";
+const liveTestCiLabel = "capsule:live-tests";
 
 export const liveTestMatrixPlans = [
   {
@@ -143,6 +147,57 @@ function resourceLimit(plan, env) {
   return { env: resourceEnv, required, configured, satisfied };
 }
 
+function readGitHubEvent(env) {
+  if (!env.GITHUB_EVENT_PATH) return undefined;
+  try {
+    return JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, "utf8"));
+  } catch {
+    return undefined;
+  }
+}
+
+function githubEventLabels(env, event) {
+  const eventLabels = [...(event?.pull_request?.labels ?? []), event?.label].flatMap((label) => (typeof label?.name === "string" ? [label.name] : []));
+  const envLabels = (env.CAPSULE_LIVE_TEST_GITHUB_LABELS ?? "")
+    .split(",")
+    .map((label) => label.trim())
+    .filter(Boolean);
+  return [...eventLabels, ...envLabels];
+}
+
+function githubEventIsUntrustedFork(env, event) {
+  if (env[liveTestCiUntrustedForkEnv] === "1") return true;
+  const pullRequest = event?.pull_request;
+  if (!pullRequest && env.GITHUB_EVENT_NAME !== "pull_request") return false;
+  if (pullRequest?.head?.repo?.fork === true) return true;
+
+  const baseRepo = pullRequest?.base?.repo?.full_name ?? event?.repository?.full_name ?? env.GITHUB_REPOSITORY;
+  const headRepo = pullRequest?.head?.repo?.full_name ?? env.GITHUB_HEAD_REPO_FULL_NAME;
+  return Boolean(baseRepo && headRepo && baseRepo !== headRepo);
+}
+
+function liveTestCiSafety(env) {
+  const ci = env.CI === "true" || env.GITHUB_ACTIONS === "true";
+  if (!ci) return { ci: false, optedIn: true, untrustedFork: false };
+  const event = readGitHubEvent(env);
+  const labels = githubEventLabels(env, event);
+  return {
+    ci: true,
+    optedIn: env[liveTestCiOptInEnv] === "1" || labels.includes(liveTestCiLabel),
+    untrustedFork: githubEventIsUntrustedFork(env, event)
+  };
+}
+
+function liveTestCiFields(ciSafety) {
+  if (!ciSafety.ci) return {};
+  return {
+    missingCiOptInEnv: ciSafety.optedIn || ciSafety.untrustedFork ? [] : [liveTestCiOptInEnv],
+    ciOptInEnv: liveTestCiOptInEnv,
+    ciOptInLabel: liveTestCiLabel,
+    ciUntrustedFork: ciSafety.untrustedFork
+  };
+}
+
 function guardedCommand(plan) {
   if (plan.costRisk !== "billable") return plan.command;
   return `${plan.costAcknowledgementEnv ?? "CAPSULE_LIVE_TEST_COST_ACK"}=1 ${plan.maxResourceCountEnv ?? liveTestMaxResourcesEnv}=${plan.maxResourceCount ?? 1} ${plan.command}`;
@@ -162,6 +217,8 @@ export function createLiveTestMatrix(options = {}) {
   const providers = providerPlans(options.provider, options.plans).map((plan) => {
     const liveTestEnabled = env.CAPSULE_LIVE_TESTS === "1";
     const quarantineActive = Boolean(plan.quarantine && env[liveTestFlakyRevalidationEnv] !== "1");
+    const ciSafety = liveTestCiSafety(env);
+    const ciBlocked = ciSafety.ci && (!ciSafety.optedIn || ciSafety.untrustedFork);
     const requiredWithoutFlag = plan.requiredEnv.filter((name) => name !== "CAPSULE_LIVE_TESTS");
     const configuredEnv = requiredWithoutFlag.flatMap((name) => configuredCredentialNames(name, plan.aliases, env));
     const missingRequired = requiredWithoutFlag.filter((name) => configuredCredentialNames(name, plan.aliases, env).length === 0);
@@ -171,8 +228,8 @@ export function createLiveTestMatrix(options = {}) {
     const limit = resourceLimit(plan, env);
     const missingResourceLimitEnv = limit && !limit.satisfied ? [limit.env] : [];
     const missingEnv = liveTestEnabled ? missingRequired : ["CAPSULE_LIVE_TESTS", ...missingRequired];
-    const ready = liveTestEnabled && missingRequired.length === 0 && missingCostEnv.length === 0 && missingResourceLimitEnv.length === 0;
-    const status = quarantineActive ? "quarantined" : ready ? "ready" : "blocked";
+    const ready = !ciBlocked && liveTestEnabled && missingRequired.length === 0 && missingCostEnv.length === 0 && missingResourceLimitEnv.length === 0;
+    const status = ciBlocked ? "blocked" : quarantineActive ? "quarantined" : ready ? "ready" : "blocked";
 
     return {
       provider: plan.provider,
@@ -187,6 +244,7 @@ export function createLiveTestMatrix(options = {}) {
         ...configuredEnv,
         ...(costEnv && costAcknowledged ? [costEnv] : []),
         ...(limit?.satisfied ? [limit.env] : []),
+        ...(ciSafety.ci && env[liveTestCiOptInEnv] === "1" ? [liveTestCiOptInEnv] : []),
         ...(plan.quarantine && env[liveTestFlakyRevalidationEnv] === "1" ? [liveTestFlakyRevalidationEnv] : [])
       ],
       missingEnv,
@@ -196,6 +254,7 @@ export function createLiveTestMatrix(options = {}) {
       optionalEnv: plan.optionalEnv,
       testPath: plan.testPath,
       command: guardedCommand(plan),
+      ...liveTestCiFields(ciSafety),
       ...(plan.quarantine
         ? {
             quarantine: plan.quarantine,
@@ -210,6 +269,7 @@ export function createLiveTestMatrix(options = {}) {
     ready: providers.filter((entry) => entry.status === "ready").length,
     blocked: providers.filter((entry) => entry.status === "blocked").length,
     quarantined: providers.filter((entry) => entry.status === "quarantined").length,
+    ciBlocked: providers.filter((entry) => entry.ciUntrustedFork || (entry.missingCiOptInEnv?.length ?? 0) > 0).length,
     billable: providers.filter((entry) => entry.costRisk === "billable").length,
     readOnly: providers.filter((entry) => entry.costRisk === "read-only").length
   };

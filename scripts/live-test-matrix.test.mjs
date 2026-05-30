@@ -41,6 +41,59 @@ test("live test matrix reports ready read-only providers without leaking secret 
   assert.equal(JSON.stringify(report).includes("dpl_secret"), false);
 });
 
+test("live test matrix blocks CI runs without explicit opt-in", () => {
+  const blocked = createLiveTestMatrix({
+    provider: "vercel",
+    env: {
+      CI: "true",
+      CAPSULE_LIVE_TESTS: "1",
+      VERCEL_TOKEN: "secret-vercel-token",
+      CAPSULE_VERCEL_DEPLOYMENT_ID: "dpl_secret"
+    }
+  });
+
+  assert.equal(blocked.providers[0]?.status, "blocked");
+  assert.equal(blocked.providers[0]?.wouldRun, false);
+  assert.deepEqual(blocked.providers[0]?.missingCiOptInEnv, ["CAPSULE_LIVE_TEST_CI_OPT_IN"]);
+  assert.equal(blocked.providers[0]?.ciOptInLabel, "capsule:live-tests");
+
+  const ready = createLiveTestMatrix({
+    provider: "vercel",
+    env: {
+      CI: "true",
+      CAPSULE_LIVE_TEST_CI_OPT_IN: "1",
+      CAPSULE_LIVE_TESTS: "1",
+      VERCEL_TOKEN: "secret-vercel-token",
+      CAPSULE_VERCEL_DEPLOYMENT_ID: "dpl_secret"
+    }
+  });
+
+  assert.equal(ready.providers[0]?.status, "ready");
+  assert.equal(ready.providers[0]?.wouldRun, true);
+  assert.deepEqual(ready.providers[0]?.missingCiOptInEnv, []);
+  assert.equal(JSON.stringify(ready).includes("secret-vercel-token"), false);
+});
+
+test("live test matrix blocks untrusted fork CI runs even with opt-in", () => {
+  const report = createLiveTestMatrix({
+    provider: "vercel",
+    env: {
+      CI: "true",
+      CAPSULE_LIVE_TEST_UNTRUSTED_FORK: "1",
+      CAPSULE_LIVE_TEST_CI_OPT_IN: "1",
+      CAPSULE_LIVE_TESTS: "1",
+      VERCEL_TOKEN: "secret-vercel-token",
+      CAPSULE_VERCEL_DEPLOYMENT_ID: "dpl_secret"
+    }
+  });
+
+  assert.equal(report.providers[0]?.status, "blocked");
+  assert.equal(report.providers[0]?.wouldRun, false);
+  assert.equal(report.providers[0]?.ciUntrustedFork, true);
+  assert.deepEqual(report.providers[0]?.missingCiOptInEnv, []);
+  assert.equal(JSON.stringify(report).includes("secret-vercel-token"), false);
+});
+
 test("live test matrix blocks billable providers without cost acknowledgement", () => {
   const report = createLiveTestMatrix({
     provider: "fly",

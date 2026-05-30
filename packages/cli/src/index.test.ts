@@ -425,6 +425,68 @@ describe("CLI live-test planner", () => {
     expect(JSON.stringify(report)).not.toContain("secret-vercel");
   });
 
+  test("blocks CI live-test validation without explicit opt-in", () => {
+    const blocked = createLiveEnvironmentValidationReport({
+      provider: "vercel",
+      env: {
+        CI: "true",
+        CAPSULE_LIVE_TESTS: "1",
+        VERCEL_TOKEN: "secret-vercel",
+        CAPSULE_VERCEL_DEPLOYMENT_ID: "dpl_123"
+      }
+    });
+
+    expect(blocked.providers[0]).toMatchObject({
+      provider: "vercel",
+      status: "blocked",
+      missingCiOptInEnv: ["CAPSULE_LIVE_TEST_CI_OPT_IN"],
+      ciOptInLabel: "capsule:live-tests"
+    });
+    expect(blocked.providers[0]?.notes).toContain("Set CAPSULE_LIVE_TEST_CI_OPT_IN=1 or apply the capsule:live-tests label before running live tests in CI.");
+
+    const ready = createLiveEnvironmentValidationReport({
+      provider: "vercel",
+      env: {
+        CI: "true",
+        CAPSULE_LIVE_TEST_CI_OPT_IN: "1",
+        CAPSULE_LIVE_TESTS: "1",
+        VERCEL_TOKEN: "secret-vercel",
+        CAPSULE_VERCEL_DEPLOYMENT_ID: "dpl_123"
+      }
+    });
+
+    expect(ready.providers[0]).toMatchObject({
+      provider: "vercel",
+      status: "ready",
+      configuredEnv: ["CAPSULE_LIVE_TESTS", "VERCEL_TOKEN", "CAPSULE_VERCEL_DEPLOYMENT_ID", "CAPSULE_LIVE_TEST_CI_OPT_IN"],
+      missingCiOptInEnv: []
+    });
+    expect(JSON.stringify(ready)).not.toContain("secret-vercel");
+  });
+
+  test("blocks CI live-test validation for untrusted forks even with opt-in", () => {
+    const report = createLiveEnvironmentValidationReport({
+      provider: "vercel",
+      env: {
+        CI: "true",
+        CAPSULE_LIVE_TEST_UNTRUSTED_FORK: "1",
+        CAPSULE_LIVE_TEST_CI_OPT_IN: "1",
+        CAPSULE_LIVE_TESTS: "1",
+        VERCEL_TOKEN: "secret-vercel",
+        CAPSULE_VERCEL_DEPLOYMENT_ID: "dpl_123"
+      }
+    });
+
+    expect(report.providers[0]).toMatchObject({
+      provider: "vercel",
+      status: "blocked",
+      ciUntrustedFork: true,
+      missingCiOptInEnv: []
+    });
+    expect(report.providers[0]?.notes).toContain("Live tests are disabled for untrusted fork pull requests.");
+    expect(JSON.stringify(report)).not.toContain("secret-vercel");
+  });
+
   test("validates quarantined flaky live tests with revalidation metadata", () => {
     const quarantine = {
       reason: "provider control plane intermittently returns 503",

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 export type LiveTestEnv = Record<string, string | undefined>;
 export { liveResourceMetadata, type LiveResourceMetadata, type LiveResourceMetadataOptions } from "./live-resources.js";
 
@@ -38,6 +40,9 @@ const liveFlag = "CAPSULE_LIVE_TESTS";
 const liveCostAcknowledgementEnv = "CAPSULE_LIVE_TEST_COST_ACK";
 const liveMaxResourcesEnv = "CAPSULE_LIVE_TEST_MAX_RESOURCES";
 const liveFlakyRevalidationEnv = "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY";
+const liveCiOptInEnv = "CAPSULE_LIVE_TEST_CI_OPT_IN";
+const liveCiUntrustedForkEnv = "CAPSULE_LIVE_TEST_UNTRUSTED_FORK";
+const liveCiLabel = "capsule:live-tests";
 
 export type LiveProviderCostRisk = "none" | "read-only" | "billable";
 
@@ -115,10 +120,67 @@ function quarantineSkipReason(provider: string, quarantine: LiveTestQuarantine):
   return `${provider} live test is quarantined: ${quarantine.reason}. Owner: ${quarantine.owner}. Last observed failure: ${quarantine.lastObservedFailure}. Revalidate with: ${quarantine.revalidationCommand}`;
 }
 
+function readGitHubEvent(env: LiveTestEnv): Record<string, any> | undefined {
+  const eventPath = env.GITHUB_EVENT_PATH;
+  if (!eventPath) return undefined;
+  try {
+    return JSON.parse(readFileSync(eventPath, "utf8")) as Record<string, any>;
+  } catch {
+    return undefined;
+  }
+}
+
+function githubEventLabels(env: LiveTestEnv, event: Record<string, any> | undefined): string[] {
+  const eventLabels = [...(event?.pull_request?.labels ?? []), event?.label].flatMap((label) => (typeof label?.name === "string" ? [label.name] : []));
+  const envLabels = (env.CAPSULE_LIVE_TEST_GITHUB_LABELS ?? "")
+    .split(",")
+    .map((label) => label.trim())
+    .filter(Boolean);
+  return [...eventLabels, ...envLabels];
+}
+
+function githubEventIsUntrustedFork(env: LiveTestEnv, event: Record<string, any> | undefined): boolean {
+  if (env[liveCiUntrustedForkEnv] === "1") return true;
+  const pullRequest = event?.pull_request;
+  if (!pullRequest && env.GITHUB_EVENT_NAME !== "pull_request") return false;
+  if (pullRequest?.head?.repo?.fork === true) return true;
+
+  const baseRepo = pullRequest?.base?.repo?.full_name ?? event?.repository?.full_name ?? env.GITHUB_REPOSITORY;
+  const headRepo = pullRequest?.head?.repo?.full_name ?? env.GITHUB_HEAD_REPO_FULL_NAME;
+  return Boolean(baseRepo && headRepo && baseRepo !== headRepo);
+}
+
+function liveTestCiSafety(env: LiveTestEnv): { ci: boolean; optedIn: boolean; untrustedFork: boolean } {
+  const ci = env.CI === "true" || env.GITHUB_ACTIONS === "true";
+  if (!ci) return { ci: false, optedIn: true, untrustedFork: false };
+  const event = readGitHubEvent(env);
+  const labels = githubEventLabels(env, event);
+  return {
+    ci: true,
+    optedIn: env[liveCiOptInEnv] === "1" || labels.includes(liveCiLabel),
+    untrustedFork: githubEventIsUntrustedFork(env, event)
+  };
+}
+
 export function liveTestGate(requirement: LiveProviderRequirement): LiveTestGate {
   const env = requirement.env ?? process.env;
   const provider = requirement.provider;
   const quarantine = requirement.quarantine;
+  const ciSafety = liveTestCiSafety(env);
+
+  if (ciSafety.ci && ciSafety.untrustedFork) {
+    return {
+      enabled: false,
+      skipReason: `${provider} live tests are disabled for untrusted fork pull requests.`
+    };
+  }
+
+  if (ciSafety.ci && !ciSafety.optedIn) {
+    return {
+      enabled: false,
+      skipReason: `${provider} live tests require ${liveCiOptInEnv}=1 or GitHub label ${liveCiLabel} in CI.`
+    };
+  }
 
   if (quarantine && env[liveFlakyRevalidationEnv] !== "1") {
     return {

@@ -1,4 +1,7 @@
 import { describe, expect, test } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   liveProviderCredentials,
   liveProviderRegistry,
@@ -8,6 +11,17 @@ import {
   providerLiveTestGate,
   type LiveTestApi
 } from "./index.js";
+
+function withGitHubEvent(payload: unknown, assertion: (eventPath: string) => void): void {
+  const directory = mkdtempSync(join(tmpdir(), "capsule-live-event-"));
+  const eventPath = join(directory, "event.json");
+  writeFileSync(eventPath, JSON.stringify(payload), "utf8");
+  try {
+    assertion(eventPath);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
 
 describe("live test gates", () => {
   test("skips live tests unless CAPSULE_LIVE_TESTS is enabled", () => {
@@ -59,6 +73,90 @@ describe("live test gates", () => {
 
   test("read-only provider live tests do not require cost guards", () => {
     expect(providerLiveTestGate("vercel", { env: { CAPSULE_LIVE_TESTS: "1", VERCEL_TOKEN: "token" } })).toEqual({ enabled: true });
+  });
+
+  test("requires explicit CI opt-in before enabling live tests", () => {
+    expect(
+      providerLiveTestGate("vercel", {
+        env: {
+          CI: "true",
+          CAPSULE_LIVE_TESTS: "1",
+          VERCEL_TOKEN: "token"
+        }
+      })
+    ).toEqual({
+      enabled: false,
+      skipReason: "vercel live tests require CAPSULE_LIVE_TEST_CI_OPT_IN=1 or GitHub label capsule:live-tests in CI."
+    });
+
+    expect(
+      providerLiveTestGate("vercel", {
+        env: {
+          CI: "true",
+          CAPSULE_LIVE_TEST_CI_OPT_IN: "1",
+          CAPSULE_LIVE_TESTS: "1",
+          VERCEL_TOKEN: "token"
+        }
+      })
+    ).toEqual({ enabled: true });
+  });
+
+  test("allows trusted labeled CI pull requests and blocks untrusted forks", () => {
+    withGitHubEvent(
+      {
+        repository: { full_name: "capsule-org/capsule" },
+        pull_request: {
+          head: { repo: { full_name: "capsule-org/capsule", fork: false } },
+          base: { repo: { full_name: "capsule-org/capsule" } },
+          labels: [{ name: "capsule:live-tests" }]
+        }
+      },
+      (eventPath) => {
+        expect(
+          providerLiveTestGate("vercel", {
+            env: {
+              CI: "true",
+              GITHUB_ACTIONS: "true",
+              GITHUB_EVENT_NAME: "pull_request",
+              GITHUB_EVENT_PATH: eventPath,
+              GITHUB_REPOSITORY: "capsule-org/capsule",
+              CAPSULE_LIVE_TESTS: "1",
+              VERCEL_TOKEN: "token"
+            }
+          })
+        ).toEqual({ enabled: true });
+      }
+    );
+
+    withGitHubEvent(
+      {
+        repository: { full_name: "capsule-org/capsule" },
+        pull_request: {
+          head: { repo: { full_name: "outside/capsule", fork: true } },
+          base: { repo: { full_name: "capsule-org/capsule" } },
+          labels: [{ name: "capsule:live-tests" }]
+        }
+      },
+      (eventPath) => {
+        expect(
+          providerLiveTestGate("vercel", {
+            env: {
+              CI: "true",
+              GITHUB_ACTIONS: "true",
+              GITHUB_EVENT_NAME: "pull_request",
+              GITHUB_EVENT_PATH: eventPath,
+              GITHUB_REPOSITORY: "capsule-org/capsule",
+              CAPSULE_LIVE_TEST_CI_OPT_IN: "1",
+              CAPSULE_LIVE_TESTS: "1",
+              VERCEL_TOKEN: "token"
+            }
+          })
+        ).toEqual({
+          enabled: false,
+          skipReason: "vercel live tests are disabled for untrusted fork pull requests."
+        });
+      }
+    );
   });
 
   test("billable live tests honor custom planned resource counts", () => {

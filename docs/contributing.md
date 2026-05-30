@@ -11,7 +11,7 @@ pnpm typecheck
 
 ## Live Tests
 
-Live provider tests must use `@capsule/test-utils` and remain skipped by default. The shared gate only enables live operations when `CAPSULE_LIVE_TESTS=1` is present and the provider-specific credential environment variables are set. Skip reasons should name the missing flag or credential variables so CI output explains why a live test did not run.
+Live provider tests must use `@capsule/test-utils` and remain skipped by default. The shared gate only enables live operations when `CAPSULE_LIVE_TESTS=1` is present and the provider-specific credential environment variables are set. In CI, live tests also require `CAPSULE_LIVE_TEST_CI_OPT_IN=1` or the `capsule:live-tests` pull request label, and untrusted fork pull requests are always blocked. Skip reasons should name the missing flag, credential variables, CI opt-in, or fork safety condition so CI output explains why a live test did not run.
 
 ## Add An Adapter
 
