@@ -21,6 +21,7 @@ import { createReceipt, evaluateCapabilityRequirements } from "@capsule/core";
 export type PreviewResourceKind = "database" | "service" | "edge" | "job";
 export type PreviewCleanupDisposition = "cleaned" | "partial" | "unsupported" | "leaked";
 export type PreviewPlannedResourceSpec = CreateDatabaseBranchSpec | DeployServiceSpec | DeployEdgeSpec | RunJobSpec;
+export const previewCleanupPlanSchema = "capsule.preview.cleanup.v1" as const;
 
 export interface PreviewPlannedResource<TSpec extends PreviewPlannedResourceSpec = PreviewPlannedResourceSpec> {
   order: number;
@@ -102,7 +103,51 @@ export interface PreviewCleanupAction {
   kind: PreviewResourceKind;
   capsule: Capsule;
   spec: Record<string, unknown>;
-  capabilityPath: string;
+  capabilityPath: CapabilityPath;
+}
+
+export interface PreviewCleanupPlanAction {
+  actionId: string;
+  cleanupOrder: number;
+  kind: PreviewResourceKind;
+  resourceId: string;
+  resourceProvider: string;
+  resourceName?: string;
+  capabilityPath: CapabilityPath;
+  spec: Record<string, unknown>;
+  idempotencyKey: string;
+  reversible: true;
+}
+
+export interface PreviewCleanupPlanResource {
+  order: number;
+  cleanupOrder?: number;
+  type: CapsuleDomain;
+  kind: PreviewResourceKind;
+  id: string;
+  provider: string;
+  name?: string;
+  url?: string;
+  status?: string;
+  receiptId?: string;
+  cleanupCapabilityPath?: CapabilityPath;
+  cleanupActionId?: string;
+}
+
+export interface PreviewCleanupPlan {
+  schema: typeof previewCleanupPlanSchema;
+  id: string;
+  previewId: string;
+  createdAt: string;
+  cleanupOrder: "reverse-create-order";
+  cleanupActionCount: number;
+  unsupportedCleanupCount: number;
+  resources: PreviewCleanupPlanResource[];
+  actions: PreviewCleanupPlanAction[];
+}
+
+export interface CreatePreviewCleanupPlanOptions {
+  createdAt?: Date;
 }
 
 export interface PreviewResourceGroup<TSpec> {
@@ -136,9 +181,15 @@ export interface PreviewCleanupResult {
   receipt: CapsuleReceipt;
 }
 
+export interface CleanupPreviewEnvironmentOptions {
+  cleanupPlan?: PreviewCleanupPlan;
+  startedAt?: Date;
+}
+
 export interface PreviewOrchestrationResult {
   preview: PreviewEnvironment;
   resources: PreviewResourceRecord[];
+  cleanupPlan: PreviewCleanupPlan;
   receipts: CapsuleReceipt[];
 }
 
@@ -420,11 +471,126 @@ function dispositionFromReceipt(receipt: CapsuleReceipt | undefined): PreviewCle
   return receipt.resource.status === "deleted" ? "cleaned" : "partial";
 }
 
+export function createPreviewCleanupPlan(
+  preview: PreviewEnvironment,
+  resources: PreviewResourceRecord[],
+  options: CreatePreviewCleanupPlanOptions = {}
+): PreviewCleanupPlan {
+  const createdAt = options.createdAt ?? new Date();
+  const planId = `cleanup_${preview.id}`;
+  const actions = [...resources]
+    .reverse()
+    .filter((resource) => resource.cleanup)
+    .map((resource, cleanupOrder): PreviewCleanupPlanAction => {
+      const cleanup = resource.cleanup!;
+      const actionId = `${preview.id}:cleanup:${cleanup.kind}:${resource.id}:${cleanup.capabilityPath}`;
+      const idempotencyKey = actionId;
+      return {
+        actionId,
+        cleanupOrder,
+        kind: cleanup.kind,
+        resourceId: resource.id,
+        resourceProvider: resource.provider,
+        resourceName: resource.name,
+        capabilityPath: cleanup.capabilityPath,
+        spec: { ...cleanup.spec, idempotencyKey },
+        idempotencyKey,
+        reversible: true
+      };
+    });
+  const actionByResourceId = new Map(actions.map((action) => [action.resourceId, action]));
+
+  return {
+    schema: previewCleanupPlanSchema,
+    id: planId,
+    previewId: preview.id,
+    createdAt: createdAt.toISOString(),
+    cleanupOrder: "reverse-create-order",
+    cleanupActionCount: actions.length,
+    unsupportedCleanupCount: resources.length - actions.length,
+    resources: resources.map((resource, order) => {
+      const action = actionByResourceId.get(resource.id);
+      return {
+        order,
+        cleanupOrder: action?.cleanupOrder,
+        type: resource.type,
+        kind: resource.kind,
+        id: resource.id,
+        provider: resource.provider,
+        name: resource.name,
+        url: resource.url,
+        status: resource.status,
+        receiptId: resource.receipt?.id,
+        cleanupCapabilityPath: resource.cleanup?.capabilityPath,
+        cleanupActionId: action?.actionId
+      };
+    }),
+    actions
+  };
+}
+
+function previewCreateReceipt(
+  preview: PreviewEnvironment,
+  resources: PreviewResourceRecord[],
+  cleanupPlan: PreviewCleanupPlan,
+  startedAt: Date
+): CapsuleReceipt {
+  return createReceipt({
+    type: "preview.create",
+    provider: "capsule-preview",
+    adapter: "@capsule/preview",
+    capabilityPath: "preview.create",
+    supportLevel: "emulated",
+    startedAt,
+    resource: {
+      id: preview.id,
+      name: preview.name,
+      status: preview.status
+    },
+    metadata: {
+      resourceCount: resources.length,
+      resources: resources.map((resource) => ({
+        id: resource.id,
+        kind: resource.kind,
+        provider: resource.provider,
+        name: resource.name,
+        receiptId: resource.receipt?.id,
+        cleanupActionId: cleanupPlan.resources.find((entry) => entry.id === resource.id)?.cleanupActionId,
+        cleanupCapabilityPath: resource.cleanup?.capabilityPath
+      })),
+      cleanupPlan: {
+        id: cleanupPlan.id,
+        schema: cleanupPlan.schema,
+        cleanupOrder: cleanupPlan.cleanupOrder,
+        cleanupActionCount: cleanupPlan.cleanupActionCount,
+        unsupportedCleanupCount: cleanupPlan.unsupportedCleanupCount,
+        actions: cleanupPlan.actions.map((action) => ({
+          actionId: action.actionId,
+          cleanupOrder: action.cleanupOrder,
+          kind: action.kind,
+          capabilityPath: action.capabilityPath,
+          resourceId: action.resourceId,
+          idempotencyKey: action.idempotencyKey
+        }))
+      }
+    },
+    policy: {
+      decision: preview.status === "failed" ? "denied" : "allowed",
+      applied: {},
+      notes: [
+        "Preview create receipt is emitted by @capsule/preview orchestration.",
+        "Cleanup plan actions are recorded in reverse create order and include idempotency keys."
+      ]
+    }
+  });
+}
+
 function createCleanupReceipt(
   preview: PreviewEnvironment,
   status: PreviewCleanupResult["status"],
   dispositions: PreviewCleanupDispositionRecord[],
-  startedAt: Date
+  startedAt: Date,
+  cleanupPlan: PreviewCleanupPlan
 ): CapsuleReceipt {
   return createReceipt({
     type: "preview.cleanup",
@@ -439,7 +605,16 @@ function createCleanupReceipt(
       status
     },
     metadata: {
+      cleanupPlanId: cleanupPlan.id,
       cleanupStatus: status,
+      cleanupActions: cleanupPlan.actions.map((action) => ({
+        actionId: action.actionId,
+        cleanupOrder: action.cleanupOrder,
+        kind: action.kind,
+        capabilityPath: action.capabilityPath,
+        resourceId: action.resourceId,
+        idempotencyKey: action.idempotencyKey
+      })),
       resources: dispositions.map((entry) => ({
         id: entry.resource.id,
         kind: entry.resource.kind,
@@ -562,10 +737,15 @@ export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrch
       resources.push(jobRecord(await entry.capsule.job.run(entry.spec)));
     }
 
+    const preview = previewFromResources(id, plan, "ready", resources);
+    const cleanupPlan = createPreviewCleanupPlan(preview, resources);
+    const receipt = previewCreateReceipt(preview, resources, cleanupPlan, new Date());
+
     return {
-      preview: previewFromResources(id, plan, "ready", resources),
+      preview,
       resources,
-      receipts: resources.map((resource) => resource.receipt).filter((receipt): receipt is CapsuleReceipt => receipt !== undefined)
+      cleanupPlan,
+      receipts: [...resources.map((resource) => resource.receipt).filter((entry): entry is CapsuleReceipt => entry !== undefined), receipt]
     };
   } catch (error) {
     const failedPreview = previewFromResources(id, plan, "failed", resources);
@@ -573,8 +753,13 @@ export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrch
   }
 }
 
-export async function cleanupPreviewEnvironment(preview: PreviewEnvironment, resources: PreviewResourceRecord[]): Promise<PreviewCleanupResult> {
-  const startedAt = new Date();
+export async function cleanupPreviewEnvironment(
+  preview: PreviewEnvironment,
+  resources: PreviewResourceRecord[],
+  options: CleanupPreviewEnvironmentOptions = {}
+): Promise<PreviewCleanupResult> {
+  const startedAt = options.startedAt ?? new Date();
+  const cleanupPlan = options.cleanupPlan ?? createPreviewCleanupPlan(preview, resources, { createdAt: startedAt });
   const cleaned: PreviewResourceRecord[] = [];
   const failed: PreviewCleanupResult["failed"] = [];
   const receipts: CapsuleReceipt[] = [];
@@ -592,11 +777,13 @@ export async function cleanupPreviewEnvironment(preview: PreviewEnvironment, res
     }
     try {
       let receipt: CapsuleReceipt | undefined;
+      const cleanupAction = cleanupPlan.actions.find((action) => action.resourceId === resource.id && action.capabilityPath === resource.cleanup?.capabilityPath);
+      const cleanupSpec = cleanupAction?.spec ?? resource.cleanup.spec;
       if (resource.cleanup.kind === "database") {
-        const result = await resource.cleanup.capsule.database.branch.delete(resource.cleanup.spec as { project: string; branchId: string; hardDelete?: boolean });
+        const result = await resource.cleanup.capsule.database.branch.delete(cleanupSpec as { project: string; branchId: string; hardDelete?: boolean });
         receipt = result.receipt;
       } else if (resource.cleanup.kind === "service") {
-        const result = await resource.cleanup.capsule.service.delete(resource.cleanup.spec as { id: string; name?: string });
+        const result = await resource.cleanup.capsule.service.delete(cleanupSpec as { id: string; name?: string });
         receipt = result.receipt;
       }
       if (receipt) receipts.push(receipt);
@@ -617,7 +804,7 @@ export async function cleanupPreviewEnvironment(preview: PreviewEnvironment, res
   }
 
   const status = dispositions.every((entry) => entry.disposition === "cleaned") ? "cleaned" : "partial";
-  const receipt = createCleanupReceipt(preview, status, dispositions, startedAt);
+  const receipt = createCleanupReceipt(preview, status, dispositions, startedAt, cleanupPlan);
   return {
     previewId: preview.id,
     status,
@@ -650,7 +837,8 @@ export async function createPreviewEnvironmentWithCleanup(plan: PreviewPlan): Pr
     return previewFromResources(id, plan, "ready", resources);
   } catch (error) {
     const failedPreview = previewFromResources(id, plan, "failed", resources);
-    const cleanup = await cleanupPreviewEnvironment(failedPreview, resources);
+    const cleanupPlan = createPreviewCleanupPlan(failedPreview, resources);
+    const cleanup = await cleanupPreviewEnvironment(failedPreview, resources, { cleanupPlan });
     throw new PreviewCreationError("Preview environment creation failed and cleanup was attempted.", {
       preview: failedPreview,
       cleanup,

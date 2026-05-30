@@ -68,6 +68,7 @@ import { neon } from "@capsule/adapter-neon";
 import {
   cleanupPreviewEnvironment,
   createPreviewGraph,
+  type PreviewCleanupPlan,
   type PreviewCleanupDisposition,
   type PreviewPlan,
   type PreviewResourceKind,
@@ -271,11 +272,15 @@ interface PreviewConfigFile {
 }
 
 interface SerializedPreviewCleanupAction {
+  actionId?: string;
+  cleanupOrder?: number;
   kind: PreviewResourceKind;
   adapter: string;
   options?: Record<string, unknown>;
-  capabilityPath: string;
+  capabilityPath: CapabilityPath;
   spec: Record<string, unknown>;
+  idempotencyKey?: string;
+  reversible?: true;
 }
 
 interface SerializedPreviewResourceRecord {
@@ -287,13 +292,21 @@ interface SerializedPreviewResourceRecord {
   url?: string;
   status?: string;
   receipt?: CapsuleReceipt;
+  cleanupActionId?: string;
+  cleanupOrder?: number;
   cleanup?: SerializedPreviewCleanupAction;
   cleanupDisposition?: PreviewCleanupDisposition;
 }
 
 interface PreviewCleanupPlanFile {
   schema: "capsule.preview.cleanup.v1";
+  id: string;
+  previewId: string;
   createdAt: string;
+  cleanupOrder: "reverse-create-order";
+  cleanupActionCount: number;
+  unsupportedCleanupCount: number;
+  actions: PreviewCleanupPlan["actions"];
   preview: PreviewEnvironment;
   resources: SerializedPreviewResourceRecord[];
 }
@@ -304,6 +317,9 @@ interface PreviewCreateReport {
   receipts: CapsuleReceipt[];
   cleanupPlan: {
     schema: PreviewCleanupPlanFile["schema"];
+    id: string;
+    previewId: string;
+    cleanupOrder: PreviewCleanupPlanFile["cleanupOrder"];
     path?: string;
     resourceCount: number;
     cleanupActionCount: number;
@@ -1500,38 +1516,55 @@ function serializePreviewResourceRecord(resource: PreviewResourceRecord, cleanup
     url: resource.url,
     status: resource.status,
     receipt: resource.receipt,
+    cleanupActionId: cleanup?.actionId,
+    cleanupOrder: cleanup?.cleanupOrder,
     cleanup,
     cleanupDisposition: resource.cleanupDisposition
   };
 }
 
-function serializeCleanupAction(resource: PreviewResourceRecord, config: PreviewConfigResource<unknown> | undefined): SerializedPreviewCleanupAction | undefined {
+function serializeCleanupAction(
+  resource: PreviewResourceRecord,
+  config: PreviewConfigResource<unknown> | undefined,
+  action: PreviewCleanupPlan["actions"][number] | undefined
+): SerializedPreviewCleanupAction | undefined {
   if (!resource.cleanup || !config) {
     return undefined;
   }
   return {
+    actionId: action?.actionId,
+    cleanupOrder: action?.cleanupOrder,
     kind: resource.cleanup.kind,
     adapter: config.adapter,
     options: config.options,
     capabilityPath: resource.cleanup.capabilityPath,
-    spec: resource.cleanup.spec
+    spec: action?.spec ?? resource.cleanup.spec,
+    idempotencyKey: action?.idempotencyKey,
+    reversible: action?.reversible
   };
 }
 
-function createPreviewCleanupPlanFile(preview: PreviewEnvironment, resources: PreviewResourceRecord[], config: PreviewConfigFile): PreviewCleanupPlanFile {
+function createPreviewCleanupPlanFile(preview: PreviewEnvironment, resources: PreviewResourceRecord[], config: PreviewConfigFile, cleanupPlan: PreviewCleanupPlan): PreviewCleanupPlanFile {
   const configs = previewResourceConfigs(config);
+  const actionByResourceId = new Map(cleanupPlan.actions.map((action) => [action.resourceId, action]));
   return {
     schema: previewCleanupPlanSchema,
-    createdAt: new Date().toISOString(),
+    id: cleanupPlan.id,
+    previewId: cleanupPlan.previewId,
+    createdAt: cleanupPlan.createdAt,
+    cleanupOrder: cleanupPlan.cleanupOrder,
+    cleanupActionCount: cleanupPlan.cleanupActionCount,
+    unsupportedCleanupCount: cleanupPlan.unsupportedCleanupCount,
+    actions: cleanupPlan.actions,
     preview,
-    resources: resources.map((resource, index) => serializePreviewResourceRecord(resource, serializeCleanupAction(resource, configs[index]?.config)))
+    resources: resources.map((resource, index) => serializePreviewResourceRecord(resource, serializeCleanupAction(resource, configs[index]?.config, actionByResourceId.get(resource.id))))
   };
 }
 
 async function createPreviewCreateReport(parsed: ParsedArgs): Promise<PreviewCreateReport> {
   const config = await readPreviewConfigFile(parsed.configFile);
   const result = await createPreviewGraph(createPreviewPlanFromConfig(config));
-  const cleanupPlan = createPreviewCleanupPlanFile(result.preview, result.resources, config);
+  const cleanupPlan = createPreviewCleanupPlanFile(result.preview, result.resources, config, result.cleanupPlan);
   if (parsed.cleanupFile) {
     await mkdir(dirname(parsed.cleanupFile), { recursive: true });
     await writeFile(parsed.cleanupFile, `${JSON.stringify(cleanupPlan, null, 2)}\n`, "utf8");
@@ -1543,6 +1576,9 @@ async function createPreviewCreateReport(parsed: ParsedArgs): Promise<PreviewCre
     receipts: result.receipts,
     cleanupPlan: {
       schema: cleanupPlan.schema,
+      id: cleanupPlan.id,
+      previewId: cleanupPlan.previewId,
+      cleanupOrder: cleanupPlan.cleanupOrder,
       path: parsed.cleanupFile,
       resourceCount: cleanupPlan.resources.length,
       cleanupActionCount,
@@ -1560,9 +1596,16 @@ function validatePreviewCleanupPlan(record: Record<string, unknown>, label: stri
   if (!Array.isArray(resources)) {
     throw new Error(`${label}.resources must be an array.`);
   }
+  const previewId = typeof record.previewId === "string" ? record.previewId : preview.id;
   return {
     schema: previewCleanupPlanSchema,
+    id: typeof record.id === "string" ? record.id : `cleanup_${previewId}`,
+    previewId,
     createdAt: assertStringValue(record.createdAt, `${label}.createdAt`),
+    cleanupOrder: typeof record.cleanupOrder === "string" ? (record.cleanupOrder as "reverse-create-order") : "reverse-create-order",
+    cleanupActionCount: typeof record.cleanupActionCount === "number" ? record.cleanupActionCount : 0,
+    unsupportedCleanupCount: typeof record.unsupportedCleanupCount === "number" ? record.unsupportedCleanupCount : 0,
+    actions: Array.isArray(record.actions) ? (record.actions as PreviewCleanupPlan["actions"]) : [],
     preview,
     resources: resources.map((resource, index) => {
       const entry = assertRecordValue(resource, `${label}.resources[${index}]`);
@@ -1576,6 +1619,8 @@ function validatePreviewCleanupPlan(record: Record<string, unknown>, label: stri
         url: typeof entry.url === "string" ? entry.url : undefined,
         status: typeof entry.status === "string" ? entry.status : undefined,
         receipt: entry.receipt as CapsuleReceipt | undefined,
+        cleanupActionId: typeof entry.cleanupActionId === "string" ? entry.cleanupActionId : undefined,
+        cleanupOrder: typeof entry.cleanupOrder === "number" ? entry.cleanupOrder : undefined,
         cleanup,
         cleanupDisposition: entry.cleanupDisposition as PreviewCleanupDisposition | undefined
       };
