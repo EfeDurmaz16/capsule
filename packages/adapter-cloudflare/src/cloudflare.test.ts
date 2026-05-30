@@ -82,6 +82,41 @@ describe("cloudflare adapter", () => {
     expect(calls.map((call) => call.url).some((url) => url.includes("/secrets"))).toBe(false);
   });
 
+  it("best-effort deletes routes created before a later route creation fails", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      if (String(url).endsWith("/workers/routes") && init?.method === "POST") {
+        const body = JSON.parse(String(init.body));
+        if (body.pattern === "ok.example.com/*") {
+          return response({ success: true, result: { id: "route-1", pattern: body.pattern, script: body.script } });
+        }
+        return response({ success: false, errors: [{ message: "route create failed" }] }, 400);
+      }
+      if (String(url).endsWith("/workers/routes/route-1") && init?.method === "DELETE") {
+        return response({ success: true, result: { id: "route-1" } });
+      }
+      return response({ success: true, result: { id: "script-1", entry_point: "worker.js" } });
+    }) as typeof fetch;
+    const file = await workerFile();
+    const capsule = new Capsule({ adapter: cloudflare({ apiToken: "cf-token", accountId: "acct", zoneId: "zone", fetch: fetchMock }) });
+
+    await expect(
+      capsule.edge.deploy({
+        name: "capsule-test",
+        source: { path: file, entrypoint: "worker.js" },
+        routes: ["ok.example.com/*", "bad.example.com/*"]
+      })
+    ).rejects.toThrow("route create failed");
+
+    expect(calls.map((call) => [call.init.method, call.url])).toEqual([
+      ["PUT", "https://api.cloudflare.com/client/v4/accounts/acct/workers/scripts/capsule-test"],
+      ["POST", "https://api.cloudflare.com/client/v4/zones/zone/workers/routes"],
+      ["POST", "https://api.cloudflare.com/client/v4/zones/zone/workers/routes"],
+      ["DELETE", "https://api.cloudflare.com/client/v4/zones/zone/workers/routes/route-1"]
+    ]);
+  });
+
   it("uploads a Worker version without configuring routes or secrets", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
