@@ -19,6 +19,8 @@ pnpm --filter @capsule/cli capsule live-test plan --provider cloudflare
 
 ## Docker
 
+Status badges: [credentials: none] [cost risk: local Docker resources] [capabilities: sandbox native, job native] [cleanup: job auto-remove, sandbox destroy]
+
 Install:
 
 ```bash
@@ -45,6 +47,8 @@ Caveat: local Docker is not safe for hostile untrusted code by default. `network
 
 ## E2B
 
+Status badges: [credentials: E2B_API_KEY] [cost risk: cloud sandbox runtime] [capabilities: sandbox native] [cleanup: sandbox.destroy]
+
 Set:
 
 ```bash
@@ -65,6 +69,8 @@ Cleanup: the AI helper destroys the sandbox in `finally`; direct sandbox users s
 Caveat: isolation is provided by E2B, not Capsule. Capsule records receipts and policy notes for what it requested and observed.
 
 ## Daytona
+
+Status badges: [credentials: DAYTONA_API_KEY] [cost risk: workspace runtime and storage] [capabilities: sandbox native] [cleanup: sandbox.destroy, auto-stop as backup]
 
 Set:
 
@@ -96,6 +102,8 @@ Cleanup: call `sandbox.destroy()`. If you configure provider-side auto-stop, tre
 Caveat: workspace lifecycle and image/runtime semantics are provider-specific.
 
 ## Modal
+
+Status badges: [credentials: MODAL_TOKEN_ID and MODAL_TOKEN_SECRET] [cost risk: sandbox runtime] [capabilities: sandbox native without file listing] [cleanup: sandbox.destroy]
 
 Set:
 
@@ -137,6 +145,8 @@ Caveat: Capsule currently models Modal sandboxes; broader Modal function/service
 
 ## Neon
 
+Status badges: [credentials: NEON_API_KEY and NEON_PROJECT_ID] [cost risk: branch storage and compute] [capabilities: database native] [cleanup: database.branch.delete or Neon console]
+
 Set:
 
 ```bash
@@ -167,6 +177,8 @@ Cleanup: delete the created branch with `capsule.database.branch.delete(...)` or
 Caveat: database branches can incur storage/compute cost. TTL is recorded in receipts when provided, but cleanup must be implemented by the caller or provider automation.
 
 ## Cloudflare Workers
+
+Status badges: [credentials: CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID] [cost risk: Worker versions, scripts, and routes] [capabilities: edge native] [cleanup: Cloudflare console or future lifecycle APIs]
 
 Set:
 
@@ -220,6 +232,8 @@ Caveat: routes, versions, and rollback use real Workers APIs. Rollback needs the
 
 ## Cloud Run
 
+Status badges: [credentials: Google Cloud project, location, and auth] [cost risk: jobs, services, logs, and networking] [capabilities: job native, service native] [cleanup: gcloud delete job/service or future lifecycle APIs]
+
 Set one Google credential path:
 
 ```bash
@@ -260,6 +274,8 @@ Caveat: IAM, public access, networking, logging, and billing are Google Cloud co
 
 ## Vercel
 
+Status badges: [credentials: VERCEL_TOKEN] [cost risk: preview deployments, aliases, and runtime logs] [capabilities: edge native] [cleanup: Vercel deployment and alias removal]
+
 Set:
 
 ```bash
@@ -282,6 +298,8 @@ Cleanup: remove preview deployments and aliases in Vercel. The example creates a
 Caveat: Capsule's first Vercel adapter uses inline deployment files. It supports bounded deployment event log reads and project runtime log reads when `projectId` is supplied; `follow` streaming is rejected. Large file upload/SHA flow, env mutation, domains, routes, and rollback are explicit future capabilities.
 
 ## Kubernetes
+
+Status badges: [credentials: kubeconfig or in-cluster config] [cost risk: cluster workloads and load balancers] [capabilities: job native, service native] [cleanup: kubectl delete resources]
 
 Set:
 
@@ -312,6 +330,8 @@ Cleanup: delete Jobs, Pods, Deployments, and Services in the target namespace. C
 Caveat: cluster admission policies, network policies, namespaces, service accounts, and node isolation determine the real security boundary.
 
 ## Lambda
+
+Status badges: [credentials: AWS default credential chain] [cost risk: invocation, logs, and function side effects] [capabilities: job.run native invocation] [cleanup: no function created by Capsule]
 
 Set AWS credentials through the default AWS credential chain:
 
@@ -344,6 +364,8 @@ Cleanup: no Lambda function is created by this adapter path. It invokes an exist
 Caveat: Capsule models existing Lambda invocation as `job.run`; function deployment, IAM mutation, and event-source configuration are not implemented.
 
 ## ECS/Fargate
+
+Status badges: [credentials: AWS credentials, cluster, networking, task definition] [cost risk: Fargate tasks and services] [capabilities: job native, service native] [cleanup: stop tasks and delete services]
 
 Set AWS credentials through the default AWS credential chain:
 
@@ -384,6 +406,8 @@ Caveat: task definition registration, load balancers, IAM roles, logs, and servi
 
 ## EC2
 
+Status badges: [credentials: AWS credentials, region, AMI] [cost risk: instance runtime and EBS storage] [capabilities: machine native] [cleanup: capsule.machine.destroy or EC2 terminate]
+
 Set AWS credentials through the default AWS credential chain:
 
 ```bash
@@ -412,3 +436,78 @@ Credentials: AWS default credential chain and region; `image` must be a valid AM
 Cleanup: terminate machines with `capsule.machine.destroy(...)` or EC2 tooling. Stopping is not the same as deleting and may still incur storage cost.
 
 Caveat: machines are the leakiest Capsule primitive. Networking, security groups, AMIs, instance profiles, SSH/SSM access, EBS volumes, and cost controls should remain visible to the caller.
+
+## Fly Machines
+
+Status badges: [credentials: FLY_API_TOKEN and FLY_APP_NAME] [cost risk: machines, regions, and networking] [capabilities: job native, machine native] [cleanup: auto-destroy job machines or machine.destroy]
+
+Set:
+
+```bash
+export FLY_API_TOKEN=...
+export FLY_APP_NAME=...
+export CAPSULE_LIVE_TESTS=1
+```
+
+Use the adapter directly:
+
+```ts
+import { Capsule } from "@capsule/core";
+import { fly } from "@capsule/adapter-fly";
+
+const capsule = new Capsule({ adapter: fly({ appName: process.env.FLY_APP_NAME }), receipts: true });
+const run = await capsule.job.run({
+  name: "capsule-fly-job",
+  image: "flyio/hellofly:latest",
+  command: "echo hello from fly"
+});
+console.log(run.status, run.receipt);
+```
+
+Credentials: `FLY_API_TOKEN` and `FLY_APP_NAME`; optional adapter settings include region, default image, CPU, memory, and API base URL.
+
+Cleanup: `job.run` creates an auto-destroy Fly Machine. Machines created through `machine.create` must be destroyed with `capsule.machine.destroy(...)` or Fly tooling.
+
+Caveat: Fly app, region, networking, volume, autostart/autostop, and process semantics remain provider-specific.
+
+## Azure Container Apps
+
+Status badges: [credentials: AZURE_ACCESS_TOKEN, AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP] [cost risk: Container Apps jobs, services, and environment resources] [capabilities: job native, service native] [cleanup: generated job cleanup or Azure delete]
+
+Set:
+
+```bash
+export AZURE_ACCESS_TOKEN=...
+export AZURE_SUBSCRIPTION_ID=...
+export AZURE_RESOURCE_GROUP=...
+export AZURE_LOCATION=eastus
+export AZURE_CONTAINER_APP_ENVIRONMENT_ID=...
+export CAPSULE_LIVE_TESTS=1
+```
+
+Use the adapter directly:
+
+```ts
+import { Capsule } from "@capsule/core";
+import { azureContainerApps } from "@capsule/adapter-azure-container-apps";
+
+const capsule = new Capsule({
+  adapter: azureContainerApps({
+    location: process.env.AZURE_LOCATION,
+    environmentId: process.env.AZURE_CONTAINER_APP_ENVIRONMENT_ID
+  }),
+  receipts: true
+});
+
+const job = await capsule.job.run({
+  name: "capsule-azure-job",
+  image: "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+});
+console.log(job.status, job.receipt);
+```
+
+Credentials: Azure management access token, subscription id, resource group, location, and Container Apps environment id.
+
+Cleanup: generated one-shot jobs are cleaned up on start failure; successful jobs and services should be deleted through Azure tooling or supported Capsule lifecycle calls.
+
+Caveat: registries, secrets, logs, service rollback, ingress, workload profiles, and Azure identity boundaries are provider-specific and should be modeled explicitly.
