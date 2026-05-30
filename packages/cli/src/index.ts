@@ -183,7 +183,7 @@ const credentialRequirements: CredentialRequirement[] = [
     provider: "neon",
     requiredAll: ["NEON_API_KEY"],
     aliases: { NEON_PROJECT_ID: ["CAPSULE_POSTGRES_PROJECT_ID"] },
-    notes: ["NEON_PROJECT_ID, or Stripe Projects alias CAPSULE_POSTGRES_PROJECT_ID, is required for Neon live branch tests."]
+    notes: ["NEON_PROJECT_ID, or project-scoped alias CAPSULE_POSTGRES_PROJECT_ID, is required for Neon live branch tests."]
   },
   {
     provider: "cloudflare",
@@ -279,7 +279,7 @@ const liveTestPlans: LiveTestPlan[] = [
     safeCommands: [
       'CLOUDFLARE_API_TOKEN="${CLOUDFLARE_API_TOKEN:-$CAPSULE_WORKER_API_TOKEN}" CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-$CAPSULE_WORKER_ACCOUNT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-cloudflare/src/cloudflare.live.test.ts'
     ],
-    notes: ["Creates an unreleased Worker version. Stripe Projects Worker aliases can satisfy the Cloudflare token and account env vars."]
+    notes: ["Creates an unreleased Worker version. Project-scoped Worker aliases can satisfy the Cloudflare token and account env vars."]
   },
   {
     provider: "vercel",
@@ -300,7 +300,7 @@ const liveTestPlans: LiveTestPlan[] = [
     safeCommands: [
       'NEON_PROJECT_ID="${NEON_PROJECT_ID:-$CAPSULE_POSTGRES_PROJECT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-neon/src/neon.live.test.ts'
     ],
-    notes: ["Creates a Neon branch and hard-deletes it in finally. Stripe Projects Postgres aliases can satisfy NEON_PROJECT_ID."]
+    notes: ["Creates a Neon branch and hard-deletes it in finally. Project-scoped Postgres aliases can satisfy NEON_PROJECT_ID."]
   },
   {
     provider: "kubernetes",

@@ -3,10 +3,18 @@
 Capsule is a pnpm monorepo with focused packages:
 
 - `@capsule/core`: shared types, capability lookup, policy checks, receipts, domain facades, contract helpers, and errors.
-- `@capsule/adapter-docker`: Docker CLI sandbox and one-shot job adapter.
+- `@capsule/adapter-docker`, `@capsule/adapter-e2b`, `@capsule/adapter-daytona`, and `@capsule/adapter-modal`: sandbox execution adapters with provider-specific lifecycle semantics.
+- `@capsule/adapter-cloud-run`, `@capsule/adapter-kubernetes`, `@capsule/adapter-ecs`, `@capsule/adapter-fly`, and `@capsule/adapter-azure-container-apps`: container job/service adapters.
+- `@capsule/adapter-cloudflare`, `@capsule/adapter-vercel`, and `@capsule/adapter-lambda`: edge, function, deployment, and runtime adapters.
+- `@capsule/adapter-neon`: database branch resource adapter.
+- `@capsule/adapter-ec2`: machine lifecycle adapter.
 - `@capsule/adapter-mock`: realistic mock providers for examples, tests, and future adapter design.
 - `@capsule/ai`: framework-agnostic code execution tool helper and dependency-free framework descriptors for Vercel AI SDK, OpenAI Agents/Responses, LangChain, Mastra, and CrewAI.
-- `@capsule/cli`: small CLI for capabilities, Docker runs, sandbox smoke tests, and doctor checks. `capsule doctor` checks Docker availability and reports provider credential env-var presence without printing secret values.
+- `@capsule/cli`: CLI for capabilities, provider comparison, live-test planning, Docker runs, sandbox smoke tests, adapter scaffolding, and doctor checks. `capsule doctor` checks Docker availability and reports provider credential env-var presence without printing secret values.
+- `@capsule/presets`: provider-oriented runtime and preview preset factories.
+- `@capsule/preview`: preview environment composition helpers for resources, cleanup evidence, and receipts.
+- `@capsule/store-jsonl` and `@capsule/store-sqlite`: receipt persistence packages.
+- `@capsule/test-utils`: private workspace helpers for contract and live provider tests.
 
 The `Capsule` class receives an adapter, optional policy, and receipt setting. Domain APIs such as `capsule.sandbox.create` and `capsule.job.run` validate capability paths, evaluate policy, call the adapter, and attach receipts where the domain result supports them.
 

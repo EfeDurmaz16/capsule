@@ -11,13 +11,21 @@ Docker, E2B, Daytona, Modal Sandboxes, Cloudflare Sandbox, Microsandbox, and fut
 Current real adapters:
 
 - Docker sandbox/job.
+- E2B, Daytona, and Modal sandbox execution.
 - Neon database/resource.
+- Cloud Run jobs/services.
+- Kubernetes jobs/services.
+- AWS Lambda functions, ECS/Fargate jobs/services, and EC2 machines.
+- Fly Machines jobs/services/machine lifecycle.
+- Azure Container Apps jobs/services.
+- Vercel edge/deployment runtime operations.
+- Cloudflare Workers edge deployment, version, and rollback operations.
 
 Next real adapters:
 
-- E2B sandbox.
-- Cloud Run jobs/services.
-- Vercel or Cloudflare edge deployments.
+- Additional database/resource adapters such as Supabase branching, PlanetScale-style branching, and Cloudflare D1/KV/R2.
+- Additional edge/runtime adapters such as Cloudflare Containers, Netlify-style functions, and provider-specific routing/binding APIs.
+- Additional low-level machine adapters such as Compute Engine, Azure VM, bare metal, Firecracker, Nomad, and microVM providers.
 
 ## Job And Service Adapters
 
