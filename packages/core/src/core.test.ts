@@ -12,8 +12,8 @@ import {
   supports,
   uniqueCapabilityPaths
 } from "./capabilities.js";
-import { UnsupportedCapabilityError, PolicyViolationError } from "./errors.js";
-import { evaluatePolicy, mergeTimeout, redactLogEntries, redactSecrets } from "./policy.js";
+import { AdapterExecutionError, UnsupportedCapabilityError, PolicyViolationError } from "./errors.js";
+import { evaluatePolicy, mergeTimeout, redactError, redactLogEntries, redactSecrets } from "./policy.js";
 import { edgeWorkerPreset, httpServicePreset, nodeJobPreset, nodeSandboxPreset, previewDatabaseBranchPreset, previewEnvironmentPreset } from "./presets.js";
 import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
 import { createReceipt } from "./receipts.js";
@@ -442,6 +442,25 @@ describe("policy", () => {
     expect(redactSecrets("token=abc token=abc suffix", { SECRET: "abc" }, { secrets: { allowed: ["SECRET"], redactFromLogs: true } })).toBe("token=[REDACTED] token=[REDACTED] suffix");
   });
 
+  test("redacts token-like values when strict redaction profile is enabled", () => {
+    expect(redactSecrets("provider returned Bearer <SK_LIVE_REDACTED>", undefined, { secrets: { redactionProfile: "strict" } })).toBe(
+      "provider returned Bearer [REDACTED]"
+    );
+  });
+
+  test("redacts sensitive provider payloads from error causes", () => {
+    const error = new AdapterExecutionError("provider failed", {
+      authorization: "Bearer <SK_LIVE_REDACTED>",
+      nested: { sessionId: "custom-secret-value" }
+    });
+    const redacted = redactError(error, undefined, { secrets: { redactionProfile: "strict", redactKeys: ["sessionId"] } }) as AdapterExecutionError;
+
+    expect(redacted.cause).toEqual({
+      authorization: "[REDACTED]",
+      nested: { sessionId: "[REDACTED]" }
+    });
+  });
+
   test("does not redact when log redaction policy is absent", () => {
     expect(redactSecrets("token=abc", { SECRET: "abc" }, { secrets: { allowed: ["SECRET"] } })).toBe("token=abc");
   });
@@ -723,6 +742,63 @@ describe("receipts", () => {
     expect(JSON.stringify(receipt)).not.toContain("provider-api-key");
     expect(JSON.stringify(receipt)).not.toContain("provider-api-token");
     expect(JSON.stringify(receipt)).not.toContain("session-secret");
+  });
+
+  test("applies strict redaction profile to receipt provider metadata and options", () => {
+    const receipt = createReceipt({
+      type: "job.run",
+      provider: "test",
+      adapter: "test",
+      capabilityPath: "job.run",
+      supportLevel: "native",
+      startedAt: new Date("2026-01-01T00:00:00.000Z"),
+      finishedAt: new Date("2026-01-01T00:00:00.500Z"),
+      policy: { decision: "allowed", applied: { secrets: { redactionProfile: "strict", redactKeys: ["sessionId"] } } },
+      providerOptions: {
+        responseBody: "Bearer <SK_LIVE_REDACTED>",
+        sessionId: "custom-secret-value"
+      },
+      metadata: {
+        providerMessage: "ghp_1234567890abcdef1234567890abcdef1234",
+        nested: { publicNote: "keep me" }
+      }
+    });
+
+    expect(receipt.providerOptions).toEqual({
+      responseBody: "Bearer [REDACTED]",
+      sessionId: "[REDACTED]"
+    });
+    expect(receipt.metadata).toEqual({
+      providerMessage: "[REDACTED]",
+      nested: { publicNote: "keep me" }
+    });
+  });
+
+  test("redacts configured secret values from adapter errors", async () => {
+    const failingAdapter: CapsuleAdapter = {
+      ...adapter,
+      capabilities: {
+        ...capabilities,
+        job: {
+          run: "native",
+          status: "unsupported",
+          cancel: "unsupported",
+          logs: "unsupported",
+          artifacts: "unsupported",
+          timeout: "unsupported",
+          env: "native"
+        }
+      },
+      job: {
+        run: async (spec) => {
+          throw new AdapterExecutionError(`provider echoed ${spec.env?.SECRET}`);
+        }
+      }
+    };
+    const capsule = new Capsule({ adapter: failingAdapter, policy: { secrets: { allowed: ["SECRET"], redactFromLogs: true } } });
+
+    await expect(capsule.job.run({ image: "node:22", env: { SECRET: "super-secret-token" } })).rejects.toThrow("provider echoed [REDACTED]");
+    await expect(capsule.job.run({ image: "node:22", env: { SECRET: "super-secret-token" } })).rejects.not.toThrow("super-secret-token");
   });
 
   test("records receipts into a configured store", async () => {

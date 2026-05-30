@@ -112,6 +112,8 @@ export interface CapsulePolicy {
   secrets?: {
     allowed?: string[];
     redactFromLogs?: boolean;
+    redactionProfile?: "standard" | "strict";
+    redactKeys?: string[];
   };
   limits?: {
     timeoutMs?: number;

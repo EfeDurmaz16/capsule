@@ -375,6 +375,7 @@ Exports:
 - `httpServicePreset`
 - `HttpServicePresetOptions`
 - `isProviderSelectionRecipeId`
+- `isSensitiveKey`
 - `JobAdapter`
 - `JobLogsResult`
 - `JobLogsSpec`
@@ -431,8 +432,10 @@ Exports:
 - `ReceiptPersistenceMode`
 - `ReceiptSigner`
 - `ReceiptStore`
+- `redactError`
 - `redactLogEntries`
 - `redactSecrets`
+- `redactSensitiveText`
 - `ReleaseEdgeVersionSpec`
 - `ResetDatabaseBranch`
 - `ResetDatabaseBranchSpec`

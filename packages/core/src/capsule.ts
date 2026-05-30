@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { UnsupportedCapabilityError } from "./errors.js";
 import { explainSupportLevel, supportLevel, supports, type CapabilityPath } from "./capabilities.js";
-import { evaluatePolicy, mergeTimeout, type PolicyInput } from "./policy.js";
+import { evaluatePolicy, mergeTimeout, redactError, type PolicyInput } from "./policy.js";
 import { createReceipt } from "./receipts.js";
 import type { AdapterContext, CapsuleAdapter } from "./adapters.js";
 import type { ReceiptPersistenceMode, ReceiptStore } from "./stores.js";
@@ -123,9 +123,14 @@ export class Capsule {
         }
         const runtime = this.contextRuntime({ ...policyInput, receiptScopes: sandboxCreateReceiptScope });
         await this.preflightReceiptPersistence();
-        const sandbox = await this.contextOptions.run(runtime.defaultOptions, () =>
-          this.options.adapter.sandbox!.create({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, runtime.context)
-        );
+        let sandbox: Sandbox;
+        try {
+          sandbox = await this.contextOptions.run(runtime.defaultOptions, () =>
+            this.options.adapter.sandbox!.create({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, runtime.context)
+          );
+        } catch (error) {
+          throw redactError(error, spec.env, this.options.policy);
+        }
         if (this.receiptPersistenceMode() === "required") {
           await Promise.all(runtime.pendingWrites);
         }
@@ -455,7 +460,12 @@ export class Capsule {
   private async withContext<T>(operation: (context: AdapterContext) => Promise<T>, options: ContextOptions = {}): Promise<T> {
     const runtime = this.contextRuntime(options);
     await this.preflightReceiptPersistence();
-    const result = await this.contextOptions.run(runtime.defaultOptions, () => operation(runtime.context));
+    let result: T;
+    try {
+      result = await this.contextOptions.run(runtime.defaultOptions, () => operation(runtime.context));
+    } catch (error) {
+      throw redactError(error, options.env, this.options.policy);
+    }
     if (this.receiptPersistenceMode() === "required") {
       await Promise.all(runtime.pendingWrites);
     }
@@ -484,7 +494,12 @@ export class Capsule {
   private async withSandboxSubOperation<T>(runtime: ContextRuntime, options: ContextOptions, operation: () => Promise<T>): Promise<T> {
     await this.preflightReceiptPersistence();
     const pendingStart = runtime.pendingWrites.length;
-    const result = await this.contextOptions.run(options, operation);
+    let result: T;
+    try {
+      result = await this.contextOptions.run(options, operation);
+    } catch (error) {
+      throw redactError(error, options.env, this.options.policy);
+    }
     if (this.receiptPersistenceMode() === "required") {
       await Promise.all(runtime.pendingWrites.slice(pendingStart));
     }
