@@ -21,9 +21,11 @@ Use the verification matrix before running live tests:
 ```bash
 pnpm --filter @capsule/cli capsule verify providers
 pnpm --filter @capsule/cli capsule verify providers --provider neon
+node scripts/live-test-matrix.mjs --dry-run
+node scripts/live-test-matrix.mjs --dry-run --provider neon
 ```
 
-The matrix does not run provider-mutating tests by itself. It reports Docker availability, configured or missing provider credential names, the live test path, and the safe command to run when you intentionally opt in with `CAPSULE_LIVE_TESTS=1`.
+The CLI provider matrix reports Docker availability and provider credential readiness. The `live-test-matrix.mjs` dry run does not create resources or invoke provider APIs; it reports which live tests would run for the current environment, which env-var names are configured or missing, cost acknowledgement status, the live test path, and the safe command to run when you intentionally opt in with `CAPSULE_LIVE_TESTS=1`.
 
 Before running a provider live test, validate the exact provider environment:
 
