@@ -6,9 +6,13 @@ Isolation depends on the provider and the adapter. Docker local is not safe for 
 
 Policy support may be native, emulated, unsupported, experimental, delegated to a provider, or best-effort. Capsule records policy decisions and notes, but it must not claim full enforcement when enforcement is delegated, partial, or missing.
 
+Core policy checks fail closed for the controls Capsule can evaluate before calling an adapter. Secret env allowlists, approval requirements, timeout merging, and TTL maxima are evaluated before supported public operations reach provider code. If `policy.approvals.required` is set, callers must pass an approved operation grant on the spec; otherwise Capsule rejects the operation before provider execution.
+
 Docker `network.mode = "none"` is applied with Docker's `--network none` where the Docker adapter controls container creation. Docker host allowlists are not natively enforced by the adapter and are recorded as unsupported/best-effort. Cloud-provider resource, network, CPU, memory, secret, cost, and TTL policies are delegated to provider APIs only where those APIs expose the relevant controls.
 
-Receipts are observational records. They record what Capsule requested and observed, including hashes and resource metadata. They are not a cryptographic proof of the entire provider environment unless future signing and provider attestations are added.
+Receipts are observational records. They record what Capsule requested and observed, including hashes and resource metadata. They are not a cryptographic proof of the entire provider environment unless future signing and provider attestations are added. Receipts created through Capsule's adapter context are stamped with the active provider and adapter, sanitized before signing or storage, and scoped to the active operation so an adapter cannot mint an unrelated receipt such as `job.run` from a `service.delete` call.
+
+Sandbox lifecycle methods are the current exception to strict single-operation scoping. Existing sandbox adapters hold the context returned from `sandbox.create`, so that context permits `sandbox.create`, `sandbox.exec`, and `sandbox.destroy` receipts. Core-level wrapping for sandbox `exec`, file operations, and destroy is tracked as follow-up productization work.
 
 Mock adapters are marked as mocks in two places: `adapter.raw()` returns `{ mock: true }`, and mock-generated receipts include `metadata.mock: true` with the mock provider and adapter names. Production preview orchestration should require real providers so mock success cannot satisfy a live preview run by accident.
 
@@ -136,3 +140,5 @@ Use these rules for adapters, examples, and applications built on Capsule:
 If a capability is unsupported, Capsule should throw `UnsupportedCapabilityError`. If policy denies a request, Capsule should throw `PolicyViolationError`. If enforcement is emulated, delegated, partial, or unsupported, the receipt notes should say so directly.
 
 Security-sensitive adapters should fail closed when required identity, project, region, namespace, or network configuration is missing.
+
+Receipt durability is explicit. Best-effort receipt persistence may drop failed store writes after the provider action succeeds. Required receipt persistence rejects the Capsule operation when a configured store write fails, but today that rejection happens after an adapter creates the receipt. Use it to detect evidence loss, not as a guarantee that no provider side effect occurred. A pre-execution evidence profile is future work.
