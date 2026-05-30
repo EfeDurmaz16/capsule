@@ -48,7 +48,7 @@
 | --- | --- | --- | --- | --- | --- |
 | CAP-P001 | done | High | Harden workspace verification gates | Build artifacts are cleaned before builds, test files are pruned from publishable `dist`, private packages are ignored by Changesets, and pack smoke uses packed tarballs. | `pnpm typecheck && pnpm test && pnpm build && pnpm release:audit` |
 | CAP-P002 | done | High | Publish packages from the Changesets workflow | Release workflow publishes through `pnpm release`, uses npm token and provenance config, and keeps CI verification before publish. | `pnpm release:audit` plus workflow review |
-| CAP-P003 | open | High | Add post-publish provenance verification | Add a script that verifies published package provenance metadata for every public package after a release. | `pnpm release:audit && node scripts/verify-published-provenance.mjs --dry-run` |
+| CAP-P003 | done | High | Add post-publish provenance verification | Add a script that verifies published package provenance metadata for every public package after a release. | `pnpm release:audit && node scripts/verify-published-provenance.mjs --dry-run` |
 | CAP-P004 | done | Medium | Add package tarball size budgets | Add per-package packed size budgets and fail release audit when a package grows unexpectedly. | `pnpm release:pack-smoke` |
 | CAP-P005 | open | High | Add public API drift gate | Add a generated API snapshot or extractor-style check so changed exports require intentional review. | `pnpm docs:api && git diff --exit-code docs/api-reference.md` |
 | CAP-P006 | open | Medium | Add npm metadata dry-run audit | Verify package names, descriptions, repository links, keywords, license, files, bin targets, and publish access before publish. | `pnpm release:metadata-audit` |
