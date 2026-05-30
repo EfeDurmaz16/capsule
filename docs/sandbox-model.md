@@ -8,6 +8,8 @@ Policy concerns include network access, filesystem boundaries, secret injection,
 
 Docker local is useful for development and CI, but it is not safe for hostile untrusted code unless configured carefully outside Capsule. Capsule will not claim OS-level isolation when it is only invoking Docker CLI.
 
+Docker sandbox sub-operations are governed through the core wrapper. `exec`, `writeFile`, `readFile`, `listFiles`, and `destroy` each run with their own capability check, policy decision, and receipt scope when the adapter is used through `Capsule`.
+
 Docker sandbox creation supports requested `exposedPorts`. Capsule maps each request to Docker `--publish` flags and binds to `127.0.0.1` by default, so published ports are local-only unless the caller explicitly supplies another `hostIp`. This does not turn Docker into a remote service provider and does not bypass `network.none`; it only describes host-loopback port publishing for local development and CI.
 
 Docker sandbox snapshots and restore are explicitly unsupported. Docker has lower-level image and container commit mechanisms, but Capsule does not expose a public snapshot/restore API today and does not model portable restore semantics, filesystem consistency, running-process state, or policy/audit continuity for Docker sandboxes. The Docker adapter must keep `sandbox.snapshot` and `sandbox.restore` unsupported until those semantics are implemented as public Capsule operations with tests.
