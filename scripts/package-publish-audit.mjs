@@ -5,12 +5,30 @@ const rootFlagIndex = process.argv.indexOf("--root");
 const root = rootFlagIndex === -1 ? process.cwd() : process.argv[rootFlagIndex + 1];
 const packagesDir = join(root, "packages");
 const examplesDir = join(root, "examples");
+const changesetConfigPath = join(root, ".changeset", "config.json");
 const allowedFiles = ["dist"];
 const requiredPackageFields = ["description", "license", "repository", "homepage", "bugs", "keywords", "engines"];
 const errors = [];
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
+}
+
+function listFiles(dir) {
+  if (!existsSync(dir)) {
+    return [];
+  }
+
+  const files = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listFiles(path));
+    } else if (entry.isFile()) {
+      files.push(path);
+    }
+  }
+  return files;
 }
 
 function auditPackage(packageDir) {
@@ -90,14 +108,32 @@ function auditPackage(packageDir) {
     for (const [name, value] of Object.entries(pkg.bin)) {
       if (!value.startsWith("./dist/")) {
         errors.push(`${pkg.name}: bin ${name} must point at ./dist.`);
+        continue;
       }
+      if (!existsSync(join(packageDir, value))) {
+        errors.push(`${pkg.name}: bin ${name} target is missing; run pnpm build before publish.`);
+      }
+    }
+  }
+
+  for (const distFile of listFiles(join(packageDir, "dist"))) {
+    if (distFile.includes(".test.")) {
+      errors.push(`${pkg.name}: publishable dist contains test artifact ${distFile.slice(packageDir.length + 1)}.`);
     }
   }
 }
 
+const changesetConfig = existsSync(changesetConfigPath) ? readJson(changesetConfigPath) : {};
+const changesetIgnore = new Set(changesetConfig.ignore ?? []);
+const privateWorkspacePackages = [];
+
 for (const dir of readdirSync(packagesDir)) {
   const packageDir = join(packagesDir, dir);
   if (existsSync(join(packageDir, "package.json"))) {
+    const pkg = readJson(join(packageDir, "package.json"));
+    if (pkg.private === true && typeof pkg.name === "string") {
+      privateWorkspacePackages.push(pkg.name);
+    }
     auditPackage(packageDir);
   }
 }
@@ -110,6 +146,14 @@ for (const dir of readdirSync(examplesDir)) {
   const pkg = readJson(packageJsonPath);
   if (pkg.private !== true) {
     errors.push(`${pkg.name ?? `examples/${dir}`}: examples must remain private.`);
+  } else if (typeof pkg.name === "string") {
+    privateWorkspacePackages.push(pkg.name);
+  }
+}
+
+for (const packageName of privateWorkspacePackages) {
+  if (!changesetIgnore.has(packageName)) {
+    errors.push(`${packageName}: private workspace package must be listed in .changeset/config.json ignore.`);
   }
 }
 

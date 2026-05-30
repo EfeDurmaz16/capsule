@@ -18,6 +18,7 @@
     "@capsule/example-machine-model",
     "@capsule/example-policy-receipts",
     "@capsule/example-preview-environment-model",
+    "@capsule/example-provider-presets",
     "@capsule/example-sandbox-docker"
   ]
 }
