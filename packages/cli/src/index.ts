@@ -537,6 +537,69 @@ const comparableProviders = [
   "vercel"
 ] as const;
 
+const completionCommands = [
+  "doctor",
+  "verify",
+  "live-test",
+  "classify",
+  "policy",
+  "receipt",
+  "preview",
+  "init",
+  "examples",
+  "adapter",
+  "select",
+  "compare",
+  "capabilities",
+  "run",
+  "sandbox",
+  "job",
+  "service",
+  "machine",
+  "edge",
+  "neon",
+  "completion"
+] as const;
+
+const completionOptions = [
+  "--adapter",
+  "--provider",
+  "--recipe",
+  "--left",
+  "--right",
+  "--json",
+  "--explain",
+  "--policy-file",
+  "--spec-file",
+  "--receipt-file",
+  "--config-file",
+  "--cleanup-file",
+  "--out-dir",
+  "--domain",
+  "--name",
+  "--id",
+  "--image",
+  "--project",
+  "--branch-id",
+  "--database",
+  "--role",
+  "--force",
+  "--dry-run",
+  "--require-signature",
+  "--reason",
+  "--project-id",
+  "--location",
+  "--namespace",
+  "--region",
+  "--app-name"
+] as const;
+
+const completionProviders = [...comparableProviders, ...Object.keys(mockAdapterFactories)].sort();
+const completionRecipes = ["sandbox", "agent-code-execution", "preview-web-db", "edge-web", "service-api", "machine"] as const;
+const completionShells = ["bash", "zsh", "fish"] as const;
+
+type ShellCompletionTarget = (typeof completionShells)[number];
+
 const liveTestPlans: LiveTestPlan[] = [
   {
     provider: "e2b",
@@ -1627,6 +1690,108 @@ export function selectProvidersForRecipe(recipeId: ProviderSelectionRecipeId): P
   };
 }
 
+function completionWordList(values: readonly string[]): string {
+  return values.join(" ");
+}
+
+function fishLongOption(flag: string): string {
+  return flag.replace(/^--/, "");
+}
+
+function isShellCompletionTarget(value: string | undefined): value is ShellCompletionTarget {
+  return typeof value === "string" && (completionShells as readonly string[]).includes(value);
+}
+
+export function createShellCompletionScript(shell: ShellCompletionTarget): string {
+  const commands = completionWordList(completionCommands);
+  const providers = completionWordList(completionProviders);
+  const recipes = completionWordList(completionRecipes);
+  const shells = completionWordList(completionShells);
+  const flags = completionWordList(completionOptions);
+
+  if (shell === "bash") {
+    return `# capsule bash completion
+_capsule_completions() {
+  local cur prev commands providers recipes shells flags
+  COMPREPLY=()
+  cur="\${COMP_WORDS[COMP_CWORD]}"
+  prev="\${COMP_WORDS[COMP_CWORD-1]}"
+  commands="${commands}"
+  providers="${providers}"
+  recipes="${recipes}"
+  shells="${shells}"
+  flags="${flags}"
+
+  case "$prev" in
+    --adapter|--provider|--left|--right)
+      COMPREPLY=( $(compgen -W "$providers" -- "$cur") )
+      return
+      ;;
+    --recipe)
+      COMPREPLY=( $(compgen -W "$recipes" -- "$cur") )
+      return
+      ;;
+    completion)
+      COMPREPLY=( $(compgen -W "$shells" -- "$cur") )
+      return
+      ;;
+  esac
+
+  if [[ "$COMP_CWORD" -eq 1 ]]; then
+    COMPREPLY=( $(compgen -W "$commands" -- "$cur") )
+    return
+  fi
+  COMPREPLY=( $(compgen -W "$commands $flags" -- "$cur") )
+}
+complete -F _capsule_completions capsule`;
+  }
+
+  if (shell === "zsh") {
+    return `#compdef capsule
+
+_capsule() {
+  local -a commands providers recipes shells flags
+  commands=(${commands})
+  providers=(${providers})
+  recipes=(${recipes})
+  shells=(${shells})
+  flags=(${completionOptions.map((option) => `'${option}'`).join(" ")})
+
+  _arguments -C \\
+    '1:command:->command' \\
+    '*::arg:->arg'
+
+  case $state in
+    command)
+      _describe 'capsule command' commands
+      ;;
+    arg)
+      case \${words[CURRENT-1]} in
+        --adapter|--provider|--left|--right) _describe 'provider' providers ;;
+        --recipe) _describe 'recipe' recipes ;;
+        completion) _describe 'shell' shells ;;
+        *) _describe 'option' flags ;;
+      esac
+      ;;
+  esac
+}
+_capsule "$@"`;
+  }
+
+  return [
+    "# capsule fish completion",
+    "complete -c capsule -f",
+    ...completionCommands.map((command) => `complete -c capsule -n "__fish_use_subcommand" -a "${command}"`),
+    `complete -c capsule -l adapter -xa "${providers}"`,
+    `complete -c capsule -l provider -xa "${providers}"`,
+    `complete -c capsule -l left -xa "${providers}"`,
+    `complete -c capsule -l right -xa "${providers}"`,
+    `complete -c capsule -l recipe -xa "${recipes}"`,
+    `complete -c capsule -n "__fish_seen_subcommand_from completion" -a "${shells}"`,
+    ...completionOptions.filter((option) => !["--adapter", "--provider", "--left", "--right", "--recipe"].includes(option)).map((option) => `complete -c capsule -l ${fishLongOption(option)}`)
+  ].join("\n");
+}
+
 export function liveTestCommandPlan(provider?: string, plans: LiveTestPlan[] = liveTestPlans): LiveTestPlan[] {
   const withGuardedCommands = (plan: LiveTestPlan): LiveTestPlan =>
     plan.costRisk === "billable"
@@ -2293,6 +2458,9 @@ Commands:
   capsule select provider --recipe sandbox
   capsule select provider --recipe service-api
   capsule compare providers --left docker --right e2b
+  capsule completion bash
+  capsule completion zsh
+  capsule completion fish
   capsule capabilities
   capsule capabilities --explain
   capsule capabilities --json
@@ -2469,6 +2637,14 @@ export async function main(argv: string[]): Promise<void> {
   const parsed = parse(argv);
 
   switch (parsed.command) {
+    case "completion": {
+      const shell = parsed.rest[0];
+      if (!isShellCompletionTarget(shell)) {
+        throw new Error(`Unsupported shell "${shell ?? ""}". Supported shells: ${completionShells.join(", ")}.`);
+      }
+      console.log(createShellCompletionScript(shell));
+      return;
+    }
     case "neon": {
       const capsule = createCapsule(parsed);
       const action = parsed.rest[0];

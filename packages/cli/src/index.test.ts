@@ -13,6 +13,7 @@ import {
   createLiveEnvironmentValidationReport,
   createProviderVerificationReport,
   createProjectInitPlan,
+  createShellCompletionScript,
   liveTestCommandPlan,
   main,
   parse,
@@ -549,6 +550,34 @@ describe("CLI runnable examples", () => {
     expect(calls[0]?.env.CAPSULE_LIVE_TESTS).toBeUndefined();
 
     await expect(runExampleCommand("sandbox-docker", { workspaceRoot: process.cwd() })).rejects.toThrow("requires local Docker");
+  });
+});
+
+describe("CLI shell completions", () => {
+  test("generates bash, zsh, and fish completion scripts without extra dependencies", async () => {
+    expect(parse(["completion", "bash"])).toMatchObject({
+      command: "completion",
+      rest: ["bash"]
+    });
+
+    expect(createShellCompletionScript("bash")).toContain("complete -F _capsule_completions capsule");
+    expect(createShellCompletionScript("bash")).toContain("doctor verify live-test classify policy receipt preview init examples adapter select compare capabilities run sandbox job service machine edge neon completion");
+    expect(createShellCompletionScript("zsh")).toContain("#compdef capsule");
+    expect(createShellCompletionScript("zsh")).toContain("shells=(bash zsh fish)");
+    expect(createShellCompletionScript("fish")).toContain("complete -c capsule -f");
+    expect(createShellCompletionScript("fish")).toContain("complete -c capsule -n \"__fish_use_subcommand\" -a \"completion\"");
+
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await main(["completion", "fish"]);
+      expect(String(log.mock.calls[0]?.[0])).toContain("complete -c capsule");
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  test("rejects unsupported completion shells", async () => {
+    await expect(main(["completion", "powershell"])).rejects.toThrow('Unsupported shell "powershell". Supported shells: bash, zsh, fish.');
   });
 });
 

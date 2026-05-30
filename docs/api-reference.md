@@ -288,6 +288,7 @@ Exports:
 - `createLiveEnvironmentValidationReport`
 - `createProjectInitPlan`
 - `createProviderVerificationReport`
+- `createShellCompletionScript`
 - `liveTestCommandPlan`
 - `main`
 - `parse`
