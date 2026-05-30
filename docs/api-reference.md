@@ -307,6 +307,8 @@ Exports:
 - `AgentSafePolicyOptions`
 - `Artifact`
 - `assertAdapterContract`
+- `assertAdapterFailureScenarios`
+- `assertPolicyDenialGuards`
 - `assertUnsupportedCapabilityGuards`
 - `CancelJobResult`
 - `CancelJobSpec`
@@ -321,6 +323,7 @@ Exports:
 - `Capsule`
 - `CapsuleAdapter`
 - `CapsuleAdapterContractOptions`
+- `CapsuleAdapterFailureScenario`
 - `CapsuleApprovalGrant`
 - `CapsuleApprovalResourceScope`
 - `CapsuleDomain`

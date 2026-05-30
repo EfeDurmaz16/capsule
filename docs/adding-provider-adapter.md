@@ -169,6 +169,7 @@ Examples:
 - [ ] Policy evaluation runs before provider actions that accept env, secrets, timeouts, resources, TTL, or cost-sensitive inputs.
 - [ ] Receipts include provider, adapter, capability path, support level, resource metadata, and policy decision.
 - [ ] Provider API failures attach `cause.providerError` classification when status or provider codes are available.
+- [ ] Adapter-specific partial failures are covered through contract `failureScenarios` when cleanup metadata is expected.
 - [ ] Errors and receipts do not include tokens, private keys, signed URLs, connection strings, or raw secrets.
 - [ ] Fake-client tests cover request mapping.
 - [ ] Shared contract tests pass.
