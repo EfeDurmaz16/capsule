@@ -2,6 +2,7 @@
 import { pathToFileURL } from "node:url";
 
 const liveTestMaxResourcesEnv = "CAPSULE_LIVE_TEST_MAX_RESOURCES";
+const liveTestFlakyRevalidationEnv = "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY";
 
 export const liveTestMatrixPlans = [
   {
@@ -147,19 +148,20 @@ function guardedCommand(plan) {
   return `${plan.costAcknowledgementEnv ?? "CAPSULE_LIVE_TEST_COST_ACK"}=1 ${plan.maxResourceCountEnv ?? liveTestMaxResourcesEnv}=${plan.maxResourceCount ?? 1} ${plan.command}`;
 }
 
-function providerPlans(provider) {
-  if (!provider) return liveTestMatrixPlans;
-  const plan = liveTestMatrixPlans.find((entry) => entry.provider === provider);
+function providerPlans(provider, plans = liveTestMatrixPlans) {
+  if (!provider) return plans;
+  const plan = plans.find((entry) => entry.provider === provider);
   if (!plan) {
-    throw new Error(`Unknown live-test provider "${provider}". Providers: ${liveTestMatrixPlans.map((entry) => entry.provider).join(", ")}`);
+    throw new Error(`Unknown live-test provider "${provider}". Providers: ${plans.map((entry) => entry.provider).join(", ")}`);
   }
   return [plan];
 }
 
 export function createLiveTestMatrix(options = {}) {
   const env = options.env ?? process.env;
-  const providers = providerPlans(options.provider).map((plan) => {
+  const providers = providerPlans(options.provider, options.plans).map((plan) => {
     const liveTestEnabled = env.CAPSULE_LIVE_TESTS === "1";
+    const quarantineActive = Boolean(plan.quarantine && env[liveTestFlakyRevalidationEnv] !== "1");
     const requiredWithoutFlag = plan.requiredEnv.filter((name) => name !== "CAPSULE_LIVE_TESTS");
     const configuredEnv = requiredWithoutFlag.flatMap((name) => configuredCredentialNames(name, plan.aliases, env));
     const missingRequired = requiredWithoutFlag.filter((name) => configuredCredentialNames(name, plan.aliases, env).length === 0);
@@ -169,7 +171,8 @@ export function createLiveTestMatrix(options = {}) {
     const limit = resourceLimit(plan, env);
     const missingResourceLimitEnv = limit && !limit.satisfied ? [limit.env] : [];
     const missingEnv = liveTestEnabled ? missingRequired : ["CAPSULE_LIVE_TESTS", ...missingRequired];
-    const status = liveTestEnabled && missingRequired.length === 0 && missingCostEnv.length === 0 && missingResourceLimitEnv.length === 0 ? "ready" : "blocked";
+    const ready = liveTestEnabled && missingRequired.length === 0 && missingCostEnv.length === 0 && missingResourceLimitEnv.length === 0;
+    const status = quarantineActive ? "quarantined" : ready ? "ready" : "blocked";
 
     return {
       provider: plan.provider,
@@ -183,7 +186,8 @@ export function createLiveTestMatrix(options = {}) {
         ...(liveTestEnabled ? ["CAPSULE_LIVE_TESTS"] : []),
         ...configuredEnv,
         ...(costEnv && costAcknowledged ? [costEnv] : []),
-        ...(limit?.satisfied ? [limit.env] : [])
+        ...(limit?.satisfied ? [limit.env] : []),
+        ...(plan.quarantine && env[liveTestFlakyRevalidationEnv] === "1" ? [liveTestFlakyRevalidationEnv] : [])
       ],
       missingEnv,
       missingCostEnv,
@@ -192,6 +196,12 @@ export function createLiveTestMatrix(options = {}) {
       optionalEnv: plan.optionalEnv,
       testPath: plan.testPath,
       command: guardedCommand(plan),
+      ...(plan.quarantine
+        ? {
+            quarantine: plan.quarantine,
+            quarantineRevalidationEnv: liveTestFlakyRevalidationEnv
+          }
+        : {}),
       notes: plan.notes
     };
   });
@@ -199,6 +209,7 @@ export function createLiveTestMatrix(options = {}) {
     total: providers.length,
     ready: providers.filter((entry) => entry.status === "ready").length,
     blocked: providers.filter((entry) => entry.status === "blocked").length,
+    quarantined: providers.filter((entry) => entry.status === "quarantined").length,
     billable: providers.filter((entry) => entry.costRisk === "billable").length,
     readOnly: providers.filter((entry) => entry.costRisk === "read-only").length
   };

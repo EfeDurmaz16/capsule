@@ -4,6 +4,14 @@ export { liveResourceMetadata, type LiveResourceMetadata, type LiveResourceMetad
 export interface LiveTestGate {
   enabled: boolean;
   skipReason?: string;
+  quarantine?: LiveTestQuarantine;
+}
+
+export interface LiveTestQuarantine {
+  reason: string;
+  lastObservedFailure: string;
+  owner: string;
+  revalidationCommand: string;
 }
 
 export interface LiveProviderRequirement {
@@ -12,6 +20,7 @@ export interface LiveProviderRequirement {
   env?: LiveTestEnv;
   costRisk?: LiveProviderCostRisk;
   maxResourceCount?: number;
+  quarantine?: LiveTestQuarantine;
 }
 
 export interface LiveProviderRegistryEntry {
@@ -28,6 +37,7 @@ export interface LiveTestApi {
 const liveFlag = "CAPSULE_LIVE_TESTS";
 const liveCostAcknowledgementEnv = "CAPSULE_LIVE_TEST_COST_ACK";
 const liveMaxResourcesEnv = "CAPSULE_LIVE_TEST_MAX_RESOURCES";
+const liveFlakyRevalidationEnv = "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY";
 
 export type LiveProviderCostRisk = "none" | "read-only" | "billable";
 
@@ -101,9 +111,22 @@ export const liveProviderRegistry = [
   { provider: "azure-container-apps", packageName: "@capsule/adapter-azure-container-apps", credentials: liveProviderCredentials.azure }
 ] as const satisfies readonly LiveProviderRegistryEntry[];
 
+function quarantineSkipReason(provider: string, quarantine: LiveTestQuarantine): string {
+  return `${provider} live test is quarantined: ${quarantine.reason}. Owner: ${quarantine.owner}. Last observed failure: ${quarantine.lastObservedFailure}. Revalidate with: ${quarantine.revalidationCommand}`;
+}
+
 export function liveTestGate(requirement: LiveProviderRequirement): LiveTestGate {
   const env = requirement.env ?? process.env;
   const provider = requirement.provider;
+  const quarantine = requirement.quarantine;
+
+  if (quarantine && env[liveFlakyRevalidationEnv] !== "1") {
+    return {
+      enabled: false,
+      skipReason: quarantineSkipReason(provider, quarantine),
+      quarantine
+    };
+  }
 
   if (env[liveFlag] !== "1") {
     return {
@@ -139,19 +162,20 @@ export function liveTestGate(requirement: LiveProviderRequirement): LiveTestGate
     }
   }
 
-  return { enabled: true };
+  return quarantine ? { enabled: true, quarantine } : { enabled: true };
 }
 
 export function providerLiveTestGate(
   provider: keyof typeof liveProviderCredentials,
-  options: { env?: LiveTestEnv; credentials?: readonly string[]; costRisk?: LiveProviderCostRisk; maxResourceCount?: number } = {}
+  options: { env?: LiveTestEnv; credentials?: readonly string[]; costRisk?: LiveProviderCostRisk; maxResourceCount?: number; quarantine?: LiveTestQuarantine } = {}
 ): LiveTestGate {
   return liveTestGate({
     provider,
     credentials: options.credentials ?? liveProviderCredentials[provider],
     env: options.env,
     costRisk: options.costRisk,
-    maxResourceCount: options.maxResourceCount
+    maxResourceCount: options.maxResourceCount,
+    quarantine: options.quarantine
   });
 }
 

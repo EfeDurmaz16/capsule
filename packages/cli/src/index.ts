@@ -126,6 +126,14 @@ interface LiveTestPlan {
   maxResourceCountEnv?: string;
   safeCommands: string[];
   notes: string[];
+  quarantine?: LiveTestQuarantine;
+}
+
+interface LiveTestQuarantine {
+  reason: string;
+  lastObservedFailure: string;
+  owner: string;
+  revalidationCommand: string;
 }
 
 interface ProviderCapabilityComparison {
@@ -147,7 +155,7 @@ interface ProviderSelectionReport {
 
 interface ProviderVerificationEntry {
   provider: string;
-  status: "passed" | "ready" | "missing" | "unavailable";
+  status: "passed" | "ready" | "missing" | "unavailable" | "quarantined";
   liveTestEnabled: boolean;
   configuredEnv: string[];
   missingEnv: string[];
@@ -155,6 +163,8 @@ interface ProviderVerificationEntry {
   testPath?: string;
   safeCommands: string[];
   notes: string[];
+  quarantine?: LiveTestQuarantine;
+  quarantineRevalidationEnv?: string;
 }
 
 interface ProviderVerificationReport {
@@ -163,7 +173,7 @@ interface ProviderVerificationReport {
 
 interface LiveEnvironmentValidationEntry {
   provider: string;
-  status: "ready" | "blocked";
+  status: "ready" | "blocked" | "quarantined";
   liveTestEnabled: boolean;
   costRisk: LiveTestPlan["costRisk"];
   costAcknowledged: boolean;
@@ -181,6 +191,8 @@ interface LiveEnvironmentValidationEntry {
   testPath: string;
   safeCommands: string[];
   notes: string[];
+  quarantine?: LiveTestQuarantine;
+  quarantineRevalidationEnv?: string;
 }
 
 interface LiveEnvironmentValidationReport {
@@ -205,6 +217,7 @@ type AdapterScaffoldDomain = Extract<CapsuleDomain, "sandbox" | "job" | "service
 
 const adapterScaffoldDomains = ["sandbox", "job", "service", "edge", "database", "preview", "machine"] as const satisfies readonly AdapterScaffoldDomain[];
 const liveTestMaxResourcesEnv = "CAPSULE_LIVE_TEST_MAX_RESOURCES";
+const liveTestFlakyRevalidationEnv = "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY";
 
 const credentialRequirements: CredentialRequirement[] = [
   { provider: "e2b", requiredAll: ["E2B_API_KEY"] },
@@ -716,7 +729,7 @@ export function selectProvidersForRecipe(recipeId: ProviderSelectionRecipeId): P
   };
 }
 
-export function liveTestCommandPlan(provider?: string): LiveTestPlan[] {
+export function liveTestCommandPlan(provider?: string, plans: LiveTestPlan[] = liveTestPlans): LiveTestPlan[] {
   const withGuardedCommands = (plan: LiveTestPlan): LiveTestPlan =>
     plan.costRisk === "billable"
       ? {
@@ -728,13 +741,21 @@ export function liveTestCommandPlan(provider?: string): LiveTestPlan[] {
       : plan;
 
   if (!provider) {
-    return liveTestPlans.map(withGuardedCommands);
+    return plans.map(withGuardedCommands);
   }
-  const plan = liveTestPlans.find((entry) => entry.provider === provider);
+  const plan = plans.find((entry) => entry.provider === provider);
   if (!plan) {
-    throw new Error(`Unknown live-test provider "${provider}". Providers: ${liveTestPlans.map((entry) => entry.provider).join(", ")}`);
+    throw new Error(`Unknown live-test provider "${provider}". Providers: ${plans.map((entry) => entry.provider).join(", ")}`);
   }
   return [withGuardedCommands(plan)];
+}
+
+function livePlanQuarantineActive(plan: LiveTestPlan, env: NodeJS.ProcessEnv): boolean {
+  return Boolean(plan.quarantine && env[liveTestFlakyRevalidationEnv] !== "1");
+}
+
+function livePlanQuarantineNote(quarantine: LiveTestQuarantine): string {
+  return `Quarantined flaky live test: ${quarantine.reason}. Owner: ${quarantine.owner}. Last observed failure: ${quarantine.lastObservedFailure}. Revalidate with: ${quarantine.revalidationCommand}`;
 }
 
 function livePlanRequirementDiagnostic(plan: LiveTestPlan, env: NodeJS.ProcessEnv): Omit<ProviderVerificationEntry, "provider" | "status" | "testPath" | "safeCommands" | "notes" | "liveTestEnabled"> {
@@ -780,34 +801,47 @@ export async function createProviderVerificationReport(options: { env?: NodeJS.P
   for (const plan of plans) {
     const diagnostic = livePlanRequirementDiagnostic(plan, env);
     const liveTestEnabled = env.CAPSULE_LIVE_TESTS === "1";
+    const quarantineActive = livePlanQuarantineActive(plan, env);
     providers.push({
       provider: plan.provider,
-      status: diagnostic.missingEnv.length === 0 ? "ready" : "missing",
+      status: quarantineActive ? "quarantined" : diagnostic.missingEnv.length === 0 ? "ready" : "missing",
       liveTestEnabled,
       ...diagnostic,
       testPath: plan.testPath,
       safeCommands: plan.safeCommands,
-      notes: [...plan.notes, ...(liveTestEnabled ? [] : ["Set CAPSULE_LIVE_TESTS=1 before running the safe command."])]
+      notes: [
+        ...plan.notes,
+        ...(plan.quarantine ? [livePlanQuarantineNote(plan.quarantine)] : []),
+        ...(liveTestEnabled ? [] : ["Set CAPSULE_LIVE_TESTS=1 before running the safe command."])
+      ],
+      ...(plan.quarantine
+        ? {
+            quarantine: plan.quarantine,
+            quarantineRevalidationEnv: liveTestFlakyRevalidationEnv
+          }
+        : {})
     });
   }
 
   return { providers };
 }
 
-export function createLiveEnvironmentValidationReport(options: { env?: NodeJS.ProcessEnv; provider?: string } = {}): LiveEnvironmentValidationReport {
+export function createLiveEnvironmentValidationReport(options: { env?: NodeJS.ProcessEnv; provider?: string; plans?: LiveTestPlan[] } = {}): LiveEnvironmentValidationReport {
   const env = options.env ?? process.env;
-  const plans = liveTestCommandPlan(options.provider);
+  const plans = liveTestCommandPlan(options.provider, options.plans);
   const providers = plans.map((plan): LiveEnvironmentValidationEntry => {
     const diagnostic = livePlanRequirementDiagnostic(plan, env);
     const liveTestEnabled = env.CAPSULE_LIVE_TESTS === "1";
+    const quarantineActive = livePlanQuarantineActive(plan, env);
     const costEnv = plan.costAcknowledgementEnv;
     const costAcknowledged = costEnv ? env[costEnv] === "1" : true;
     const missingCostEnv = costEnv && !costAcknowledged ? [costEnv] : [];
     const resourceLimit = livePlanResourceLimit(plan, env);
     const missingResourceLimitEnv = resourceLimit && !resourceLimit.satisfied ? [resourceLimit.env] : [];
+    const ready = liveTestEnabled && diagnostic.missingEnv.length === 0 && missingCostEnv.length === 0 && missingResourceLimitEnv.length === 0;
     return {
       provider: plan.provider,
-      status: liveTestEnabled && diagnostic.missingEnv.length === 0 && missingCostEnv.length === 0 && missingResourceLimitEnv.length === 0 ? "ready" : "blocked",
+      status: quarantineActive ? "quarantined" : ready ? "ready" : "blocked",
       liveTestEnabled,
       costRisk: plan.costRisk,
       costAcknowledged,
@@ -816,7 +850,8 @@ export function createLiveEnvironmentValidationReport(options: { env?: NodeJS.Pr
         ...(liveTestEnabled ? ["CAPSULE_LIVE_TESTS"] : []),
         ...diagnostic.configuredEnv,
         ...(costEnv && costAcknowledged ? [costEnv] : []),
-        ...(resourceLimit?.satisfied ? [resourceLimit.env] : [])
+        ...(resourceLimit?.satisfied ? [resourceLimit.env] : []),
+        ...(plan.quarantine && env[liveTestFlakyRevalidationEnv] === "1" ? [liveTestFlakyRevalidationEnv] : [])
       ],
       missingEnv: liveTestEnabled ? diagnostic.missingEnv : ["CAPSULE_LIVE_TESTS", ...diagnostic.missingEnv],
       missingCostEnv,
@@ -826,12 +861,19 @@ export function createLiveEnvironmentValidationReport(options: { env?: NodeJS.Pr
       safeCommands: plan.safeCommands,
       notes: [
         ...plan.notes,
+        ...(plan.quarantine ? [livePlanQuarantineNote(plan.quarantine)] : []),
         ...(liveTestEnabled ? [] : ["Set CAPSULE_LIVE_TESTS=1 before running the safe command."]),
         ...(missingCostEnv.length > 0 ? [`Set ${missingCostEnv[0]}=1 to acknowledge billable or side-effecting live provider work.`] : []),
         ...(missingResourceLimitEnv.length > 0
           ? [`Set ${missingResourceLimitEnv[0]} to a positive integer >= ${resourceLimit?.required ?? 1} before running billable live provider work.`]
           : [])
-      ]
+      ],
+      ...(plan.quarantine
+        ? {
+            quarantine: plan.quarantine,
+            quarantineRevalidationEnv: liveTestFlakyRevalidationEnv
+          }
+        : {})
     };
   });
   return { providers };

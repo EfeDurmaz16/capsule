@@ -85,6 +85,81 @@ test("live test matrix blocks billable providers when max resource count is too 
   });
 });
 
+test("live test matrix reports quarantined flaky providers with revalidation metadata", () => {
+  const quarantine = {
+    reason: "provider control plane intermittently returns 503",
+    lastObservedFailure: "2026-05-30T10:00:00Z",
+    owner: "runtime-team",
+    revalidationCommand: "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"
+  };
+  const report = createLiveTestMatrix({
+    provider: "fly",
+    plans: [
+      {
+        provider: "fly",
+        testPath: "packages/adapter-fly/src/fly.live.test.ts",
+        requiredEnv: ["CAPSULE_LIVE_TESTS", "FLY_API_TOKEN", "FLY_APP_NAME"],
+        optionalEnv: [],
+        costRisk: "billable",
+        costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
+        command: "CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts",
+        quarantine,
+        notes: []
+      }
+    ],
+    env: {
+      CAPSULE_LIVE_TESTS: "1",
+      FLY_API_TOKEN: "secret-fly-token",
+      FLY_APP_NAME: "capsule-app",
+      CAPSULE_LIVE_TEST_COST_ACK: "1",
+      CAPSULE_LIVE_TEST_MAX_RESOURCES: "1"
+    }
+  });
+
+  assert.equal(report.providers[0]?.status, "quarantined");
+  assert.equal(report.providers[0]?.wouldRun, false);
+  assert.equal(report.providers[0]?.quarantineRevalidationEnv, "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY");
+  assert.deepEqual(report.providers[0]?.quarantine, quarantine);
+  assert.equal(report.summary.quarantined, 1);
+  assert.equal(JSON.stringify(report).includes("secret-fly-token"), false);
+});
+
+test("live test matrix lets explicitly revalidated flaky providers become ready", () => {
+  const report = createLiveTestMatrix({
+    provider: "fly",
+    plans: [
+      {
+        provider: "fly",
+        testPath: "packages/adapter-fly/src/fly.live.test.ts",
+        requiredEnv: ["CAPSULE_LIVE_TESTS", "FLY_API_TOKEN", "FLY_APP_NAME"],
+        optionalEnv: [],
+        costRisk: "billable",
+        costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
+        command: "CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts",
+        quarantine: {
+          reason: "provider control plane intermittently returns 503",
+          lastObservedFailure: "2026-05-30T10:00:00Z",
+          owner: "runtime-team",
+          revalidationCommand: "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"
+        },
+        notes: []
+      }
+    ],
+    env: {
+      CAPSULE_LIVE_TEST_REVALIDATE_FLAKY: "1",
+      CAPSULE_LIVE_TESTS: "1",
+      FLY_API_TOKEN: "secret-fly-token",
+      FLY_APP_NAME: "capsule-app",
+      CAPSULE_LIVE_TEST_COST_ACK: "1",
+      CAPSULE_LIVE_TEST_MAX_RESOURCES: "1"
+    }
+  });
+
+  assert.equal(report.providers[0]?.status, "ready");
+  assert.equal(report.providers[0]?.wouldRun, true);
+  assert.equal(report.providers[0]?.quarantineRevalidationEnv, "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY");
+});
+
 test("live test matrix dry-run command emits JSON and exits without credentials", () => {
   const stdout = execFileSync(process.execPath, [scriptPath, "--dry-run", "--provider", "neon"], {
     encoding: "utf8",
