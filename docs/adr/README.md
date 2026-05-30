@@ -10,4 +10,4 @@ These records are intentionally short and explicit. They capture what Capsule ch
 - [0002: Keep the SDK core serverless and database-free](0002-serverless-database-free-core.md)
 - [0003: Prefer adapter-first provider boundaries](0003-adapter-first-provider-boundaries.md)
 - [0004: Treat receipts as observational evidence](0004-observational-receipts.md)
-
+- [0005: Make evidence-grade receipts an explicit profile](0005-evidence-grade-receipts.md)
