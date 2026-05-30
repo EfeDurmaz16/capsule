@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { Capsule, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule/core";
 import { azureContainerApps, azureContainerAppsCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200): Response {
@@ -70,6 +70,9 @@ describe("azure container apps adapter", () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(url), init: init ?? {} });
+      if ((init?.method ?? "GET") === "GET") {
+        return response({ error: { message: "job not found" } }, 404);
+      }
       if (String(url).endsWith("/start?api-version=2025-07-01")) {
         return response({ id: "/jobs/smoke/executions/exec-1", name: "exec-1", properties: { runningStatus: "Running" } });
       }
@@ -82,15 +85,98 @@ describe("azure container apps adapter", () => {
     expect(run).toMatchObject({ id: "/jobs/smoke/executions/exec-1", provider: "azure-container-apps", status: "running" });
     expect(run.receipt?.type).toBe("job.run");
     expect(calls.map((call) => [call.init.method, call.url])).toEqual([
+      ["GET", "https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/smoke?api-version=2025-07-01"],
       ["PUT", "https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/smoke?api-version=2025-07-01"],
       ["POST", "https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/smoke/start?api-version=2025-07-01"]
     ]);
-    expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
+    expect(calls[1]?.init.headers).toMatchObject({ "if-none-match": "*" });
+    expect(JSON.parse(String(calls[1]?.init.body))).toMatchObject({
       properties: {
         configuration: { triggerType: "Manual", replicaTimeout: 60 },
         template: { containers: [{ name: "smoke", image: "node:22", command: ["sh", "-lc", "node smoke.js"], env: [{ name: "NODE_ENV", value: "test" }] }] }
       }
     });
+  });
+
+  test("rejects user-named Container Apps Job runs when the Job already exists", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return response({ id: "/jobs/smoke", name: "smoke", properties: { provisioningState: "Succeeded" } });
+    }) as typeof fetch;
+    const capsule = new Capsule({ adapter: azureContainerApps({ ...options, fetch: fetchMock }), receipts: true });
+
+    await expect(capsule.job.run({ name: "smoke", image: "node:22" })).rejects.toThrow(
+      "Azure Container Apps job.run refuses to update existing Job smoke without providerOptions.allowExistingJobUpdate."
+    );
+
+    expect(calls.map((call) => [call.init.method ?? "GET", call.url])).toEqual([
+      ["GET", "https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/smoke?api-version=2025-07-01"]
+    ]);
+  });
+
+  test("allows explicitly requested user-named Container Apps Job updates", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      if (String(url).endsWith("/start?api-version=2025-07-01")) {
+        return response({ id: "/jobs/smoke/executions/exec-1", name: "exec-1", properties: { runningStatus: "Running" } });
+      }
+      return response({ id: "/jobs/smoke", name: "smoke", properties: { provisioningState: "Succeeded" } });
+    }) as typeof fetch;
+    const capsule = new Capsule({ adapter: azureContainerApps({ ...options, fetch: fetchMock }), receipts: true });
+
+    const run = await capsule.job.run({ name: "smoke", image: "node:22", providerOptions: { allowExistingJobUpdate: true } });
+
+    expect(run).toMatchObject({ id: "/jobs/smoke/executions/exec-1", provider: "azure-container-apps", status: "running" });
+    expect(calls[0]?.init.headers).not.toMatchObject({ "if-none-match": "*" });
+    expect(calls.map((call) => [call.init.method, call.url])).toEqual([
+      ["PUT", "https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/smoke?api-version=2025-07-01"],
+      ["POST", "https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/smoke/start?api-version=2025-07-01"]
+    ]);
+  });
+
+  test("deletes generated Container Apps Jobs when execution start fails", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    let jobName = "";
+    const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      const method = init?.method ?? "GET";
+      calls.push({ url: requestUrl, init: init ?? {} });
+      const matchedJobName = requestUrl.match(/\/jobs\/([^/?]+)/)?.[1];
+      if (matchedJobName) jobName = decodeURIComponent(matchedJobName);
+      if (method === "POST" && requestUrl.endsWith("/start?api-version=2025-07-01")) {
+        return response({ error: { message: "Azure start failed" } }, 409);
+      }
+      if (method === "DELETE") {
+        return response(undefined, 202);
+      }
+      return response({ id: `/jobs/${jobName}`, name: jobName, properties: { provisioningState: "Succeeded" } }, 201);
+    }) as typeof fetch;
+    const capsule = new Capsule({ adapter: azureContainerApps({ ...options, fetch: fetchMock }), receipts: true });
+
+    let thrown: unknown;
+    try {
+      await capsule.job.run({ image: "node:22" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(AdapterExecutionError);
+    expect((thrown as Error).message).toBe("Azure start failed");
+    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
+      action: "delete-generated-job",
+      jobName,
+      status: "deleted",
+      resourceGroupName: "rg-1",
+      subscriptionId: "sub-1"
+    });
+    expect(calls[0]?.init.headers).toMatchObject({ "if-none-match": "*" });
+    expect(calls.map((call) => [call.init.method, call.url])).toEqual([
+      ["PUT", `https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/${jobName}?api-version=2025-07-01`],
+      ["POST", `https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/${jobName}/start?api-version=2025-07-01`],
+      ["DELETE", `https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/${jobName}?api-version=2025-07-01`]
+    ]);
   });
 
   test("reads Container Apps Job execution status through ARM", async () => {

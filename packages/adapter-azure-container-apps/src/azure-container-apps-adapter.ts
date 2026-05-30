@@ -39,6 +39,17 @@ interface AzureResource {
   };
 }
 
+interface AzureJobCleanupMetadata {
+  action: "delete-generated-job";
+  jobName: string;
+  status: "deleted" | "failed";
+  resourceGroupName: string;
+  subscriptionId: string;
+  error?: string;
+}
+
+type CleanupAwareError = Error & { cleanup?: AzureJobCleanupMetadata };
+
 const provider = "azure-container-apps";
 const adapter = "azure-container-apps";
 
@@ -174,6 +185,55 @@ function stringProviderOption(options: JobStatusSpec["providerOptions"], key: st
   return typeof value === "string" ? value : undefined;
 }
 
+function booleanProviderOption(options: RunJobSpec["providerOptions"], key: string): boolean {
+  return options?.[key] === true;
+}
+
+function generatedJobName(): string {
+  return `capsule-job-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function azureErrorStatus(error: unknown): number | undefined {
+  if (!(error instanceof AdapterExecutionError)) return undefined;
+  const cause = error.cause;
+  if (typeof cause !== "object" || cause === null) return undefined;
+  const status = (cause as { status?: unknown }).status;
+  return typeof status === "number" ? status : undefined;
+}
+
+async function requireNewUserNamedJob(client: AzureContainerAppsClient, jobName: string): Promise<void> {
+  try {
+    await client.request<AzureResource>({ path: client.resourcePath("jobs", jobName) });
+  } catch (error) {
+    if (azureErrorStatus(error) === 404) return;
+    throw error;
+  }
+  throw new AdapterExecutionError(
+    `Azure Container Apps job.run refuses to update existing Job ${jobName} without providerOptions.allowExistingJobUpdate.`
+  );
+}
+
+async function cleanupGeneratedJobAfterStartFailure(client: AzureContainerAppsClient, jobName: string, startError: unknown): Promise<never> {
+  const cleanup: AzureJobCleanupMetadata = {
+    action: "delete-generated-job",
+    jobName,
+    status: "deleted",
+    resourceGroupName: client.resourceGroupName,
+    subscriptionId: client.subscriptionId
+  };
+  try {
+    await client.request<unknown>({ method: "DELETE", path: client.resourcePath("jobs", jobName) });
+  } catch (cleanupError) {
+    cleanup.status = "failed";
+    cleanup.error = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+  }
+  if (startError instanceof Error) {
+    (startError as CleanupAwareError).cleanup = cleanup;
+    throw startError;
+  }
+  throw new AdapterExecutionError("Azure Container Apps job start failed.", { startError, cleanup });
+}
+
 function jobExecutionIdentity(spec: JobStatusSpec | CancelJobSpec): { jobName: string; executionName: string } {
   const jobName = spec.id.includes("/jobs/") ? resourceName(spec.id, "jobs") : stringProviderOption(spec.providerOptions, "jobName");
   const executionName = spec.id.includes("/executions/") ? resourceName(spec.id, "executions") : spec.id;
@@ -197,9 +257,27 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
         const client = getClient();
-        const jobName = spec.name ?? `capsule-job-${Date.now().toString(36)}`;
-        const job = await client.request<AzureResource>({ method: "PUT", path: client.resourcePath("jobs", jobName), body: jobBody(spec, options) });
-        const execution = await client.request<AzureResource>({ method: "POST", path: client.resourcePath("jobs", jobName, "/start") });
+        const generatedJob = spec.name === undefined;
+        const jobName = spec.name ?? generatedJobName();
+        const allowExistingJobUpdate = booleanProviderOption(spec.providerOptions, "allowExistingJobUpdate");
+        if (!generatedJob && !allowExistingJobUpdate) {
+          await requireNewUserNamedJob(client, jobName);
+        }
+        const job = await client.request<AzureResource>({
+          method: "PUT",
+          path: client.resourcePath("jobs", jobName),
+          body: jobBody(spec, options),
+          headers: allowExistingJobUpdate ? undefined : { "if-none-match": "*" }
+        });
+        let execution: AzureResource;
+        try {
+          execution = await client.request<AzureResource>({ method: "POST", path: client.resourcePath("jobs", jobName, "/start") });
+        } catch (error) {
+          if (generatedJob) {
+            await cleanupGeneratedJobAfterStartFailure(client, jobName, error);
+          }
+          throw error;
+        }
         const id = execution.id ?? job.id ?? jobName;
         const receipt = context.receipts
           ? context.createReceipt({
@@ -212,7 +290,8 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
                 ...policy,
                 notes: [
                   ...policy.notes,
-                  "Azure Container Apps job.run creates or updates a manual Container Apps Job, then starts an execution.",
+                  "Azure Container Apps job.run creates a manual Container Apps Job, then starts an execution.",
+                  "User-named Container Apps Jobs are not updated unless providerOptions.allowExistingJobUpdate is true.",
                   "Execution logs and artifact collection are not implemented yet."
                 ]
               },
