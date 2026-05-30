@@ -288,6 +288,71 @@ describe("CLI capability explanations", () => {
     });
   });
 
+  test("parses the capabilities json flag", () => {
+    expect(parse(["capabilities", "--adapter", "docker", "--json"])).toMatchObject({
+      command: "capabilities",
+      adapter: "docker",
+      json: true
+    });
+  });
+
+  test("prints capabilities as a table by default", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    let output = "";
+    try {
+      await main(["capabilities", "--adapter", "docker"]);
+      output = String(log.mock.calls[0]?.[0]);
+    } finally {
+      log.mockRestore();
+    }
+
+    expect(output).toContain("Adapter: docker");
+    expect(output).toContain("Capability");
+    expect(output).toContain("Level");
+    expect(output).toContain("Supported");
+    expect(output).toContain("sandbox.networkPolicy");
+    expect(output).toContain("experimental");
+    expect(output).toContain("service.deploy");
+    expect(output).toContain("unsupported");
+    expect(() => JSON.parse(output)).toThrow();
+  });
+
+  test("prints capabilities as stable json for automation", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    let output: {
+      adapter: string;
+      entries: Array<{ path: string; level: string; supported: boolean; guidance: string }>;
+    };
+    try {
+      await main(["capabilities", "--adapter", "docker", "--json"]);
+      output = JSON.parse(String(log.mock.calls[0]?.[0])) as typeof output;
+    } finally {
+      log.mockRestore();
+    }
+
+    expect(output.adapter).toBe("docker");
+    expect(output.entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: "sandbox.networkPolicy", level: "experimental", supported: true }),
+        expect.objectContaining({ path: "service.deploy", level: "unsupported", supported: false })
+      ])
+    );
+  });
+
+  test("prints capability guidance in explain table mode", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    let output = "";
+    try {
+      await main(["capabilities", "--adapter", "docker", "--explain"]);
+      output = String(log.mock.calls[0]?.[0]);
+    } finally {
+      log.mockRestore();
+    }
+
+    expect(output).toContain("Guidance");
+    expect(output).toContain("sandbox.networkPolicy should be gated behind explicit opt-in");
+  });
+
   test("formats capabilities as support-level explanations", () => {
     expect(
       capabilityExplanations({

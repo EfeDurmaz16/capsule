@@ -80,7 +80,7 @@ const packedSizeBudgetBytes = {
   "@capsule/adapter-neon": 6 * kib,
   "@capsule/adapter-vercel": 10 * kib,
   "@capsule/ai": 6 * kib,
-  "@capsule/cli": 16 * kib,
+  "@capsule/cli": 17 * kib,
   "@capsule/core": 36 * kib,
   "@capsule/presets": 6 * kib,
   "@capsule/preview": 9 * kib,
@@ -235,9 +235,9 @@ function writeImportSmoke(fixtureDir, packageNames) {
 }
 
 function smokeCliBin(fixtureDir) {
-  const output = run("pnpm", ["exec", "capsule", "capabilities"], { cwd: fixtureDir });
-  const capabilities = JSON.parse(output);
-  if (capabilities.sandbox?.create !== "native" || capabilities.job?.run !== "native") {
+  const output = run("pnpm", ["exec", "capsule", "capabilities", "--json"], { cwd: fixtureDir });
+  const report = JSON.parse(output);
+  if (report.adapter !== "docker" || report.capabilities?.sandbox?.create !== "native" || report.capabilities?.job?.run !== "native") {
     throw new Error("Packed capsule CLI did not execute against the default Docker adapter capabilities.");
   }
 }
