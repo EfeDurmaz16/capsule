@@ -421,9 +421,6 @@ export class Capsule {
         );
         void this.persistReceipt(receipt, pendingWrites);
         return receipt;
-      },
-      recordReceipt: async (receipt) => {
-        await this.persistReceipt(receipt, pendingWrites);
       }
     };
   }
