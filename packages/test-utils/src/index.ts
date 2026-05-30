@@ -10,6 +10,8 @@ export interface LiveProviderRequirement {
   provider: string;
   credentials?: readonly string[];
   env?: LiveTestEnv;
+  costRisk?: LiveProviderCostRisk;
+  maxResourceCount?: number;
 }
 
 export interface LiveProviderRegistryEntry {
@@ -24,6 +26,10 @@ export interface LiveTestApi {
 }
 
 const liveFlag = "CAPSULE_LIVE_TESTS";
+const liveCostAcknowledgementEnv = "CAPSULE_LIVE_TEST_COST_ACK";
+const liveMaxResourcesEnv = "CAPSULE_LIVE_TEST_MAX_RESOURCES";
+
+export type LiveProviderCostRisk = "none" | "read-only" | "billable";
 
 export const liveProviderCredentials = {
   aws: ["AWS_REGION", "CAPSULE_LAMBDA_FUNCTION_NAME"],
@@ -42,6 +48,41 @@ export const liveProviderCredentials = {
   neon: ["NEON_API_KEY", "NEON_PROJECT_ID"],
   vercel: ["VERCEL_TOKEN"]
 } as const;
+
+export const liveProviderCostRisk: Record<string, LiveProviderCostRisk> = {
+  aws: "billable",
+  azure: "billable",
+  "azure-container-apps": "billable",
+  "cloud-run": "read-only",
+  cloudflare: "billable",
+  daytona: "billable",
+  docker: "none",
+  e2b: "billable",
+  ec2: "billable",
+  ecs: "billable",
+  fly: "billable",
+  kubernetes: "billable",
+  lambda: "billable",
+  modal: "billable",
+  neon: "billable",
+  vercel: "read-only"
+};
+
+export const liveProviderMaxResourceCount: Record<string, number> = {
+  aws: 1,
+  azure: 1,
+  "azure-container-apps": 1,
+  cloudflare: 1,
+  daytona: 1,
+  e2b: 1,
+  ec2: 1,
+  ecs: 1,
+  fly: 1,
+  kubernetes: 1,
+  lambda: 1,
+  modal: 1,
+  neon: 1
+};
 
 export const liveProviderRegistry = [
   { provider: "docker", packageName: "@capsule/adapter-docker", credentials: liveProviderCredentials.docker, notes: ["Uses the local Docker daemon."] },
@@ -79,17 +120,38 @@ export function liveTestGate(requirement: LiveProviderRequirement): LiveTestGate
     };
   }
 
+  const costRisk = requirement.costRisk ?? liveProviderCostRisk[provider] ?? "none";
+  if (costRisk === "billable") {
+    if (env[liveCostAcknowledgementEnv] !== "1") {
+      return {
+        enabled: false,
+        skipReason: `${provider} live tests require ${liveCostAcknowledgementEnv}=1 for billable provider work.`
+      };
+    }
+
+    const requiredMaxResources = requirement.maxResourceCount ?? liveProviderMaxResourceCount[provider] ?? 1;
+    const configuredMaxResources = Number(env[liveMaxResourcesEnv]);
+    if (!Number.isSafeInteger(configuredMaxResources) || configuredMaxResources < requiredMaxResources) {
+      return {
+        enabled: false,
+        skipReason: `${provider} live tests require ${liveMaxResourcesEnv} to be a positive integer >= ${requiredMaxResources}.`
+      };
+    }
+  }
+
   return { enabled: true };
 }
 
 export function providerLiveTestGate(
   provider: keyof typeof liveProviderCredentials,
-  options: { env?: LiveTestEnv; credentials?: readonly string[] } = {}
+  options: { env?: LiveTestEnv; credentials?: readonly string[]; costRisk?: LiveProviderCostRisk; maxResourceCount?: number } = {}
 ): LiveTestGate {
   return liveTestGate({
     provider,
     credentials: options.credentials ?? liveProviderCredentials[provider],
-    env: options.env
+    env: options.env,
+    costRisk: options.costRisk,
+    maxResourceCount: options.maxResourceCount
   });
 }
 

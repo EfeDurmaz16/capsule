@@ -31,8 +31,54 @@ describe("live test gates", () => {
     });
   });
 
-  test("enables provider live tests when the flag and credentials are present", () => {
-    expect(providerLiveTestGate("neon", { env: { CAPSULE_LIVE_TESTS: "1", NEON_API_KEY: "key", NEON_PROJECT_ID: "project" } })).toEqual({ enabled: true });
+  test("billable provider live tests require cost acknowledgement and max resource count", () => {
+    expect(providerLiveTestGate("neon", { env: { CAPSULE_LIVE_TESTS: "1", NEON_API_KEY: "key", NEON_PROJECT_ID: "project" } })).toEqual({
+      enabled: false,
+      skipReason: "neon live tests require CAPSULE_LIVE_TEST_COST_ACK=1 for billable provider work."
+    });
+    expect(
+      providerLiveTestGate("neon", {
+        env: { CAPSULE_LIVE_TESTS: "1", NEON_API_KEY: "key", NEON_PROJECT_ID: "project", CAPSULE_LIVE_TEST_COST_ACK: "1" }
+      })
+    ).toEqual({
+      enabled: false,
+      skipReason: "neon live tests require CAPSULE_LIVE_TEST_MAX_RESOURCES to be a positive integer >= 1."
+    });
+    expect(
+      providerLiveTestGate("neon", {
+        env: {
+          CAPSULE_LIVE_TESTS: "1",
+          NEON_API_KEY: "key",
+          NEON_PROJECT_ID: "project",
+          CAPSULE_LIVE_TEST_COST_ACK: "1",
+          CAPSULE_LIVE_TEST_MAX_RESOURCES: "1"
+        }
+      })
+    ).toEqual({ enabled: true });
+  });
+
+  test("read-only provider live tests do not require cost guards", () => {
+    expect(providerLiveTestGate("vercel", { env: { CAPSULE_LIVE_TESTS: "1", VERCEL_TOKEN: "token" } })).toEqual({ enabled: true });
+  });
+
+  test("billable live tests honor custom planned resource counts", () => {
+    expect(
+      liveTestGate({
+        provider: "fly",
+        credentials: liveProviderCredentials.fly,
+        maxResourceCount: 2,
+        env: {
+          CAPSULE_LIVE_TESTS: "1",
+          FLY_API_TOKEN: "token",
+          FLY_APP_NAME: "app",
+          CAPSULE_LIVE_TEST_COST_ACK: "1",
+          CAPSULE_LIVE_TEST_MAX_RESOURCES: "1"
+        }
+      })
+    ).toEqual({
+      enabled: false,
+      skipReason: "fly live tests require CAPSULE_LIVE_TEST_MAX_RESOURCES to be a positive integer >= 2."
+    });
   });
 
   test("gates deployment providers behind provider-specific resource env", () => {
@@ -40,7 +86,17 @@ describe("live test gates", () => {
       enabled: false,
       skipReason: "cloud-run live tests require credential env vars: GOOGLE_CLOUD_RUN_LOCATION, GOOGLE_OAUTH_ACCESS_TOKEN."
     });
-    expect(providerLiveTestGate("aws", { env: { CAPSULE_LIVE_TESTS: "1", AWS_REGION: "us-east-1", CAPSULE_LAMBDA_FUNCTION_NAME: "fn" } })).toEqual({
+    expect(
+      providerLiveTestGate("aws", {
+        env: {
+          CAPSULE_LIVE_TESTS: "1",
+          AWS_REGION: "us-east-1",
+          CAPSULE_LAMBDA_FUNCTION_NAME: "fn",
+          CAPSULE_LIVE_TEST_COST_ACK: "1",
+          CAPSULE_LIVE_TEST_MAX_RESOURCES: "1"
+        }
+      })
+    ).toEqual({
       enabled: true
     });
   });
@@ -105,7 +161,17 @@ describe("live test gates", () => {
       enabled: false,
       skipReason: "modal live tests require credential env var: MODAL_TOKEN_SECRET."
     });
-    expect(providerLiveTestGate("modal", { env: { CAPSULE_LIVE_TESTS: "1", MODAL_TOKEN_ID: "id", MODAL_TOKEN_SECRET: "secret" } })).toEqual({
+    expect(
+      providerLiveTestGate("modal", {
+        env: {
+          CAPSULE_LIVE_TESTS: "1",
+          MODAL_TOKEN_ID: "id",
+          MODAL_TOKEN_SECRET: "secret",
+          CAPSULE_LIVE_TEST_COST_ACK: "1",
+          CAPSULE_LIVE_TEST_MAX_RESOURCES: "1"
+        }
+      })
+    ).toEqual({
       enabled: true
     });
   });

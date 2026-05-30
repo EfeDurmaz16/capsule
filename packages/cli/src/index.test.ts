@@ -301,7 +301,9 @@ describe("CLI live-test planner", () => {
         testPath: "packages/adapter-neon/src/neon.live.test.ts",
         requiredEnv: ["CAPSULE_LIVE_TESTS", "NEON_API_KEY", "NEON_PROJECT_ID"],
         aliases: { NEON_PROJECT_ID: ["CAPSULE_POSTGRES_PROJECT_ID"] },
-        safeCommands: ['NEON_PROJECT_ID="${NEON_PROJECT_ID:-$CAPSULE_POSTGRES_PROJECT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-neon/src/neon.live.test.ts']
+        safeCommands: [
+          'CAPSULE_LIVE_TEST_COST_ACK=1 CAPSULE_LIVE_TEST_MAX_RESOURCES=1 NEON_PROJECT_ID="${NEON_PROJECT_ID:-$CAPSULE_POSTGRES_PROJECT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-neon/src/neon.live.test.ts'
+        ]
       })
     ]);
     expect(JSON.stringify(plan)).not.toContain("secret");
@@ -363,10 +365,41 @@ describe("CLI live-test planner", () => {
         costRisk: "billable",
         configuredEnv: ["CAPSULE_LIVE_TESTS", "FLY_API_TOKEN", "FLY_APP_NAME", "CAPSULE_FLY_IMAGE"],
         missingEnv: [],
-        missingCostEnv: ["CAPSULE_LIVE_TEST_COST_ACK"]
+        missingCostEnv: ["CAPSULE_LIVE_TEST_COST_ACK"],
+        missingResourceLimitEnv: ["CAPSULE_LIVE_TEST_MAX_RESOURCES"]
       })
     ]);
     expect(JSON.stringify(report)).not.toContain("secret-token");
+  });
+
+  test("validates billable live-test max resource count", () => {
+    const report = createLiveEnvironmentValidationReport({
+      provider: "fly",
+      env: {
+        CAPSULE_LIVE_TESTS: "1",
+        FLY_API_TOKEN: "secret-token",
+        FLY_APP_NAME: "capsule-app",
+        CAPSULE_FLY_IMAGE: "registry.example/app:latest",
+        CAPSULE_LIVE_TEST_COST_ACK: "1",
+        CAPSULE_LIVE_TEST_MAX_RESOURCES: "0"
+      }
+    });
+
+    expect(report.providers).toEqual([
+      expect.objectContaining({
+        provider: "fly",
+        status: "blocked",
+        costAcknowledged: true,
+        resourceLimit: {
+          env: "CAPSULE_LIVE_TEST_MAX_RESOURCES",
+          required: 1,
+          configured: 0,
+          satisfied: false
+        },
+        missingCostEnv: [],
+        missingResourceLimitEnv: ["CAPSULE_LIVE_TEST_MAX_RESOURCES"]
+      })
+    ]);
   });
 
   test("validates read-only live tests without cost acknowledgement", () => {

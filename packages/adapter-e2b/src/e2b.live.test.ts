@@ -1,17 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { Capsule, MemoryReceiptStore } from "@capsule/core";
-import { liveResourceMetadata } from "@capsule/test-utils";
+import { liveResourceMetadata, liveTest, providerLiveTestGate } from "@capsule/test-utils";
 import { e2b } from "./e2b-adapter.js";
 
-const liveTestsEnabled = process.env.CAPSULE_LIVE_TESTS === "1";
-const e2bApiKey = process.env.E2B_API_KEY;
-const runLiveE2B = liveTestsEnabled && Boolean(e2bApiKey);
+const e2bLiveGate = providerLiveTestGate("e2b");
 
 describe("e2b live adapter", () => {
-  it.skipIf(!runLiveE2B)("creates a sandbox, executes commands, handles files, and destroys the sandbox", async () => {
+  liveTest(it, "creates a sandbox, executes commands, handles files, and destroys the sandbox", e2bLiveGate, async () => {
     const store = new MemoryReceiptStore();
     const capsule = new Capsule({
-      adapter: e2b({ apiKey: e2bApiKey }),
+      adapter: e2b({ apiKey: process.env.E2B_API_KEY }),
       policy: {
         limits: { timeoutMs: 30_000 },
         network: { mode: "none" }
