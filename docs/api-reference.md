@@ -285,6 +285,7 @@ Exports:
 - `createAdapterScaffoldPlan`
 - `createDoctorReport`
 - `createLiveEnvironmentValidationReport`
+- `createProjectInitPlan`
 - `createProviderVerificationReport`
 - `liveTestCommandPlan`
 - `main`
@@ -292,6 +293,7 @@ Exports:
 - `providerCredentialDiagnostics`
 - `selectProvidersForRecipe`
 - `writeAdapterScaffold`
+- `writeProjectInitFiles`
 
 ## @capsule/core
 
