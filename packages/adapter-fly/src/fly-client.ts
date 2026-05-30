@@ -10,6 +10,7 @@ export interface FlyClientOptions {
 export interface FlyRequestOptions {
   method?: "GET" | "POST" | "DELETE";
   path: string;
+  query?: Record<string, string | number | boolean | undefined>;
   body?: unknown;
 }
 
@@ -29,7 +30,13 @@ export class FlyClient {
   }
 
   async request<T>(options: FlyRequestOptions): Promise<T> {
-    const response = await this.fetchImpl(`${this.baseUrl}${options.path}`, {
+    const url = new URL(options.path, this.baseUrl);
+    for (const [key, value] of Object.entries(options.query ?? {})) {
+      if (value !== undefined) {
+        url.searchParams.set(key, String(value));
+      }
+    }
+    const response = await this.fetchImpl(url.toString(), {
       method: options.method ?? "GET",
       headers: {
         accept: "application/json",

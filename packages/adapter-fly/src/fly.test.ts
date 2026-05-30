@@ -88,12 +88,12 @@ describe("fly adapter", () => {
     expect(await capsule.machine.status({ id: "fly-machine-1" })).toMatchObject({ status: "running" });
     expect(await capsule.machine.start({ id: "fly-machine-1" })).toMatchObject({ status: "starting" });
     expect(await capsule.machine.stop({ id: "fly-machine-1", force: true })).toMatchObject({ status: "stopped" });
-    expect(await capsule.machine.destroy({ id: "fly-machine-1" })).toMatchObject({ status: "deleted" });
+    expect(await capsule.machine.destroy({ id: "fly-machine-1", force: true })).toMatchObject({ status: "deleted" });
     expect(calls.map((call) => [call.init.method ?? "GET", call.url])).toEqual([
       ["GET", "https://api.machines.dev/v1/apps/capsule-app/machines/fly-machine-1"],
       ["POST", "https://api.machines.dev/v1/apps/capsule-app/machines/fly-machine-1/start"],
       ["POST", "https://api.machines.dev/v1/apps/capsule-app/machines/fly-machine-1/stop"],
-      ["DELETE", "https://api.machines.dev/v1/apps/capsule-app/machines/fly-machine-1"]
+      ["DELETE", "https://api.machines.dev/v1/apps/capsule-app/machines/fly-machine-1?force=true"]
     ]);
   });
 });

@@ -185,7 +185,11 @@ export function fly(options: FlyAdapterOptions = {}): CapsuleAdapter {
       },
       destroy: async (spec: DestroyMachineSpec, context: AdapterContext): Promise<MachineLifecycleResult> => {
         const startedAt = new Date();
-        await getClient().request<unknown>({ method: "DELETE", path: `/v1/apps/${encodeURIComponent(getApp())}/machines/${encodeURIComponent(spec.id)}` });
+        await getClient().request<unknown>({
+          method: "DELETE",
+          path: `/v1/apps/${encodeURIComponent(getApp())}/machines/${encodeURIComponent(spec.id)}`,
+          query: spec.force ? { force: true } : undefined
+        });
         return { id: spec.id, provider, status: "deleted", receipt: receipt(context, { type: "machine.destroy", path: "machine.destroy", startedAt, id: spec.id, status: "deleted", metadata: { force: spec.force, reason: spec.reason } }) };
       }
     },
