@@ -5,6 +5,18 @@ import { describe, expect, test } from "vitest";
 import { createReceipt } from "@capsule/core";
 import { jsonlReceiptStore } from "./index.js";
 
+function receiptAt(offsetMs: number) {
+  return createReceipt({
+    type: "job.run",
+    provider: "test",
+    adapter: "test",
+    capabilityPath: "job.run",
+    supportLevel: "native",
+    startedAt: new Date(Date.UTC(2026, 0, 1, 0, 0, 0, offsetMs)),
+    stdout: `ok-${offsetMs}`
+  });
+}
+
 describe("jsonlReceiptStore", () => {
   test("writes and reads receipts", async () => {
     const dir = await mkdtemp(join(tmpdir(), "capsule-jsonl-test-"));
@@ -81,6 +93,58 @@ describe("jsonlReceiptStore", () => {
       const receipts = await jsonlReceiptStore(path).readAll();
       expect(receipts.map((receipt) => receipt.id)).toEqual([first.id, second.id]);
       expect(receipts.map((receipt) => receipt.type)).toEqual(["job.run", "sandbox.exec"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("readAll fails with path and line context for corrupt JSONL", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "capsule-jsonl-test-"));
+    try {
+      const path = join(dir, "receipts.jsonl");
+      const receipt = receiptAt(0);
+      await writeFile(path, `${JSON.stringify(receipt)}\nnot-json\n`, "utf8");
+
+      await expect(jsonlReceiptStore(path).readAll()).rejects.toThrow(`Invalid JSONL receipt at ${path}:2`);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("serializes concurrent writes on one store instance", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "capsule-jsonl-test-"));
+    try {
+      const path = join(dir, "receipts.jsonl");
+      const store = jsonlReceiptStore(path);
+      const receipts = Array.from({ length: 12 }, (_, index) => receiptAt(index));
+
+      await Promise.all(receipts.map((receipt) => store.write(receipt)));
+
+      const lines = (await readFile(path, "utf8")).trimEnd().split("\n");
+      const persisted = await store.readAll();
+      expect(lines).toHaveLength(receipts.length);
+      expect(persisted.map((receipt) => receipt.id)).toEqual(receipts.map((receipt) => receipt.id));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("close waits for queued writes and rejects later operations", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "capsule-jsonl-test-"));
+    try {
+      const path = join(dir, "receipts.jsonl");
+      const store = jsonlReceiptStore(path);
+      const receipts = [receiptAt(0), receiptAt(1)];
+      const writes = Promise.all(receipts.map((receipt) => store.write(receipt)));
+
+      await store.close();
+      await writes;
+
+      const lines = (await readFile(path, "utf8")).trimEnd().split("\n");
+      expect(lines).toHaveLength(receipts.length);
+      await expect(store.ready()).rejects.toThrow("JSONL receipt store is closed");
+      await expect(store.write(receiptAt(2))).rejects.toThrow("JSONL receipt store is closed");
+      await expect(store.readAll()).rejects.toThrow("JSONL receipt store is closed");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
