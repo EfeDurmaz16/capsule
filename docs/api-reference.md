@@ -382,6 +382,7 @@ Exports:
 - `EvidenceBundleVerificationResult`
 - `ExecResult`
 - `ExecSpec`
+- `explainPolicy`
 - `explainSupportLevel`
 - `FileEntry`
 - `getProviderSelectionRecipe`
@@ -413,6 +414,8 @@ Exports:
 - `nodeSandboxPreset`
 - `NodeSandboxPresetOptions`
 - `PolicyDecision`
+- `PolicyExplanation`
+- `PolicyExplanationInput`
 - `PolicyInput`
 - `PolicyViolationError`
 - `PreviewAdapter`

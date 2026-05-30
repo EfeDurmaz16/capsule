@@ -7,6 +7,7 @@ import {
   Capsule,
   capabilityDiff,
   classifyProviderService,
+  explainPolicy,
   explainSupportLevel,
   getProviderSelectionRecipe,
   isProviderSelectionRecipeId,
@@ -17,7 +18,9 @@ import {
   type CapabilityMap,
   type CapabilityPath,
   type CapsuleDomain,
+  type CapsulePolicy,
   type ClassifyProviderServiceResult,
+  type PolicyInput,
   type ProviderSelectionRecipe,
   type ProviderSelectionRecipeId,
   type ProviderSelectionResult,
@@ -48,6 +51,9 @@ interface ParsedArgs {
   rightAdapter?: string;
   provider?: string;
   recipe?: string;
+  capability?: string;
+  policyFile?: string;
+  specFile?: string;
   domains?: string[];
   outDir?: string;
   receiptFile?: string;
@@ -178,6 +184,13 @@ interface CapabilityReport {
   adapter: string;
   capabilities: CapabilityMap;
   entries: SupportLevelExplanation[];
+}
+
+interface PolicyExplainReport {
+  adapter: string;
+  capabilityPath: CapabilityPath;
+  supportLevel: string;
+  policy: ReturnType<typeof explainPolicy>;
 }
 
 interface ProviderSelectionReport {
@@ -486,6 +499,21 @@ export function parse(argv: string[]): ParsedArgs {
       index += 1;
       continue;
     }
+    if (arg === "--capability") {
+      parsed.capability = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--policy-file") {
+      parsed.policyFile = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--spec-file") {
+      parsed.specFile = args[index + 1];
+      index += 1;
+      continue;
+    }
     if (arg === "--domain") {
       parsed.domains = [...(parsed.domains ?? []), args[index + 1]];
       index += 1;
@@ -751,6 +779,20 @@ async function readJsonFile(path: string): Promise<PackageJsonShape | undefined>
   }
 }
 
+function assertJsonObject(value: unknown, label: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`${label} must contain a JSON object.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+async function readJsonObjectFile<T>(path: string | undefined, fallback: T): Promise<T> {
+  if (!path) {
+    return fallback;
+  }
+  return assertJsonObject(JSON.parse(await readFile(path, "utf8")), path) as T;
+}
+
 async function missingWorkspaceFiles(root: string): Promise<string[]> {
   const missing: string[] = [];
   for (const file of workspaceRequiredFiles) {
@@ -859,6 +901,35 @@ function formatCapabilityTable(report: CapabilityReport, options: { explain?: bo
   const formatRow = (values: string[]): string => values.map((value, index) => value.padEnd(widths[index] ?? value.length)).join("  ").trimEnd();
 
   return [`Adapter: ${report.adapter}`, "", formatRow(columns), formatRow(widths.map((width) => "-".repeat(width))), ...rows.map(formatRow)].join("\n");
+}
+
+function assertPolicyExplainCapability(path: string | undefined): CapabilityPath {
+  if (!path) {
+    throw new Error("Missing --capability for policy explain.");
+  }
+  if (!path.includes(".")) {
+    throw new Error(`Invalid capability path "${path}". Use dot notation such as job.run.`);
+  }
+  return path as CapabilityPath;
+}
+
+async function createPolicyExplainReport(parsed: ParsedArgs): Promise<PolicyExplainReport> {
+  const capsule = createCapsule(parsed);
+  const capabilityPath = assertPolicyExplainCapability(parsed.capability);
+  const support = capsule.supportLevel(capabilityPath);
+  const policy = await readJsonObjectFile<CapsulePolicy>(parsed.policyFile, {});
+  const spec = await readJsonObjectFile<Omit<PolicyInput, "capabilityPath" | "supportLevel">>(parsed.specFile, {});
+
+  return {
+    adapter: capsule.adapterName(),
+    capabilityPath,
+    supportLevel: support,
+    policy: explainPolicy(policy, {
+      ...spec,
+      capabilityPath,
+      supportLevel: support
+    })
+  };
 }
 
 export function compareProviderCapabilities(leftProvider: string, rightProvider: string): ProviderCapabilityComparison {
@@ -1349,6 +1420,7 @@ Commands:
   capsule live-test plan --provider neon
   capsule live-test validate --provider neon
   capsule classify provider cloudflare workers
+  capsule policy explain --adapter docker --capability job.run --policy-file policy.json --spec-file spec.json
   capsule adapter scaffold acme --domain sandbox
   capsule select provider --recipe sandbox
   capsule select provider --recipe service-api
@@ -1586,6 +1658,14 @@ export async function main(argv: string[]): Promise<void> {
       const capabilities = capsule.capabilities();
       const report = createCapabilityReport(capsule.adapterName(), capabilities);
       console.log(parsed.json ? JSON.stringify(report, null, 2) : formatCapabilityTable(report, { explain: parsed.explain }));
+      return;
+    }
+    case "policy": {
+      const action = parsed.rest[0];
+      if (action !== "explain") {
+        throw new Error("Unknown policy command. Use explain.");
+      }
+      console.log(JSON.stringify(await createPolicyExplainReport(parsed), null, 2));
       return;
     }
     case "classify": {
