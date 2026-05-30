@@ -1110,6 +1110,16 @@ function createCapabilityReport(adapter: string, capabilities: CapabilityMap): C
   };
 }
 
+function formatTable(columns: string[], rows: string[][]): string {
+  const widths = columns.map((column, index) => Math.max(column.length, ...rows.map((row) => row[index]?.length ?? 0)));
+  const formatRow = (values: string[]): string => values.map((value, index) => value.padEnd(widths[index] ?? value.length)).join("  ").trimEnd();
+  return [formatRow(columns), formatRow(widths.map((width) => "-".repeat(width))), ...rows.map(formatRow)].join("\n");
+}
+
+function printReport(parsed: ParsedArgs, report: unknown, table: string): void {
+  console.log(parsed.json ? JSON.stringify(report, null, 2) : table);
+}
+
 function formatCapabilityTable(report: CapabilityReport, options: { explain?: boolean } = {}): string {
   const columns = options.explain ? ["Capability", "Level", "Supported", "Guidance"] : ["Capability", "Level", "Supported", "Summary"];
   const rows = report.entries.map((entry) => [
@@ -1118,10 +1128,68 @@ function formatCapabilityTable(report: CapabilityReport, options: { explain?: bo
     entry.supported ? "yes" : "no",
     options.explain ? entry.guidance : entry.summary
   ]);
-  const widths = columns.map((column, index) => Math.max(column.length, ...rows.map((row) => row[index]?.length ?? 0)));
-  const formatRow = (values: string[]): string => values.map((value, index) => value.padEnd(widths[index] ?? value.length)).join("  ").trimEnd();
 
-  return [`Adapter: ${report.adapter}`, "", formatRow(columns), formatRow(widths.map((width) => "-".repeat(width))), ...rows.map(formatRow)].join("\n");
+  return [`Adapter: ${report.adapter}`, "", formatTable(columns, rows)].join("\n");
+}
+
+function formatDoctorReport(report: DoctorReport): string {
+  const publicPackages = report.packages.filter((pkg) => !pkg.private).length;
+  const privatePackages = report.packages.length - publicPackages;
+  const providerRows = report.providers.map((provider) => [
+    provider.provider,
+    provider.status,
+    provider.configuredEnv.join(", ") || "-",
+    provider.missingEnv.join(", ") || "-"
+  ]);
+  return [
+    "Capsule doctor",
+    "",
+    "Runtime",
+    formatTable(
+      ["Check", "Status", "Details"],
+      [
+        ["Node", report.node.supported ? "ok" : "unsupported", `${report.node.version} (${report.node.requirement})`],
+        ["Docker", report.docker, "-"],
+        ["Release audit", report.releaseAudit.status, report.releaseAudit.command],
+        ["Packages", "detected", `${publicPackages} public, ${privatePackages} private`]
+      ]
+    ),
+    "",
+    "Workspace",
+    formatTable(["Root", "Status", "Missing"], [[report.workspace.root, report.workspace.status, report.workspace.missingFiles.join(", ") || "-"]]),
+    "",
+    "Providers",
+    formatTable(["Provider", "Status", "Configured", "Missing"], providerRows.length > 0 ? providerRows : [["-", "-", "-", "-"]])
+  ].join("\n");
+}
+
+function formatProviderSelectionReport(report: ProviderSelectionReport): string {
+  const rows = report.results.map((result) => [
+    result.provider,
+    String(result.score),
+    `${result.requiredSatisfied}/${result.requiredTotal}`,
+    `${result.optionalSatisfied}/${result.optionalTotal}`,
+    result.missingRequired.map((entry) => entry.path).slice(0, 3).join(", ") || "-"
+  ]);
+  return [`Provider selection: ${report.recipe.id}`, report.recipe.title, "", formatTable(["Provider", "Score", "Required", "Optional", "Missing required"], rows)].join("\n");
+}
+
+function formatProviderComparisonReport(report: ProviderCapabilityComparison): string {
+  const providers = [report.left, report.right].map((entry) => [
+    entry.provider,
+    String(entry.compatibility.score),
+    `${entry.compatibility.requiredSatisfied}/${entry.compatibility.requiredTotal}`,
+    `${entry.compatibility.optionalSatisfied}/${entry.compatibility.optionalTotal}`
+  ]);
+  const diffRows = report.diff.map((entry) => [entry.path, entry.left, entry.right]);
+  return [
+    `Provider comparison: ${report.left.provider} vs ${report.right.provider}`,
+    "",
+    formatTable(["Provider", "Score", "Required", "Optional"], providers),
+    "",
+    "Capability differences",
+    formatTable(["Capability", report.left.provider, report.right.provider], diffRows.length > 0 ? diffRows : [["-", "-", "-"]])
+  ].join("\n");
 }
 
 function assertPolicyExplainCapability(path: string | undefined): CapabilityPath {
@@ -2276,6 +2344,9 @@ Commands:
   capsule edge --adapter vercel --name my-deployment --project-name my-project --entrypoint index.js ./index.js
   capsule neon branch-create --project <project_id> --name pr-42 --database neondb --role neondb_owner --receipt-file .capsule/receipts.jsonl
   capsule neon branch-delete --project <project_id> --branch-id br_xxx --hard-delete
+
+Output:
+  Report commands default to human-readable tables. Add --json for stable automation output.
 `);
 }
 
@@ -2425,7 +2496,7 @@ export async function main(argv: string[]): Promise<void> {
     }
     case "doctor": {
       const report = await createDoctorReport({ adapter: parsed.adapter });
-      console.log(JSON.stringify(report, null, 2));
+      printReport(parsed, report, formatDoctorReport(report));
       process.exitCode = report.docker === "available" && report.node.supported && report.workspace.status === "ok" && report.releaseAudit.status === "available" ? 0 : 1;
       return;
     }
@@ -2555,7 +2626,8 @@ export async function main(argv: string[]): Promise<void> {
       if (!isProviderSelectionRecipeId(parsed.recipe)) {
         throw new Error(`Unknown provider selection recipe "${parsed.recipe}". Recipes: sandbox, agent-code-execution, preview-web-db, edge-web, service-api, machine`);
       }
-      console.log(JSON.stringify(selectProvidersForRecipe(parsed.recipe), null, 2));
+      const report = selectProvidersForRecipe(parsed.recipe);
+      printReport(parsed, report, formatProviderSelectionReport(report));
       return;
     }
     case "compare": {
@@ -2568,7 +2640,8 @@ export async function main(argv: string[]): Promise<void> {
       if (!left || !right) {
         throw new Error("Missing providers. Use capsule compare providers --left docker --right e2b.");
       }
-      console.log(JSON.stringify(compareProviderCapabilities(left, right), null, 2));
+      const report = compareProviderCapabilities(left, right);
+      printReport(parsed, report, formatProviderComparisonReport(report));
       return;
     }
     case "edge": {

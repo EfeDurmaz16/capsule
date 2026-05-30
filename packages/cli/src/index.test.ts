@@ -133,6 +133,30 @@ describe("CLI doctor credential diagnostics", () => {
       expect.arrayContaining(["release:audit", "release:metadata-audit", "release:dependency-audit", "release:markers", "release:pack-smoke"])
     );
   });
+
+  test("prints doctor as a human table by default and stable json on request", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await main(["doctor", "--adapter", "neon"]);
+      const tableOutput = String(log.mock.calls[0]?.[0]);
+      expect(tableOutput).toContain("Capsule doctor");
+      expect(tableOutput).toContain("Runtime");
+      expect(tableOutput).toContain("Workspace");
+      expect(tableOutput).toContain("Providers");
+      expect(tableOutput).toContain("neon");
+      expect(() => JSON.parse(tableOutput)).toThrow();
+
+      log.mockClear();
+      await main(["doctor", "--adapter", "neon", "--json"]);
+      const jsonOutput = JSON.parse(String(log.mock.calls[0]?.[0])) as Awaited<ReturnType<typeof createDoctorReport>>;
+      expect(jsonOutput.node.version).toBe(process.version);
+      expect(jsonOutput.workspace.status).toBe("ok");
+      expect(jsonOutput.providers[0]?.provider).toBe("neon");
+    } finally {
+      log.mockRestore();
+      process.exitCode = undefined;
+    }
+  });
 });
 
 describe("CLI capability explanations", () => {
@@ -216,12 +240,21 @@ describe("CLI capability explanations", () => {
   test("prints provider selection from the select provider command", async () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     try {
-      await main(["select", "provider", "--recipe", "sandbox"]);
+      await main(["select", "provider", "--recipe", "sandbox", "--json"]);
       const output = JSON.parse(String(log.mock.calls[0]?.[0])) as ReturnType<typeof selectProvidersForRecipe>;
 
       expect(output.recipe.id).toBe("sandbox");
       expect(output.results[0]?.provider).toBe("docker");
       expect(output.results[0]?.missingRequired).toEqual([]);
+
+      log.mockClear();
+      await main(["select", "provider", "--recipe", "sandbox"]);
+      const tableOutput = String(log.mock.calls[0]?.[0]);
+      expect(tableOutput).toContain("Provider selection: sandbox");
+      expect(tableOutput).toContain("Provider");
+      expect(tableOutput).toContain("Score");
+      expect(tableOutput).toContain("docker");
+      expect(() => JSON.parse(tableOutput)).toThrow();
     } finally {
       log.mockRestore();
     }
@@ -258,8 +291,17 @@ describe("CLI capability explanations", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     let output: { left: { provider: string }; right: { provider: string }; diff: Array<{ path: string }> };
     try {
-      await main(["compare", "providers", "--left", "docker", "--right", "e2b"]);
+      await main(["compare", "providers", "--left", "docker", "--right", "e2b", "--json"]);
       output = JSON.parse(String(log.mock.calls[0]?.[0])) as typeof output;
+
+      log.mockClear();
+      await main(["compare", "providers", "--left", "docker", "--right", "e2b"]);
+      const tableOutput = String(log.mock.calls[0]?.[0]);
+      expect(tableOutput).toContain("Provider comparison: docker vs e2b");
+      expect(tableOutput).toContain("Provider");
+      expect(tableOutput).toContain("Score");
+      expect(tableOutput).toContain("sandbox.exposePort");
+      expect(() => JSON.parse(tableOutput)).toThrow();
     } finally {
       log.mockRestore();
     }
