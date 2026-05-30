@@ -9,6 +9,7 @@ export interface SqliteReceiptStoreOptions {
 }
 
 interface ReceiptRow {
+  id: string;
   receipt_json: string;
 }
 
@@ -22,6 +23,7 @@ function assertSafeTableName(tableName: string): string {
 export class SqliteReceiptStore implements ReceiptStore {
   private readonly db: DatabaseSync;
   private readonly tableName: string;
+  private closed = false;
 
   constructor(options: SqliteReceiptStoreOptions) {
     mkdirSync(dirname(options.path), { recursive: true });
@@ -44,10 +46,12 @@ export class SqliteReceiptStore implements ReceiptStore {
   }
 
   ready(): void {
+    this.assertOpen();
     this.db.prepare("SELECT 1").get();
   }
 
   write(receipt: CapsuleReceipt): void {
+    this.assertOpen();
     this.db
       .prepare(
         `INSERT OR REPLACE INTO ${this.tableName} (
@@ -76,14 +80,32 @@ export class SqliteReceiptStore implements ReceiptStore {
   }
 
   readAll(): CapsuleReceipt[] {
+    this.assertOpen();
     return this.db
-      .prepare(`SELECT receipt_json FROM ${this.tableName} ORDER BY started_at ASC, id ASC`)
+      .prepare(`SELECT id, receipt_json FROM ${this.tableName} ORDER BY started_at ASC, id ASC`)
       .all()
-      .map((row) => JSON.parse((row as unknown as ReceiptRow).receipt_json) as CapsuleReceipt);
+      .map((row) => {
+        const receiptRow = row as unknown as ReceiptRow;
+        try {
+          return JSON.parse(receiptRow.receipt_json) as CapsuleReceipt;
+        } catch (error) {
+          throw new Error(`Invalid SQLite receipt JSON for receipt ${receiptRow.id}.`, { cause: error });
+        }
+      });
   }
 
   close(): void {
+    if (this.closed) {
+      return;
+    }
+    this.closed = true;
     this.db.close();
+  }
+
+  private assertOpen(): void {
+    if (this.closed) {
+      throw new Error("SQLite receipt store is closed.");
+    }
   }
 }
 
