@@ -233,6 +233,19 @@ pnpm typecheck
 
 Capsule is pre-1.0 OSS infrastructure. The core contracts, real provider adapters, CLI, examples, tests, docs, and release audit are present in this repository. Packages are not published to npm yet, and live provider operations require explicit credentials plus provider-specific quickstart steps.
 
+## First Release Checklist
+
+Before removing the `npm-not_published_yet` badge or treating the install commands above as live npm instructions:
+
+- package names must be available or owned by the project on npm;
+- every public package must pass metadata audit, marker audit, pack smoke, and packed-size budget checks;
+- CI must publish through the Changesets release workflow with npm provenance enabled;
+- `pnpm typecheck`, `pnpm test`, `pnpm build`, and `pnpm release:audit` must pass from a clean checkout;
+- `pnpm docs:api` must leave `docs/api-reference.md` unchanged;
+- publishable `dist` folders must not include `*.test.*` or `*.live.test.*` files;
+- docs must still state which providers are real, mock, unsupported, experimental, or live-test gated;
+- `docs/release-rollback.md` must be current enough for a maintainer to deprecate or patch a bad release.
+
 ## Packages
 
 - `@capsule/core`: domain types, `Capsule` facade, capabilities, policy, receipts, errors, logs, artifacts, and adapter contracts.
