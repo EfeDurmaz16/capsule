@@ -431,6 +431,11 @@ describe("policy", () => {
 
     await expect(capsule.service.delete({ id: "svc_123" })).rejects.toThrow(PolicyViolationError);
     expect(called).toBe(false);
+    await expect(capsule.service.delete({ id: "svc_123", approval: { approved: true, id: "ticket-123", reason: "approved by ops" } })).resolves.toMatchObject({
+      id: "svc_123",
+      status: "deleted"
+    });
+    expect(called).toBe(true);
   });
 
   test("enforces ttl policy before creating ttl-scoped resources", async () => {

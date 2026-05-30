@@ -65,7 +65,7 @@ export class Capsule {
     this.sandbox = {
       create: async (spec: CreateSandboxSpec) => {
         this.require("sandbox.create");
-        evaluatePolicy(this.options.policy, { env: spec.env, timeoutMs: spec.timeoutMs });
+        evaluatePolicy(this.options.policy, { env: spec.env, timeoutMs: spec.timeoutMs, approval: spec.approval });
         if (!this.options.adapter.sandbox) {
           throw new UnsupportedCapabilityError("sandbox.create");
         }
@@ -81,7 +81,7 @@ export class Capsule {
     this.job = {
       run: async (spec: RunJobSpec) => {
         this.require("job.run");
-        evaluatePolicy(this.options.policy, { env: spec.env, timeoutMs: spec.timeoutMs });
+        evaluatePolicy(this.options.policy, { env: spec.env, timeoutMs: spec.timeoutMs, approval: spec.approval });
         if (!this.options.adapter.job) {
           throw new UnsupportedCapabilityError("job.run");
         }
@@ -96,7 +96,7 @@ export class Capsule {
       },
       cancel: async (spec: CancelJobSpec) => {
         this.require("job.cancel");
-        evaluatePolicy(this.options.policy);
+        evaluatePolicy(this.options.policy, { approval: spec.approval });
         if (!this.options.adapter.job?.cancel) {
           throw new UnsupportedCapabilityError("job.cancel");
         }
@@ -114,7 +114,7 @@ export class Capsule {
     this.service = {
       deploy: async (spec: DeployServiceSpec) => {
         this.require("service.deploy");
-        evaluatePolicy(this.options.policy, { env: spec.env });
+        evaluatePolicy(this.options.policy, { env: spec.env, approval: spec.approval });
         if (!this.options.adapter.service) {
           throw new UnsupportedCapabilityError("service.deploy");
         }
@@ -129,7 +129,7 @@ export class Capsule {
       },
       update: async (spec: UpdateServiceSpec) => {
         this.require("service.update");
-        evaluatePolicy(this.options.policy, { env: spec.env });
+        evaluatePolicy(this.options.policy, { env: spec.env, approval: spec.approval });
         if (!this.options.adapter.service?.update) {
           throw new UnsupportedCapabilityError("service.update");
         }
@@ -137,7 +137,7 @@ export class Capsule {
       },
       rollback: async (spec: RollbackServiceSpec) => {
         this.require("service.rollback");
-        evaluatePolicy(this.options.policy);
+        evaluatePolicy(this.options.policy, { approval: spec.approval });
         if (!this.options.adapter.service?.rollback) {
           throw new UnsupportedCapabilityError("service.rollback");
         }
@@ -145,7 +145,7 @@ export class Capsule {
       },
       delete: async (spec: DeleteServiceSpec) => {
         this.require("service.delete");
-        evaluatePolicy(this.options.policy);
+        evaluatePolicy(this.options.policy, { approval: spec.approval });
         if (!this.options.adapter.service?.delete) {
           throw new UnsupportedCapabilityError("service.delete");
         }
@@ -163,7 +163,7 @@ export class Capsule {
     this.edge = {
       deploy: async (spec: DeployEdgeSpec) => {
         this.require("edge.deploy");
-        evaluatePolicy(this.options.policy, { env: spec.env });
+        evaluatePolicy(this.options.policy, { env: spec.env, approval: spec.approval });
         if (!this.options.adapter.edge) {
           throw new UnsupportedCapabilityError("edge.deploy");
         }
@@ -178,7 +178,7 @@ export class Capsule {
       },
       version: async (spec: VersionEdgeSpec) => {
         this.require("edge.version");
-        evaluatePolicy(this.options.policy, { env: spec.env });
+        evaluatePolicy(this.options.policy, { env: spec.env, approval: spec.approval });
         if (!this.options.adapter.edge?.version) {
           throw new UnsupportedCapabilityError("edge.version");
         }
@@ -186,7 +186,7 @@ export class Capsule {
       },
       release: async (spec: ReleaseEdgeVersionSpec) => {
         this.require("edge.release");
-        evaluatePolicy(this.options.policy);
+        evaluatePolicy(this.options.policy, { approval: spec.approval });
         if (!this.options.adapter.edge?.release) {
           throw new UnsupportedCapabilityError("edge.release");
         }
@@ -194,7 +194,7 @@ export class Capsule {
       },
       rollback: async (spec: RollbackEdgeSpec) => {
         this.require("edge.rollback");
-        evaluatePolicy(this.options.policy);
+        evaluatePolicy(this.options.policy, { approval: spec.approval });
         if (!this.options.adapter.edge?.rollback) {
           throw new UnsupportedCapabilityError("edge.rollback");
         }
@@ -213,7 +213,7 @@ export class Capsule {
       branch: {
         create: async (spec: CreateDatabaseBranchSpec) => {
           this.require("database.branchCreate");
-          evaluatePolicy(this.options.policy, { ttlMs: spec.ttlMs });
+          evaluatePolicy(this.options.policy, { ttlMs: spec.ttlMs, approval: spec.approval });
           if (!this.options.adapter.database) {
             throw new UnsupportedCapabilityError("database.branchCreate");
           }
@@ -221,7 +221,7 @@ export class Capsule {
         },
         delete: async (spec: DeleteDatabaseBranchSpec) => {
           this.require("database.branchDelete");
-          evaluatePolicy(this.options.policy);
+          evaluatePolicy(this.options.policy, { approval: spec.approval });
           if (!this.options.adapter.database?.branch.delete) {
             throw new UnsupportedCapabilityError("database.branchDelete");
           }
@@ -229,7 +229,7 @@ export class Capsule {
         },
         reset: async (spec: ResetDatabaseBranchSpec) => {
           this.require("database.branchReset");
-          evaluatePolicy(this.options.policy);
+          evaluatePolicy(this.options.policy, { approval: spec.approval });
           if (!this.options.adapter.database?.branch.reset) {
             throw new UnsupportedCapabilityError("database.branchReset");
           }
@@ -238,7 +238,7 @@ export class Capsule {
       },
       migrate: async (spec: MigrateDatabaseSpec) => {
         this.require("database.migrate");
-        evaluatePolicy(this.options.policy, { env: spec.env, timeoutMs: spec.timeoutMs });
+        evaluatePolicy(this.options.policy, { env: spec.env, timeoutMs: spec.timeoutMs, approval: spec.approval });
         if (!this.options.adapter.database?.migrate) {
           throw new UnsupportedCapabilityError("database.migrate");
         }
@@ -249,7 +249,7 @@ export class Capsule {
     this.preview = {
       create: async (spec: CreatePreviewSpec) => {
         this.require("preview.create");
-        evaluatePolicy(this.options.policy, { ttlMs: spec.ttlMs });
+        evaluatePolicy(this.options.policy, { ttlMs: spec.ttlMs, approval: spec.approval });
         if (!this.options.adapter.preview) {
           throw new UnsupportedCapabilityError("preview.create");
         }
@@ -257,7 +257,7 @@ export class Capsule {
       },
       destroy: async (spec: DestroyPreviewSpec) => {
         this.require("preview.destroy");
-        evaluatePolicy(this.options.policy);
+        evaluatePolicy(this.options.policy, { approval: spec.approval });
         if (!this.options.adapter.preview?.destroy) {
           throw new UnsupportedCapabilityError("preview.destroy");
         }
@@ -286,7 +286,7 @@ export class Capsule {
       },
       cleanup: async (spec: CleanupPreviewSpec) => {
         this.require("preview.cleanup");
-        evaluatePolicy(this.options.policy);
+        evaluatePolicy(this.options.policy, { approval: spec.approval });
         if (!this.options.adapter.preview?.cleanup) {
           throw new UnsupportedCapabilityError("preview.cleanup");
         }
@@ -297,7 +297,7 @@ export class Capsule {
     this.machine = {
       create: async (spec: CreateMachineSpec) => {
         this.require("machine.create");
-        evaluatePolicy(this.options.policy, { env: spec.env });
+        evaluatePolicy(this.options.policy, { env: spec.env, approval: spec.approval });
         if (!this.options.adapter.machine) {
           throw new UnsupportedCapabilityError("machine.create");
         }
@@ -312,7 +312,7 @@ export class Capsule {
       },
       start: async (spec: StartMachineSpec) => {
         this.require("machine.start");
-        evaluatePolicy(this.options.policy);
+        evaluatePolicy(this.options.policy, { approval: spec.approval });
         if (!this.options.adapter.machine?.start) {
           throw new UnsupportedCapabilityError("machine.start");
         }
@@ -320,7 +320,7 @@ export class Capsule {
       },
       stop: async (spec: StopMachineSpec) => {
         this.require("machine.stop");
-        evaluatePolicy(this.options.policy);
+        evaluatePolicy(this.options.policy, { approval: spec.approval });
         if (!this.options.adapter.machine?.stop) {
           throw new UnsupportedCapabilityError("machine.stop");
         }
@@ -328,7 +328,7 @@ export class Capsule {
       },
       destroy: async (spec: DestroyMachineSpec) => {
         this.require("machine.destroy");
-        evaluatePolicy(this.options.policy);
+        evaluatePolicy(this.options.policy, { approval: spec.approval });
         if (!this.options.adapter.machine?.destroy) {
           throw new UnsupportedCapabilityError("machine.destroy");
         }
