@@ -210,7 +210,12 @@ describe("azure container apps adapter", () => {
     const cancelled = await capsule.job.cancel({ id: "exec-1", reason: "cleanup", providerOptions: { jobName: "smoke" } });
 
     expect(cancelled).toMatchObject({ id: "exec-1", provider: "azure-container-apps", status: "cancelling" });
+    expect(cancelled.metadata).toMatchObject({ cleanupScope: "execution-only", jobResourceDeleted: false });
     expect(cancelled.receipt?.type).toBe("job.cancel");
+    expect(cancelled.receipt?.metadata).toMatchObject({ cleanupScope: "execution-only", jobResourceDeleted: false });
+    expect(cancelled.receipt?.policy.notes).toContain(
+      "Azure Container Apps job.cancel stops an execution only; it does not delete the Container Apps Job resource."
+    );
     expect(calls).toHaveLength(1);
     expect(calls[0]?.init.method).toBe("POST");
     expect(calls[0]?.url).toBe(

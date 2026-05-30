@@ -508,6 +508,6 @@ console.log(job.status, job.receipt);
 
 Credentials: Azure management access token, subscription id, resource group, location, and Container Apps environment id.
 
-Cleanup: generated one-shot jobs are cleaned up on start failure; successful jobs and services should be deleted through Azure tooling or supported Capsule lifecycle calls.
+Cleanup: generated one-shot jobs are cleaned up on start failure. `job.cancel` stops a running execution only; it does not delete the Container Apps Job resource. Successful jobs and services should be deleted through Azure tooling or supported Capsule lifecycle calls.
 
 Caveat: registries, secrets, logs, service rollback, ingress, workload profiles, and Azure identity boundaries are provider-specific and should be modeled explicitly.

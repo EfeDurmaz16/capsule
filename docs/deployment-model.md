@@ -4,7 +4,7 @@ Capsule separates deployment domains instead of flattening them.
 
 Jobs cover finite work: Cloud Run Jobs, ECS tasks, Kubernetes Jobs, Lambda, Modal functions, Docker one-off containers, and Azure Container Apps Jobs.
 
-The Azure Container Apps adapter maps `job.run` to a manual Container Apps Job create/update followed by the ARM job start operation. It reads execution state through the ARM job execution resource and maps `job.cancel` to the ARM stop execution operation. It does not yet stream Log Analytics output or collect artifacts.
+The Azure Container Apps adapter maps `job.run` to a manual Container Apps Job create/update followed by the ARM job start operation. It reads execution state through the ARM job execution resource and maps `job.cancel` to the ARM stop execution operation. Cancel is execution-only: it does not delete the Container Apps Job resource. Generated jobs are deleted only when `job.run` creates a temporary Job and execution start fails before returning. The adapter does not yet stream Log Analytics output or collect artifacts.
 
 Services cover long-running HTTP or TCP workloads: Cloud Run Services, ECS/Fargate Services, Kubernetes Deployments and Services, Azure Container Apps, Fly Apps, Railway, Render, and Docker Compose-style local dev.
 
