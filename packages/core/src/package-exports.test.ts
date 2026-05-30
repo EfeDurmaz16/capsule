@@ -1,4 +1,6 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 
@@ -16,11 +18,36 @@ function packageDirs(baseDir: string) {
     .filter((dir) => existsSync(join(dir, "package.json")));
 }
 
+const runtimeExportKinds = new Set(["class", "const", "enum", "function", "namespace", "symbol", "variable"]);
+
+function publicPackageDirs() {
+  return packageDirs(packagesDir).filter((packageDir) => readJson(join(packageDir, "package.json")).private !== true);
+}
+
+function expectedRuntimeExportsByPackage() {
+  const apiReference = readFileSync(join(root, "docs", "api-reference.md"), "utf8");
+  const entries = new Map<string, string[]>();
+  for (const section of apiReference.split(/^## /m).slice(1)) {
+    const [packageNameLine = "", ...lines] = section.split("\n");
+    const packageName = packageNameLine.trim();
+    if (!packageName.startsWith("@capsule/")) continue;
+    const runtimeExports: string[] = [];
+    for (const line of lines) {
+      const match = line.match(/^- `([^`]+)` \(([^)]+)\)$/);
+      if (match?.[1] && match[2] && runtimeExportKinds.has(match[2])) {
+        runtimeExports.push(match[1]);
+      }
+    }
+    runtimeExports.sort((left, right) => left.localeCompare(right));
+    entries.set(packageName, runtimeExports);
+  }
+  return entries;
+}
+
 describe("package export maps", () => {
   test("every public package exports its entrypoint through dist", () => {
-    for (const packageDir of packageDirs(packagesDir)) {
+    for (const packageDir of publicPackageDirs()) {
       const pkg = readJson(join(packageDir, "package.json"));
-      if (pkg.private === true) continue;
 
       expect(pkg.main, `${pkg.name} main`).toBe("./dist/index.js");
       expect(pkg.types, `${pkg.name} types`).toBe("./dist/index.d.ts");
@@ -29,6 +56,49 @@ describe("package export maps", () => {
       expect(existsSync(join(packageDir, "src", "index.ts")), `${pkg.name} src/index.ts`).toBe(true);
     }
   });
+
+  test("public packages import by package name and match the API snapshot", () => {
+    const packages = publicPackageDirs().map((packageDir) => ({ dir: packageDir, pkg: readJson(join(packageDir, "package.json")) }));
+    const expected = expectedRuntimeExportsByPackage();
+
+    expect([...expected.keys()].sort()).toEqual(packages.map(({ pkg }) => String(pkg.name)).sort());
+
+    const tempRoot = mkdtempSync(join(tmpdir(), "capsule-package-exports-"));
+    try {
+      const tempNodeModules = join(tempRoot, "node_modules");
+      const scopedNodeModules = join(tempNodeModules, "@capsule");
+      mkdirSync(scopedNodeModules, { recursive: true });
+      symlinkSync(join(root, "node_modules", ".pnpm"), join(tempNodeModules, ".pnpm"), "dir");
+      mkdirSync(join(tempNodeModules, "node_modules"), { recursive: true });
+      symlinkSync(join(root, "node_modules", ".pnpm"), join(tempNodeModules, "node_modules", ".pnpm"), "dir");
+      for (const { dir, pkg } of packages) {
+        symlinkSync(dir, join(scopedNodeModules, String(pkg.name).replace("@capsule/", "")), "dir");
+      }
+
+      const verifierPath = join(tempRoot, "verify-package-exports.mjs");
+      writeFileSync(
+        verifierPath,
+        `const expected = new Map(${JSON.stringify([...expected.entries()])});
+for (const [packageName, expectedExports] of expected) {
+  const mod = await import(packageName);
+  const actualExports = Object.keys(mod).filter((name) => name !== "default").sort((left, right) => left.localeCompare(right));
+  if (JSON.stringify(actualExports) !== JSON.stringify(expectedExports)) {
+    throw new Error(\`\${packageName} export mismatch\\nexpected: \${expectedExports.join(", ")}\\nactual: \${actualExports.join(", ")}\`);
+  }
+}
+process.exit(0);
+`
+      );
+
+      execFileSync(process.execPath, [verifierPath], {
+        cwd: tempRoot,
+        encoding: "utf8",
+        timeout: 15_000
+      });
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  }, 20_000);
 
   test("examples import packages through public package exports", () => {
     const privateImportPattern = /from\s+["'](@capsule\/[^"']+\/[^"']+)["']/g;
