@@ -31,6 +31,9 @@ jobs:
       - name: Gap report
         run: pnpm capsule:gap
 
+      - name: Format check
+        run: pnpm format:check
+
       - name: Typecheck
         run: pnpm typecheck
 
