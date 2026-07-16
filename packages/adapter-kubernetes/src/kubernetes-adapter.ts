@@ -1,6 +1,7 @@
 import * as k8s from "@kubernetes/client-node";
 import {
   AdapterExecutionError,
+  asProviderError,
   capsuleOperationTags,
   logsFromOutput,
   providerRuntimeMetadata,
@@ -626,9 +627,42 @@ function defaultClients(options: KubernetesAdapterOptions): KubernetesClients {
   };
 }
 
+function rethrowKubernetesError(error: unknown): never {
+  throw asProviderError(error, "Kubernetes API request failed.");
+}
+
+// ponytail: one Proxy over each API client reclassifies every method rejection, instead of wrapping
+// the dozen individual createNamespaced*/read*/delete* call sites by hand.
+function classifyKubernetesErrors<T extends object>(client: T): T {
+  return new Proxy(client, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (typeof value !== "function") {
+        return value;
+      }
+      const method = value as (...args: unknown[]) => unknown;
+      return (...args: unknown[]): unknown => {
+        try {
+          const result = method.apply(target, args);
+          return result instanceof Promise ? result.catch(rethrowKubernetesError) : result;
+        } catch (error) {
+          rethrowKubernetesError(error);
+        }
+      };
+    }
+  });
+}
+
 export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapter {
   const namespace = options.namespace ?? "default";
-  const getClients = () => options.clients ?? defaultClients(options);
+  const getClients = (): KubernetesClients => {
+    const clients = options.clients ?? defaultClients(options);
+    return {
+      batch: classifyKubernetesErrors(clients.batch),
+      apps: classifyKubernetesErrors(clients.apps),
+      core: classifyKubernetesErrors(clients.core)
+    };
+  };
   return {
     name: adapter,
     provider,

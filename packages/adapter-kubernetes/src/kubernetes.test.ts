@@ -1,10 +1,51 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, ProviderRetryableError, ProviderValidationError, runAdapterContract } from "@capsule/core";
 import { kubernetes, kubernetesCapabilities } from "./index.js";
 
+function k8sError(code: number, reason: string, message = reason): Error {
+  return Object.assign(new Error(message), { statusCode: code, body: { kind: "Status", code, reason, message } });
+}
+
+function failingKubernetes(error: Error) {
+  return kubernetes({
+    namespace: "jobs",
+    clients: {
+      batch: { createNamespacedJob: async () => ({}), readNamespacedJob: async () => Promise.reject(error) },
+      apps: { createNamespacedDeployment: async () => ({}) },
+      core: { createNamespacedService: async () => ({}) }
+    }
+  });
+}
+
 describe("kubernetes adapter", () => {
-  it("runs the shared adapter contract suite", async () => {
-    await runAdapterContract(kubernetes());
+  it("runs the shared adapter contract suite and classifies provider failures", async () => {
+    await runAdapterContract(failingKubernetes(k8sError(503, "ServiceUnavailable", "the server is currently unable to handle the request")), {
+      failureScenarios: [
+        {
+          name: "Kubernetes API unavailability surfaces as a retryable provider error",
+          exercise: (capsule) => capsule.job.status({ id: "build-job" }),
+          expectError: (error) => {
+            expect(error).toBeInstanceOf(ProviderRetryableError);
+            expect((error as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "retryable", retryable: true, status: 503 } });
+          }
+        }
+      ]
+    });
+  });
+
+  it("classifies Kubernetes conflict failures as validation provider errors", async () => {
+    const capsule = new Capsule({ adapter: failingKubernetes(k8sError(409, "AlreadyExists", "jobs.batch \"build-job\" already exists")) });
+
+    let thrown: unknown;
+    try {
+      await capsule.job.status({ id: "build-job" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ProviderValidationError);
+    expect((thrown as Error).message).toBe('jobs.batch "build-job" already exists');
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "validation", retryable: false, status: 409 } });
   });
 
   it("declares job and service capabilities", () => {
