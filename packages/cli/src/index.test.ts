@@ -883,6 +883,47 @@ describe("CLI preview lifecycle", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  test("destroy exits 0 when only by-design-unsupported resources are left behind", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-preview-unsupported-"));
+    const configFile = join(root, "preview.json");
+    const cleanupFile = join(root, "cleanup.json");
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await writeFile(
+        configFile,
+        JSON.stringify({
+          name: "pr-88",
+          requireRealProviders: true,
+          allowMockProviders: true,
+          databases: [{ adapter: "mock-neon", spec: { project: "app", name: "pr-88-db" } }],
+          edges: [{ adapter: "mock-cloudflare", spec: { name: "web", source: { path: "./dist" } } }]
+        }),
+        "utf8"
+      );
+
+      await main(["preview", "create", "--config-file", configFile, "--cleanup-file", cleanupFile]);
+      log.mockClear();
+
+      await main(["preview", "destroy", "--cleanup-file", cleanupFile]);
+      const destroyOutput = JSON.parse(String(log.mock.calls[0]?.[0])) as {
+        status: string;
+        summary: { cleaned: number; partial: number; failed: number; unsupported: number; leaked: number };
+        dispositions: Array<{ resource: { kind: string }; disposition: string; notes?: string[] }>;
+      };
+
+      expect(destroyOutput.status).toBe("unsupported");
+      expect(destroyOutput.summary).toMatchObject({ cleaned: 1, partial: 0, failed: 0, unsupported: 1, leaked: 0 });
+      const edge = destroyOutput.dispositions.find((entry) => entry.resource.kind === "edge");
+      expect(edge?.disposition).toBe("unsupported");
+      expect(edge?.notes?.[0]).toContain("No cleanup action");
+      expect(process.exitCode).toBe(0);
+    } finally {
+      log.mockRestore();
+      process.exitCode = undefined;
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("CLI live-test planner", () => {

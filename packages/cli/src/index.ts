@@ -329,9 +329,10 @@ interface PreviewCreateReport {
 
 interface PreviewDestroyReport {
   previewId: string;
-  status: "cleaned" | "partial";
+  status: "cleaned" | "unsupported" | "partial";
   summary: {
     cleaned: number;
+    partial: number;
     failed: number;
     unsupported: number;
     leaked: number;
@@ -1729,6 +1730,7 @@ async function createPreviewDestroyReport(parsed: ParsedArgs): Promise<PreviewDe
     status: cleanup.status,
     summary: {
       cleaned: dispositions.filter((entry) => entry.disposition === "cleaned").length,
+      partial: dispositions.filter((entry) => entry.disposition === "partial").length,
       failed: cleanup.failed.length,
       unsupported: dispositions.filter((entry) => entry.disposition === "unsupported").length,
       leaked: dispositions.filter((entry) => entry.disposition === "leaked").length
@@ -2836,7 +2838,9 @@ export async function main(argv: string[]): Promise<void> {
       if (action === "destroy") {
         const report = await createPreviewDestroyReport(parsed);
         console.log(JSON.stringify(report, null, 2));
-        process.exitCode = report.status === "cleaned" ? 0 : 1;
+        // "unsupported" means only by-design-uncleanable resources (edge, job) were left behind;
+        // that is not a failure. Only real failures ("partial") exit non-zero.
+        process.exitCode = report.status === "partial" ? 1 : 0;
         return;
       }
       throw new Error("Unknown preview command. Use create or destroy.");
