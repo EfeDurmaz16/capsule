@@ -77,4 +77,85 @@ describe("AI framework wrapper descriptors", () => {
 
     expect(tool.execute).toHaveBeenCalledTimes(3);
   });
+
+  test("pins the full JSON schema shape so framework contracts cannot drift", () => {
+    expect(codeExecutionInputJsonSchema).toEqual({
+      type: "object",
+      additionalProperties: false,
+      required: ["files", "command"],
+      properties: {
+        language: {
+          type: "string",
+          description: "Optional runtime language hint used to select the default sandbox image."
+        },
+        files: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["path", "content"],
+            properties: {
+              path: {
+                type: "string",
+                description: "Absolute or sandbox-relative file path to write before execution."
+              },
+              content: {
+                type: "string",
+                description: "UTF-8 file content. Binary content should be handled by a custom wrapper."
+              }
+            }
+          }
+        },
+        command: {
+          oneOf: [{ type: "string" }, { type: "array", minItems: 1, items: { type: "string" } }],
+          description: "Command to execute in the sandbox."
+        },
+        timeoutMs: {
+          type: "number",
+          minimum: 1,
+          description: "Optional execution timeout in milliseconds."
+        }
+      }
+    });
+  });
+
+  test("pins each descriptor's exact key names, schema slot, and metadata", () => {
+    const tool = fakeTool();
+
+    // Every framework carries the schema under a different key; the same singleton must land in each slot.
+    expect(Object.keys(createVercelAiSdkTool(tool)).sort()).toEqual(["description", "execute", "inputSchema", "name"]);
+    expect(createVercelAiSdkTool(tool).inputSchema).toBe(codeExecutionInputJsonSchema);
+
+    expect(Object.keys(createOpenAIAgentsTool(tool)).sort()).toEqual(["description", "execute", "name", "parameters"]);
+    expect(createOpenAIAgentsTool(tool).parameters).toBe(codeExecutionInputJsonSchema);
+
+    const responses = createOpenAIResponsesFunctionTool(tool);
+    expect(Object.keys(responses).sort()).toEqual(["execute", "tool"]);
+    expect(Object.keys(responses.tool).sort()).toEqual(["description", "name", "parameters", "strict", "type"]);
+    expect(responses.tool.type).toBe("function");
+    expect(responses.tool.strict).toBe(true);
+    expect(responses.tool.parameters).toBe(codeExecutionInputJsonSchema);
+
+    expect(Object.keys(createLangChainTool(tool)).sort()).toEqual(["description", "invoke", "name", "schema"]);
+    expect(createLangChainTool(tool).schema).toBe(codeExecutionInputJsonSchema);
+
+    const mastra = createMastraTool(tool);
+    expect(Object.keys(mastra).sort()).toEqual(["description", "execute", "id", "inputSchema"]);
+    expect(mastra.id).toBe("capsule_code_execution");
+    expect(mastra.inputSchema).toBe(codeExecutionInputJsonSchema);
+
+    expect(Object.keys(createCrewAiTool(tool)).sort()).toEqual(["description", "name", "run", "schema"]);
+    expect(createCrewAiTool(tool).schema).toBe(codeExecutionInputJsonSchema);
+  });
+
+  test("every descriptor forwards the tool name and description verbatim", () => {
+    const tool = fakeTool();
+    const named = [createVercelAiSdkTool(tool), createOpenAIAgentsTool(tool), createLangChainTool(tool), createCrewAiTool(tool)];
+    for (const descriptor of named) {
+      expect(descriptor.name).toBe("capsule_code_execution");
+      expect(descriptor.description).toBe("Run code");
+    }
+    expect(createMastraTool(tool).id).toBe("capsule_code_execution");
+    expect(createOpenAIResponsesFunctionTool(tool).tool.name).toBe("capsule_code_execution");
+  });
 });
