@@ -4,68 +4,11 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
 ![ESM](https://img.shields.io/badge/modules-ESM-111111.svg)
-![pnpm](https://img.shields.io/badge/workspace-pnpm-f69220.svg)
 ![Package status](https://img.shields.io/badge/npm-not_published_yet-666666.svg)
 
-Capsule is a domain-aware adapter layer for agent execution and cloud runtimes.
+One TypeScript layer for running code across cloud runtimes: sandboxes, jobs, services, edge deploys, database branches, preview environments, and machines.
 
-It does not pretend every provider is the same.
-
-Instead, it defines small contracts for adjacent runtime domains: sandboxes, jobs, services, edge runtimes, database resources, machines, and preview environments.
-
-Capsule makes runtime capabilities, policies, logs, artifacts, and execution receipts explicit.
-
-## What It Is
-
-Capsule is a TypeScript-first OSS control-plane interface for running code, jobs, services, edge functions, database branches, and preview environments across provider adapters. It is inspired by files-sdk's clean adapter model, but the runtime domain is leakier and more security-sensitive, so Capsule exposes support levels instead of hiding differences.
-
-## What It Is Not
-
-Capsule is not a fake universal cloud abstraction, PaaS clone, Terraform or Pulumi replacement, Nitric or Encore replacement, Docker wrapper only, sandbox provider, deployment provider, or security magic layer.
-
-## Why Not Just Use Provider SDKs?
-
-Use provider SDKs directly when you are building for one provider and need its full native API.
-
-Use Capsule when an agent platform, CI system, preview controller, internal developer tool, or framework needs to operate across providers and prove what happened.
-
-Direct provider SDKs execute actions:
-
-- Neon creates database branches.
-- Cloudflare deploys Workers.
-- Vercel creates deployments.
-- Docker runs containers.
-
-Capsule makes runtime actions governable, comparable, auditable, and composable across providers:
-
-- capability checks say whether `edge.rollback`, `database.branchCreate`, or `sandbox.exec` is `native`, `emulated`, `experimental`, or `unsupported`;
-- policy checks run before runtime calls and are recorded in receipts;
-- receipts normalize provider, adapter, support level, timing, hashes, resource ids, and policy decisions;
-- preview flows can compose database branches, edge deployments, services, jobs, URLs, cleanup plans, and evidence bundles;
-- provider-specific escape hatches stay available through `raw()` instead of being hidden behind a fake common denominator.
-
-Capsule is not a better Cloudflare SDK, Vercel SDK, Neon SDK, or Docker SDK. It is the small TypeScript layer above provider SDKs that lets tools execute runtime actions without lying about what each provider can actually do.
-
-## Install
-
-Package names are reserved in the repo contract but not published to npm yet. Until the first release, use the workspace packages from this repository. The install commands below show the intended npm package names after publication.
-
-```bash
-pnpm add @capsule/core @capsule/adapter-docker
-```
-
-Install only the adapters you use:
-
-```bash
-pnpm add @capsule/core @capsule/adapter-e2b
-pnpm add @capsule/core @capsule/adapter-neon
-pnpm add @capsule/core @capsule/adapter-vercel
-pnpm add @capsule/core @capsule/adapter-mock
-```
-
-`@capsule/adapter-mock` is for tests, examples, and future-provider modeling. It does not call real provider APIs.
-
-## Quickstart
+A `Capsule` is a small facade you construct around one provider adapter. Every call through it is capability-checked, policy-checked, and recorded as a receipt:
 
 ```ts
 import { Capsule } from "@capsule/core";
@@ -91,83 +34,68 @@ console.log(result.receipt);
 await box.destroy();
 ```
 
-## Domain APIs
+Swap `docker()` for `e2b()`, `daytona()`, `modal()`, or any other adapter and the sandbox code above stays the same. Adapters exist for Docker, E2B, Daytona, Modal, Cloud Run, Cloudflare Workers, Vercel, Kubernetes, AWS Lambda, ECS/Fargate, EC2, Fly Machines, Azure Container Apps, and Neon.
 
-```ts
-await capsule.job.run({ image: "node:22", command: ["node", "-e", "console.log('job')"] });
-await capsule.service.deploy({ name: "api", image: "example/api:latest" });
-await capsule.edge.deploy({ name: "worker", runtime: "workers" });
-await capsule.database.branch.create({ project: "app", name: "pr-42" });
-await capsule.preview.create({ name: "pr-42" });
-await capsule.machine.create({ name: "runner", image: "ubuntu-24.04" });
+Capsule does not pretend these providers are the same. Adapters declare a support level for every operation (`native`, `emulated`, `experimental`, `unsupported`), and anything a provider cannot do fails loudly with a typed error instead of being faked.
+
+## Why Capsule
+
+- **Capability negotiation.** `capsule.supports("edge.rollback")` and `capsule.supportLevel("database.branchCreate")` tell you before you call whether an operation is native, emulated, experimental, or unsupported on the chosen provider.
+- **Policy before execution.** Network, filesystem, secrets, limits, cost, TTL, and approval policies are evaluated before the provider call, and the decision is recorded.
+- **Execution receipts.** Every action produces a normalized record: provider, adapter, capability path, support level, timing, SHA-256 output hashes, resource ids, and the policy decision. Receipts can be persisted to JSONL or SQLite and composed into verifiable evidence bundles.
+- **Escape hatch, not a cage.** `raw()` returns the native provider client when you need the full API. Calls through it skip Capsule's checks and receipts by design.
+- **Preview composition.** A database branch, an edge deploy, a service, and check jobs compose into one preview environment with URLs, a cleanup plan, and evidence.
+- **Agent-ready.** `@capsule/ai` ships a code execution tool plus dependency-free tool descriptors for the Vercel AI SDK, OpenAI Agents/Responses, LangChain, Mastra, and CrewAI.
+
+Use a provider SDK directly when you build for one provider and need its full native API. Use Capsule when an agent platform, CI system, preview controller, or internal tool has to operate across providers and prove what happened. The longer argument lives in the [manifesto](docs/manifesto.md) and the [comparison](docs/comparison.md) (including how Capsule differs from ComputeSDK, Terraform/Pulumi, Nitric/Encore, and plain provider SDKs).
+
+## Status
+
+Capsule is pre-1.0 and **not published to npm yet**. The `@capsule/*` package names in this README are the reserved names for the first release; today you run Capsule from this repository:
+
+```bash
+git clone https://github.com/EfeDurmaz16/capsule.git
+cd capsule
+pnpm install
+pnpm build
+
+# credential-free examples (mock adapters, no provider accounts needed)
+pnpm --filter @capsule/example-capability-check start
+pnpm --filter @capsule/example-policy-receipts start
+
+# Docker-backed examples (require a local Docker daemon)
+pnpm --filter @capsule/example-sandbox-docker start
+pnpm --filter @capsule/example-job-docker start
+
+# the CLI
+pnpm --filter @capsule/cli exec node dist/index.js doctor
 ```
 
-## Capabilities
+After the first npm release the install will be the usual per-adapter form:
 
-```ts
-capsule.supports("sandbox.exec");
-capsule.supportLevel("service.deploy");
-capsule.capabilities();
-capsule.adapterName();
-capsule.raw();
+```bash
+pnpm add @capsule/core @capsule/adapter-docker
 ```
 
-Support levels are `native`, `emulated`, `unsupported`, and `experimental`. Adapters must declare what they support; unsupported capabilities throw `UnsupportedCapabilityError`.
+Install only the adapters you use. `@capsule/adapter-mock` is for tests and examples; it never calls real provider APIs. The full release gate is tracked in [publish readiness](docs/publish-readiness.md).
 
-`raw()` is an explicit provider escape hatch. Calls made through the returned provider client or metadata object do not pass through Capsule capability checks, policy enforcement, receipt creation, redaction, or durability modes. Use it for provider-native inspection or setup, not for audited execution.
+## Domains
 
-## Policy And Receipts
-
-Capsule can apply network, filesystem, secrets, limits, cost, TTL, and approval policies before runtime actions. Receipts record the provider, adapter, capability path, support level, timing, output hashes, resource identifiers, and policy decision. Receipts prove what Capsule observed, not absolute truth.
-
-## Presets
-
-Presets are small spec and policy factories for common workflows. They do not execute anything and they do not hide provider differences. Each preset carries the capability paths a caller should check before using it.
+Each domain is a namespace on the `Capsule` facade with its own spec types:
 
 ```ts
-import { Capsule, nodeSandboxPreset } from "@capsule/core";
-import { docker } from "@capsule/adapter-docker";
-
-const preset = nodeSandboxPreset({
-  timeoutMs: 30_000,
-  secretEnv: ["NPM_TOKEN"]
-});
-
-const capsule = new Capsule({
-  adapter: docker(),
-  policy: preset.policy,
-  receipts: true
-});
-
-for (const path of preset.capabilityPaths) {
-  if (!capsule.supports(path)) {
-    throw new Error(`Adapter does not support ${path}`);
-  }
-}
-
-const sandbox = await capsule.sandbox.create(preset.spec);
-```
-
-Available core presets include `nodeSandboxPreset`, `nodeJobPreset`, `httpServicePreset`, `edgeWorkerPreset`, `previewDatabaseBranchPreset`, and `previewEnvironmentPreset`.
-
-Provider-oriented presets live in `@capsule/presets`. They are still spec factories, not hidden deployments. For example, `flyVercelNeonPreviewPreset` composes a common preview shape across a Fly-style API service, Vercel web or edge deployment, Neon database branch, and optional check jobs while preserving the capability paths callers must verify.
-
-```ts
-import { flyVercelNeonPreviewPreset } from "@capsule/presets";
-
-const preset = flyVercelNeonPreviewPreset({
-  name: "pr-42",
-  web: { name: "web-pr-42", sourcePath: "dist/vercel/index.js" },
-  api: { name: "api-pr-42", image: "registry.example.com/acme/api:pr-42" },
-  database: { project: "neon-project-id", name: "pr-42", parent: "main" }
-});
-
-console.log(preset.preview.capabilityPaths);
+await capsule.sandbox.create({ image: "node:22" });                                  // interactive execution
+await capsule.job.run({ image: "node:22", command: ["node", "-e", "console.log(1)"] }); // one-shot runs
+await capsule.service.deploy({ name: "api", image: "example/api:latest" });          // long-running services
+await capsule.edge.deploy({ name: "worker", runtime: "workers" });                   // edge functions
+await capsule.database.branch.create({ project: "app", name: "pr-42" });             // database branches
+await capsule.preview.create({ name: "pr-42" });                                     // composed preview environments
+await capsule.machine.create({ name: "runner", image: "ubuntu-24.04" });             // raw VMs
 ```
 
 ## Provider Matrix
 
-`native`, `experimental`, `emulated`, and `unsupported` are adapter-declared support levels. This short table covers real adapters in this repo; mock-only modeling is listed separately below.
+Which domains actually work on which provider. Support levels are declared by each adapter; `unsupported` operations throw `UnsupportedCapabilityError` instead of pretending.
 
 | Provider | Package | Sandbox | Job | Service | Edge | Database | Preview | Machine |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -186,43 +114,93 @@ console.log(preset.preview.capabilityPaths);
 | Fly Machines | `@capsule/adapter-fly` | unsupported | native | unsupported | unsupported | unsupported | unsupported | native |
 | Azure Container Apps | `@capsule/adapter-azure-container-apps` | unsupported | native | native | unsupported | unsupported | unsupported | unsupported |
 
-Mock modeling package:
+Every adapter above is a real SDK- or API-backed integration. `@capsule/adapter-mock` additionally models these providers with fake objects and receipts for tests and examples. The `preview` column is empty because previews are composed from the other domains by `@capsule/preview` rather than provided natively; see [preview environments](docs/preview-environments.md). Remaining per-provider gaps are listed in the [gap register](docs/real-provider-gap-register.md).
 
-- `@capsule/adapter-mock`: mock E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models for tests/examples. It returns fake objects and receipts and should not be presented as a real provider integration.
+## Capabilities
+
+```ts
+capsule.supports("sandbox.exec");        // boolean
+capsule.supportLevel("service.deploy");  // "native" | "emulated" | "experimental" | "unsupported"
+capsule.capabilities();                  // full declared map
+capsule.adapterName();
+capsule.raw();                           // native provider client, bypasses all Capsule checks
+```
+
+Details: [capability model](docs/capability-model.md).
+
+## Policy and Receipts
+
+Policies run before runtime actions and their decision is embedded in the receipt. Receipts record what Capsule observed: they are normalized, hashable, optionally signed, and persistable through `@capsule/store-jsonl` or `@capsule/store-sqlite`. They are evidence of observation, not absolute truth.
+
+Details: [policy model](docs/policy-model.md), [execution receipts](docs/execution-receipts.md), [security model](docs/security-model.md).
+
+## Presets
+
+Presets are spec and policy factories for common shapes. They do not execute anything and they carry the capability paths a caller should check first:
+
+```ts
+import { Capsule, nodeSandboxPreset } from "@capsule/core";
+import { docker } from "@capsule/adapter-docker";
+
+const preset = nodeSandboxPreset({ timeoutMs: 30_000, secretEnv: ["NPM_TOKEN"] });
+
+const capsule = new Capsule({ adapter: docker(), policy: preset.policy, receipts: true });
+
+for (const path of preset.capabilityPaths) {
+  if (!capsule.supports(path)) throw new Error(`Adapter does not support ${path}`);
+}
+
+const sandbox = await capsule.sandbox.create(preset.spec);
+```
+
+Core ships `nodeSandboxPreset`, `nodeJobPreset`, `httpServicePreset`, `edgeWorkerPreset`, `previewDatabaseBranchPreset`, and `previewEnvironmentPreset`. Provider-oriented compositions such as `flyVercelNeonPreviewPreset` live in `@capsule/presets`.
+
+## CLI
+
+```bash
+capsule init --adapter docker --out-dir .
+capsule doctor
+capsule capabilities --adapter neon
+capsule examples run capability-check
+capsule policy explain --adapter docker --capability job.run --policy-file policy.json --spec-file job-spec.json
+capsule receipt verify --receipt-file .capsule/receipts.jsonl
+capsule preview create --config-file preview.json --cleanup-file .capsule/preview-cleanup.json
+```
+
+`capsule doctor` checks Node support, workspace health, Docker availability, and provider credential env vars without printing secret values. Report commands take `--json` for automation. Run `capsule --help` for the full command list, including provider-specific `service`, `job`, and `neon` commands.
+
+## Packages
+
+| Package | What it is |
+| --- | --- |
+| `@capsule/core` | Domain types, the `Capsule` facade, capabilities, policy, receipts, errors, presets, adapter contract |
+| `@capsule/adapter-*` | One real adapter per provider (see the matrix above), plus `adapter-mock` for tests |
+| `@capsule/ai` | Code execution tool and tool descriptors for AI frameworks |
+| `@capsule/preview` | Preview environment composition, cleanup plans, evidence bundles |
+| `@capsule/presets` | Provider-oriented spec factories |
+| `@capsule/store-jsonl`, `@capsule/store-sqlite` | Receipt persistence |
+| `@capsule/cli` | The `capsule` CLI |
+
+## Known Limitations
+
+- Capsule is not a sandbox by itself; isolation comes from the provider. Local Docker is not safe for hostile untrusted code by default.
+- Policy enforcement depends on adapter and provider support; unsupported enforcement is reported, not silently assumed.
+- Receipts are not signed attestations yet unless you configure a signer.
+- Hosted persistence, auth, dashboards, queues, and server APIs are intentionally outside core.
 
 ## Docs
 
-- [Manifesto](docs/manifesto.md)
-- [Architecture](docs/architecture.md)
-- [Architecture diagrams](docs/architecture-diagrams.md)
-- [Primitive taxonomy](docs/primitive-taxonomy.md)
-- [Adapter contract](docs/adapter-contract.md)
-- [Adding a provider adapter](docs/adding-provider-adapter.md)
-- [Capability model](docs/capability-model.md)
-- [Policy model](docs/policy-model.md)
-- [Execution receipts](docs/execution-receipts.md)
-- [AI framework wrappers](docs/ai-framework-wrappers.md)
-- [Provider matrix](docs/provider-matrix.md)
-- [Provider selection](docs/provider-selection.md)
-- [Preview environments](docs/preview-environments.md)
-- [Real provider quickstarts](docs/real-provider-quickstarts.md)
-- [Live provider tests](docs/live-tests.md)
-- [Publish readiness](docs/publish-readiness.md)
-- [Release rollback](docs/release-rollback.md)
-- [Unfinished marker gate](docs/unfinished-marker-gate.md)
-- [V2 readiness audit](docs/v2-readiness-audit.md)
-- [API reference](docs/api-reference.md) (`pnpm docs:api`)
+Start here:
+
+- [Architecture](docs/architecture.md) and [diagrams](docs/architecture-diagrams.md)
+- [Adapter contract](docs/adapter-contract.md) and [adding a provider adapter](docs/adding-provider-adapter.md)
+- [Capability model](docs/capability-model.md), [policy model](docs/policy-model.md), [execution receipts](docs/execution-receipts.md)
+- [Real provider quickstarts](docs/real-provider-quickstarts.md) and [live provider tests](docs/live-tests.md)
+- [Provider matrix](docs/provider-matrix.md) and [provider selection](docs/provider-selection.md)
 - [Security model](docs/security-model.md)
-- [Roadmap](docs/roadmap.md)
-- [Productization plan](docs/productization-plan.md)
-- [Real provider gap register](docs/real-provider-gap-register.md)
-- [Contributing](docs/contributing.md)
-- [Issue labels](docs/issue-labels.md)
-- [Comparison](docs/comparison.md)
-- [Technical decisions](docs/technical-decisions.md)
-- [Architecture decision records](docs/adr/README.md)
-- [OSP integration](docs/integrations/osp.md)
-- [V1 readiness audit](docs/v1-readiness-audit.md)
+- [Manifesto](docs/manifesto.md), [comparison](docs/comparison.md), [roadmap](docs/roadmap.md)
+- [API reference](docs/api-reference.md) (generated by `pnpm docs:api`)
+- Everything else: [docs/](docs/), including ADRs under [docs/adr/](docs/adr/README.md)
 
 ## Development
 
@@ -233,131 +211,8 @@ pnpm test
 pnpm typecheck
 ```
 
-## Project Status
+Adapter contributions should include a capability map, docs, and the shared contract tests. See [contributing](docs/contributing.md).
 
-Capsule is pre-1.0 OSS infrastructure. The core contracts, real provider adapters, CLI, examples, tests, docs, and release audit are present in this repository. Packages are not published to npm yet, and live provider operations require explicit credentials plus provider-specific quickstart steps.
+## License
 
-## First Release Checklist
-
-Before removing the `npm-not_published_yet` badge or treating the install commands above as live npm instructions:
-
-- package names must be available or owned by the project on npm;
-- every public package must pass metadata audit, marker audit, pack smoke, and packed-size budget checks;
-- CI must publish through the Changesets release workflow with npm provenance enabled;
-- `pnpm typecheck`, `pnpm test`, `pnpm build`, and `pnpm release:audit` must pass from a clean checkout;
-- `pnpm docs:api` must leave `docs/api-reference.md` unchanged;
-- publishable `dist` folders must not include `*.test.*` or `*.live.test.*` files;
-- docs must still state which providers are real, mock, unsupported, experimental, or live-test gated;
-- `docs/release-rollback.md` must be current enough for a maintainer to deprecate or patch a bad release.
-
-## Packages
-
-- `@capsule/core`: domain types, `Capsule` facade, capabilities, policy, receipts, errors, logs, artifacts, and adapter contracts.
-- `@capsule/adapter-docker`: real Docker CLI adapter for sandbox and one-shot job execution.
-- `@capsule/adapter-e2b`: real E2B SDK adapter for cloud sandbox execution.
-- `@capsule/adapter-daytona`: real Daytona SDK adapter for sandbox execution.
-- `@capsule/adapter-modal`: real Modal JS SDK adapter for sandbox execution.
-- `@capsule/adapter-cloudflare`: real Cloudflare API adapter for Worker module edge deployment.
-- `@capsule/adapter-cloud-run`: real Cloud Run Admin API adapter for jobs and services.
-- `@capsule/adapter-kubernetes`: real Kubernetes client adapter for Jobs, Deployments, Services, and selector-based combined Pod log reads.
-- `@capsule/adapter-lambda`: real AWS Lambda invoke adapter for existing functions as jobs.
-- `@capsule/adapter-ecs`: real ECS/Fargate adapter for existing task definitions.
-- `@capsule/adapter-ec2`: real EC2 adapter for machine creation.
-- `@capsule/adapter-fly`: real Fly Machines API adapter for machine lifecycle and one-shot job machines.
-- `@capsule/adapter-azure-container-apps`: real Azure Container Apps ARM adapter for service deploys and manual jobs.
-- `@capsule/adapter-neon`: real Neon API adapter for database branch create/delete/reset and connection URI retrieval.
-- `@capsule/adapter-vercel`: real Vercel REST adapter for inline deployment creation, bounded deployment event logs, project runtime logs, and alias release.
-- `@capsule/adapter-mock`: mock E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models.
-- `@capsule/ai`: framework-agnostic code execution tool helper plus dependency-free descriptors for Vercel AI SDK, OpenAI Agents/Responses, LangChain, Mastra, and CrewAI.
-- `@capsule/preview`: preview environment composition helpers for Capsule-backed services, edges, database branches, and jobs.
-- `@capsule/store-jsonl`: local append-only JSONL receipt persistence.
-- `@capsule/store-sqlite`: optional Node 24 SQLite receipt persistence for local audit trails and indexed receipt lookup.
-- `@capsule/cli`: small CLI with `init`, `doctor`, `verify providers`, `classify provider`, `adapter scaffold`, `capabilities`, `completion`, `policy explain`, `receipt verify`, `preview create`, `preview destroy`, `examples list`, `examples run`, `run`, and `sandbox`.
-
-## Examples
-
-```bash
-pnpm --filter @capsule/example-capability-check start
-pnpm --filter @capsule/example-policy-receipts start
-pnpm --filter @capsule/example-deployment-model start
-pnpm --filter @capsule/example-edge-model start
-pnpm --filter @capsule/example-database-branch-model start
-pnpm --filter @capsule/example-preview-environment-model start
-pnpm --filter @capsule/example-machine-model start
-```
-
-Docker-backed examples require Docker:
-
-```bash
-pnpm --filter @capsule/example-sandbox-docker start
-pnpm --filter @capsule/example-job-docker start
-```
-
-## Real And Mocked
-
-Real in this repository:
-
-- core TypeScript contracts;
-- capability negotiation;
-- policy checks for env/secrets and timeout merging;
-- receipt generation with SHA-256 stdout/stderr hashes;
-- Docker CLI sandbox/job adapter;
-- E2B cloud sandbox create/exec/file/list/destroy through the E2B SDK;
-- Daytona sandbox create/exec/file/list/destroy through the Daytona SDK;
-- Modal sandbox create/exec/read/write/destroy through the Modal JS SDK;
-- Cloudflare Worker module upload through the Cloudflare API;
-- Cloud Run job run, service deploy, and bounded job/service log reads through the Cloud Run Admin API and Cloud Logging;
-- Kubernetes Job, Deployment, Service creation, and selector-based combined Pod log reads through the official Kubernetes client;
-- AWS Lambda invocation through AWS SDK v3;
-- ECS RunTask and CreateService through AWS SDK v3;
-- EC2 RunInstances through AWS SDK v3;
-- Fly Machines create/start/status/stop/destroy and auto-destroy one-shot job machines through the Fly Machines API;
-- Azure Container Apps service create/update and manual job create/start through ARM REST APIs;
-- Neon database branch create/delete/reset through the Neon API;
-- Vercel inline deployment creation, bounded deployment event logs, project runtime logs, and alias release through the Vercel REST API;
-- Neon connection URI retrieval when `databaseName` and `roleName` are configured;
-- local JSONL receipt persistence through `@capsule/store-jsonl`;
-- mock provider adapters;
-- CLI;
-- examples and tests.
-
-Mocked:
-
-- no original provider family is represented only by mocks; remaining gaps are explicit unsupported or experimental capabilities inside real adapters.
-- service, edge, database, preview, and machine lifecycle operations outside Docker;
-- provider-native preview orchestration across real providers.
-
-CLI examples:
-
-```bash
-capsule init --adapter docker --out-dir .
-capsule examples list
-capsule examples run capability-check
-capsule doctor
-capsule doctor --adapter cloudflare
-capsule capabilities --adapter neon
-capsule capabilities --adapter docker --explain
-capsule capabilities --adapter docker --json
-capsule completion zsh
-capsule policy explain --adapter docker --capability job.run --policy-file policy.json --spec-file job-spec.json
-capsule receipt verify --receipt-file .capsule/receipts.jsonl
-capsule service deploy --adapter cloud-run --project-id "$GOOGLE_CLOUD_PROJECT" --location us-central1 --name api --image us-docker.pkg.dev/project/repo/api:tag --port 8080
-capsule service status --adapter cloud-run --project-id "$GOOGLE_CLOUD_PROJECT" --location us-central1 --id api
-capsule service delete --adapter cloud-run --project-id "$GOOGLE_CLOUD_PROJECT" --location us-central1 --id api --reason cleanup
-capsule job status --adapter cloud-run --project-id "$GOOGLE_CLOUD_PROJECT" --location us-central1 --id "projects/$GOOGLE_CLOUD_PROJECT/locations/us-central1/jobs/smoke/executions/smoke-abc"
-capsule job cancel --adapter cloud-run --project-id "$GOOGLE_CLOUD_PROJECT" --location us-central1 --id "projects/$GOOGLE_CLOUD_PROJECT/locations/us-central1/jobs/smoke/executions/smoke-abc" --reason cleanup
-capsule neon branch-create --project "$NEON_PROJECT_ID" --name pr-42 --database neondb --role neondb_owner --receipt-file .capsule/receipts.jsonl
-capsule neon branch-delete --project "$NEON_PROJECT_ID" --branch-id br_xxx --hard-delete --receipt-file .capsule/receipts.jsonl
-```
-
-`capsule init` writes `capsule.config.json` and `capsule.policy.json`, prints the adapter install hint, and does not write provider credentials or secret placeholders. `capsule examples run <id>` runs credential-free examples in mock/no-provider mode and blocks Docker-gated examples by default. `capsule doctor` reports Node support, workspace health, package versions, release-audit script availability, Docker daemon availability, and provider credential env-var status without printing secret values. Report commands default to table output; add `--json` for stable automation output. `capsule completion bash|zsh|fish` prints shell completion scripts without adding a CLI framework dependency.
-
-Known limitations:
-
-- Capsule is not a sandbox by itself.
-- Docker local is not safe for hostile untrusted code by default.
-- Policy enforcement depends on adapter/provider support.
-- Receipts record what Capsule observed; they are not signed attestations yet.
-- Hosted persistence, auth, dashboard, queues, and server APIs are intentionally outside core.
-
-Capsule is designed for provider teams, framework maintainers, and runtime engineers to critique and extend. Adapter contributions should include capability maps, docs, and contract tests.
+[MIT](LICENSE)
