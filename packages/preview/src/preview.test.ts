@@ -385,14 +385,16 @@ describe("preview orchestration", () => {
     expect(events).toEqual(["database.create:pr-42-db", "service.deploy:api", "database.delete:db-pr-42-db"]);
   });
 
-  test("cleans resources in reverse dependency order", async () => {
+  test("cleans resources in reverse dependency order and does not fail on by-design-unsupported kinds", async () => {
     const events: string[] = [];
     const result = await createPreviewGraph(plan(fakeCapsule(events)));
     const cleanup = await cleanupPreviewEnvironment(result.preview, result.resources, { cleanupPlan: result.cleanupPlan });
 
-    expect(cleanup.status).toBe("partial");
+    // edge and job have no cleanup action by design; the run is "unsupported" (exit 0), not "partial".
+    expect(cleanup.status).toBe("unsupported");
     expect(cleanup.receipt.type).toBe("preview.cleanup");
-    expect(cleanup.receipt.metadata).toMatchObject({ cleanupPlanId: result.cleanupPlan.id });
+    expect(cleanup.receipt.resource?.status).toBe("unsupported");
+    expect(cleanup.receipt.metadata).toMatchObject({ cleanupPlanId: result.cleanupPlan.id, cleanupStatus: "unsupported" });
     expect(cleanup.receipts.map((receipt) => receipt.type)).toEqual(["service.delete", "database.branch.delete", "preview.cleanup"]);
     expect(cleanup.dispositions.map((entry) => [entry.resource.kind, entry.disposition])).toEqual([
       ["job", "unsupported"],
@@ -401,6 +403,22 @@ describe("preview orchestration", () => {
       ["database", "cleaned"]
     ]);
     expect(events.slice(4)).toEqual(["service.delete:svc-api", "database.delete:db-pr-42-db"]);
+  });
+
+  test("reports partial when a real cleanup failure accompanies unsupported kinds", async () => {
+    const events: string[] = [];
+    const result = await createPreviewGraph(plan(fakeCapsule(events, { failDatabaseDelete: true })));
+    const cleanup = await cleanupPreviewEnvironment(result.preview, result.resources, { cleanupPlan: result.cleanupPlan });
+
+    // A leaked database is a real failure and must win over the unsupported edge/job leftovers.
+    expect(cleanup.status).toBe("partial");
+    expect(cleanup.failed).toHaveLength(1);
+    expect(cleanup.dispositions.map((entry) => [entry.resource.kind, entry.disposition])).toEqual([
+      ["job", "unsupported"],
+      ["edge", "unsupported"],
+      ["service", "cleaned"],
+      ["database", "leaked"]
+    ]);
   });
 
   test("emits preview cleanup receipt after create failure cleanup succeeds", async () => {
