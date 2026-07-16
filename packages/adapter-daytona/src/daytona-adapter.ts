@@ -2,6 +2,8 @@ import { Daytona } from "@daytona/sdk";
 import {
   AdapterExecutionError,
   CleanupFailureError,
+  asProviderError,
+  callProvider,
   capsuleOperationTags,
   logsFromOutput,
   providerRuntimeMetadata,
@@ -223,7 +225,7 @@ class DaytonaCapsuleSandbox implements Sandbox {
     try {
       response = await this.sandbox.process.executeCommand(commandToString(spec.command), spec.cwd, spec.env, timeoutSeconds(spec.timeoutMs));
     } catch (error) {
-      return await deleteSandboxAfterFailure(this.sandbox, "delete-sandbox-after-exec-error", error);
+      return await deleteSandboxAfterFailure(this.sandbox, "delete-sandbox-after-exec-error", asProviderError(error, "Daytona command execution failed."));
     }
     const stdout = redactSecrets(response.result, spec.env, this.context.policy);
     const stderr = "";
@@ -246,15 +248,15 @@ class DaytonaCapsuleSandbox implements Sandbox {
   }
 
   async writeFile(path: string, data: string | Uint8Array): Promise<void> {
-    await this.sandbox.fs.uploadFile(typeof data === "string" ? Buffer.from(data) : Buffer.from(data), path);
+    await callProvider("Daytona file write failed.", () => this.sandbox.fs.uploadFile(typeof data === "string" ? Buffer.from(data) : Buffer.from(data), path));
   }
 
   async readFile(path: string): Promise<Uint8Array> {
-    return await this.sandbox.fs.downloadFile(path);
+    return await callProvider("Daytona file read failed.", () => this.sandbox.fs.downloadFile(path));
   }
 
   async listFiles(path: string): Promise<FileEntry[]> {
-    const entries = await this.sandbox.fs.listFiles(path);
+    const entries = await callProvider("Daytona file list failed.", () => this.sandbox.fs.listFiles(path));
     return entries.map((entry) => ({
       name: String(
         entry.name ??
@@ -297,7 +299,9 @@ export function daytona(options: DaytonaAdapterOptions = {}): CapsuleAdapter {
       create: async (spec: CreateSandboxSpec, context: AdapterContext): Promise<Sandbox> => {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
-        const sandbox = await getClient().create(removeUndefined(createParams(spec, context, options)), { timeout: timeoutSeconds(spec.timeoutMs) });
+        const sandbox = await callProvider("Daytona sandbox creation failed.", () =>
+          getClient().create(removeUndefined(createParams(spec, context, options)), { timeout: timeoutSeconds(spec.timeoutMs) })
+        );
         const handle: SandboxHandle = {
           id: sandbox.id,
           provider,
