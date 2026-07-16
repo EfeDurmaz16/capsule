@@ -44,6 +44,6 @@
     "receipts"
   ],
   "engines": {
-    "node": ">=20.11"
+    "node": ">=22"
   }
 }

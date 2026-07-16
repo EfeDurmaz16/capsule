@@ -107,7 +107,7 @@ describe("CLI doctor credential diagnostics", () => {
 
     expect(report.node).toMatchObject({
       version: process.version,
-      requirement: ">=20.11",
+      requirement: ">=22",
       supported: true
     });
     expect(report.workspace).toMatchObject({

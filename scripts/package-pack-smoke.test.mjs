@@ -13,8 +13,8 @@ function listedPackages(nodeVersion) {
   return stdout.trim().split(/\r?\n/).filter((line) => line.startsWith("@capsule/"));
 }
 
-test("engine-aware package pack smoke excludes Node 24-only packages on Node 20", () => {
-  const packages = listedPackages("20.11.0");
+test("engine-aware package pack smoke excludes Node 24-only packages on Node 22", () => {
+  const packages = listedPackages("22.0.0");
 
   assert.ok(packages.includes("@capsule/core"));
   assert.ok(packages.includes("@capsule/cli"));
