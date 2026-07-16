@@ -1,5 +1,6 @@
 import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
 import {
+  AdapterExecutionError,
   asProviderError,
   logsFromOutput,
   providerRuntimeMetadata,
@@ -183,7 +184,7 @@ export function lambda(options: LambdaAdapterOptions = {}): CapsuleAdapter {
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
         const functionName = options.functionName ?? spec.name;
         if (!functionName) {
-          throw new Error("Lambda adapter requires functionName option or RunJobSpec.name.");
+          throw new AdapterExecutionError("Lambda adapter requires functionName option or RunJobSpec.name.");
         }
         const invocationType = options.invocationType ?? "RequestResponse";
         const logType = options.logType ?? "Tail";
