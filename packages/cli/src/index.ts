@@ -1059,7 +1059,7 @@ export function providerCredentialDiagnostics(env: NodeJS.ProcessEnv = process.e
   return credentialRequirements.filter((requirement) => !adapter || requirement.provider === adapter || (adapter === "lambda" || adapter === "ecs" || adapter === "ec2" ? requirement.provider === "aws" : false)).map((requirement) => credentialDiagnostic(requirement, env));
 }
 
-const minimumNodeRequirement = ">=20.11";
+const minimumNodeRequirement = ">=22";
 const releaseAuditScripts = ["release:audit", "release:metadata-audit", "release:dependency-audit", "release:markers", "release:pack-smoke"];
 const workspaceRequiredFiles = ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig.typecheck.json"];
 
@@ -2179,7 +2179,7 @@ export function createAdapterScaffoldPlan(options: { provider: string; domains: 
           files: ["dist"],
           description: `Capsule adapter scaffold for ${segment}.`,
           license: "Apache-2.0",
-          engines: { node: ">=20.11" }
+          engines: { node: ">=22" }
         },
         null,
         2
