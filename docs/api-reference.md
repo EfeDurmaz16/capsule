@@ -74,6 +74,7 @@ Exports:
 - Source: `packages/adapter-docker/src/index.ts`
 
 Exports:
+- `classifyDockerCliError` (function)
 - `docker` (function)
 - `DockerAdapterOptions` (interface)
 - `dockerAvailable` (function)
@@ -317,10 +318,12 @@ Exports:
 - `agentSafePolicy` (function)
 - `AgentSafePolicyOptions` (interface)
 - `Artifact` (interface)
+- `asProviderError` (function)
 - `assertAdapterContract` (function)
 - `assertAdapterFailureScenarios` (function)
 - `assertPolicyDenialGuards` (function)
 - `assertUnsupportedCapabilityGuards` (function)
+- `callProvider` (function)
 - `CancelJobResult` (interface)
 - `CancelJobSpec` (interface)
 - `canonicalReceiptPayload` (function)
@@ -355,6 +358,7 @@ Exports:
 - `classifyProviderService` (function)
 - `ClassifyProviderServiceInput` (interface)
 - `ClassifyProviderServiceResult` (interface)
+- `classifySdkError` (function)
 - `CleanupFailureError` (class)
 - `CleanupPreviewSpec` (interface)
 - `CreateDatabaseBranchSpec` (interface)
