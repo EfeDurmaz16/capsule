@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, CleanupFailureError, MemoryReceiptStore, ProviderRetryableError, ProviderValidationError, runAdapterContract } from "@capsule/core";
+import {
+  AdapterExecutionError,
+  Capsule,
+  CleanupFailureError,
+  MemoryReceiptStore,
+  ProviderRetryableError,
+  ProviderValidationError,
+  runAdapterContract
+} from "@capsule/core";
 import { daytona, daytonaCapabilities } from "./index.js";
 
 function failingDaytona(error: Error) {

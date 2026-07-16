@@ -254,11 +254,27 @@ function headerValue(headers: ClassifyProviderErrorInput["headers"], name: strin
 const sdkNameSignals: Array<{ tokens: string[]; category: ProviderErrorCategory; retryable: boolean }> = [
   { tokens: ["ratelimit", "toomany", "throttl", "quotaexceeded", "resourceexhausted"], category: "rate-limit", retryable: true },
   {
-    tokens: ["unauthorized", "unauthenticated", "forbidden", "accessdenied", "permissiondenied", "authentication", "invalidcredential", "invalidtoken", "expiredtoken", "notauthorized", "missingcredential"],
+    tokens: [
+      "unauthorized",
+      "unauthenticated",
+      "forbidden",
+      "accessdenied",
+      "permissiondenied",
+      "authentication",
+      "invalidcredential",
+      "invalidtoken",
+      "expiredtoken",
+      "notauthorized",
+      "missingcredential"
+    ],
     category: "auth",
     retryable: false
   },
-  { tokens: ["timeout", "timedout", "econnreset", "econnrefused", "unavailable", "internalerror", "internalservererror", "networkerror"], category: "retryable", retryable: true },
+  {
+    tokens: ["timeout", "timedout", "econnreset", "econnrefused", "unavailable", "internalerror", "internalservererror", "networkerror"],
+    category: "retryable",
+    retryable: true
+  },
   {
     tokens: ["notfound", "alreadyexists", "conflict", "invalidargument", "validation", "badrequest", "failedprecondition", "invalidparameter", "malformed"],
     category: "validation",
@@ -301,7 +317,15 @@ function sdkHttpStatus(error: Record<string, unknown>): number | undefined {
   const metadata = asRecord(error.$metadata);
   const response = asRecord(error.response);
   const body = asRecord(error.body) ?? asRecord(response?.body);
-  const candidates = [metadata?.httpStatusCode, error.statusCode, error.status, response?.statusCode, response?.status, body?.code, typeof error.code === "number" ? error.code : undefined];
+  const candidates = [
+    metadata?.httpStatusCode,
+    error.statusCode,
+    error.status,
+    response?.statusCode,
+    response?.status,
+    body?.code,
+    typeof error.code === "number" ? error.code : undefined
+  ];
   for (const candidate of candidates) {
     if (typeof candidate === "number" && Number.isInteger(candidate) && candidate >= 100 && candidate <= 599) {
       return candidate;

@@ -12,9 +12,21 @@ import {
 
 describe("classifySdkError", () => {
   test("maps AWS SDK http status codes to categories", () => {
-    expect(classifySdkError({ name: "ThrottlingException", $metadata: { httpStatusCode: 429 } })).toMatchObject({ category: "rate-limit", retryable: true, status: 429 });
-    expect(classifySdkError({ name: "AccessDeniedException", $metadata: { httpStatusCode: 403 } })).toMatchObject({ category: "auth", retryable: false, status: 403 });
-    expect(classifySdkError({ name: "ValidationException", $metadata: { httpStatusCode: 400 } })).toMatchObject({ category: "validation", retryable: false, status: 400 });
+    expect(classifySdkError({ name: "ThrottlingException", $metadata: { httpStatusCode: 429 } })).toMatchObject({
+      category: "rate-limit",
+      retryable: true,
+      status: 429
+    });
+    expect(classifySdkError({ name: "AccessDeniedException", $metadata: { httpStatusCode: 403 } })).toMatchObject({
+      category: "auth",
+      retryable: false,
+      status: 403
+    });
+    expect(classifySdkError({ name: "ValidationException", $metadata: { httpStatusCode: 400 } })).toMatchObject({
+      category: "validation",
+      retryable: false,
+      status: 400
+    });
     expect(classifySdkError({ $metadata: { httpStatusCode: 503 } })).toMatchObject({ category: "retryable", retryable: true, status: 503 });
   });
 

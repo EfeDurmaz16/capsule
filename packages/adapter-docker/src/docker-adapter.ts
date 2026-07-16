@@ -28,9 +28,31 @@ export interface DockerAdapterOptions {
   checkAvailable?: () => Promise<boolean>;
 }
 
-const dockerDaemonSignals = ["cannot connect to the docker daemon", "is the docker daemon running", "daemon is not running", "connection refused", "error during connect"];
-const dockerAuthSignals = ["permission denied", "pull access denied", "unauthorized", "authentication required", "access denied", "denied: requested access", "docker login"];
-const dockerImageSignals = ["no such image", "manifest unknown", "not found", "repository does not exist", "no such container", "no such object", "invalid reference format"];
+const dockerDaemonSignals = [
+  "cannot connect to the docker daemon",
+  "is the docker daemon running",
+  "daemon is not running",
+  "connection refused",
+  "error during connect"
+];
+const dockerAuthSignals = [
+  "permission denied",
+  "pull access denied",
+  "unauthorized",
+  "authentication required",
+  "access denied",
+  "denied: requested access",
+  "docker login"
+];
+const dockerImageSignals = [
+  "no such image",
+  "manifest unknown",
+  "not found",
+  "repository does not exist",
+  "no such container",
+  "no such object",
+  "invalid reference format"
+];
 
 // Docker exposes no structured error codes, so classify conservatively from the CLI exit code and
 // stderr text: unreachable daemon or timeout is retryable, missing image/container is a validation

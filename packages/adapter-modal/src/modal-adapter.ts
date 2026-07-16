@@ -240,7 +240,9 @@ export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
         const client = getClient();
         const appName = options.appName ?? "capsule";
         const imageTag = spec.image ?? options.defaultImage ?? "debian:bookworm-slim";
-        const app = await callProvider("Modal app resolution failed.", () => client.apps.fromName(appName, { createIfMissing: true, environment: options.environment }));
+        const app = await callProvider("Modal app resolution failed.", () =>
+          client.apps.fromName(appName, { createIfMissing: true, environment: options.environment })
+        );
         const image = client.images.fromRegistry(imageTag);
         const sandbox = await callProvider("Modal sandbox creation failed.", () =>
           client.sandboxes.create(app, image, {

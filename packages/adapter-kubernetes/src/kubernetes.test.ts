@@ -34,7 +34,7 @@ describe("kubernetes adapter", () => {
   });
 
   it("classifies Kubernetes conflict failures as validation provider errors", async () => {
-    const capsule = new Capsule({ adapter: failingKubernetes(k8sError(409, "AlreadyExists", "jobs.batch \"build-job\" already exists")) });
+    const capsule = new Capsule({ adapter: failingKubernetes(k8sError(409, "AlreadyExists", 'jobs.batch "build-job" already exists')) });
 
     let thrown: unknown;
     try {

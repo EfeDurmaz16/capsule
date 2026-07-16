@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, CleanupFailureError, MemoryReceiptStore, ProviderAuthError, ProviderRateLimitError, runAdapterContract } from "@capsule/core";
+import {
+  AdapterExecutionError,
+  Capsule,
+  CleanupFailureError,
+  MemoryReceiptStore,
+  ProviderAuthError,
+  ProviderRateLimitError,
+  runAdapterContract
+} from "@capsule/core";
 import { e2b, e2bCapabilities } from "./e2b-adapter.js";
 
 function failingE2B(error: Error) {

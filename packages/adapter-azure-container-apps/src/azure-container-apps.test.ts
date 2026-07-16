@@ -1,5 +1,13 @@
 import { describe, expect, test } from "vitest";
-import { AdapterExecutionError, Capsule, CleanupFailureError, ProviderAuthError, ProviderRateLimitError, ProviderValidationError, runAdapterContract } from "@capsule/core";
+import {
+  AdapterExecutionError,
+  Capsule,
+  CleanupFailureError,
+  ProviderAuthError,
+  ProviderRateLimitError,
+  ProviderValidationError,
+  runAdapterContract
+} from "@capsule/core";
 import { AzureContainerAppsClient, azureContainerApps, azureContainerAppsCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -26,7 +34,9 @@ describe("azure container apps client classification", () => {
     expect(thrown).toBeInstanceOf(ProviderRateLimitError);
     expect(thrown).toBeInstanceOf(AdapterExecutionError);
     expect((thrown as Error).message).toBe("rate limited");
-    expect((thrown as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "rate-limit", retryable: true, status: 429, retryAfterMs: 5000 } });
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({
+      providerError: { category: "rate-limit", retryable: true, status: 429, retryAfterMs: 5000 }
+    });
   });
 
   test("classifies Azure ARM auth failures as auth provider errors", async () => {

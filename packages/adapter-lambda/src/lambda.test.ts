@@ -8,7 +8,10 @@ function awsError(name: string, httpStatusCode: number, message = name): Error {
 
 describe("lambda adapter", () => {
   it("runs the shared adapter contract suite and classifies provider failures", async () => {
-    const denied = lambda({ functionName: "capsule-worker", client: { send: async () => Promise.reject(awsError("AccessDeniedException", 403, "not authorized to invoke")) } });
+    const denied = lambda({
+      functionName: "capsule-worker",
+      client: { send: async () => Promise.reject(awsError("AccessDeniedException", 403, "not authorized to invoke")) }
+    });
     await runAdapterContract(denied, {
       failureScenarios: [
         {
@@ -24,7 +27,12 @@ describe("lambda adapter", () => {
   });
 
   it("classifies Lambda service faults as retryable provider errors", async () => {
-    const capsule = new Capsule({ adapter: lambda({ functionName: "capsule-worker", client: { send: async () => Promise.reject(awsError("ServiceException", 500, "internal service error")) } }) });
+    const capsule = new Capsule({
+      adapter: lambda({
+        functionName: "capsule-worker",
+        client: { send: async () => Promise.reject(awsError("ServiceException", 500, "internal service error")) }
+      })
+    });
 
     let thrown: unknown;
     try {

@@ -8,7 +8,11 @@ function awsError(name: string, httpStatusCode: number, message = name): Error {
 
 describe("ec2 adapter", () => {
   it("runs the shared adapter contract suite and classifies provider failures", async () => {
-    const throttled = ec2({ imageId: "ami-x", instanceType: "t3.micro", client: { send: async () => Promise.reject(awsError("ThrottlingException", 429, "Rate exceeded")) } });
+    const throttled = ec2({
+      imageId: "ami-x",
+      instanceType: "t3.micro",
+      client: { send: async () => Promise.reject(awsError("ThrottlingException", 429, "Rate exceeded")) }
+    });
     await runAdapterContract(throttled, {
       failureScenarios: [
         {
@@ -24,7 +28,9 @@ describe("ec2 adapter", () => {
   });
 
   it("classifies EC2 access-denied failures as auth provider errors", async () => {
-    const capsule = new Capsule({ adapter: ec2({ region: "us-east-1", client: { send: async () => Promise.reject(awsError("UnauthorizedOperation", 403, "not authorized")) } }) });
+    const capsule = new Capsule({
+      adapter: ec2({ region: "us-east-1", client: { send: async () => Promise.reject(awsError("UnauthorizedOperation", 403, "not authorized")) } })
+    });
 
     let thrown: unknown;
     try {

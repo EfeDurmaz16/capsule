@@ -54,11 +54,20 @@ describe("docker adapter", () => {
   });
 
   test("classifies Docker CLI exit codes and stderr signals conservatively", () => {
-    expect(classifyDockerCliError(1, "Cannot connect to the Docker daemon at unix:///var/run/docker.sock")).toMatchObject({ category: "retryable", retryable: true });
+    expect(classifyDockerCliError(1, "Cannot connect to the Docker daemon at unix:///var/run/docker.sock")).toMatchObject({
+      category: "retryable",
+      retryable: true
+    });
     expect(classifyDockerCliError(124, "")).toMatchObject({ category: "retryable", retryable: true });
-    expect(classifyDockerCliError(1, "Unable to find image 'nope:latest' locally\nmanifest unknown")).toMatchObject({ category: "validation", retryable: false });
+    expect(classifyDockerCliError(1, "Unable to find image 'nope:latest' locally\nmanifest unknown")).toMatchObject({
+      category: "validation",
+      retryable: false
+    });
     expect(classifyDockerCliError(1, "Error: No such container: capsule-123")).toMatchObject({ category: "validation", retryable: false });
-    expect(classifyDockerCliError(1, "permission denied while trying to connect to the Docker daemon socket")).toMatchObject({ category: "auth", retryable: false });
+    expect(classifyDockerCliError(1, "permission denied while trying to connect to the Docker daemon socket")).toMatchObject({
+      category: "auth",
+      retryable: false
+    });
     expect(classifyDockerCliError(1, "denied: requested access to the resource is denied")).toMatchObject({ category: "auth", retryable: false });
     expect(classifyDockerCliError(1, "some other failure")).toMatchObject({ category: "unknown", retryable: false });
   });

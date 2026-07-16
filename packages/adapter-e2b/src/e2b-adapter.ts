@@ -321,7 +321,9 @@ export function e2b(options: E2BAdapterOptions = {}): CapsuleAdapter {
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
         const sandboxOptions = removeUndefined(createOptions(spec, context, options));
         const template = spec.image ?? options.defaultTemplate;
-        const sandbox = await callProvider("E2B sandbox creation failed.", () => (template ? sandboxClass.create(template, sandboxOptions) : sandboxClass.create(sandboxOptions)));
+        const sandbox = await callProvider("E2B sandbox creation failed.", () =>
+          template ? sandboxClass.create(template, sandboxOptions) : sandboxClass.create(sandboxOptions)
+        );
         const handle: SandboxHandle = {
           id: sandbox.sandboxId,
           provider,

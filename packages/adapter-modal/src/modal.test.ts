@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, MemoryReceiptStore, ProviderAuthError, ProviderRetryableError, runAdapterContract, UnsupportedCapabilityError } from "@capsule/core";
+import {
+  AdapterExecutionError,
+  Capsule,
+  MemoryReceiptStore,
+  ProviderAuthError,
+  ProviderRetryableError,
+  runAdapterContract,
+  UnsupportedCapabilityError
+} from "@capsule/core";
 import { modal, modalCapabilities } from "./index.js";
 
 function failingModal(error: Error) {
