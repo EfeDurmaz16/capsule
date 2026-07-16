@@ -303,7 +303,8 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const skipOsShutdown = providerBoolean(spec.providerOptions, "skipOsShutdown");
         const response = await getClient().send(new TerminateInstancesCommand({ InstanceIds: [spec.id], Force: spec.force, SkipOsShutdown: skipOsShutdown }));
-        const termination = response.TerminatingInstances?.find((instance: { InstanceId?: string }) => instance.InstanceId === spec.id) ?? response.TerminatingInstances?.[0];
+        const termination =
+          response.TerminatingInstances?.find((instance: { InstanceId?: string }) => instance.InstanceId === spec.id) ?? response.TerminatingInstances?.[0];
         const stateName = termination?.CurrentState?.Name;
         if (!stateName) {
           throw new AdapterExecutionError(`EC2 machine.destroy did not return termination state for ${spec.id}.`, { response, instanceId: spec.id });

@@ -454,6 +454,7 @@ Exports:
 - `ProviderCompatibilityScore` (interface)
 - `ProviderErrorCategory` (type)
 - `ProviderErrorClassification` (interface)
+- `providerErrorStatus` (function)
 - `providerExecutionError` (function)
 - `ProviderOptions` (type)
 - `ProviderOptionValue` (type)
