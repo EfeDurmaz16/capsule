@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import { createPublicKey, verify as verifySignature } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -15,6 +16,7 @@ import {
   isProviderSelectionRecipeId,
   providerCompatibilityScore,
   rankProvidersByRecipe,
+  redactSensitiveText,
   uniqueCapabilityPaths,
   unsupportedCapabilitySafeRetryGuidance,
   verifyReceipt,
@@ -22,6 +24,7 @@ import {
   type CapabilityMap,
   type CapabilityPath,
   type CapsuleAdapter,
+  type CapsuleApprovalResourceScope,
   type CapsuleDomain,
   type CapsulePolicy,
   type CapsuleReceipt,
@@ -31,6 +34,7 @@ import {
   type DeployEdgeSpec,
   type DeployServiceSpec,
   type PolicyInput,
+  type ReceiptVerifier,
   type PreviewEnvironment,
   type ProviderSelectionRecipe,
   type ProviderSelectionRecipeId,
@@ -133,6 +137,8 @@ interface ParsedArgs {
   explain?: boolean;
   json?: boolean;
   requireSignature?: boolean;
+  publicKey?: string;
+  allowUnverifiedSignatures?: boolean;
   dryRun?: boolean;
   reason?: string;
   rest: string[];
@@ -243,11 +249,13 @@ interface ReceiptVerifyReport {
     checked: number;
     failed: number;
   };
+  notes: string[];
   receipts: Array<
     ReturnType<typeof verifyReceipt> & {
       id?: string;
       type?: string;
       capabilityPath?: string;
+      notes?: string[];
     }
   >;
 }
@@ -1019,6 +1027,15 @@ export function parse(argv: string[]): ParsedArgs {
       parsed.requireSignature = true;
       continue;
     }
+    if (arg === "--public-key") {
+      parsed.publicKey = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (arg === "--allow-unverified-signatures") {
+      parsed.allowUnverifiedSignatures = true;
+      continue;
+    }
     if (arg === "--dry-run") {
       parsed.dryRun = true;
       continue;
@@ -1304,38 +1321,138 @@ function assertPolicyExplainCapability(path: string | undefined): CapabilityPath
   return path as CapabilityPath;
 }
 
+// The spec file is parsed JSON, so PolicyInput.now arrives as a string. Coerce it to a Date and
+// reject invalid values with a clear message instead of letting a string reach input.now.toISOString().
+export function coercePolicySpecNow(value: unknown): Date | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (value instanceof Date) {
+    return value;
+  }
+  if (typeof value === "string" || typeof value === "number") {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      throw new Error(`Invalid "now" in policy spec: ${JSON.stringify(value)}. Use an ISO 8601 date string such as 2026-01-01T00:00:00.000Z.`);
+    }
+    return date;
+  }
+  throw new Error(`Invalid "now" in policy spec: expected an ISO 8601 date string, received ${typeof value}.`);
+}
+
+function redactResourceScope(resource: CapsuleApprovalResourceScope, policy: CapsulePolicy): CapsuleApprovalResourceScope {
+  return {
+    ...resource,
+    ...(resource.id === undefined ? {} : { id: redactSensitiveText(resource.id, undefined, policy) }),
+    ...(resource.name === undefined ? {} : { name: redactSensitiveText(resource.name, undefined, policy) }),
+    ...(resource.path === undefined ? {} : { path: redactSensitiveText(resource.path, undefined, policy) })
+  };
+}
+
+// Env keys are safe by construction, but approval.reason and resource name/id/path echo user
+// values verbatim. Run them through the same redaction the rest of Capsule applies before printing.
+export function redactPolicyExplanation(explanation: ReturnType<typeof explainPolicy>): ReturnType<typeof explainPolicy> {
+  const { input } = explanation;
+  const policy = explanation.applied;
+  return {
+    ...explanation,
+    input: {
+      ...input,
+      ...(input.approval === undefined
+        ? {}
+        : {
+            approval: {
+              ...input.approval,
+              ...(input.approval.reason === undefined ? {} : { reason: redactSensitiveText(input.approval.reason, undefined, policy) }),
+              ...(input.approval.resources === undefined
+                ? {}
+                : { resources: input.approval.resources.map((resource) => redactResourceScope(resource, policy)) })
+            }
+          }),
+      ...(input.resource === undefined ? {} : { resource: redactResourceScope(input.resource, policy) })
+    }
+  };
+}
+
 async function createPolicyExplainReport(parsed: ParsedArgs): Promise<PolicyExplainReport> {
   const capsule = createCapsule(parsed);
   const capabilityPath = assertPolicyExplainCapability(parsed.capability);
   const support = capsule.supportLevel(capabilityPath);
   const policy = await readJsonObjectFile<CapsulePolicy>(parsed.policyFile, {});
   const spec = await readJsonObjectFile<Omit<PolicyInput, "capabilityPath" | "supportLevel">>(parsed.specFile, {});
+  const now = coercePolicySpecNow((spec as { now?: unknown }).now);
 
   return {
     adapter: capsule.adapterName(),
     capabilityPath,
     supportLevel: support,
-    policy: explainPolicy(policy, {
-      ...spec,
-      capabilityPath,
-      supportLevel: support
-    })
+    policy: redactPolicyExplanation(
+      explainPolicy(policy, {
+        ...spec,
+        now,
+        capabilityPath,
+        supportLevel: support
+      })
+    )
   };
+}
+
+// ed25519-only: the "public key" verification path Capsule ships. RSA/EC would need a hash
+// algorithm passed to crypto.verify; add a branch here if a signer ever emits them.
+// ponytail: ed25519 only, extend when a non-ed25519 signer appears.
+function createPublicKeyVerifier(publicKeyPem: string): ReceiptVerifier {
+  const key = createPublicKey(publicKeyPem);
+  if (key.asymmetricKeyType !== "ed25519") {
+    throw new Error(`Unsupported --public-key type "${key.asymmetricKeyType ?? "unknown"}". receipt verify --public-key supports ed25519 keys.`);
+  }
+  return {
+    algorithm: "ed25519",
+    verify: (payload, signature) => {
+      try {
+        return verifySignature(null, Buffer.from(payload, "utf8"), key, Buffer.from(signature, "base64"));
+      } catch {
+        return false;
+      }
+    }
+  };
+}
+
+async function resolvePublicKeyPem(input: string): Promise<string> {
+  return input.includes("-----BEGIN") ? input : readFile(input, "utf8");
 }
 
 async function createReceiptVerifyReport(parsed: ParsedArgs): Promise<ReceiptVerifyReport> {
   if (!parsed.receiptFile) {
     throw new Error("Missing --receipt-file for receipt verify.");
   }
+  const verifier = parsed.publicKey ? createPublicKeyVerifier(await resolvePublicKeyPem(parsed.publicKey)) : undefined;
   try {
     const receipts = await jsonlReceiptStore(parsed.receiptFile).readAll();
-    const verified = receipts.map((receipt) => ({
-      id: receipt.id,
-      type: receipt.type,
-      capabilityPath: receipt.capabilityPath,
-      ...verifyReceipt(receipt, { requireSignature: parsed.requireSignature })
-    }));
+    const verified = receipts.map((receipt) => {
+      const report = verifyReceipt(receipt, { verifier, requireSignature: parsed.requireSignature });
+      // Without a verifier, a signature can only be confirmed present, not authentic. Under
+      // --require-signature that must fail unless the caller downgrades to a presence check.
+      const rejectUnverified =
+        parsed.requireSignature === true && parsed.allowUnverifiedSignatures !== true && report.signature.status === "present-unverified";
+      return {
+        id: receipt.id,
+        type: receipt.type,
+        capabilityPath: receipt.capabilityPath,
+        ...report,
+        valid: report.valid && !rejectUnverified,
+        ...(rejectUnverified
+          ? { notes: ["Signature is present but unverified; supply --public-key or pass --allow-unverified-signatures to accept presence only."] }
+          : {})
+      };
+    });
     const failed = verified.filter((entry) => !entry.valid).length;
+    const notes: string[] = [];
+    const emptyStore = receipts.length === 0;
+    if (emptyStore) {
+      notes.push("receipts: 0 (store is readable but contains no receipts; nothing to verify).");
+    }
+    // An empty store cannot satisfy --require-signature: there is no signed receipt to confirm.
+    const emptyStoreUnderRequireSignature = emptyStore && parsed.requireSignature === true;
     return {
       store: {
         path: parsed.receiptFile,
@@ -1343,10 +1460,11 @@ async function createReceiptVerifyReport(parsed: ParsedArgs): Promise<ReceiptVer
         receiptCount: receipts.length
       },
       summary: {
-        valid: failed === 0,
+        valid: failed === 0 && !emptyStoreUnderRequireSignature,
         checked: verified.length,
         failed
       },
+      notes,
       receipts: verified
     };
   } catch (error) {
@@ -1362,6 +1480,7 @@ async function createReceiptVerifyReport(parsed: ParsedArgs): Promise<ReceiptVer
         checked: 0,
         failed: 0
       },
+      notes: [],
       receipts: []
     };
   }
@@ -2352,7 +2471,11 @@ export function createProjectInitPlan(options: { adapter?: string; outDir?: stri
       }
     ],
     installHint: `pnpm add @capsule/core ${adapterPackageName(adapter)}`,
-    notes: ["No secrets were written; configure provider credentials through environment variables or provider-native auth."]
+    notes: [
+      "No secrets were written; configure provider credentials through environment variables or provider-native auth.",
+      "The scaffolded policy sets secrets.allowed to [], which denies every environment key by default; add keys to secrets.allowed in capsule.policy.json to permit them.",
+      "capsule.config.json is auto-applied from the working directory; explicit flags such as --adapter, --receipt-file, and --policy-file override its values."
+    ]
   };
 }
 
@@ -2550,6 +2673,8 @@ Commands:
   capsule classify provider cloudflare workers
   capsule policy explain --adapter docker --capability job.run --policy-file policy.json --spec-file spec.json
   capsule receipt verify --receipt-file .capsule/receipts.jsonl
+  capsule receipt verify --receipt-file .capsule/receipts.jsonl --public-key ./capsule-receipts.pub --require-signature
+  capsule receipt verify --receipt-file .capsule/receipts.jsonl --require-signature --allow-unverified-signatures
   capsule preview create --config-file preview.json --cleanup-file .capsule/preview-cleanup.json
   capsule preview destroy --cleanup-file .capsule/preview-cleanup.json
   capsule init --adapter docker --out-dir .
@@ -2615,9 +2740,57 @@ Commands:
   capsule neon branch-create --project <project_id> --name pr-42 --database neondb --role neondb_owner --receipt-file .capsule/receipts.jsonl
   capsule neon branch-delete --project <project_id> --branch-id br_xxx --hard-delete
 
+Receipt signatures:
+  --public-key <path-or-value>     Verify ed25519 receipt signatures against this public key (PEM path or inline PEM).
+  --require-signature              Fail receipts without a verified signature; a present-but-unverified signature fails too.
+  --allow-unverified-signatures    Downgrade --require-signature to a presence-only check when no --public-key is supplied.
+
+Configuration:
+  capsule.config.json in the working directory supplies default adapter, receipts.path, and policyFile.
+  Explicit flags (--adapter, --receipt-file, --policy-file) always override the config file.
+
 Output:
   Report commands default to human-readable tables. Add --json for stable automation output.
 `);
+}
+
+interface CapsuleConfigFile {
+  adapter?: string;
+  policyFile?: string;
+  receipts?: {
+    enabled?: boolean;
+    path?: string;
+  };
+}
+
+// Pure and testable: fills adapter, receipt-file, and policy-file from capsule.config.json only
+// when the matching flag was not passed, so explicit flags always win over the config file.
+export function applyCapsuleConfig(parsed: ParsedArgs, config: CapsuleConfigFile | undefined): ParsedArgs {
+  if (!config) {
+    return parsed;
+  }
+  const resolved: ParsedArgs = { ...parsed };
+  if (resolved.adapter === undefined && typeof config.adapter === "string") {
+    resolved.adapter = config.adapter;
+  }
+  if (resolved.policyFile === undefined && typeof config.policyFile === "string") {
+    resolved.policyFile = config.policyFile;
+  }
+  if (resolved.receiptFile === undefined && config.receipts?.enabled !== false && typeof config.receipts?.path === "string") {
+    resolved.receiptFile = config.receipts.path;
+  }
+  return resolved;
+}
+
+async function readCapsuleConfigFile(cwd: string = process.cwd()): Promise<CapsuleConfigFile | undefined> {
+  const path = join(cwd, "capsule.config.json");
+  let text: string;
+  try {
+    text = await readFile(path, "utf8");
+  } catch {
+    return undefined;
+  }
+  return assertJsonObject(JSON.parse(text), path) as CapsuleConfigFile;
 }
 
 function createCapsule(parsed: ParsedArgs): Capsule {
@@ -2736,7 +2909,7 @@ function requireCapability(capsule: Capsule, adapter: string | undefined, path: 
 }
 
 export async function main(argv: string[]): Promise<void> {
-  const parsed = parse(argv);
+  const parsed = applyCapsuleConfig(parse(argv), await readCapsuleConfigFile());
 
   switch (parsed.command) {
     case "completion": {

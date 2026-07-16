@@ -1,10 +1,13 @@
+import { generateKeyPairSync, sign as signWithKey } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createReceipt } from "@capsule/core";
+import { createReceipt, explainPolicy } from "@capsule/core";
 import { describe, expect, test, vi } from "vitest";
 import {
+  applyCapsuleConfig,
   classifyProvider,
+  coercePolicySpecNow,
   compareProviderCapabilities,
   capabilityExplanations,
   createAdapterScaffoldPlan,
@@ -17,6 +20,7 @@ import {
   liveTestCommandPlan,
   main,
   parse,
+  redactPolicyExplanation,
   selectProvidersForRecipe,
   runExampleCommand,
   writeAdapterScaffold,
@@ -465,6 +469,7 @@ describe("CLI project init", () => {
         installHint: "pnpm add @capsule/core @capsule/adapter-mock"
       });
       expect(output.notes).toContain("No secrets were written; configure provider credentials through environment variables or provider-native auth.");
+      expect(output.notes.some((note) => note.includes("secrets.allowed to []") && note.includes("denies every environment key by default"))).toBe(true);
       expect(config).toMatchObject({
         adapter: "mock-neon",
         policyFile: "capsule.policy.json",
@@ -748,6 +753,225 @@ describe("CLI receipt verify", () => {
       process.exitCode = undefined;
       await rm(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe("CLI receipt verify signature hardening", () => {
+  const baseReceiptInput = {
+    type: "job.run" as const,
+    provider: "test",
+    adapter: "test",
+    capabilityPath: "job.run",
+    supportLevel: "native" as const,
+    startedAt: new Date("2026-01-01T00:00:00.000Z"),
+    finishedAt: new Date("2026-01-01T00:00:01.000Z"),
+    policy: { decision: "allowed" as const, applied: {} }
+  };
+
+  test("parses the public key and unverified-signature flags", () => {
+    expect(parse(["receipt", "verify", "--receipt-file", "r.jsonl", "--public-key", "key.pub", "--allow-unverified-signatures"])).toMatchObject({
+      command: "receipt",
+      rest: ["verify"],
+      receiptFile: "r.jsonl",
+      publicKey: "key.pub",
+      allowUnverifiedSignatures: true
+    });
+  });
+
+  test("verifies an ed25519 signature with --public-key and rejects a forged one", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-receipt-sig-"));
+    const receiptFile = join(root, "receipts.jsonl");
+    const publicKeyFile = join(root, "receipts.pub");
+    const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+    const signer = {
+      algorithm: "ed25519",
+      sign: (_unsigned: unknown, payload: string) => signWithKey(null, Buffer.from(payload, "utf8"), privateKey).toString("base64")
+    };
+    const receipt = createReceipt(baseReceiptInput, signer);
+    const forged = { ...receipt, signature: { ...receipt.signature!, value: Buffer.from("forged").toString("base64") } };
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await writeFile(publicKeyFile, publicKey.export({ type: "spki", format: "pem" }).toString(), "utf8");
+      await writeFile(receiptFile, `${JSON.stringify(receipt)}\n${JSON.stringify(forged)}\n`, "utf8");
+
+      await main(["receipt", "verify", "--receipt-file", receiptFile, "--public-key", publicKeyFile, "--require-signature"]);
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as {
+        summary: { valid: boolean; checked: number; failed: number };
+        receipts: Array<{ valid: boolean; signature: { status: string } }>;
+      };
+
+      expect(output.summary).toMatchObject({ valid: false, checked: 2, failed: 1 });
+      expect(output.receipts[0]).toMatchObject({ valid: true, signature: { status: "valid" } });
+      expect(output.receipts[1]).toMatchObject({ valid: false, signature: { status: "invalid" } });
+      expect(process.exitCode).toBe(1);
+    } finally {
+      log.mockRestore();
+      process.exitCode = undefined;
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("--require-signature fails a present-but-unverified signature and the escape hatch downgrades it", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-receipt-unverified-"));
+    const receiptFile = join(root, "receipts.jsonl");
+    const receipt = createReceipt(baseReceiptInput, { algorithm: "ed25519", sign: () => Buffer.from("anything").toString("base64") });
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await writeFile(receiptFile, `${JSON.stringify(receipt)}\n`, "utf8");
+
+      await main(["receipt", "verify", "--receipt-file", receiptFile, "--require-signature"]);
+      const rejected = JSON.parse(String(log.mock.calls[0]?.[0])) as {
+        summary: { valid: boolean; failed: number };
+        receipts: Array<{ valid: boolean; signature: { status: string }; notes?: string[] }>;
+      };
+      expect(rejected.summary).toMatchObject({ valid: false, failed: 1 });
+      expect(rejected.receipts[0]).toMatchObject({ valid: false, signature: { status: "present-unverified" } });
+      expect(rejected.receipts[0]?.notes?.[0]).toContain("present but unverified");
+      expect(process.exitCode).toBe(1);
+
+      process.exitCode = undefined;
+      log.mockClear();
+
+      await main(["receipt", "verify", "--receipt-file", receiptFile, "--require-signature", "--allow-unverified-signatures"]);
+      const allowed = JSON.parse(String(log.mock.calls[0]?.[0])) as {
+        summary: { valid: boolean };
+        receipts: Array<{ valid: boolean; signature: { status: string } }>;
+      };
+      expect(allowed.summary).toMatchObject({ valid: true });
+      expect(allowed.receipts[0]).toMatchObject({ valid: true, signature: { status: "present-unverified" } });
+      expect(process.exitCode).toBe(0);
+    } finally {
+      log.mockRestore();
+      process.exitCode = undefined;
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("adds a receipts: 0 note for an empty store and fails only under --require-signature", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-receipt-empty-"));
+    const receiptFile = join(root, "receipts.jsonl");
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await writeFile(receiptFile, "", "utf8");
+
+      await main(["receipt", "verify", "--receipt-file", receiptFile]);
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as {
+        store: { readable: boolean; receiptCount: number };
+        summary: { valid: boolean; checked: number };
+        notes: string[];
+      };
+      expect(output.store).toMatchObject({ readable: true, receiptCount: 0 });
+      expect(output.summary).toMatchObject({ valid: true, checked: 0 });
+      expect(output.notes.some((note) => note.startsWith("receipts: 0"))).toBe(true);
+      expect(process.exitCode).toBe(0);
+
+      process.exitCode = undefined;
+      log.mockClear();
+
+      await main(["receipt", "verify", "--receipt-file", receiptFile, "--require-signature"]);
+      const strict = JSON.parse(String(log.mock.calls[0]?.[0])) as { summary: { valid: boolean }; notes: string[] };
+      expect(strict.summary.valid).toBe(false);
+      expect(strict.notes.some((note) => note.startsWith("receipts: 0"))).toBe(true);
+      expect(process.exitCode).toBe(1);
+    } finally {
+      log.mockRestore();
+      process.exitCode = undefined;
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("CLI capsule.config.json resolution", () => {
+  test("fills adapter, receipt path, and policy file only when the flag is absent", () => {
+    const config = { adapter: "e2b", policyFile: "capsule.policy.json", receipts: { enabled: true, path: ".capsule/receipts.jsonl" } };
+    expect(applyCapsuleConfig({ rest: [] }, config)).toMatchObject({
+      adapter: "e2b",
+      policyFile: "capsule.policy.json",
+      receiptFile: ".capsule/receipts.jsonl"
+    });
+    expect(applyCapsuleConfig({ rest: [], adapter: "docker", receiptFile: "flag.jsonl" }, config)).toMatchObject({
+      adapter: "docker",
+      receiptFile: "flag.jsonl",
+      policyFile: "capsule.policy.json"
+    });
+  });
+
+  test("skips the receipt path when receipts are disabled and is a no-op without a config", () => {
+    expect(applyCapsuleConfig({ rest: [] }, { adapter: "e2b", receipts: { enabled: false, path: ".capsule/receipts.jsonl" } })).toMatchObject({
+      adapter: "e2b"
+    });
+    expect(applyCapsuleConfig({ rest: [] }, { adapter: "e2b", receipts: { enabled: false, path: ".capsule/receipts.jsonl" } }).receiptFile).toBeUndefined();
+    expect(applyCapsuleConfig({ rest: [], adapter: "docker" }, undefined)).toEqual({ rest: [], adapter: "docker" });
+  });
+
+  test("a command run from a directory with capsule.config.json auto-applies the configured adapter", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-config-apply-"));
+    const previousCwd = process.cwd();
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await writeFile(join(root, "capsule.config.json"), JSON.stringify({ adapter: "e2b" }), "utf8");
+      process.chdir(root);
+
+      await main(["capabilities", "--json"]);
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as { adapter: string };
+      expect(output.adapter).toBe("e2b");
+    } finally {
+      process.chdir(previousCwd);
+      log.mockRestore();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("CLI policy explain hardening", () => {
+  test("coerces a valid spec now string and rejects an invalid one", () => {
+    expect(coercePolicySpecNow("2026-01-01T00:00:00.000Z")).toEqual(new Date("2026-01-01T00:00:00.000Z"));
+    expect(coercePolicySpecNow(undefined)).toBeUndefined();
+    expect(() => coercePolicySpecNow("not-a-date")).toThrow(/Invalid "now"/);
+    expect(() => coercePolicySpecNow({})).toThrow(/Invalid "now"/);
+  });
+
+  test("explains a policy with a string now field without crashing", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-policy-now-"));
+    const specFile = join(root, "spec.json");
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await writeFile(specFile, JSON.stringify({ now: "2026-01-01T00:00:00.000Z" }), "utf8");
+
+      await main(["policy", "explain", "--adapter", "docker", "--capability", "job.run", "--spec-file", specFile]);
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as { policy: { input: { now?: string } } };
+      expect(output.policy.input.now).toBe("2026-01-01T00:00:00.000Z");
+    } finally {
+      log.mockRestore();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects an invalid spec now with a clear error", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-policy-now-bad-"));
+    const specFile = join(root, "spec.json");
+    try {
+      await writeFile(specFile, JSON.stringify({ now: "yesterday" }), "utf8");
+      await expect(main(["policy", "explain", "--adapter", "docker", "--capability", "job.run", "--spec-file", specFile])).rejects.toThrow(/Invalid "now"/);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("redacts credential-shaped values in approval.reason and resource fields", () => {
+    const explanation = explainPolicy(
+      { secrets: { redactFromLogs: true, redactionProfile: "strict" } },
+      {
+        approval: { approved: true, reason: "rotate ghp_0123456789abcdefghijABCDEFGHIJ0123456789" },
+        resource: { type: "job", name: "job sk_live_0123456789abcdefghijklmn", id: "id-1", path: "/tmp/x" }
+      }
+    );
+    const redacted = redactPolicyExplanation(explanation);
+    const serialized = JSON.stringify(redacted);
+    expect(serialized).not.toContain("ghp_0123456789abcdefghijABCDEFGHIJ0123456789");
+    expect(serialized).not.toContain("sk_live_0123456789abcdefghijklmn");
+    expect(redacted.input.resource?.id).toBe("id-1");
+    expect(redacted.input.resource?.path).toBe("/tmp/x");
   });
 });
 

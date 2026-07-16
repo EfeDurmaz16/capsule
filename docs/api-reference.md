@@ -279,8 +279,10 @@ Exports:
 - Source: `packages/cli/src/index.ts`
 
 Exports:
+- `applyCapsuleConfig` (function)
 - `capabilityExplanations` (function)
 - `classifyProvider` (function)
+- `coercePolicySpecNow` (function)
 - `compareProviderCapabilities` (function)
 - `createAdapterScaffoldPlan` (function)
 - `createDoctorReport` (function)
@@ -293,6 +295,7 @@ Exports:
 - `main` (function)
 - `parse` (function)
 - `providerCredentialDiagnostics` (function)
+- `redactPolicyExplanation` (function)
 - `runExampleCommand` (function)
 - `selectProvidersForRecipe` (function)
 - `writeAdapterScaffold` (function)
