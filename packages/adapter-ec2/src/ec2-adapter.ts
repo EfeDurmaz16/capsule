@@ -8,6 +8,7 @@ import {
 } from "@aws-sdk/client-ec2";
 import {
   AdapterExecutionError,
+  asProviderError,
   capsuleOperationTags,
   type AdapterContext,
   type CapsuleAdapter,
@@ -102,6 +103,18 @@ function defaultClient(options: EC2AdapterOptions): EC2ClientLike {
   return new EC2Client({ region: options.region });
 }
 
+function classifiedClient(client: EC2ClientLike): EC2ClientLike {
+  return {
+    send: async (command) => {
+      try {
+        return await client.send(command);
+      } catch (error) {
+        throw asProviderError(error, "EC2 API request failed.");
+      }
+    }
+  };
+}
+
 function tags(name: string, labels?: Record<string, string>, idempotencyKey?: string) {
   return [
     {
@@ -177,7 +190,7 @@ function lifecycleReceipt(
 }
 
 export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
-  const getClient = () => options.client ?? defaultClient(options);
+  const getClient = () => classifiedClient(options.client ?? defaultClient(options));
   return {
     name: adapter,
     provider,
