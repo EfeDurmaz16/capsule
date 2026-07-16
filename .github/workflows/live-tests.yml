@@ -15,6 +15,11 @@ on:
         required: false
         type: boolean
         default: false
+      use_kind:
+        description: "For provider=kubernetes, spin up a disposable kind cluster and target its default namespace"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   live:
@@ -75,6 +80,16 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      # Optional kind path for the kubernetes provider: creates a disposable cluster so the
+      # live job smoke has a real API server without a preconfigured external cluster.
+      - name: Create kind cluster
+        if: ${{ inputs.provider == 'kubernetes' && inputs.use_kind }}
+        uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
+
+      - name: Target kind default namespace
+        if: ${{ inputs.provider == 'kubernetes' && inputs.use_kind }}
+        run: echo "CAPSULE_KUBERNETES_NAMESPACE=default" >> "$GITHUB_ENV"
 
       - name: Plan
         env:
