@@ -1,0 +1,8 @@
+<svg width="1200" height="300" viewBox="0 0 1200 300" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Capsule: one governed layer for cloud runtimes">
+  <rect width="1200" height="300" fill="#0B0B0C"/>
+  <!-- capsule glyph: a two-half pill, the one accent on the canvas -->
+  <path d="M160 118 L132 118 A32 32 0 0 0 132 182 L160 182 Z" fill="#2563FF"/>
+  <rect x="100" y="118" width="120" height="64" rx="32" stroke="#2563FF" stroke-width="4"/>
+  <text x="260" y="168" font-family="'Space Grotesk', 'Segoe UI', -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="60" font-weight="600" letter-spacing="-1.5" fill="#FDFDFD">capsule</text>
+  <text x="264" y="210" font-family="'Space Grotesk', 'Segoe UI', -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="22" font-weight="400" letter-spacing="0.2" fill="#9CA3AF">One governed layer for cloud runtimes.</text>
+</svg>

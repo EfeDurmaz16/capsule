@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/banner.svg" alt="Capsule: one governed layer for cloud runtimes" width="100%">
+</p>
+
 # Capsule
 
 [![CI](https://github.com/EfeDurmaz16/capsule/actions/workflows/ci.yml/badge.svg)](https://github.com/EfeDurmaz16/capsule/actions/workflows/ci.yml)
