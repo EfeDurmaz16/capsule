@@ -7,6 +7,7 @@ import ts from "typescript";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const defaultRoot = join(scriptDir, "..");
 const domains = ["sandbox", "job", "service", "edge", "database", "preview", "machine"];
+const policyEnforcement = ["networkPolicy", "filesystemPolicy", "secretMounting"];
 const supportOrder = ["unsupported", "experimental", "emulated", "native"];
 
 const adapterDefinitions = [
@@ -93,10 +94,10 @@ const adapterDefinitions = [
 ];
 
 const plannedRows = [
-  "| Mock provider models | mock | varies | varies | varies | varies | varies | varies | varies | `@capsule/adapter-mock` provides fake E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models for tests/examples only. It returns fake objects and does not call real provider APIs. |",
-  "| Cloudflare Sandbox | planned | experimental | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Future sandbox-focused adapter target; not implemented as a real provider adapter in this repo yet. |",
-  "| Cloudflare Containers | planned | unsupported | experimental | experimental | experimental | unsupported | experimental | unsupported | Hybrid runtime model still needs a real adapter and provider-specific lifecycle design. |",
-  "| Microsandbox | planned | experimental | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Sandbox-focused future adapter target. |"
+  "| Mock provider models | mock | varies | varies | varies | varies | varies | varies | varies | varies | varies | varies | `@capsule/adapter-mock` provides fake E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models for tests/examples only. It returns fake objects and does not call real provider APIs. |",
+  "| Cloudflare Sandbox | planned | experimental | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Future sandbox-focused adapter target; not implemented as a real provider adapter in this repo yet. |",
+  "| Cloudflare Containers | planned | unsupported | experimental | experimental | experimental | unsupported | experimental | unsupported | unsupported | unsupported | unsupported | Hybrid runtime model still needs a real adapter and provider-specific lifecycle design. |",
+  "| Microsandbox | planned | experimental | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Sandbox-focused future adapter target. |"
 ];
 
 function walk(dir, files = []) {
@@ -148,10 +149,15 @@ export function domainSupportLevel(capabilities, domain) {
   return Object.values(domainCapabilities).reduce((best, level) => (supportOrder.indexOf(level) > supportOrder.indexOf(best) ? level : best), "unsupported");
 }
 
+export function policySupportLevel(capabilities, key) {
+  return capabilities.sandbox?.[key] ?? "unsupported";
+}
+
 export function renderProviderMatrix(adapters) {
   const realRows = adapters.map((adapter) => {
     const cells = domains.map((domain) => domainSupportLevel(adapter.capabilities, domain));
-    return `| ${adapter.displayName} | \`${adapter.packageName}\` | ${cells.join(" | ")} | ${adapter.notes} |`;
+    const policyCells = policyEnforcement.map((key) => policySupportLevel(adapter.capabilities, key));
+    return `| ${adapter.displayName} | \`${adapter.packageName}\` | ${cells.join(" | ")} | ${policyCells.join(" | ")} | ${adapter.notes} |`;
   });
 
   return `# Provider Matrix
@@ -164,10 +170,12 @@ Status legend:
 - \`mock\`: modeled by \`@capsule/adapter-mock\` for tests/examples only.
 - \`planned\`: documented target with no real adapter yet.
 
+Policy enforcement columns (Network policy, Filesystem policy, Secret mounting) report adapter-declared \`sandbox\` support levels for policy controls. \`unsupported\` means the adapter does not model that policy control, not that the control is unsafe.
+
 ## Real Adapters
 
-| Provider | Package | Sandbox | Job | Service | Edge/function | Database/resource | Preview | Machine | Support notes |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Provider | Package | Sandbox | Job | Service | Edge/function | Database/resource | Preview | Machine | Network policy | Filesystem policy | Secret mounting | Support notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 ${realRows.join("\n")}
 
 ## Preset Packages
@@ -178,8 +186,8 @@ ${realRows.join("\n")}
 
 ## Mock And Planned Modeling
 
-| Provider/model | Adapter status | Sandbox | Job | Service | Edge/function | Database/resource | Preview | Machine | Support notes |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Provider/model | Adapter status | Sandbox | Job | Service | Edge/function | Database/resource | Preview | Machine | Network policy | Filesystem policy | Secret mounting | Support notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 ${plannedRows.join("\n")}
 `;
 }
