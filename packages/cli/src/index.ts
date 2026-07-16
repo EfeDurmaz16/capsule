@@ -659,7 +659,13 @@ const liveTestPlans: LiveTestPlan[] = [
   {
     provider: "cloudflare",
     testPath: "packages/adapter-cloudflare/src/cloudflare.live.test.ts",
-    requiredEnv: ["CAPSULE_LIVE_TESTS", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CAPSULE_CLOUDFLARE_WORKER_NAME", "CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION"],
+    requiredEnv: [
+      "CAPSULE_LIVE_TESTS",
+      "CLOUDFLARE_API_TOKEN",
+      "CLOUDFLARE_ACCOUNT_ID",
+      "CAPSULE_CLOUDFLARE_WORKER_NAME",
+      "CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION"
+    ],
     optionalEnv: ["CLOUDFLARE_COMPATIBILITY_DATE"],
     costRisk: "billable",
     costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
@@ -1056,7 +1062,14 @@ function configuredCredentialNames(name: string, aliases: Record<string, string[
 }
 
 export function providerCredentialDiagnostics(env: NodeJS.ProcessEnv = process.env, adapter?: string): ProviderCredentialDiagnostic[] {
-  return credentialRequirements.filter((requirement) => !adapter || requirement.provider === adapter || (adapter === "lambda" || adapter === "ecs" || adapter === "ec2" ? requirement.provider === "aws" : false)).map((requirement) => credentialDiagnostic(requirement, env));
+  return credentialRequirements
+    .filter(
+      (requirement) =>
+        !adapter ||
+        requirement.provider === adapter ||
+        (adapter === "lambda" || adapter === "ecs" || adapter === "ec2" ? requirement.provider === "aws" : false)
+    )
+    .map((requirement) => credentialDiagnostic(requirement, env));
 }
 
 const minimumNodeRequirement = ">=22";
@@ -1106,11 +1119,11 @@ async function missingWorkspaceFiles(root: string): Promise<string[]> {
 }
 
 function nodeVersionSupported(version: string): boolean {
-  const [major = 0, minor = 0] = version
+  const [major = 0] = version
     .replace(/^v/, "")
     .split(".")
     .map((part) => Number(part));
-  return major > 20 || (major === 20 && minor >= 11);
+  return major >= 22;
 }
 
 async function workspacePackageVersions(root: string): Promise<DoctorReport["packages"]> {
@@ -1152,7 +1165,9 @@ function releaseAuditStatus(rootPackage: PackageJsonShape | undefined): DoctorRe
   };
 }
 
-export async function createDoctorReport(options: { env?: NodeJS.ProcessEnv; adapter?: string; dockerCheck?: () => Promise<boolean>; workspaceRoot?: string } = {}): Promise<DoctorReport> {
+export async function createDoctorReport(
+  options: { env?: NodeJS.ProcessEnv; adapter?: string; dockerCheck?: () => Promise<boolean>; workspaceRoot?: string } = {}
+): Promise<DoctorReport> {
   const workspaceRoot = options.workspaceRoot ?? process.cwd();
   const rootPackage = await readJsonFile(join(workspaceRoot, "package.json"));
   const missingFiles = await missingWorkspaceFiles(workspaceRoot);
@@ -1191,7 +1206,11 @@ function createCapabilityReport(adapter: string, capabilities: CapabilityMap): C
 
 function formatTable(columns: string[], rows: string[][]): string {
   const widths = columns.map((column, index) => Math.max(column.length, ...rows.map((row) => row[index]?.length ?? 0)));
-  const formatRow = (values: string[]): string => values.map((value, index) => value.padEnd(widths[index] ?? value.length)).join("  ").trimEnd();
+  const formatRow = (values: string[]): string =>
+    values
+      .map((value, index) => value.padEnd(widths[index] ?? value.length))
+      .join("  ")
+      .trimEnd();
   return [formatRow(columns), formatRow(widths.map((width) => "-".repeat(width))), ...rows.map(formatRow)].join("\n");
 }
 
@@ -1201,12 +1220,7 @@ function printReport(parsed: ParsedArgs, report: unknown, table: string): void {
 
 function formatCapabilityTable(report: CapabilityReport, options: { explain?: boolean } = {}): string {
   const columns = options.explain ? ["Capability", "Level", "Supported", "Guidance"] : ["Capability", "Level", "Supported", "Summary"];
-  const rows = report.entries.map((entry) => [
-    entry.path,
-    entry.level,
-    entry.supported ? "yes" : "no",
-    options.explain ? entry.guidance : entry.summary
-  ]);
+  const rows = report.entries.map((entry) => [entry.path, entry.level, entry.supported ? "yes" : "no", options.explain ? entry.guidance : entry.summary]);
 
   return [`Adapter: ${report.adapter}`, "", formatTable(columns, rows)].join("\n");
 }
@@ -1248,9 +1262,17 @@ function formatProviderSelectionReport(report: ProviderSelectionReport): string 
     String(result.score),
     `${result.requiredSatisfied}/${result.requiredTotal}`,
     `${result.optionalSatisfied}/${result.optionalTotal}`,
-    result.missingRequired.map((entry) => entry.path).slice(0, 3).join(", ") || "-"
+    result.missingRequired
+      .map((entry) => entry.path)
+      .slice(0, 3)
+      .join(", ") || "-"
   ]);
-  return [`Provider selection: ${report.recipe.id}`, report.recipe.title, "", formatTable(["Provider", "Score", "Required", "Optional", "Missing required"], rows)].join("\n");
+  return [
+    `Provider selection: ${report.recipe.id}`,
+    report.recipe.title,
+    "",
+    formatTable(["Provider", "Score", "Required", "Optional", "Missing required"], rows)
+  ].join("\n");
 }
 
 function formatProviderComparisonReport(report: ProviderCapabilityComparison): string {
@@ -1431,7 +1453,9 @@ async function readPreviewConfigFile(path: string | undefined): Promise<PreviewC
   return validatePreviewConfig(assertJsonObject(JSON.parse(await readFile(path, "utf8")), path), path);
 }
 
-function previewResourceConfigs(config: PreviewConfigFile): Array<{ kind: PreviewResourceKind; config: PreviewConfigResource<CreateDatabaseBranchSpec | DeployServiceSpec | DeployEdgeSpec | RunJobSpec> }> {
+function previewResourceConfigs(
+  config: PreviewConfigFile
+): Array<{ kind: PreviewResourceKind; config: PreviewConfigResource<CreateDatabaseBranchSpec | DeployServiceSpec | DeployEdgeSpec | RunJobSpec> }> {
   return [
     ...(config.databases ?? []).map((entry) => ({ kind: "database" as const, config: entry })),
     ...(config.services ?? []).map((entry) => ({ kind: "service" as const, config: entry })),
@@ -1544,7 +1568,12 @@ function serializeCleanupAction(
   };
 }
 
-function createPreviewCleanupPlanFile(preview: PreviewEnvironment, resources: PreviewResourceRecord[], config: PreviewConfigFile, cleanupPlan: PreviewCleanupPlan): PreviewCleanupPlanFile {
+function createPreviewCleanupPlanFile(
+  preview: PreviewEnvironment,
+  resources: PreviewResourceRecord[],
+  config: PreviewConfigFile,
+  cleanupPlan: PreviewCleanupPlan
+): PreviewCleanupPlanFile {
   const configs = previewResourceConfigs(config);
   const actionByResourceId = new Map(cleanupPlan.actions.map((action) => [action.resourceId, action]));
   return {
@@ -1557,7 +1586,9 @@ function createPreviewCleanupPlanFile(preview: PreviewEnvironment, resources: Pr
     unsupportedCleanupCount: cleanupPlan.unsupportedCleanupCount,
     actions: cleanupPlan.actions,
     preview,
-    resources: resources.map((resource, index) => serializePreviewResourceRecord(resource, serializeCleanupAction(resource, configs[index]?.config, actionByResourceId.get(resource.id))))
+    resources: resources.map((resource, index) =>
+      serializePreviewResourceRecord(resource, serializeCleanupAction(resource, configs[index]?.config, actionByResourceId.get(resource.id)))
+    )
   };
 }
 
@@ -1609,7 +1640,10 @@ function validatePreviewCleanupPlan(record: Record<string, unknown>, label: stri
     preview,
     resources: resources.map((resource, index) => {
       const entry = assertRecordValue(resource, `${label}.resources[${index}]`);
-      const cleanup = entry.cleanup === undefined ? undefined : (assertRecordValue(entry.cleanup, `${label}.resources[${index}].cleanup`) as unknown as SerializedPreviewCleanupAction);
+      const cleanup =
+        entry.cleanup === undefined
+          ? undefined
+          : (assertRecordValue(entry.cleanup, `${label}.resources[${index}].cleanup`) as unknown as SerializedPreviewCleanupAction);
       return {
         type: assertStringValue(entry.type, `${label}.resources[${index}].type`),
         kind: assertStringValue(entry.kind, `${label}.resources[${index}].kind`) as PreviewResourceKind,
@@ -1676,7 +1710,10 @@ function hydratePreviewCleanupResource(resource: SerializedPreviewResourceRecord
 async function createPreviewDestroyReport(parsed: ParsedArgs): Promise<PreviewDestroyReport> {
   const plan = await readPreviewCleanupPlanFile(parsed.cleanupFile);
   const sourceByKey = new Map(plan.resources.map((resource) => [previewResourceKey(resource), resource]));
-  const cleanup = await cleanupPreviewEnvironment(plan.preview, plan.resources.map((resource) => hydratePreviewCleanupResource(resource, parsed)));
+  const cleanup = await cleanupPreviewEnvironment(
+    plan.preview,
+    plan.resources.map((resource) => hydratePreviewCleanupResource(resource, parsed))
+  );
   const dispositions = cleanup.dispositions.map((entry) => {
     const source = sourceByKey.get(previewResourceKey(entry.resource));
     return {
@@ -1833,7 +1870,9 @@ _capsule "$@"`;
     `complete -c capsule -l right -xa "${providers}"`,
     `complete -c capsule -l recipe -xa "${recipes}"`,
     `complete -c capsule -n "__fish_seen_subcommand_from completion" -a "${shells}"`,
-    ...completionOptions.filter((option) => !["--adapter", "--provider", "--left", "--right", "--recipe"].includes(option)).map((option) => `complete -c capsule -l ${fishLongOption(option)}`)
+    ...completionOptions
+      .filter((option) => !["--adapter", "--provider", "--left", "--right", "--recipe"].includes(option))
+      .map((option) => `complete -c capsule -l ${fishLongOption(option)}`)
   ].join("\n");
 }
 
@@ -1843,7 +1882,8 @@ export function liveTestCommandPlan(provider?: string, plans: LiveTestPlan[] = l
       ? {
           ...plan,
           safeCommands: plan.safeCommands.map(
-            (command) => `${plan.costAcknowledgementEnv ?? "CAPSULE_LIVE_TEST_COST_ACK"}=1 ${plan.maxResourceCountEnv ?? liveTestMaxResourcesEnv}=${plan.maxResourceCount ?? 1} ${command}`
+            (command) =>
+              `${plan.costAcknowledgementEnv ?? "CAPSULE_LIVE_TEST_COST_ACK"}=1 ${plan.maxResourceCountEnv ?? liveTestMaxResourcesEnv}=${plan.maxResourceCount ?? 1} ${command}`
           )
         }
       : plan;
@@ -1915,7 +1955,11 @@ function liveTestCiNotes(ciSafety: { ci: boolean; optedIn: boolean; untrustedFor
   return [];
 }
 
-function liveTestCiFields(ciSafety: { ci: boolean; optedIn: boolean; untrustedFork: boolean }): Pick<ProviderVerificationEntry, "missingCiOptInEnv" | "ciOptInEnv" | "ciOptInLabel" | "ciUntrustedFork"> {
+function liveTestCiFields(ciSafety: {
+  ci: boolean;
+  optedIn: boolean;
+  untrustedFork: boolean;
+}): Pick<ProviderVerificationEntry, "missingCiOptInEnv" | "ciOptInEnv" | "ciOptInLabel" | "ciUntrustedFork"> {
   if (!ciSafety.ci) return {};
   return {
     missingCiOptInEnv: ciSafety.optedIn || ciSafety.untrustedFork ? [] : [liveTestCiOptInEnv],
@@ -1925,7 +1969,10 @@ function liveTestCiFields(ciSafety: { ci: boolean; optedIn: boolean; untrustedFo
   };
 }
 
-function livePlanRequirementDiagnostic(plan: LiveTestPlan, env: NodeJS.ProcessEnv): Omit<ProviderVerificationEntry, "provider" | "status" | "testPath" | "safeCommands" | "notes" | "liveTestEnabled"> {
+function livePlanRequirementDiagnostic(
+  plan: LiveTestPlan,
+  env: NodeJS.ProcessEnv
+): Omit<ProviderVerificationEntry, "provider" | "status" | "testPath" | "safeCommands" | "notes" | "liveTestEnabled"> {
   const required = plan.requiredEnv.filter((name) => name !== "CAPSULE_LIVE_TESTS");
   const configuredEnv = required.flatMap((name) => configuredCredentialNames(name, plan.aliases, env));
   const missingEnv = required.filter((name) => configuredCredentialNames(name, plan.aliases, env).length === 0);
@@ -1946,7 +1993,9 @@ function livePlanResourceLimit(plan: LiveTestPlan, env: NodeJS.ProcessEnv): Live
   return { env: resourceEnv, required, configured, satisfied };
 }
 
-export async function createProviderVerificationReport(options: { env?: NodeJS.ProcessEnv; provider?: string; dockerCheck?: () => Promise<boolean> } = {}): Promise<ProviderVerificationReport> {
+export async function createProviderVerificationReport(
+  options: { env?: NodeJS.ProcessEnv; provider?: string; dockerCheck?: () => Promise<boolean> } = {}
+): Promise<ProviderVerificationReport> {
   const env = options.env ?? process.env;
   const plans = options.provider === "docker" ? [] : liveTestCommandPlan(options.provider).filter((plan) => plan.provider !== "docker");
   const providers: ProviderVerificationEntry[] = [];
@@ -1961,7 +2010,11 @@ export async function createProviderVerificationReport(options: { env?: NodeJS.P
       missingEnv: [],
       requiredEnv: [],
       safeCommands: ["pnpm vitest run packages/adapter-docker/src/docker.test.ts"],
-      notes: [dockerOk ? "Docker daemon is available for local Docker adapter tests." : "Docker daemon is unavailable; Docker adapter live paths cannot run on this machine."]
+      notes: [
+        dockerOk
+          ? "Docker daemon is available for local Docker adapter tests."
+          : "Docker daemon is unavailable; Docker adapter live paths cannot run on this machine."
+      ]
     });
   }
 
@@ -1998,7 +2051,9 @@ export async function createProviderVerificationReport(options: { env?: NodeJS.P
   return { providers };
 }
 
-export function createLiveEnvironmentValidationReport(options: { env?: NodeJS.ProcessEnv; provider?: string; plans?: LiveTestPlan[] } = {}): LiveEnvironmentValidationReport {
+export function createLiveEnvironmentValidationReport(
+  options: { env?: NodeJS.ProcessEnv; provider?: string; plans?: LiveTestPlan[] } = {}
+): LiveEnvironmentValidationReport {
   const env = options.env ?? process.env;
   const plans = liveTestCommandPlan(options.provider, options.plans);
   const providers = plans.map((plan): LiveEnvironmentValidationEntry => {
@@ -2718,7 +2773,8 @@ export async function main(argv: string[]): Promise<void> {
     case "doctor": {
       const report = await createDoctorReport({ adapter: parsed.adapter });
       printReport(parsed, report, formatDoctorReport(report));
-      process.exitCode = report.docker === "available" && report.node.supported && report.workspace.status === "ok" && report.releaseAudit.status === "available" ? 0 : 1;
+      process.exitCode =
+        report.docker === "available" && report.node.supported && report.workspace.status === "ok" && report.releaseAudit.status === "available" ? 0 : 1;
       return;
     }
     case "verify": {
@@ -2809,13 +2865,25 @@ export async function main(argv: string[]): Promise<void> {
       }
       const plan = createAdapterScaffoldPlan({ provider, domains: parsed.domains ?? [], outDir: parsed.outDir });
       await writeAdapterScaffold(plan, { force: parsed.force });
-      console.log(JSON.stringify({ provider: plan.provider, packageName: plan.packageName, packageDir: plan.packageDir, files: plan.files.map((file) => file.path) }, null, 2));
+      console.log(
+        JSON.stringify(
+          { provider: plan.provider, packageName: plan.packageName, packageDir: plan.packageDir, files: plan.files.map((file) => file.path) },
+          null,
+          2
+        )
+      );
       return;
     }
     case "init": {
       const plan = createProjectInitPlan({ adapter: parsed.adapter, outDir: parsed.outDir });
       await writeProjectInitFiles(plan, { force: parsed.force });
-      console.log(JSON.stringify({ adapter: plan.adapter, outDir: plan.outDir, files: plan.files.map((file) => file.path), installHint: plan.installHint, notes: plan.notes }, null, 2));
+      console.log(
+        JSON.stringify(
+          { adapter: plan.adapter, outDir: plan.outDir, files: plan.files.map((file) => file.path), installHint: plan.installHint, notes: plan.notes },
+          null,
+          2
+        )
+      );
       return;
     }
     case "examples": {
@@ -2845,7 +2913,9 @@ export async function main(argv: string[]): Promise<void> {
         throw new Error("Missing --recipe");
       }
       if (!isProviderSelectionRecipeId(parsed.recipe)) {
-        throw new Error(`Unknown provider selection recipe "${parsed.recipe}". Recipes: sandbox, agent-code-execution, preview-web-db, edge-web, service-api, machine`);
+        throw new Error(
+          `Unknown provider selection recipe "${parsed.recipe}". Recipes: sandbox, agent-code-execution, preview-web-db, edge-web, service-api, machine`
+        );
       }
       const report = selectProvidersForRecipe(parsed.recipe);
       printReport(parsed, report, formatProviderSelectionReport(report));
