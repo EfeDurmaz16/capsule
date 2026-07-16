@@ -38,4 +38,3 @@ What this loses:
 ## Follow-Up
 
 Adapter contract tests should verify both behavior and declared support levels. Provider-maintained adapters should be able to extend the public capability map without weakening the shared contract.
-

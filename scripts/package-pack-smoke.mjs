@@ -181,13 +181,9 @@ function checkPackedSizeBudgets(tarballs) {
   for (const tarball of tarballs) {
     const budgetBytes = packedSizeBudgetBytes[tarball.name];
     if (budgetBytes === undefined) {
-      errors.push(
-        `${tarball.name}: actual ${formatBytes(tarball.sizeBytes)}, budget missing, tarball ${tarball.filename}`
-      );
+      errors.push(`${tarball.name}: actual ${formatBytes(tarball.sizeBytes)}, budget missing, tarball ${tarball.filename}`);
     } else if (tarball.sizeBytes > budgetBytes) {
-      errors.push(
-        `${tarball.name}: actual ${formatBytes(tarball.sizeBytes)}, budget ${formatBytes(budgetBytes)}, tarball ${tarball.filename}`
-      );
+      errors.push(`${tarball.name}: actual ${formatBytes(tarball.sizeBytes)}, budget ${formatBytes(budgetBytes)}, tarball ${tarball.filename}`);
     }
   }
 
@@ -277,7 +273,10 @@ try {
     failed = true;
   } else {
     writeFixture(fixtureDir, tarballs);
-    writeImportSmoke(fixtureDir, tarballs.map((tarball) => tarball.name));
+    writeImportSmoke(
+      fixtureDir,
+      tarballs.map((tarball) => tarball.name)
+    );
     run("pnpm", ["install", "--ignore-scripts", "--no-frozen-lockfile"], { cwd: fixtureDir, stdio: "inherit" });
     run("node", ["smoke.mjs"], { cwd: fixtureDir, stdio: "inherit" });
     if (tarballs.some((tarball) => tarball.name === "@capsule/cli")) {

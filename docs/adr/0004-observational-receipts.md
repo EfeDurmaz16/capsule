@@ -35,4 +35,3 @@ What this loses:
 ## Follow-Up
 
 Signed receipts, append-only storage, and provider-native audit log correlation should be built as optional layers on top of the receipt schema.
-

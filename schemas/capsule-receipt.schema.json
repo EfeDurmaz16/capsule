@@ -4,18 +4,7 @@
   "title": "CapsuleReceipt",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "id",
-    "type",
-    "provider",
-    "adapter",
-    "capabilityPath",
-    "supportLevel",
-    "startedAt",
-    "finishedAt",
-    "durationMs",
-    "policy"
-  ],
+  "required": ["id", "type", "provider", "adapter", "capabilityPath", "supportLevel", "startedAt", "finishedAt", "durationMs", "policy"],
   "properties": {
     "id": {
       "type": "string"
@@ -74,12 +63,7 @@
     },
     "supportLevel": {
       "type": "string",
-      "enum": [
-        "native",
-        "emulated",
-        "unsupported",
-        "experimental"
-      ]
+      "enum": ["native", "emulated", "unsupported", "experimental"]
     },
     "command": {
       "type": "array",
@@ -128,17 +112,11 @@
     "policy": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "decision",
-        "applied"
-      ],
+      "required": ["decision", "applied"],
       "properties": {
         "decision": {
           "type": "string",
-          "enum": [
-            "allowed",
-            "denied"
-          ]
+          "enum": ["allowed", "denied"]
         },
         "applied": {
           "type": "object",
@@ -208,10 +186,7 @@
     "signature": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "algorithm",
-        "value"
-      ],
+      "required": ["algorithm", "value"],
       "properties": {
         "algorithm": {
           "type": "string"

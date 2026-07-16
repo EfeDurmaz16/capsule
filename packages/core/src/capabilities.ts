@@ -87,10 +87,7 @@ export function explainSupportLevel(capabilities: CapabilityMap, path: Capabilit
   };
 }
 
-export function evaluateCapabilityRequirements(
-  capabilities: CapabilityMap,
-  requirements: CapabilityRequirementInput[]
-): CapabilityRequirementResult[] {
+export function evaluateCapabilityRequirements(capabilities: CapabilityMap, requirements: CapabilityRequirementInput[]): CapabilityRequirementResult[] {
   return requirements.map((requirement) => {
     const normalized = normalizeRequirement(requirement);
     const actualLevel = supportLevel(capabilities, normalized.path);
@@ -107,10 +104,7 @@ export function evaluateCapabilityRequirements(
   });
 }
 
-export function missingCapabilityRequirements(
-  capabilities: CapabilityMap,
-  requirements: CapabilityRequirementInput[]
-): CapabilityRequirementResult[] {
+export function missingCapabilityRequirements(capabilities: CapabilityMap, requirements: CapabilityRequirementInput[]): CapabilityRequirementResult[] {
   return evaluateCapabilityRequirements(capabilities, requirements).filter((result) => !result.optional && !result.supported);
 }
 

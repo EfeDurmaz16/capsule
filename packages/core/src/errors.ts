@@ -1,5 +1,9 @@
 export class CapsuleError extends Error {
-  constructor(message: string, public readonly code: string, public readonly cause?: unknown) {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly cause?: unknown
+  ) {
     super(message);
     this.name = "CapsuleError";
   }
@@ -11,7 +15,10 @@ export const unsupportedCapabilitySafeRetryGuidance =
   "Safe retry: inspect adapter capabilities or choose a supported adapter before retrying; Capsule failed before provider execution.";
 
 export class UnsupportedCapabilityError extends CapsuleError {
-  constructor(public readonly capabilityPath: string, public readonly remediation?: string) {
+  constructor(
+    public readonly capabilityPath: string,
+    public readonly remediation?: string
+  ) {
     super(unsupportedCapabilityMessage(capabilityPath, remediation), "CAPSULE_UNSUPPORTED_CAPABILITY");
     this.name = "UnsupportedCapabilityError";
   }
@@ -23,7 +30,10 @@ function unsupportedCapabilityMessage(capabilityPath: string, remediation?: stri
 }
 
 export class PolicyViolationError extends CapsuleError {
-  constructor(message: string, public readonly notes: string[] = []) {
+  constructor(
+    message: string,
+    public readonly notes: string[] = []
+  ) {
     super(message, "CAPSULE_POLICY_VIOLATION");
     this.name = "PolicyViolationError";
   }
@@ -47,35 +57,55 @@ export interface ProviderErrorClassification {
 }
 
 export class ProviderAuthError extends AdapterExecutionError {
-  constructor(message: string, public readonly classification: ProviderErrorClassification, cause?: unknown) {
+  constructor(
+    message: string,
+    public readonly classification: ProviderErrorClassification,
+    cause?: unknown
+  ) {
     super(message, cause, "CAPSULE_PROVIDER_AUTH_ERROR");
     this.name = "ProviderAuthError";
   }
 }
 
 export class ProviderValidationError extends AdapterExecutionError {
-  constructor(message: string, public readonly classification: ProviderErrorClassification, cause?: unknown) {
+  constructor(
+    message: string,
+    public readonly classification: ProviderErrorClassification,
+    cause?: unknown
+  ) {
     super(message, cause, "CAPSULE_PROVIDER_VALIDATION_ERROR");
     this.name = "ProviderValidationError";
   }
 }
 
 export class ProviderRateLimitError extends AdapterExecutionError {
-  constructor(message: string, public readonly classification: ProviderErrorClassification, cause?: unknown) {
+  constructor(
+    message: string,
+    public readonly classification: ProviderErrorClassification,
+    cause?: unknown
+  ) {
     super(message, cause, "CAPSULE_PROVIDER_RATE_LIMIT_ERROR");
     this.name = "ProviderRateLimitError";
   }
 }
 
 export class ProviderRetryableError extends AdapterExecutionError {
-  constructor(message: string, public readonly classification: ProviderErrorClassification, cause?: unknown) {
+  constructor(
+    message: string,
+    public readonly classification: ProviderErrorClassification,
+    cause?: unknown
+  ) {
     super(message, cause, "CAPSULE_PROVIDER_RETRYABLE_ERROR");
     this.name = "ProviderRetryableError";
   }
 }
 
 export class CleanupFailureError<TCleanup extends object = object> extends AdapterExecutionError {
-  constructor(message: string, public readonly cleanup: TCleanup, cause?: unknown) {
+  constructor(
+    message: string,
+    public readonly cleanup: TCleanup,
+    cause?: unknown
+  ) {
     super(message, cause, "CAPSULE_CLEANUP_FAILURE");
     this.name = "CleanupFailureError";
   }
@@ -130,7 +160,13 @@ export function classifyProviderError(input: ClassifyProviderErrorInput): Provid
   return classification("unknown", false, status, retryAfterMs, code);
 }
 
-function classification(category: ProviderErrorCategory, retryable: boolean, status?: number, retryAfterMs?: number, code?: string): ProviderErrorClassification {
+function classification(
+  category: ProviderErrorCategory,
+  retryable: boolean,
+  status?: number,
+  retryAfterMs?: number,
+  code?: string
+): ProviderErrorClassification {
   return {
     category,
     retryable,

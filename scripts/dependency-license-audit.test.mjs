@@ -18,7 +18,7 @@ function writeFakePnpm(binDir, licenseGroups) {
     join(binDir, "pnpm"),
     [
       "#!/usr/bin/env sh",
-      "if [ \"$1 $2 $3 $4\" = \"licenses list --prod --json\" ]; then",
+      'if [ "$1 $2 $3 $4" = "licenses list --prod --json" ]; then',
       `  cat <<'JSON'\n${JSON.stringify(licenseGroups, null, 2)}\nJSON`,
       "  exit 0",
       "fi",

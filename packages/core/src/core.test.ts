@@ -332,7 +332,9 @@ describe("capabilities", () => {
     };
 
     await expect(runCapsuleAdapterContract(partialAdapter, { domains: ["sandbox"] })).resolves.toBeUndefined();
-    await expect(runCapsuleAdapterContract(partialAdapter, { domains: ["service"] })).rejects.toThrow("declares service.deploy as native but does not implement the public contract");
+    await expect(runCapsuleAdapterContract(partialAdapter, { domains: ["service"] })).rejects.toThrow(
+      "declares service.deploy as native but does not implement the public contract"
+    );
   });
 
   test("contract verifies supported mutating capabilities fail closed under approval policy", async () => {
@@ -489,9 +491,9 @@ describe("policy", () => {
 
   test("fails closed when approval policy is required but not satisfied", () => {
     expect(() => evaluatePolicy({ approvals: { required: true, reason: "production cleanup" } })).toThrow(PolicyViolationError);
-    expect(evaluatePolicy({ approvals: { required: true, reason: "production cleanup" } }, { approval: { approved: true, reason: "ticket approved" } }).notes).toContain(
-      "Approval satisfied: ticket approved"
-    );
+    expect(
+      evaluatePolicy({ approvals: { required: true, reason: "production cleanup" } }, { approval: { approved: true, reason: "ticket approved" } }).notes
+    ).toContain("Approval satisfied: ticket approved");
   });
 
   test("denies expired approval grants", () => {
@@ -667,13 +669,28 @@ describe("policy", () => {
   });
 
   test("redacts exact secret values from output repeatedly", () => {
-    expect(redactSecrets("token=abc token=abc suffix", { SECRET: "abc" }, { secrets: { allowed: ["SECRET"], redactFromLogs: true } })).toBe("token=[REDACTED] token=[REDACTED] suffix");
+    expect(redactSecrets("token=abc token=abc suffix", { SECRET: "abc" }, { secrets: { allowed: ["SECRET"], redactFromLogs: true } })).toBe(
+      "token=[REDACTED] token=[REDACTED] suffix"
+    );
   });
 
   test("redacts token-like values when strict redaction profile is enabled", () => {
     expect(redactSecrets("provider returned Bearer <SK_LIVE_REDACTED>", undefined, { secrets: { redactionProfile: "strict" } })).toBe(
       "provider returned Bearer [REDACTED]"
     );
+  });
+
+  test("redacts credential-shaped tokens under the default redaction profile", () => {
+    expect(redactSecrets("provider returned Bearer abc.def-123", undefined, {})).toBe("provider returned Bearer [REDACTED]");
+    expect(redactSecrets("bearer xyz987 rejected", undefined, {})).toBe("bearer [REDACTED] rejected");
+    expect(redactSecrets("key sk_live_abcdefghijklmnop123 leaked", undefined, {})).toBe("key [REDACTED] leaked");
+    expect(redactSecrets("pat ghp_abcdefghijklmnopqrstu leaked", undefined, {})).toBe("pat [REDACTED] leaked");
+  });
+
+  test("keeps long non-credential strings unless the strict profile is enabled", () => {
+    const hash = "a".repeat(64);
+    expect(redactSecrets(`sha ${hash}`, undefined, {})).toBe(`sha ${hash}`);
+    expect(redactSecrets(`sha ${hash}`, undefined, { secrets: { redactionProfile: "strict" } })).toBe("sha [REDACTED]");
   });
 
   test("redacts sensitive provider payloads from error causes", () => {
@@ -729,7 +746,11 @@ describe("policy", () => {
     expect(validation).toBeInstanceOf(ProviderValidationError);
     expect(validation.code).toBe("CAPSULE_PROVIDER_VALIDATION_ERROR");
 
-    const rateLimit = providerExecutionError("provider rate limited request", { category: "rate-limit", retryable: true, status: 429, retryAfterMs: 1000 }, { status: 429 });
+    const rateLimit = providerExecutionError(
+      "provider rate limited request",
+      { category: "rate-limit", retryable: true, status: 429, retryAfterMs: 1000 },
+      { status: 429 }
+    );
     expect(rateLimit).toBeInstanceOf(ProviderRateLimitError);
     expect(rateLimit.code).toBe("CAPSULE_PROVIDER_RATE_LIMIT_ERROR");
 
@@ -932,9 +953,7 @@ describe("presets", () => {
     expect(() => nodeJobPreset({ command: [] })).toThrow("node-job command is required");
     expect(() => httpServicePreset({ name: "", image: "example/api" })).toThrow("http-service name is required");
     expect(() => httpServicePreset({ name: "api" } as any)).toThrow("http-service requires image or source");
-    expect(() => httpServicePreset({ name: "api", image: "example/api", port: 70_000 })).toThrow(
-      "http-service port must be between 1 and 65535"
-    );
+    expect(() => httpServicePreset({ name: "api", image: "example/api", port: 70_000 })).toThrow("http-service port must be between 1 and 65535");
     expect(() => previewDatabaseBranchPreset({ project: "", name: "pr-42" })).toThrow("preview-database-branch project is required");
     expect(() => previewEnvironmentPreset({ name: "pr-42", ttlMs: 0 })).toThrow("preview-environment ttlMs must be greater than 0");
   });
@@ -1017,8 +1036,8 @@ describe("receipts", () => {
     );
 
     const payload = canonicalReceiptPayload(receipt);
-    expect(payload).not.toContain("\"signature\"");
-    expect(payload).toContain("\"metadata\":{\"alpha\":\"a\",\"providerRequestId\":\"req_123\",\"zeta\":\"z\"}");
+    expect(payload).not.toContain('"signature"');
+    expect(payload).toContain('"metadata":{"alpha":"a","providerRequestId":"req_123","zeta":"z"}');
     expect(receipt.signature).toEqual({
       algorithm: "canonical-test",
       keyId: "test-key",
@@ -1179,7 +1198,10 @@ describe("receipts", () => {
           placement: "spot",
           apiToken: "secret-token"
         },
-        env: [{ name: "VISIBLE", value: "safe" }, { name: "PRIVATE", secret: "secret-value" }]
+        env: [
+          { name: "VISIBLE", value: "safe" },
+          { name: "PRIVATE", secret: "secret-value" }
+        ]
       }
     });
 
@@ -1190,7 +1212,10 @@ describe("receipts", () => {
         placement: "spot",
         apiToken: "[REDACTED]"
       },
-      env: [{ name: "VISIBLE", value: "safe" }, { name: "PRIVATE", secret: "[REDACTED]" }]
+      env: [
+        { name: "VISIBLE", value: "safe" },
+        { name: "PRIVATE", secret: "[REDACTED]" }
+      ]
     });
     expect(JSON.stringify(receipt)).not.toContain("secret-token");
     expect(JSON.stringify(receipt)).not.toContain("secret-value");

@@ -1,0 +1,7 @@
+dist
+node_modules
+pnpm-lock.yaml
+docs/api-reference.md
+CHANGELOG.md
+.changeset
+docs/provider-matrix.md

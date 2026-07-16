@@ -561,11 +561,13 @@ describe("CLI shell completions", () => {
     });
 
     expect(createShellCompletionScript("bash")).toContain("complete -F _capsule_completions capsule");
-    expect(createShellCompletionScript("bash")).toContain("doctor verify live-test classify policy receipt preview init examples adapter select compare capabilities run sandbox job service machine edge neon completion");
+    expect(createShellCompletionScript("bash")).toContain(
+      "doctor verify live-test classify policy receipt preview init examples adapter select compare capabilities run sandbox job service machine edge neon completion"
+    );
     expect(createShellCompletionScript("zsh")).toContain("#compdef capsule");
     expect(createShellCompletionScript("zsh")).toContain("shells=(bash zsh fish)");
     expect(createShellCompletionScript("fish")).toContain("complete -c capsule -f");
-    expect(createShellCompletionScript("fish")).toContain("complete -c capsule -n \"__fish_use_subcommand\" -a \"completion\"");
+    expect(createShellCompletionScript("fish")).toContain('complete -c capsule -n "__fish_use_subcommand" -a "completion"');
 
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     try {
@@ -801,7 +803,12 @@ describe("CLI preview lifecycle", () => {
         cleanupOrder: string;
         actions: Array<{ actionId: string; idempotencyKey: string; reversible: boolean; capabilityPath: string; spec: Record<string, unknown> }>;
         preview: { name: string; status: string };
-        resources: Array<{ kind: string; provider: string; cleanupActionId?: string; cleanup?: { adapter: string; capabilityPath: string; idempotencyKey?: string; spec: Record<string, unknown> } }>;
+        resources: Array<{
+          kind: string;
+          provider: string;
+          cleanupActionId?: string;
+          cleanup?: { adapter: string; capabilityPath: string; idempotencyKey?: string; spec: Record<string, unknown> };
+        }>;
       };
 
       expect(createOutput).toMatchObject({
@@ -915,7 +922,13 @@ describe("CLI live-test planner", () => {
 
     expect(plan).toMatchObject({
       provider: "cloudflare",
-      requiredEnv: ["CAPSULE_LIVE_TESTS", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CAPSULE_CLOUDFLARE_WORKER_NAME", "CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION"],
+      requiredEnv: [
+        "CAPSULE_LIVE_TESTS",
+        "CLOUDFLARE_API_TOKEN",
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CAPSULE_CLOUDFLARE_WORKER_NAME",
+        "CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION"
+      ],
       aliases: {
         CLOUDFLARE_API_TOKEN: ["CAPSULE_WORKER_API_TOKEN", "CLOUDFLARE_WORKERS_FREE_API_TOKEN"],
         CLOUDFLARE_ACCOUNT_ID: ["CAPSULE_WORKER_ACCOUNT_ID", "CLOUDFLARE_WORKERS_FREE_ACCOUNT_ID"]

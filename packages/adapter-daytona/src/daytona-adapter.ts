@@ -256,7 +256,14 @@ class DaytonaCapsuleSandbox implements Sandbox {
   async listFiles(path: string): Promise<FileEntry[]> {
     const entries = await this.sandbox.fs.listFiles(path);
     return entries.map((entry) => ({
-      name: String(entry.name ?? String(entry.path ?? "").split("/").filter(Boolean).at(-1) ?? ""),
+      name: String(
+        entry.name ??
+          String(entry.path ?? "")
+            .split("/")
+            .filter(Boolean)
+            .at(-1) ??
+          ""
+      ),
       path: String(entry.path ?? entry.name ?? ""),
       type: fileType(entry),
       sizeBytes: typeof entry.size === "number" ? entry.size : undefined

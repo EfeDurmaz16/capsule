@@ -22,7 +22,8 @@ export interface CloudRunOperation<T = unknown> {
 
 export interface CloudRunExecution {
   name: string;
-  completionStatus?: "COMPLETION_STATUS_UNSPECIFIED" | "EXECUTION_SUCCEEDED" | "EXECUTION_FAILED" | "EXECUTION_RUNNING" | "EXECUTION_PENDING" | "EXECUTION_CANCELLED";
+  completionStatus?:
+    "COMPLETION_STATUS_UNSPECIFIED" | "EXECUTION_SUCCEEDED" | "EXECUTION_FAILED" | "EXECUTION_RUNNING" | "EXECUTION_PENDING" | "EXECUTION_CANCELLED";
   reconciling?: boolean;
   runningCount?: number;
   succeededCount?: number;

@@ -47,19 +47,37 @@ interface KubernetesPodList {
 interface BatchApi {
   createNamespacedJob(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
   readNamespacedJob?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
-  deleteNamespacedJob?(input: { namespace: string; name: string; gracePeriodSeconds?: number; propagationPolicy?: string; body?: unknown }): Promise<KubernetesObject>;
+  deleteNamespacedJob?(input: {
+    namespace: string;
+    name: string;
+    gracePeriodSeconds?: number;
+    propagationPolicy?: string;
+    body?: unknown;
+  }): Promise<KubernetesObject>;
 }
 
 interface AppsApi {
   createNamespacedDeployment(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
   readNamespacedDeployment?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
-  deleteNamespacedDeployment?(input: { namespace: string; name: string; gracePeriodSeconds?: number; propagationPolicy?: string; body?: unknown }): Promise<KubernetesObject>;
+  deleteNamespacedDeployment?(input: {
+    namespace: string;
+    name: string;
+    gracePeriodSeconds?: number;
+    propagationPolicy?: string;
+    body?: unknown;
+  }): Promise<KubernetesObject>;
 }
 
 interface CoreApi {
   createNamespacedService(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
   readNamespacedService?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
-  deleteNamespacedService?(input: { namespace: string; name: string; gracePeriodSeconds?: number; propagationPolicy?: string; body?: unknown }): Promise<KubernetesObject>;
+  deleteNamespacedService?(input: {
+    namespace: string;
+    name: string;
+    gracePeriodSeconds?: number;
+    propagationPolicy?: string;
+    body?: unknown;
+  }): Promise<KubernetesObject>;
   listNamespacedPod?(input: { namespace: string; labelSelector?: string }): Promise<KubernetesPodList>;
   readNamespacedPodLog?(input: {
     namespace: string;
@@ -148,7 +166,13 @@ export const kubernetesCapabilities: CapabilityMap = {
 };
 
 function normalizeName(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "").slice(0, 63) || `capsule-${Date.now()}`;
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 63) || `capsule-${Date.now()}`
+  );
 }
 
 function labels(name: string, extra?: Record<string, string>): Record<string, string> {
@@ -178,7 +202,10 @@ function resources(resourcesInput?: { cpu?: number; memoryMb?: number }) {
 }
 
 function jobBody(name: string, spec: RunJobSpec) {
-  const matchLabels = labels(name, { ...(spec.labels ?? {}), ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "job.run" }) ?? {}) });
+  const matchLabels = labels(name, {
+    ...(spec.labels ?? {}),
+    ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "job.run" }) ?? {})
+  });
   return {
     apiVersion: "batch/v1",
     kind: "Job",
@@ -209,7 +236,10 @@ function deploymentBody(name: string, namespace: string, spec: DeployServiceSpec
   if (!spec.image) {
     throw new AdapterExecutionError("Kubernetes service.deploy requires spec.image. Source deploy is not implemented.");
   }
-  const matchLabels = labels(name, { ...(spec.labels ?? {}), ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "service.deploy" }) ?? {}) });
+  const matchLabels = labels(name, {
+    ...(spec.labels ?? {}),
+    ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "service.deploy" }) ?? {})
+  });
   const replicas = spec.scale?.min ?? 1;
   return {
     apiVersion: "apps/v1",
@@ -238,7 +268,10 @@ function deploymentBody(name: string, namespace: string, spec: DeployServiceSpec
 }
 
 function serviceBody(name: string, namespace: string, spec: DeployServiceSpec) {
-  const matchLabels = labels(name, { ...(spec.labels ?? {}), ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "service.deploy" }) ?? {}) });
+  const matchLabels = labels(name, {
+    ...(spec.labels ?? {}),
+    ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "service.deploy" }) ?? {})
+  });
   return {
     apiVersion: "v1",
     kind: "Service",
@@ -270,8 +303,7 @@ function firstServicePort(service: KubernetesObject, fallback?: number): number 
 function serviceUrl(service: KubernetesObject, name: string, namespace: string, fallbackPort?: number): string {
   const port = firstServicePort(service, fallbackPort);
   const ingress = service.status?.loadBalancer;
-  const entries =
-    ingress && typeof ingress === "object" && "ingress" in ingress && Array.isArray(ingress.ingress) ? ingress.ingress : [];
+  const entries = ingress && typeof ingress === "object" && "ingress" in ingress && Array.isArray(ingress.ingress) ? ingress.ingress : [];
   const first = entries[0];
   if (first && typeof first === "object") {
     if ("hostname" in first && typeof first.hostname === "string" && first.hostname.length > 0) {
@@ -306,12 +338,7 @@ async function deleteDeploymentForeground(apps: AppsApi, namespace: string, name
 
 function conditionIsTrue(condition: unknown, type: string): boolean {
   return Boolean(
-    condition &&
-      typeof condition === "object" &&
-      "type" in condition &&
-      condition.type === type &&
-      "status" in condition &&
-      condition.status === "True"
+    condition && typeof condition === "object" && "type" in condition && condition.type === type && "status" in condition && condition.status === "True"
   );
 }
 
@@ -786,7 +813,11 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
               startedAt,
               policy: context.evaluatePolicy(),
               resource: { id: resolvedName, name: resolvedName, status, url },
-              metadata: kubernetesReceiptMetadata("apps/v1+v1", { namespace, deploymentName: deployment.metadata?.name ?? name, serviceName: service.metadata?.name ?? name })
+              metadata: kubernetesReceiptMetadata("apps/v1+v1", {
+                namespace,
+                deploymentName: deployment.metadata?.name ?? name,
+                serviceName: service.metadata?.name ?? name
+              })
             })
           : undefined;
         return {

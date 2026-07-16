@@ -190,7 +190,9 @@ describe("vercel adapter", () => {
   it("requires project id before using Vercel runtime logs", async () => {
     const capsule = new Capsule({ adapter: vercel({ token: "vercel-token" }) });
 
-    await expect(capsule.edge.logs({ id: "dpl_123", providerOptions: { api: "runtime" } })).rejects.toThrow("Vercel runtime logs require providerOptions.projectId");
+    await expect(capsule.edge.logs({ id: "dpl_123", providerOptions: { api: "runtime" } })).rejects.toThrow(
+      "Vercel runtime logs require providerOptions.projectId"
+    );
   });
 
   it("assigns an alias through edge.release", async () => {
@@ -226,7 +228,9 @@ describe("vercel adapter", () => {
   it("rejects traffic splits instead of silently moving the full alias", async () => {
     const capsule = new Capsule({ adapter: vercel({ token: "vercel-token" }) });
 
-    await expect(capsule.edge.release({ versionId: "dpl_123", alias: "preview.example.com", traffic: 10 })).rejects.toThrow("traffic splits are not implemented");
+    await expect(capsule.edge.release({ versionId: "dpl_123", alias: "preview.example.com", traffic: 10 })).rejects.toThrow(
+      "traffic splits are not implemented"
+    );
   });
 
   it("requires a token only when used", async () => {

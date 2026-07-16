@@ -20,7 +20,10 @@ console.log(
     : "Example mode: mock Vercel and Cloudflare edge deployments. No real provider APIs are called. Set CAPSULE_LIVE_TESTS=1 and VERCEL_TOKEN to use the real Vercel adapter."
 );
 
-for (const adapter of [liveVercel ? vercel({ token: process.env.VERCEL_TOKEN, project: process.env.VERCEL_PROJECT, teamId: process.env.VERCEL_TEAM_ID }) : mockVercel(), mockCloudflare()]) {
+for (const adapter of [
+  liveVercel ? vercel({ token: process.env.VERCEL_TOKEN, project: process.env.VERCEL_PROJECT, teamId: process.env.VERCEL_TEAM_ID }) : mockVercel(),
+  mockCloudflare()
+]) {
   const capsule = new Capsule({ adapter, receipts: true });
   console.log(
     adapter.name,

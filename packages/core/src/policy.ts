@@ -1,8 +1,9 @@
 import { PolicyViolationError } from "./errors.js";
 import type { CapsuleApprovalGrant, CapsuleApprovalResourceScope, CapsulePolicy, LogEntry, SupportLevel } from "./types.js";
 
-const tokenLikeValue =
-  /(?<=\bBearer\s+)\S+|\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9_-]{16,}\b|\bgh[pousr]_[A-Za-z0-9_]{20,}\b|\bxox[baprs]-[A-Za-z0-9-]{20,}\b|\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b|\b[A-Za-z0-9_-]{48,}\b/g;
+const credentialTokenValue =
+  /(?<=\bBearer\s+)\S+|\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9_-]{16,}\b|\bgh[pousr]_[A-Za-z0-9_]{20,}\b|\bxox[baprs]-[A-Za-z0-9-]{20,}\b|\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/gi;
+const broadTokenLikeValue = /\b[A-Za-z0-9_-]{48,}\b/g;
 const defaultSensitiveKey = /(api[-_]?key|auth|credential|password|private[-_]?key|secret|token)/i;
 
 export interface PolicyDecision {
@@ -189,7 +190,9 @@ function validateApprovalGrant(approval: CapsuleApprovalGrant, input: PolicyInpu
       throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} has no allowed capabilities`, ["approval.capabilities"]);
     }
     if (!input.capabilityPath) {
-      throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} is scoped to capabilities but this operation has no capability path`, ["approval.capabilities"]);
+      throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} is scoped to capabilities but this operation has no capability path`, [
+        "approval.capabilities"
+      ]);
     }
     if (!approval.capabilities.includes(input.capabilityPath)) {
       throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} is not valid for capability ${input.capabilityPath}`, [input.capabilityPath]);
@@ -201,10 +204,14 @@ function validateApprovalGrant(approval: CapsuleApprovalGrant, input: PolicyInpu
       throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} has no allowed resources`, ["approval.resources"]);
     }
     if (!input.resource) {
-      throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} is scoped to resources but this operation has no resource hint`, ["approval.resources"]);
+      throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} is scoped to resources but this operation has no resource hint`, [
+        "approval.resources"
+      ]);
     }
     if (!approval.resources.some((resource) => approvalResourceMatches(resource, input.resource!))) {
-      throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} is not valid for resource ${formatApprovalResource(input.resource)}`, ["approval.resources"]);
+      throw new PolicyViolationError(`Approval grant ${approvalLabel(approval)} is not valid for resource ${formatApprovalResource(input.resource)}`, [
+        "approval.resources"
+      ]);
     }
   }
 }
@@ -301,10 +308,11 @@ export function redactError(error: unknown, env: Record<string, string> | undefi
 }
 
 function redactTokenLikeText(value: string, policy: CapsulePolicy): string {
+  const redacted = value.replace(credentialTokenValue, "[REDACTED]");
   if (policy.secrets?.redactionProfile !== "strict") {
-    return value;
+    return redacted;
   }
-  return value.replace(tokenLikeValue, "[REDACTED]");
+  return redacted.replace(broadTokenLikeValue, "[REDACTED]");
 }
 
 function redactUnknownValue(key: string, value: unknown, env: Record<string, string> | undefined, policy: CapsulePolicy): unknown {

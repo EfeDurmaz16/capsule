@@ -117,13 +117,7 @@ export class VercelClient {
     return await this.request<VercelDeploymentResponse>({ method: "GET", path: `/v13/deployments/${encodeURIComponent(idOrUrl)}` });
   }
 
-  async getDeploymentEvents(input: {
-    idOrUrl: string;
-    since?: number;
-    until?: number;
-    limit?: number;
-    follow?: boolean;
-  }): Promise<VercelDeploymentEvent[]> {
+  async getDeploymentEvents(input: { idOrUrl: string; since?: number; until?: number; limit?: number; follow?: boolean }): Promise<VercelDeploymentEvent[]> {
     return await this.request<VercelDeploymentEvent[]>({
       method: "GET",
       path: `/v3/deployments/${encodeURIComponent(input.idOrUrl)}/events`,
@@ -152,12 +146,7 @@ export class VercelClient {
     });
   }
 
-  private async request<T>(input: {
-    method: "GET" | "POST";
-    path: string;
-    query?: Record<string, string>;
-    body?: unknown;
-  }): Promise<T> {
+  private async request<T>(input: { method: "GET" | "POST"; path: string; query?: Record<string, string>; body?: unknown }): Promise<T> {
     const url = new URL(`${this.baseUrl}${input.path}`);
     for (const [key, value] of Object.entries(input.query ?? {})) {
       url.searchParams.set(key, value);

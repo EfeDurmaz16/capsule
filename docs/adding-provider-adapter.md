@@ -77,7 +77,9 @@ Bad:
 
 ```ts
 // Do not mark this native just because the provider has an API endpoint.
-service: { deploy: "native" }
+service: {
+  deploy: "native";
+}
 ```
 
 `native` means the provider exposes the capability directly and the adapter uses that API with tested semantics. `experimental` is the right first level for narrow or newly integrated provider behavior.

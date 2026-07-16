@@ -53,17 +53,7 @@ const allowedRuntimeDependencies = {
   "@capsule/adapter-lambda": ["@aws-sdk/client-lambda"],
   "@capsule/adapter-modal": ["modal"]
 };
-const allowedLicenseTerms = new Set([
-  "0BSD",
-  "Apache-2.0",
-  "BSD-2-Clause",
-  "BSD-3-Clause",
-  "BlueOak-1.0.0",
-  "ISC",
-  "MIT",
-  "Python-2.0",
-  "Unlicense"
-]);
+const allowedLicenseTerms = new Set(["0BSD", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "BlueOak-1.0.0", "ISC", "MIT", "Python-2.0", "Unlicense"]);
 const errors = [];
 
 function readJson(path) {

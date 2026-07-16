@@ -250,13 +250,15 @@ export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
             image: imageTag,
             policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
             resource: { id: sandbox.sandboxId, name: spec.name, status: "running" },
-            metadata: modalReceiptMetadata(removeUndefined({
-              appName,
-              environment: options.environment,
-              image: imageTag,
-              blockNetwork: context.policy.network?.mode === "none" ? true : undefined,
-              cidrAllowlist: context.policy.network?.mode === "allowlist" ? context.policy.network.allowedHosts : undefined
-            }))
+            metadata: modalReceiptMetadata(
+              removeUndefined({
+                appName,
+                environment: options.environment,
+                image: imageTag,
+                blockNetwork: context.policy.network?.mode === "none" ? true : undefined,
+                cidrAllowlist: context.policy.network?.mode === "allowlist" ? context.policy.network.allowedHosts : undefined
+              })
+            )
           });
         }
         return new ModalCapsuleSandbox(sandbox, handle, context);

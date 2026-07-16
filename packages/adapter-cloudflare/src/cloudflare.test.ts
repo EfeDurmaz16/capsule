@@ -126,7 +126,10 @@ describe("cloudflare adapter", () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(url), init: init ?? {} });
-      return response({ success: true, result: { id: "version-1", number: 7, metadata: { compatibility_date: "2026-05-12" }, resources: { script: { etag: "abc" } } } });
+      return response({
+        success: true,
+        result: { id: "version-1", number: 7, metadata: { compatibility_date: "2026-05-12" }, resources: { script: { etag: "abc" } } }
+      });
     }) as typeof fetch;
     const file = await workerFile();
     const capsule = new Capsule({
@@ -191,7 +194,13 @@ describe("cloudflare adapter", () => {
       providerOptions: { scriptName: "capsule-test" }
     });
 
-    expect(rollback).toMatchObject({ id: "deployment-rollback", provider: "cloudflare", deploymentId: "deployment-current", targetVersionId: "version-old", status: "ready" });
+    expect(rollback).toMatchObject({
+      id: "deployment-rollback",
+      provider: "cloudflare",
+      deploymentId: "deployment-current",
+      targetVersionId: "version-old",
+      status: "ready"
+    });
     expect(rollback.receipt?.type).toBe("edge.rollback");
     expect(rollback.receipt?.supportLevel).toBe("native");
     expect(calls).toHaveLength(1);
@@ -237,11 +246,16 @@ describe("cloudflare adapter", () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(url), init: init ?? {} });
-      return response({ success: true, result: { deployments: [{ id: "deployment-current", versions: [{ version_id: "version-current", percentage: 100 }] }] } });
+      return response({
+        success: true,
+        result: { deployments: [{ id: "deployment-current", versions: [{ version_id: "version-current", percentage: 100 }] }] }
+      });
     }) as typeof fetch;
     const capsule = new Capsule({ adapter: cloudflare({ apiToken: "cf-token", accountId: "acct", fetch: fetchMock }) });
 
-    await expect(capsule.edge.rollback({ deploymentId: "deployment-current", providerOptions: { scriptName: "capsule-test" } })).rejects.toThrow("requires targetVersionId");
+    await expect(capsule.edge.rollback({ deploymentId: "deployment-current", providerOptions: { scriptName: "capsule-test" } })).rejects.toThrow(
+      "requires targetVersionId"
+    );
     expect(calls).toHaveLength(1);
     expect(calls[0]?.init.method).toBe("GET");
   });
@@ -284,14 +298,16 @@ describe("cloudflare adapter", () => {
     const file = await workerFile();
     const capsule = new Capsule({ adapter: cloudflare({ apiToken: "cf-token", accountId: "acct", fetch: fetchMock }) });
 
-    await expect(capsule.edge.deploy({ name: "with-bindings", source: { path: file, entrypoint: "worker.js" }, bindings: { KV: { type: "kv_namespace" } } })).rejects.toThrow(
-      "does not support provider-specific bindings or secret bindings"
-    );
     await expect(
-      capsule.edge.version({ name: "with-secret-binding", source: { path: file, entrypoint: "worker.js" }, bindings: { API_TOKEN: { type: "secret_text", text: "secret" } } })
-    ).rejects.toThrow(
-      "does not support provider-specific bindings or secret bindings"
-    );
+      capsule.edge.deploy({ name: "with-bindings", source: { path: file, entrypoint: "worker.js" }, bindings: { KV: { type: "kv_namespace" } } })
+    ).rejects.toThrow("does not support provider-specific bindings or secret bindings");
+    await expect(
+      capsule.edge.version({
+        name: "with-secret-binding",
+        source: { path: file, entrypoint: "worker.js" },
+        bindings: { API_TOKEN: { type: "secret_text", text: "secret" } }
+      })
+    ).rejects.toThrow("does not support provider-specific bindings or secret bindings");
     expect(calls).toHaveLength(0);
   });
 

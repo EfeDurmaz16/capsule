@@ -1,15 +1,6 @@
 export type SupportLevel = "native" | "emulated" | "unsupported" | "experimental";
 
-export type CapsuleDomain =
-  | "sandbox"
-  | "job"
-  | "service"
-  | "function"
-  | "edge"
-  | "database"
-  | "machine"
-  | "preview"
-  | "resource";
+export type CapsuleDomain = "sandbox" | "job" | "service" | "function" | "edge" | "database" | "machine" | "preview" | "resource";
 
 export type ProviderOptionValue = string | number | boolean | null | ProviderOptionValue[] | { [key: string]: ProviderOptionValue };
 

@@ -10,7 +10,10 @@ function listedPackages(nodeVersion) {
   const stdout = execFileSync(process.execPath, [scriptPath, "--root", root, "--respect-engines", "--node-version", nodeVersion, "--list-packages"], {
     encoding: "utf8"
   });
-  return stdout.trim().split(/\r?\n/).filter((line) => line.startsWith("@capsule/"));
+  return stdout
+    .trim()
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith("@capsule/"));
 }
 
 test("engine-aware package pack smoke excludes Node 24-only packages on Node 22", () => {

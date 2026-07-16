@@ -142,35 +142,35 @@ flowchart TB
 Each domain is a namespace on the `Capsule` facade with its own spec types:
 
 ```ts
-await capsule.sandbox.create({ image: "node:22" });                                  // interactive execution
+await capsule.sandbox.create({ image: "node:22" }); // interactive execution
 await capsule.job.run({ image: "node:22", command: ["node", "-e", "console.log(1)"] }); // one-shot runs
-await capsule.service.deploy({ name: "api", image: "example/api:latest" });          // long-running services
-await capsule.edge.deploy({ name: "worker", runtime: "workers" });                   // edge functions
-await capsule.database.branch.create({ project: "app", name: "pr-42" });             // database branches
-await capsule.preview.create({ name: "pr-42" });                                     // composed preview environments
-await capsule.machine.create({ name: "runner", image: "ubuntu-24.04" });             // raw VMs
+await capsule.service.deploy({ name: "api", image: "example/api:latest" }); // long-running services
+await capsule.edge.deploy({ name: "worker", runtime: "workers" }); // edge functions
+await capsule.database.branch.create({ project: "app", name: "pr-42" }); // database branches
+await capsule.preview.create({ name: "pr-42" }); // composed preview environments
+await capsule.machine.create({ name: "runner", image: "ubuntu-24.04" }); // raw VMs
 ```
 
 ## Provider Matrix
 
 Which domains actually work on which provider. Support levels are declared by each adapter; `unsupported` operations throw `UnsupportedCapabilityError` instead of pretending.
 
-| Provider | Package | Sandbox | Job | Service | Edge | Database | Preview | Machine |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Docker | `@capsule/adapter-docker` | native | native | unsupported | unsupported | unsupported | unsupported | unsupported |
-| E2B | `@capsule/adapter-e2b` | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported |
-| Daytona | `@capsule/adapter-daytona` | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported |
-| Modal | `@capsule/adapter-modal` | native | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported |
-| Cloud Run | `@capsule/adapter-cloud-run` | unsupported | native | native | unsupported | unsupported | unsupported | unsupported |
-| Cloudflare Workers | `@capsule/adapter-cloudflare` | unsupported | unsupported | unsupported | native | unsupported | unsupported | unsupported |
-| Vercel | `@capsule/adapter-vercel` | unsupported | unsupported | unsupported | native | unsupported | unsupported | unsupported |
-| Neon | `@capsule/adapter-neon` | unsupported | unsupported | unsupported | unsupported | native | unsupported | unsupported |
-| Kubernetes | `@capsule/adapter-kubernetes` | unsupported | native | native | unsupported | unsupported | unsupported | unsupported |
-| Lambda | `@capsule/adapter-lambda` | unsupported | native | unsupported | unsupported | unsupported | unsupported | unsupported |
-| ECS/Fargate | `@capsule/adapter-ecs` | unsupported | native | native | unsupported | unsupported | unsupported | unsupported |
-| EC2 | `@capsule/adapter-ec2` | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | native |
-| Fly Machines | `@capsule/adapter-fly` | unsupported | native | unsupported | unsupported | unsupported | unsupported | native |
-| Azure Container Apps | `@capsule/adapter-azure-container-apps` | unsupported | native | native | unsupported | unsupported | unsupported | unsupported |
+| Provider             | Package                                 | Sandbox     | Job         | Service     | Edge        | Database    | Preview     | Machine     |
+| -------------------- | --------------------------------------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- |
+| Docker               | `@capsule/adapter-docker`               | native      | native      | unsupported | unsupported | unsupported | unsupported | unsupported |
+| E2B                  | `@capsule/adapter-e2b`                  | native      | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported |
+| Daytona              | `@capsule/adapter-daytona`              | native      | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported |
+| Modal                | `@capsule/adapter-modal`                | native      | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported |
+| Cloud Run            | `@capsule/adapter-cloud-run`            | unsupported | native      | native      | unsupported | unsupported | unsupported | unsupported |
+| Cloudflare Workers   | `@capsule/adapter-cloudflare`           | unsupported | unsupported | unsupported | native      | unsupported | unsupported | unsupported |
+| Vercel               | `@capsule/adapter-vercel`               | unsupported | unsupported | unsupported | native      | unsupported | unsupported | unsupported |
+| Neon                 | `@capsule/adapter-neon`                 | unsupported | unsupported | unsupported | unsupported | native      | unsupported | unsupported |
+| Kubernetes           | `@capsule/adapter-kubernetes`           | unsupported | native      | native      | unsupported | unsupported | unsupported | unsupported |
+| Lambda               | `@capsule/adapter-lambda`               | unsupported | native      | unsupported | unsupported | unsupported | unsupported | unsupported |
+| ECS/Fargate          | `@capsule/adapter-ecs`                  | unsupported | native      | native      | unsupported | unsupported | unsupported | unsupported |
+| EC2                  | `@capsule/adapter-ec2`                  | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | native      |
+| Fly Machines         | `@capsule/adapter-fly`                  | unsupported | native      | unsupported | unsupported | unsupported | unsupported | native      |
+| Azure Container Apps | `@capsule/adapter-azure-container-apps` | unsupported | native      | native      | unsupported | unsupported | unsupported | unsupported |
 
 Every adapter above is a real SDK- or API-backed integration. `@capsule/adapter-mock` additionally models these providers with fake objects and receipts for tests and examples. The `preview` column is empty because previews are composed from the other domains by `@capsule/preview` rather than provided natively; see [preview environments](docs/preview-environments.md). Remaining per-provider gaps are listed in the [gap register](docs/real-provider-gap-register.md).
 
@@ -230,11 +230,11 @@ flowchart LR
 ## Capabilities
 
 ```ts
-capsule.supports("sandbox.exec");        // boolean
-capsule.supportLevel("service.deploy");  // "native" | "emulated" | "experimental" | "unsupported"
-capsule.capabilities();                  // full declared map
+capsule.supports("sandbox.exec"); // boolean
+capsule.supportLevel("service.deploy"); // "native" | "emulated" | "experimental" | "unsupported"
+capsule.capabilities(); // full declared map
 capsule.adapterName();
-capsule.raw();                           // native provider client, bypasses all Capsule checks
+capsule.raw(); // native provider client, bypasses all Capsule checks
 ```
 
 Details: [capability model](docs/capability-model.md).
@@ -282,15 +282,15 @@ capsule preview create --config-file preview.json --cleanup-file .capsule/previe
 
 ## Packages
 
-| Package | What it is |
-| --- | --- |
-| `@capsule/core` | Domain types, the `Capsule` facade, capabilities, policy, receipts, errors, presets, adapter contract |
-| `@capsule/adapter-*` | One real adapter per provider (see the matrix above), plus `adapter-mock` for tests |
-| `@capsule/ai` | Code execution tool and tool descriptors for AI frameworks |
-| `@capsule/preview` | Preview environment composition, cleanup plans, evidence bundles |
-| `@capsule/presets` | Provider-oriented spec factories |
-| `@capsule/store-jsonl`, `@capsule/store-sqlite` | Receipt persistence |
-| `@capsule/cli` | The `capsule` CLI |
+| Package                                         | What it is                                                                                            |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `@capsule/core`                                 | Domain types, the `Capsule` facade, capabilities, policy, receipts, errors, presets, adapter contract |
+| `@capsule/adapter-*`                            | One real adapter per provider (see the matrix above), plus `adapter-mock` for tests                   |
+| `@capsule/ai`                                   | Code execution tool and tool descriptors for AI frameworks                                            |
+| `@capsule/preview`                              | Preview environment composition, cleanup plans, evidence bundles                                      |
+| `@capsule/presets`                              | Provider-oriented spec factories                                                                      |
+| `@capsule/store-jsonl`, `@capsule/store-sqlite` | Receipt persistence                                                                                   |
+| `@capsule/cli`                                  | The `capsule` CLI                                                                                     |
 
 ## Known Limitations
 

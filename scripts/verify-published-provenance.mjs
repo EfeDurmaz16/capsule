@@ -60,9 +60,9 @@ function npmViewDist(pkg) {
 function hasProvenanceMetadata(dist) {
   return Boolean(
     dist?.attestations?.provenance ||
-      dist?.attestations?.url ||
-      dist?.provenance ||
-      dist?.signatures?.some?.((signature) => typeof signature?.keyid === "string" && typeof signature?.sig === "string")
+    dist?.attestations?.url ||
+    dist?.provenance ||
+    dist?.signatures?.some?.((signature) => typeof signature?.keyid === "string" && typeof signature?.sig === "string")
   );
 }
 

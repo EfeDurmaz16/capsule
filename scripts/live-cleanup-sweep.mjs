@@ -101,7 +101,7 @@ async function sweepFly(options) {
   const listUrl = new URL(`/v1/apps/${encodeURIComponent(appName)}/machines`, baseUrl);
   listUrl.searchParams.set("metadata.capsule_live_test", "true");
   const data = await requestJson(fetchImpl, { provider: "fly", url: listUrl.toString(), headers });
-  const machines = Array.isArray(data) ? data : data?.machines ?? [];
+  const machines = Array.isArray(data) ? data : (data?.machines ?? []);
   const resources = machines
     .filter((machine) => metadataValue(machine?.config?.metadata, "capsule_live_test") === "true")
     .map((machine) =>
@@ -138,10 +138,7 @@ async function sweepAzure(options) {
     requestJson(fetchImpl, { provider: "azure-container-apps", url: collectionUrl("containerApps"), headers }),
     requestJson(fetchImpl, { provider: "azure-container-apps", url: collectionUrl("jobs"), headers })
   ]);
-  const resources = [
-    ...(apps?.value ?? []).map((item) => ({ item, type: "containerApp" })),
-    ...(jobs?.value ?? []).map((item) => ({ item, type: "job" }))
-  ]
+  const resources = [...(apps?.value ?? []).map((item) => ({ item, type: "containerApp" })), ...(jobs?.value ?? []).map((item) => ({ item, type: "job" }))]
     .filter(({ item }) => metadataValue(item?.tags, "capsule_live_test") === "true")
     .map(({ item, type }) =>
       candidateResource(
@@ -157,7 +154,9 @@ async function sweepAzure(options) {
     );
 
   return await applyDeletes(resources, options, async (resource) => {
-    const idPath = resource.id.startsWith("/") ? resource.id : `/subscriptions/${encodeURIComponent(subscriptionId)}/resourceGroups/${encodeURIComponent(resourceGroup)}/providers/Microsoft.App/${resource.type === "job" ? "jobs" : "containerApps"}/${encodeURIComponent(resource.name)}`;
+    const idPath = resource.id.startsWith("/")
+      ? resource.id
+      : `/subscriptions/${encodeURIComponent(subscriptionId)}/resourceGroups/${encodeURIComponent(resourceGroup)}/providers/Microsoft.App/${resource.type === "job" ? "jobs" : "containerApps"}/${encodeURIComponent(resource.name)}`;
     await requestJson(fetchImpl, {
       provider: "azure-container-apps",
       url: `${baseUrl}${idPath}?api-version=${encodeURIComponent(apiVersion)}`,
@@ -242,7 +241,7 @@ export async function createLiveCleanupSweep(options = {}) {
   const env = options.env ?? process.env;
   const dryRun = Boolean(options.dryRun);
   const deleteMode = Boolean(options.delete);
-  const nowSeconds = Math.floor(((options.now ?? new Date()).getTime()) / 1000);
+  const nowSeconds = Math.floor((options.now ?? new Date()).getTime() / 1000);
   const providers = [];
 
   for (const provider of knownProviders(options.provider)) {
@@ -254,7 +253,9 @@ export async function createLiveCleanupSweep(options = {}) {
     const missing = missingEnv(requiredEnv, env);
     const missingAck = deleteMode && env[cleanupAckEnv] !== "1" ? [cleanupAckEnv] : [];
     if (missing.length > 0 || missingAck.length > 0) {
-      providers.push(providerSummary(provider, "blocked", { requiredEnv: [...requiredEnv, ...(deleteMode ? [cleanupAckEnv] : [])], missingEnv: [...missing, ...missingAck] }));
+      providers.push(
+        providerSummary(provider, "blocked", { requiredEnv: [...requiredEnv, ...(deleteMode ? [cleanupAckEnv] : [])], missingEnv: [...missing, ...missingAck] })
+      );
       continue;
     }
     try {
@@ -313,7 +314,10 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   const parsed = parseArgs(argv);
   const report = await createLiveCleanupSweep({ ...parsed, env });
   console.log(JSON.stringify(report, null, 2));
-  if (report.providers.some((provider) => provider.status === "failed") || (parsed.delete && report.providers.some((provider) => provider.status !== "ready"))) {
+  if (
+    report.providers.some((provider) => provider.status === "failed") ||
+    (parsed.delete && report.providers.some((provider) => provider.status !== "ready"))
+  ) {
     process.exitCode = 1;
   }
 }

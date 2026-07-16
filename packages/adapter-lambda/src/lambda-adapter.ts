@@ -223,7 +223,14 @@ export function lambda(options: LambdaAdapterOptions = {}): CapsuleAdapter {
         const result: ExecResult | undefined =
           runStatus === "queued"
             ? undefined
-            : { exitCode: runStatus === "succeeded" ? 0 : 1, stdout, stderr, logs: redactLogEntries(logsFromOutput(stdout, logText), spec.env, context.policy), artifacts: [], receipt };
+            : {
+                exitCode: runStatus === "succeeded" ? 0 : 1,
+                stdout,
+                stderr,
+                logs: redactLogEntries(logsFromOutput(stdout, logText), spec.env, context.policy),
+                artifacts: [],
+                receipt
+              };
         return { id: functionName, provider, status: runStatus, result, receipt };
       }
     }

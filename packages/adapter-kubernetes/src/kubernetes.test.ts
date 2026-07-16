@@ -229,7 +229,9 @@ describe("kubernetes adapter", () => {
 
     const logs = await capsule.job.logs({ id: "build-job", since: "2026-05-13T09:59:50Z", limit: 10, follow: false });
 
-    expect(lists).toEqual([{ namespace: "jobs", labelSelector: "batch.kubernetes.io/job-name=build-job,capsule.dev/run=abc,capsule.dev/component in (worker,runner)" }]);
+    expect(lists).toEqual([
+      { namespace: "jobs", labelSelector: "batch.kubernetes.io/job-name=build-job,capsule.dev/run=abc,capsule.dev/component in (worker,runner)" }
+    ]);
     expect(logReads).toEqual([
       {
         namespace: "jobs",
@@ -312,7 +314,14 @@ describe("kubernetes adapter", () => {
             createNamespacedJob: async () => ({}),
             readNamespacedJob: async () => ({
               metadata: { name: "expr-job" },
-              spec: { selector: { matchExpressions: [{ key: "job-tier", operator: "Exists" }, { key: "phase", operator: "NotIn", values: ["done"] }] } },
+              spec: {
+                selector: {
+                  matchExpressions: [
+                    { key: "job-tier", operator: "Exists" },
+                    { key: "phase", operator: "NotIn", values: ["done"] }
+                  ]
+                }
+              },
               status: {}
             })
           },
@@ -471,7 +480,9 @@ describe("kubernetes adapter", () => {
       })
     });
 
-    await expect(capsule.service.deploy({ name: "api", image: "ghcr.io/example/api:latest", ports: [{ port: 8080 }] })).rejects.toThrow("service create failed");
+    await expect(capsule.service.deploy({ name: "api", image: "ghcr.io/example/api:latest", ports: [{ port: 8080 }] })).rejects.toThrow(
+      "service create failed"
+    );
     expect(deletions).toEqual([
       {
         namespace: "preview",

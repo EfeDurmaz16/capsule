@@ -1,0 +1,92 @@
+name: Live provider tests
+
+# Manually dispatched only. Live tests create real provider resources; the
+# shared gate in @capsule/test-utils additionally requires the CI opt-in env
+# var and blocks untrusted forks. See docs/live-tests.md.
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Provider id (e2b, daytona, modal, cloud-run, cloudflare, vercel, neon, kubernetes, lambda, fly, azure-container-apps)"
+        required: true
+        type: string
+      cost_ack:
+        description: "Acknowledge that this provider's live test may create billable resources"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  live:
+    name: Live test (${{ inputs.provider }})
+    runs-on: ubuntu-latest
+    env:
+      CAPSULE_LIVE_TESTS: "1"
+      CAPSULE_LIVE_TEST_CI_OPT_IN: "1"
+      CAPSULE_LIVE_TEST_COST_ACK: ${{ inputs.cost_ack && '1' || '' }}
+      CAPSULE_LIVE_TEST_MAX_RESOURCES: "1"
+      E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+      DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+      GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+      GOOGLE_CLOUD_RUN_LOCATION: ${{ secrets.GOOGLE_CLOUD_RUN_LOCATION }}
+      GOOGLE_OAUTH_ACCESS_TOKEN: ${{ secrets.GOOGLE_OAUTH_ACCESS_TOKEN }}
+      CAPSULE_CLOUD_RUN_SERVICE_ID: ${{ secrets.CAPSULE_CLOUD_RUN_SERVICE_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CAPSULE_CLOUDFLARE_WORKER_NAME: ${{ secrets.CAPSULE_CLOUDFLARE_WORKER_NAME }}
+      CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION: ${{ secrets.CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      CAPSULE_VERCEL_DEPLOYMENT_ID: ${{ secrets.CAPSULE_VERCEL_DEPLOYMENT_ID }}
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+      CAPSULE_KUBERNETES_NAMESPACE: ${{ secrets.CAPSULE_KUBERNETES_NAMESPACE }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      CAPSULE_LAMBDA_FUNCTION_NAME: ${{ secrets.CAPSULE_LAMBDA_FUNCTION_NAME }}
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      FLY_APP_NAME: ${{ secrets.FLY_APP_NAME }}
+      CAPSULE_FLY_IMAGE: ${{ secrets.CAPSULE_FLY_IMAGE }}
+      AZURE_ACCESS_TOKEN: ${{ secrets.AZURE_ACCESS_TOKEN }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+      AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
+      AZURE_CONTAINERAPPS_ENVIRONMENT_ID: ${{ secrets.AZURE_CONTAINERAPPS_ENVIRONMENT_ID }}
+      CAPSULE_AZURE_CONTAINER_IMAGE: ${{ secrets.CAPSULE_AZURE_CONTAINER_IMAGE }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.32.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Plan
+        env:
+          PROVIDER: ${{ inputs.provider }}
+        run: node scripts/live-test-matrix.mjs --dry-run --provider "$PROVIDER"
+
+      - name: Validate
+        env:
+          PROVIDER: ${{ inputs.provider }}
+        run: pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider "$PROVIDER"
+
+      - name: Run live test
+        env:
+          PROVIDER: ${{ inputs.provider }}
+        run: pnpm vitest run "packages/adapter-$PROVIDER/src/$PROVIDER.live.test.ts"
