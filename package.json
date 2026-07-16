@@ -23,8 +23,7 @@
     "release:pack-smoke:compatible": "node scripts/package-pack-smoke.mjs --respect-engines",
     "release:provenance": "node scripts/verify-published-provenance.mjs --dry-run",
     "docs:api": "node scripts/generate-api-reference.mjs",
-    "capsule:gap": "node scripts/capsule-gap-report.mjs",
-    "format": "prettier --write ."
+    "capsule:gap": "node scripts/capsule-gap-report.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.0",
