@@ -11,6 +11,7 @@ import {
   type Task
 } from "@aws-sdk/client-ecs";
 import {
+  asProviderError,
   capsuleOperationTags,
   logsFromOutput,
   type AdapterContext,
@@ -227,6 +228,18 @@ function defaultClient(options: ECSAdapterOptions): ECSClientLike {
   return new ECSClient({ region: options.region });
 }
 
+function classifiedClient(client: ECSClientLike): ECSClientLike {
+  return {
+    send: async (command) => {
+      try {
+        return await client.send(command);
+      } catch (error) {
+        throw asProviderError(error, "ECS API request failed.");
+      }
+    }
+  };
+}
+
 async function cleanupCreatedServiceAfterDeployFailure(
   client: ECSClientLike,
   cluster: string,
@@ -258,7 +271,7 @@ async function cleanupCreatedServiceAfterDeployFailure(
 }
 
 export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
-  const getClient = () => options.client ?? defaultClient(options);
+  const getClient = () => classifiedClient(options.client ?? defaultClient(options));
   return {
     name: adapter,
     provider,
