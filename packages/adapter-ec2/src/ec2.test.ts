@@ -1,10 +1,47 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, ProviderAuthError, ProviderRateLimitError, runAdapterContract } from "@capsule/core";
 import { ec2, ec2Capabilities } from "./index.js";
 
+function awsError(name: string, httpStatusCode: number, message = name): Error {
+  return Object.assign(new Error(message), { name, $metadata: { httpStatusCode } });
+}
+
 describe("ec2 adapter", () => {
-  it("runs the shared adapter contract suite", async () => {
-    await runAdapterContract(ec2());
+  it("runs the shared adapter contract suite and classifies provider failures", async () => {
+    const throttled = ec2({
+      imageId: "ami-x",
+      instanceType: "t3.micro",
+      client: { send: async () => Promise.reject(awsError("ThrottlingException", 429, "Rate exceeded")) }
+    });
+    await runAdapterContract(throttled, {
+      failureScenarios: [
+        {
+          name: "EC2 throttling surfaces as a retryable rate-limit provider error",
+          exercise: (capsule) => capsule.machine.status({ id: "i-throttled" }),
+          expectError: (error) => {
+            expect(error).toBeInstanceOf(ProviderRateLimitError);
+            expect((error as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "rate-limit", retryable: true, status: 429 } });
+          }
+        }
+      ]
+    });
+  });
+
+  it("classifies EC2 access-denied failures as auth provider errors", async () => {
+    const capsule = new Capsule({
+      adapter: ec2({ region: "us-east-1", client: { send: async () => Promise.reject(awsError("UnauthorizedOperation", 403, "not authorized")) } })
+    });
+
+    let thrown: unknown;
+    try {
+      await capsule.machine.status({ id: "i-123" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ProviderAuthError);
+    expect((thrown as Error).message).toBe("not authorized");
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "auth", retryable: false, status: 403 } });
   });
 
   it("declares machine create as native", () => {

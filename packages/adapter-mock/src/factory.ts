@@ -1,8 +1,10 @@
 import {
   logsFromOutput,
+  providerExecutionError,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
+  type ProviderErrorClassification,
   type CreateDatabaseBranchSpec,
   type DeleteDatabaseBranchSpec,
   type CleanupPreviewSpec,
@@ -30,6 +32,34 @@ interface MockAdapterOptions {
   name: string;
   provider: string;
   capabilities: CapabilityMap;
+  // When set, every implemented operation throws a typed provider error so the mock stays consistent
+  // with the real adapters' error taxonomy (used to exercise contract failure scenarios).
+  failWith?: ProviderErrorClassification;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function applyMockFailure(adapter: CapsuleAdapter, classification: ProviderErrorClassification): CapsuleAdapter {
+  const fail = async (): Promise<never> => {
+    throw providerExecutionError("Mock provider operation failed.", classification);
+  };
+  const failGroup = (group: Record<string, unknown>): Record<string, unknown> => {
+    const clone: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(group)) {
+      clone[key] = typeof value === "function" ? fail : isRecord(value) ? failGroup(value) : value;
+    }
+    return clone;
+  };
+  const result = { ...adapter } as unknown as Record<string, unknown>;
+  for (const domain of ["sandbox", "job", "service", "edge", "database", "preview", "machine"]) {
+    const group = result[domain];
+    if (isRecord(group)) {
+      result[domain] = failGroup(group);
+    }
+  }
+  return result as unknown as CapsuleAdapter;
 }
 
 const sanitize = (value: string | undefined, fallback: string) => (value ?? fallback).toLowerCase().replace(/[^a-z0-9]+/g, "-");
@@ -530,5 +560,5 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
     };
   }
 
-  return adapter;
+  return options.failWith ? applyMockFailure(adapter, options.failWith) : adapter;
 }

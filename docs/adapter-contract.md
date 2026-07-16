@@ -93,6 +93,8 @@ Receipt notes should be candid. Say when enforcement is delegated, emulated, bes
 
 Provider API clients should keep throwing `AdapterExecutionError`, but HTTP or SDK failures with stable status/code metadata should attach `cause.providerError` from `classifyProviderError(...)`. Use the common categories `auth`, `validation`, `rate-limit`, `retryable`, and `unknown`; do not invent adapter-specific retry labels.
 
+HTTP-client adapters (azure-container-apps, cloud-run, cloudflare, fly, neon, vercel) classify directly from the `Response` status:
+
 ```ts
 throw new AdapterExecutionError(message, {
   status: response.status,
@@ -100,6 +102,10 @@ throw new AdapterExecutionError(message, {
   providerError: classifyProviderError({ status: response.status, headers: response.headers, error: data })
 });
 ```
+
+SDK-based and CLI-based adapters (docker, kubernetes, lambda, ec2, ecs, e2b, daytona, modal, mock) normalize provider error shapes through the same taxonomy before wrapping. Use `asProviderError(error, fallbackMessage)` (or `callProvider(fallbackMessage, () => sdkCall())`) to map SDK error objects (status codes, error names/codes) into a typed `ProviderAuthError`/`ProviderValidationError`/`ProviderRateLimitError`/`ProviderRetryableError`, or `classifySdkError(error)` when you need the raw classification. Docker classifies conservatively from CLI exit codes and stderr with `classifyDockerCliError(...)`: unreachable daemon or timeout is `retryable`, missing image/container is `validation`, and permission or registry-auth failures are `auth`.
+
+Every adapter now surfaces the same typed categories, so all fifteen adapters classify provider failures rather than only the six HTTP clients.
 
 Do not classify workload failures as provider failures. For example, a sandbox command exit code or Lambda `FunctionError` is execution state, not a provider transport/control-plane error.
 

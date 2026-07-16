@@ -244,3 +244,118 @@ function headerValue(headers: ClassifyProviderErrorInput["headers"], name: strin
   }
   return undefined;
 }
+
+// SDK provider error classification -------------------------------------------------
+// HTTP adapters call classifyProviderError directly with a Response status. SDK-based adapters
+// (AWS, Kubernetes, e2b, Daytona, Modal) instead throw provider-specific error objects, so these
+// helpers normalize the common SDK error shapes (status codes plus error names/codes) into the same
+// taxonomy before wrapping them in AdapterExecutionError.
+
+const sdkNameSignals: Array<{ tokens: string[]; category: ProviderErrorCategory; retryable: boolean }> = [
+  { tokens: ["ratelimit", "toomany", "throttl", "quotaexceeded", "resourceexhausted"], category: "rate-limit", retryable: true },
+  {
+    tokens: [
+      "unauthorized",
+      "unauthenticated",
+      "forbidden",
+      "accessdenied",
+      "permissiondenied",
+      "authentication",
+      "invalidcredential",
+      "invalidtoken",
+      "expiredtoken",
+      "notauthorized",
+      "missingcredential"
+    ],
+    category: "auth",
+    retryable: false
+  },
+  {
+    tokens: ["timeout", "timedout", "econnreset", "econnrefused", "unavailable", "internalerror", "internalservererror", "networkerror"],
+    category: "retryable",
+    retryable: true
+  },
+  {
+    tokens: ["notfound", "alreadyexists", "conflict", "invalidargument", "validation", "badrequest", "failedprecondition", "invalidparameter", "malformed"],
+    category: "validation",
+    retryable: false
+  }
+];
+
+export function classifySdkError(error: unknown): ProviderErrorClassification {
+  const source = asRecord(error);
+  const status = source ? sdkHttpStatus(source) : undefined;
+  const code = source ? sdkErrorCode(source) : undefined;
+  const base = classifyProviderError({ status, code, error });
+  if (base.category !== "unknown") {
+    return base;
+  }
+  const named = sdkNameCategory(code);
+  return named ? classification(named.category, named.retryable, status) : base;
+}
+
+export function asProviderError(error: unknown, fallbackMessage: string): AdapterExecutionError {
+  if (error instanceof AdapterExecutionError) {
+    return error;
+  }
+  return providerExecutionError(sdkErrorMessage(error) ?? fallbackMessage, classifySdkError(error), error);
+}
+
+export async function callProvider<T>(fallbackMessage: string, operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    throw asProviderError(error, fallbackMessage);
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return isRecord(value) ? value : undefined;
+}
+
+function sdkHttpStatus(error: Record<string, unknown>): number | undefined {
+  const metadata = asRecord(error.$metadata);
+  const response = asRecord(error.response);
+  const body = asRecord(error.body) ?? asRecord(response?.body);
+  const candidates = [
+    metadata?.httpStatusCode,
+    error.statusCode,
+    error.status,
+    response?.statusCode,
+    response?.status,
+    body?.code,
+    typeof error.code === "number" ? error.code : undefined
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "number" && Number.isInteger(candidate) && candidate >= 100 && candidate <= 599) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
+function sdkErrorMessage(error: unknown): string | undefined {
+  if (error instanceof Error) {
+    return error.message || undefined;
+  }
+  const message = asRecord(error)?.message;
+  return typeof message === "string" && message.length > 0 ? message : undefined;
+}
+
+function sdkErrorCode(error: Record<string, unknown>): string | undefined {
+  const candidates = [error.name, error.code, error.Code, asRecord(error.body)?.reason];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.length > 0 && candidate !== "Error") {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
+function sdkNameCategory(code: string | undefined): { category: ProviderErrorCategory; retryable: boolean } | undefined {
+  if (!code) {
+    return undefined;
+  }
+  const token = code.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return sdkNameSignals.find((signal) => signal.tokens.some((value) => token.includes(value)));
+}

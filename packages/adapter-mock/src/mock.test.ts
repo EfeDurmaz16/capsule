@@ -1,6 +1,20 @@
 import { describe, expect, test } from "vitest";
-import { Capsule, UnsupportedCapabilityError, runAdapterContract, verifyReceipt } from "@capsule/core";
-import { mockCloudRun, mockCloudflare, mockDaytona, mockE2B, mockEC2, mockECS, mockKubernetes, mockLambda, mockModal, mockNeon, mockVercel } from "./index.js";
+import { AdapterExecutionError, Capsule, ProviderRetryableError, UnsupportedCapabilityError, runAdapterContract, verifyReceipt } from "@capsule/core";
+import {
+  createMockAdapter,
+  mockCloudRun,
+  mockCloudRunCapabilities,
+  mockCloudflare,
+  mockDaytona,
+  mockE2B,
+  mockEC2,
+  mockECS,
+  mockKubernetes,
+  mockLambda,
+  mockModal,
+  mockNeon,
+  mockVercel
+} from "./index.js";
 
 const allMocks = [mockCloudRun, mockCloudflare, mockDaytona, mockE2B, mockEC2, mockECS, mockKubernetes, mockLambda, mockModal, mockNeon, mockVercel];
 
@@ -59,6 +73,28 @@ describe("mock adapter contract", () => {
       await runAdapterContract(make());
     });
   }
+
+  test("simulated mock provider failures flow through the shared failure-scenario harness", async () => {
+    const failing = createMockAdapter({
+      name: "mock-cloud-run",
+      provider: "cloud-run",
+      capabilities: mockCloudRunCapabilities,
+      failWith: { category: "retryable", retryable: true, status: 503 }
+    });
+
+    await runAdapterContract(failing, {
+      failureScenarios: [
+        {
+          name: "mock provider failure surfaces a typed retryable provider error",
+          exercise: (capsule) => capsule.job.run({ image: "node:22" }),
+          expectError: (error) => {
+            expect(error).toBeInstanceOf(ProviderRetryableError);
+            expect((error as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "retryable", retryable: true, status: 503 } });
+          }
+        }
+      ]
+    });
+  });
 });
 
 describe("mock happy paths produce verifiable receipts", () => {

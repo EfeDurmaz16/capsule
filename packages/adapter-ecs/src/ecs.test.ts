@@ -1,10 +1,44 @@
 import { describe, expect, it } from "vitest";
-import { Capsule, CleanupFailureError, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, CleanupFailureError, ProviderRetryableError, ProviderValidationError, runAdapterContract } from "@capsule/core";
 import { ecs, ecsCapabilities } from "./index.js";
 
+function awsError(name: string, httpStatusCode: number, message = name): Error {
+  return Object.assign(new Error(message), { name, $metadata: { httpStatusCode } });
+}
+
+function failingEcs(error: Error) {
+  return ecs({ cluster: "contract", taskDefinition: "contract:1", containerName: "main", client: { send: async () => Promise.reject(error) } });
+}
+
 describe("ecs adapter", () => {
-  it("runs the shared adapter contract suite", async () => {
-    await runAdapterContract(ecs({ cluster: "contract", taskDefinition: "contract:1", containerName: "main" }));
+  it("runs the shared adapter contract suite and classifies provider failures", async () => {
+    await runAdapterContract(failingEcs(awsError("InvalidParameterException", 400, "invalid task definition")), {
+      failureScenarios: [
+        {
+          name: "ECS invalid parameters surface as validation provider errors",
+          exercise: (capsule) => capsule.job.status({ id: "arn:task/1" }),
+          expectError: (error) => {
+            expect(error).toBeInstanceOf(ProviderValidationError);
+            expect((error as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "validation", retryable: false, status: 400 } });
+          }
+        }
+      ]
+    });
+  });
+
+  it("classifies ECS server failures as retryable provider errors", async () => {
+    const capsule = new Capsule({ adapter: failingEcs(awsError("ServiceUnavailableException", 503, "service unavailable")) });
+
+    let thrown: unknown;
+    try {
+      await capsule.job.status({ id: "arn:task/2" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ProviderRetryableError);
+    expect((thrown as Error).message).toBe("service unavailable");
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "retryable", retryable: true, status: 503 } });
   });
 
   it("declares job and service capabilities", () => {

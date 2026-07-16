@@ -1,9 +1,13 @@
 import { beforeAll, describe, expect, test } from "vitest";
-import { Capsule, MemoryReceiptStore, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, MemoryReceiptStore, ProviderRetryableError, ProviderValidationError, runAdapterContract } from "@capsule/core";
 import { liveTest, liveTestGate, type LiveTestGate } from "@capsule/test-utils";
-import { docker, dockerAvailable, runDocker } from "./index.js";
+import { classifyDockerCliError, docker, dockerAvailable, runDocker } from "./index.js";
 import { dockerSandboxCreateArgs } from "./docker-adapter.js";
 import { normalizeDockerReceiptFixtures } from "./docker-receipt-fixtures.js";
+
+function dockerResult(exitCode: number, stderr = ""): { exitCode: number; stdout: string; stderr: string } {
+  return { exitCode, stdout: "", stderr };
+}
 
 const configuredDockerLiveGate = liveTestGate({ provider: "docker" });
 const hasDocker = configuredDockerLiveGate.enabled ? await dockerAvailable() : false;
@@ -33,8 +37,59 @@ function runLiveDocker(name: string, fn: () => unknown | Promise<unknown>, timeo
 }
 
 describe("docker adapter", () => {
-  test("runs the shared adapter contract suite", async () => {
-    await runAdapterContract(docker());
+  test("runs the shared adapter contract suite and classifies daemon reachability failures", async () => {
+    const unreachable = docker({ checkAvailable: async () => false });
+    await runAdapterContract(unreachable, {
+      failureScenarios: [
+        {
+          name: "Unreachable Docker daemon surfaces as a retryable provider error",
+          exercise: (capsule) => capsule.job.run({ image: "node:22", command: ["node", "-e", "0"] }),
+          expectError: (error) => {
+            expect(error).toBeInstanceOf(ProviderRetryableError);
+            expect((error as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "retryable", retryable: true } });
+          }
+        }
+      ]
+    });
+  });
+
+  test("classifies Docker CLI exit codes and stderr signals conservatively", () => {
+    expect(classifyDockerCliError(1, "Cannot connect to the Docker daemon at unix:///var/run/docker.sock")).toMatchObject({
+      category: "retryable",
+      retryable: true
+    });
+    expect(classifyDockerCliError(124, "")).toMatchObject({ category: "retryable", retryable: true });
+    expect(classifyDockerCliError(1, "Unable to find image 'nope:latest' locally\nmanifest unknown")).toMatchObject({
+      category: "validation",
+      retryable: false
+    });
+    expect(classifyDockerCliError(1, "Error: No such container: capsule-123")).toMatchObject({ category: "validation", retryable: false });
+    expect(classifyDockerCliError(1, "permission denied while trying to connect to the Docker daemon socket")).toMatchObject({
+      category: "auth",
+      retryable: false
+    });
+    expect(classifyDockerCliError(1, "denied: requested access to the resource is denied")).toMatchObject({ category: "auth", retryable: false });
+    expect(classifyDockerCliError(1, "some other failure")).toMatchObject({ category: "unknown", retryable: false });
+  });
+
+  test("classifies a failed docker create as a validation provider error", async () => {
+    const capsule = new Capsule({
+      adapter: docker({
+        checkAvailable: async () => true,
+        runner: async (args) => (args[0] === "create" ? dockerResult(1, "Unable to find image 'ghost:latest' locally\nmanifest unknown") : dockerResult(0))
+      })
+    });
+
+    let thrown: unknown;
+    try {
+      await capsule.sandbox.create({ image: "ghost:latest", name: "capsule-missing" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ProviderValidationError);
+    expect((thrown as Error).message).toContain("docker create failed");
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "validation", retryable: false } });
   });
 
   test("declares Docker capabilities", () => {

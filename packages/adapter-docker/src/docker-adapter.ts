@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import {
   AdapterExecutionError,
+  providerExecutionError,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
@@ -10,15 +11,71 @@ import {
   type ExecResult,
   type ExecSpec,
   type FileEntry,
+  type ProviderErrorClassification,
   type RunJobSpec,
   type Sandbox,
   type SandboxHandle
 } from "@capsule/core";
 import { capsuleOperationTags, logsFromOutput, redactSecrets } from "@capsule/core";
-import { dockerAvailable, runDocker } from "./docker-cli.js";
+import { dockerAvailable, runDocker, type DockerCommandResult, type RunDockerOptions } from "./docker-cli.js";
+
+type DockerRunner = (args: string[], options?: RunDockerOptions) => Promise<DockerCommandResult>;
 
 export interface DockerAdapterOptions {
   defaultImage?: string;
+  // Seams for tests and custom hosts: override the docker CLI runner and the daemon reachability probe.
+  runner?: DockerRunner;
+  checkAvailable?: () => Promise<boolean>;
+}
+
+const dockerDaemonSignals = [
+  "cannot connect to the docker daemon",
+  "is the docker daemon running",
+  "daemon is not running",
+  "connection refused",
+  "error during connect"
+];
+const dockerAuthSignals = [
+  "permission denied",
+  "pull access denied",
+  "unauthorized",
+  "authentication required",
+  "access denied",
+  "denied: requested access",
+  "docker login"
+];
+const dockerImageSignals = [
+  "no such image",
+  "manifest unknown",
+  "not found",
+  "repository does not exist",
+  "no such container",
+  "no such object",
+  "invalid reference format"
+];
+
+// Docker exposes no structured error codes, so classify conservatively from the CLI exit code and
+// stderr text: unreachable daemon or timeout is retryable, missing image/container is a validation
+// error, and permission or registry-auth failures are auth errors.
+export function classifyDockerCliError(exitCode: number, stderr: string): ProviderErrorClassification {
+  if (exitCode === 124) {
+    return { category: "retryable", retryable: true };
+  }
+  const signal = stderr.toLowerCase();
+  if (dockerDaemonSignals.some((token) => signal.includes(token))) {
+    return { category: "retryable", retryable: true };
+  }
+  if (dockerAuthSignals.some((token) => signal.includes(token))) {
+    return { category: "auth", retryable: false };
+  }
+  if (dockerImageSignals.some((token) => signal.includes(token))) {
+    return { category: "validation", retryable: false };
+  }
+  return { category: "unknown", retryable: false };
+}
+
+function dockerCliError(message: string, result: DockerCommandResult): AdapterExecutionError {
+  return providerExecutionError(message, classifyDockerCliError(result.exitCode, result.stderr), { exitCode: result.exitCode, stderr: result.stderr });
 }
 
 interface DockerSandboxCreateArgsInput {
@@ -164,23 +221,24 @@ export function dockerSandboxCreateArgs(input: DockerSandboxCreateArgsInput): st
   ];
 }
 
-async function ensureDocker(): Promise<void> {
-  if (!(await dockerAvailable())) {
-    throw new AdapterExecutionError("Docker CLI is not available or the Docker daemon is not reachable.");
+async function ensureDocker(checkAvailable: () => Promise<boolean>): Promise<void> {
+  if (!(await checkAvailable())) {
+    throw providerExecutionError("Docker CLI is not available or the Docker daemon is not reachable.", { category: "retryable", retryable: true });
   }
 }
 
 class DockerSandbox implements Sandbox {
   constructor(
     readonly handle: SandboxHandle,
-    private readonly context: AdapterContext
+    private readonly context: AdapterContext,
+    private readonly runner: DockerRunner
   ) {}
 
   async exec(spec: ExecSpec): Promise<ExecResult> {
     const startedAt = new Date();
     const policy = this.context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
     const command = normalizeCommand(spec.command);
-    const result = await runDocker(["exec", ...(spec.cwd ? ["--workdir", spec.cwd] : []), ...envArgs(spec.env), this.handle.id, ...command], {
+    const result = await this.runner(["exec", ...(spec.cwd ? ["--workdir", spec.cwd] : []), ...envArgs(spec.env), this.handle.id, ...command], {
       timeoutMs: spec.timeoutMs,
       input: spec.input
     });
@@ -215,10 +273,10 @@ class DockerSandbox implements Sandbox {
     try {
       const local = join(dir, basename(path));
       await writeFile(local, data);
-      await runDocker(["exec", this.handle.id, "mkdir", "-p", dirname(path)]);
-      const copied = await runDocker(["cp", local, `${this.handle.id}:${path}`]);
+      await this.runner(["exec", this.handle.id, "mkdir", "-p", dirname(path)]);
+      const copied = await this.runner(["cp", local, `${this.handle.id}:${path}`]);
       if (copied.exitCode !== 0) {
-        throw new AdapterExecutionError(`docker cp write failed: ${copied.stderr}`);
+        throw dockerCliError(`docker cp write failed: ${copied.stderr}`, copied);
       }
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -229,9 +287,9 @@ class DockerSandbox implements Sandbox {
     const dir = await mkdtemp(join(tmpdir(), "capsule-docker-read-"));
     try {
       const local = join(dir, basename(path));
-      const copied = await runDocker(["cp", `${this.handle.id}:${path}`, local]);
+      const copied = await this.runner(["cp", `${this.handle.id}:${path}`, local]);
       if (copied.exitCode !== 0) {
-        throw new AdapterExecutionError(`docker cp read failed: ${copied.stderr}`);
+        throw dockerCliError(`docker cp read failed: ${copied.stderr}`, copied);
       }
       return await readFile(local);
     } finally {
@@ -241,9 +299,9 @@ class DockerSandbox implements Sandbox {
 
   async listFiles(path: string): Promise<FileEntry[]> {
     const command = `find ${JSON.stringify(path)} -maxdepth 1 -mindepth 1 -printf '%f\\t%p\\t%y\\t%s\\n'`;
-    const result = await runDocker(["exec", this.handle.id, "sh", "-lc", command]);
+    const result = await this.runner(["exec", this.handle.id, "sh", "-lc", command]);
     if (result.exitCode !== 0) {
-      throw new AdapterExecutionError(`docker exec list failed: ${result.stderr}`);
+      throw dockerCliError(`docker exec list failed: ${result.stderr}`, result);
     }
     return result.stdout
       .split("\n")
@@ -261,7 +319,7 @@ class DockerSandbox implements Sandbox {
 
   async destroy(): Promise<void> {
     const startedAt = new Date();
-    await runDocker(["rm", "-f", this.handle.id], { timeoutMs: 20_000 });
+    await this.runner(["rm", "-f", this.handle.id], { timeoutMs: 20_000 });
     if (this.context.receipts) {
       this.context.createReceipt({
         type: "sandbox.destroy",
@@ -275,6 +333,8 @@ class DockerSandbox implements Sandbox {
 }
 
 export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
+  const runner: DockerRunner = options.runner ?? runDocker;
+  const checkAvailable = options.checkAvailable ?? dockerAvailable;
   return {
     name: adapter,
     provider,
@@ -282,12 +342,12 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
     raw: { cli: "docker" },
     sandbox: {
       create: async (spec: CreateSandboxSpec, context: AdapterContext): Promise<Sandbox> => {
-        await ensureDocker();
+        await ensureDocker(checkAvailable);
         const startedAt = new Date();
         const image = spec.image ?? options.defaultImage ?? "node:22";
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
         const name = spec.name ?? `capsule-${Date.now()}`;
-        const create = await runDocker(
+        const create = await runner(
           dockerSandboxCreateArgs({
             name,
             workdir: spec.cwd ?? "/workspace",
@@ -300,13 +360,13 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
           { timeoutMs: spec.timeoutMs }
         );
         if (create.exitCode !== 0) {
-          throw new AdapterExecutionError(`docker create failed: ${create.stderr}`);
+          throw dockerCliError(`docker create failed: ${create.stderr}`, create);
         }
         const id = create.stdout.trim();
-        const start = await runDocker(["start", id], { timeoutMs: spec.timeoutMs });
+        const start = await runner(["start", id], { timeoutMs: spec.timeoutMs });
         if (start.exitCode !== 0) {
-          await runDocker(["rm", "-f", id]);
-          throw new AdapterExecutionError(`docker start failed: ${start.stderr}`);
+          await runner(["rm", "-f", id]);
+          throw dockerCliError(`docker start failed: ${start.stderr}`, start);
         }
         const handle: SandboxHandle = {
           id,
@@ -324,16 +384,16 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
             resource: { id, name, status: "running" }
           });
         }
-        return new DockerSandbox(handle, context);
+        return new DockerSandbox(handle, context, runner);
       }
     },
     job: {
       run: async (spec: RunJobSpec, context: AdapterContext) => {
-        await ensureDocker();
+        await ensureDocker(checkAvailable);
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
         const command = spec.command ? normalizeCommand(spec.command) : [];
-        const result = await runDocker(
+        const result = await runner(
           [
             "run",
             "--rm",

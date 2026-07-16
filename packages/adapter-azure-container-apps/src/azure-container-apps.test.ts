@@ -1,13 +1,66 @@
 import { describe, expect, test } from "vitest";
-import { AdapterExecutionError, Capsule, CleanupFailureError, runAdapterContract } from "@capsule/core";
-import { azureContainerApps, azureContainerAppsCapabilities } from "./index.js";
+import {
+  AdapterExecutionError,
+  Capsule,
+  CleanupFailureError,
+  ProviderAuthError,
+  ProviderRateLimitError,
+  ProviderValidationError,
+  runAdapterContract
+} from "@capsule/core";
+import { AzureContainerAppsClient, azureContainerApps, azureContainerAppsCapabilities } from "./index.js";
 
-function response(body: unknown, status = 200): Response {
+function response(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(body === undefined ? undefined : JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json" }
+    headers: { "content-type": "application/json", ...headers }
   });
 }
+
+const clientOptions = { accessToken: "azure-token", subscriptionId: "sub-1", resourceGroupName: "rg-1" };
+
+describe("azure container apps client classification", () => {
+  test("classifies Azure ARM rate limits as retryable provider errors", async () => {
+    const fetchMock = (async () => response({ error: { code: "TooManyRequests", message: "rate limited" } }, 429, { "retry-after": "5" })) as typeof fetch;
+    const client = new AzureContainerAppsClient({ ...clientOptions, fetch: fetchMock });
+
+    let thrown: unknown;
+    try {
+      await client.request({ path: "/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/containerApps/api?api-version=2025-07-01" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ProviderRateLimitError);
+    expect(thrown).toBeInstanceOf(AdapterExecutionError);
+    expect((thrown as Error).message).toBe("rate limited");
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({
+      providerError: { category: "rate-limit", retryable: true, status: 429, retryAfterMs: 5000 }
+    });
+  });
+
+  test("classifies Azure ARM auth failures as auth provider errors", async () => {
+    const fetchMock = (async () => response({ error: { code: "AuthenticationFailed", message: "token expired" } }, 401)) as typeof fetch;
+    const client = new AzureContainerAppsClient({ ...clientOptions, fetch: fetchMock });
+
+    await expect(client.request({ path: "/containerApps/api" })).rejects.toBeInstanceOf(ProviderAuthError);
+  });
+
+  test("classifies Azure ARM bad requests as validation provider errors", async () => {
+    const fetchMock = (async () => response({ error: { code: "InvalidRequest", message: "bad template" } }, 400)) as typeof fetch;
+    const client = new AzureContainerAppsClient({ ...clientOptions, fetch: fetchMock });
+
+    let thrown: unknown;
+    try {
+      await client.request({ path: "/containerApps/api" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ProviderValidationError);
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "validation", retryable: false, status: 400 } });
+  });
+});
 
 const options = {
   accessToken: "azure-token",

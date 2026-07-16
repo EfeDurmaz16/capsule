@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { Capsule, CleanupFailureError, MemoryReceiptStore, runAdapterContract } from "@capsule/core";
+import {
+  AdapterExecutionError,
+  Capsule,
+  CleanupFailureError,
+  MemoryReceiptStore,
+  ProviderRetryableError,
+  ProviderValidationError,
+  runAdapterContract
+} from "@capsule/core";
 import { daytona, daytonaCapabilities } from "./index.js";
+
+function failingDaytona(error: Error) {
+  return daytona({ client: { create: async () => Promise.reject(error) } });
+}
 
 function fakeDaytonaSandbox() {
   const files = new Map<string, Buffer>();
@@ -38,8 +50,35 @@ function fakeDaytonaSandbox() {
 }
 
 describe("daytona adapter", () => {
-  it("runs the shared adapter contract suite", async () => {
-    await runAdapterContract(daytona());
+  it("runs the shared adapter contract suite and classifies provider failures", async () => {
+    const unavailable = failingDaytona(Object.assign(new Error("daytona is temporarily unavailable"), { statusCode: 503 }));
+    await runAdapterContract(unavailable, {
+      failureScenarios: [
+        {
+          name: "Daytona service outages surface as retryable provider errors",
+          exercise: (capsule) => capsule.sandbox.create({ image: "node:22" }),
+          expectError: (error) => {
+            expect(error).toBeInstanceOf(ProviderRetryableError);
+            expect((error as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "retryable", retryable: true, status: 503 } });
+          }
+        }
+      ]
+    });
+  });
+
+  it("classifies Daytona bad requests as validation provider errors", async () => {
+    const capsule = new Capsule({ adapter: failingDaytona(Object.assign(new Error("invalid sandbox image"), { statusCode: 400 })) });
+
+    let thrown: unknown;
+    try {
+      await capsule.sandbox.create({ image: "node:22" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ProviderValidationError);
+    expect((thrown as Error).message).toBe("invalid sandbox image");
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "validation", retryable: false, status: 400 } });
   });
 
   it("declares sandbox capabilities as native", () => {
