@@ -1,10 +1,41 @@
 import { describe, expect, it } from "vitest";
-import { Capsule, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, ProviderAuthError, ProviderRetryableError, runAdapterContract } from "@capsule/core";
 import { lambda, lambdaCapabilities } from "./index.js";
 
+function awsError(name: string, httpStatusCode: number, message = name): Error {
+  return Object.assign(new Error(message), { name, $metadata: { httpStatusCode } });
+}
+
 describe("lambda adapter", () => {
-  it("runs the shared adapter contract suite", async () => {
-    await runAdapterContract(lambda());
+  it("runs the shared adapter contract suite and classifies provider failures", async () => {
+    const denied = lambda({ functionName: "capsule-worker", client: { send: async () => Promise.reject(awsError("AccessDeniedException", 403, "not authorized to invoke")) } });
+    await runAdapterContract(denied, {
+      failureScenarios: [
+        {
+          name: "Lambda access-denied surfaces as an auth provider error",
+          exercise: (capsule) => capsule.job.run({ image: "node:22" }),
+          expectError: (error) => {
+            expect(error).toBeInstanceOf(ProviderAuthError);
+            expect((error as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "auth", retryable: false, status: 403 } });
+          }
+        }
+      ]
+    });
+  });
+
+  it("classifies Lambda service faults as retryable provider errors", async () => {
+    const capsule = new Capsule({ adapter: lambda({ functionName: "capsule-worker", client: { send: async () => Promise.reject(awsError("ServiceException", 500, "internal service error")) } }) });
+
+    let thrown: unknown;
+    try {
+      await capsule.job.run({ image: "node:22" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ProviderRetryableError);
+    expect((thrown as Error).message).toBe("internal service error");
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "retryable", retryable: true, status: 500 } });
   });
 
   it("declares job run as native", () => {

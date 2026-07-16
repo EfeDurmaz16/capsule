@@ -1,5 +1,6 @@
 import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
 import {
+  asProviderError,
   logsFromOutput,
   providerRuntimeMetadata,
   redactLogEntries,
@@ -157,8 +158,20 @@ function defaultClient(options: LambdaAdapterOptions): LambdaClientLike {
   return new LambdaClient({ region: options.region });
 }
 
+function classifiedClient(client: LambdaClientLike): LambdaClientLike {
+  return {
+    send: async (command) => {
+      try {
+        return await client.send(command);
+      } catch (error) {
+        throw asProviderError(error, "Lambda API request failed.");
+      }
+    }
+  };
+}
+
 export function lambda(options: LambdaAdapterOptions = {}): CapsuleAdapter {
-  const getClient = () => options.client ?? defaultClient(options);
+  const getClient = () => classifiedClient(options.client ?? defaultClient(options));
   return {
     name: adapter,
     provider,
