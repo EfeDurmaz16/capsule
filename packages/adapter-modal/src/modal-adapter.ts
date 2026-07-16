@@ -1,6 +1,7 @@
 import { Image, ModalClient } from "modal";
 import {
   AdapterExecutionError,
+  callProvider,
   logsFromOutput,
   providerRuntimeMetadata,
   redactSecrets,
@@ -156,8 +157,12 @@ class ModalCapsuleSandbox implements Sandbox {
   async exec(spec: ExecSpec): Promise<ExecResult> {
     const startedAt = new Date();
     const policy = this.context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
-    const proc = await this.sandbox.exec(command(spec.command), { workdir: spec.cwd, env: spec.env, timeoutMs: spec.timeoutMs, mode: "text" });
-    const [exitCode, stdoutRaw, stderrRaw] = await Promise.all([proc.wait(), proc.stdout.readText(), proc.stderr.readText()]);
+    const proc = await callProvider("Modal command execution failed.", () =>
+      this.sandbox.exec(command(spec.command), { workdir: spec.cwd, env: spec.env, timeoutMs: spec.timeoutMs, mode: "text" })
+    );
+    const [exitCode, stdoutRaw, stderrRaw] = await callProvider("Modal command execution failed.", () =>
+      Promise.all([proc.wait(), proc.stdout.readText(), proc.stderr.readText()])
+    );
     const stdout = redactSecrets(stdoutRaw, spec.env, this.context.policy);
     const stderr = redactSecrets(stderrRaw, spec.env, this.context.policy);
     const receipt = this.context.receipts
@@ -179,22 +184,26 @@ class ModalCapsuleSandbox implements Sandbox {
   }
 
   async writeFile(path: string, data: string | Uint8Array): Promise<void> {
-    const file = await this.sandbox.open(path, "w");
-    try {
-      await file.write(typeof data === "string" ? new TextEncoder().encode(data) : data);
-      await file.flush();
-    } finally {
-      await file.close();
-    }
+    await callProvider("Modal file write failed.", async () => {
+      const file = await this.sandbox.open(path, "w");
+      try {
+        await file.write(typeof data === "string" ? new TextEncoder().encode(data) : data);
+        await file.flush();
+      } finally {
+        await file.close();
+      }
+    });
   }
 
   async readFile(path: string): Promise<Uint8Array> {
-    const file = await this.sandbox.open(path, "r");
-    try {
-      return await file.read();
-    } finally {
-      await file.close();
-    }
+    return await callProvider("Modal file read failed.", async () => {
+      const file = await this.sandbox.open(path, "r");
+      try {
+        return await file.read();
+      } finally {
+        await file.close();
+      }
+    });
   }
 
   async listFiles(): Promise<FileEntry[]> {
@@ -231,16 +240,18 @@ export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
         const client = getClient();
         const appName = options.appName ?? "capsule";
         const imageTag = spec.image ?? options.defaultImage ?? "debian:bookworm-slim";
-        const app = await client.apps.fromName(appName, { createIfMissing: true, environment: options.environment });
+        const app = await callProvider("Modal app resolution failed.", () => client.apps.fromName(appName, { createIfMissing: true, environment: options.environment }));
         const image = client.images.fromRegistry(imageTag);
-        const sandbox = await client.sandboxes.create(app, image, {
-          name: spec.name,
-          env: spec.env,
-          timeoutMs: spec.timeoutMs,
-          workdir: spec.cwd,
-          blockNetwork: context.policy.network?.mode === "none" ? true : undefined,
-          cidrAllowlist: context.policy.network?.mode === "allowlist" ? context.policy.network.allowedHosts : undefined
-        });
+        const sandbox = await callProvider("Modal sandbox creation failed.", () =>
+          client.sandboxes.create(app, image, {
+            name: spec.name,
+            env: spec.env,
+            timeoutMs: spec.timeoutMs,
+            workdir: spec.cwd,
+            blockNetwork: context.policy.network?.mode === "none" ? true : undefined,
+            cidrAllowlist: context.policy.network?.mode === "allowlist" ? context.policy.network.allowedHosts : undefined
+          })
+        );
         const handle: SandboxHandle = { id: sandbox.sandboxId, provider, createdAt: new Date().toISOString(), metadata: { appName } };
         if (context.receipts) {
           context.createReceipt({

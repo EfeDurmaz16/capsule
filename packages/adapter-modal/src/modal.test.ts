@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { Capsule, MemoryReceiptStore, runAdapterContract, UnsupportedCapabilityError } from "@capsule/core";
+import { AdapterExecutionError, Capsule, MemoryReceiptStore, ProviderAuthError, ProviderRetryableError, runAdapterContract, UnsupportedCapabilityError } from "@capsule/core";
 import { modal, modalCapabilities } from "./index.js";
+
+function failingModal(error: Error) {
+  return modal({
+    client: {
+      apps: { fromName: async () => ({ appId: "app-1" }) },
+      images: { fromRegistry: (tag: string) => ({ tag }) },
+      sandboxes: { create: async () => Promise.reject(error) }
+    }
+  });
+}
 
 function fakeModalSandbox() {
   const files = new Map<string, Uint8Array>();
@@ -47,8 +57,35 @@ function fakeModalClient(sandbox: any, created: unknown[] = []) {
 }
 
 describe("modal adapter", () => {
-  it("runs the shared adapter contract suite", async () => {
-    await runAdapterContract(modal());
+  it("runs the shared adapter contract suite and classifies provider failures", async () => {
+    const unavailable = failingModal(Object.assign(new Error("modal control plane unavailable"), { status: 500 }));
+    await runAdapterContract(unavailable, {
+      failureScenarios: [
+        {
+          name: "Modal control-plane faults surface as retryable provider errors",
+          exercise: (capsule) => capsule.sandbox.create({ image: "debian:bookworm-slim" }),
+          expectError: (error) => {
+            expect(error).toBeInstanceOf(ProviderRetryableError);
+            expect((error as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "retryable", retryable: true, status: 500 } });
+          }
+        }
+      ]
+    });
+  });
+
+  it("classifies Modal permission failures as auth provider errors", async () => {
+    const capsule = new Capsule({ adapter: failingModal(Object.assign(new Error("token forbidden"), { name: "PermissionDenied", status: 403 })) });
+
+    let thrown: unknown;
+    try {
+      await capsule.sandbox.create({ image: "debian:bookworm-slim" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ProviderAuthError);
+    expect((thrown as Error).message).toBe("token forbidden");
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "auth", retryable: false, status: 403 } });
   });
 
   it("declares sandbox support with honest file list gap", () => {
