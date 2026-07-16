@@ -2,6 +2,8 @@ import { Sandbox as E2BSandbox } from "e2b";
 import {
   AdapterExecutionError,
   CleanupFailureError,
+  asProviderError,
+  callProvider,
   capsuleOperationTags,
   logsFromOutput,
   providerRuntimeMetadata,
@@ -250,7 +252,7 @@ class E2BCapsuleSandbox implements Sandbox {
         background: false
       });
     } catch (error) {
-      return await killSandboxAfterFailure(this.sandbox, "kill-sandbox-after-exec-error", error);
+      return await killSandboxAfterFailure(this.sandbox, "kill-sandbox-after-exec-error", asProviderError(error, "E2B command execution failed."));
     }
     const stdout = redactSecrets(result.stdout, spec.env, this.context.policy);
     const stderr = redactSecrets(result.stderr, spec.env, this.context.policy);
@@ -273,15 +275,15 @@ class E2BCapsuleSandbox implements Sandbox {
   }
 
   async writeFile(path: string, data: string | Uint8Array): Promise<void> {
-    await this.sandbox.files.write(path, typeof data === "string" ? data : arrayBufferFromBytes(data));
+    await callProvider("E2B file write failed.", () => this.sandbox.files.write(path, typeof data === "string" ? data : arrayBufferFromBytes(data)));
   }
 
   async readFile(path: string): Promise<Uint8Array> {
-    return await this.sandbox.files.read(path, { format: "bytes" });
+    return await callProvider("E2B file read failed.", () => this.sandbox.files.read(path, { format: "bytes" }));
   }
 
   async listFiles(path: string): Promise<FileEntry[]> {
-    const entries = await this.sandbox.files.list(path, { depth: 1 });
+    const entries = await callProvider("E2B file list failed.", () => this.sandbox.files.list(path, { depth: 1 }));
     return entries.map((entry) => ({
       name: entry.name ?? entry.path.split("/").filter(Boolean).at(-1) ?? entry.path,
       path: entry.path,
@@ -319,7 +321,7 @@ export function e2b(options: E2BAdapterOptions = {}): CapsuleAdapter {
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
         const sandboxOptions = removeUndefined(createOptions(spec, context, options));
         const template = spec.image ?? options.defaultTemplate;
-        const sandbox = template ? await sandboxClass.create(template, sandboxOptions) : await sandboxClass.create(sandboxOptions);
+        const sandbox = await callProvider("E2B sandbox creation failed.", () => (template ? sandboxClass.create(template, sandboxOptions) : sandboxClass.create(sandboxOptions)));
         const handle: SandboxHandle = {
           id: sandbox.sandboxId,
           provider,

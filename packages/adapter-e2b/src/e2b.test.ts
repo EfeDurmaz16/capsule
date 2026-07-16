@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { Capsule, CleanupFailureError, MemoryReceiptStore, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, CleanupFailureError, MemoryReceiptStore, ProviderAuthError, ProviderRateLimitError, runAdapterContract } from "@capsule/core";
 import { e2b, e2bCapabilities } from "./e2b-adapter.js";
+
+function failingE2B(error: Error) {
+  return e2b({ sandboxClass: { create: async () => Promise.reject(error) } as never });
+}
 
 class FakeE2BSandbox {
   static createdWith: unknown[] = [];
@@ -56,8 +60,35 @@ describe("e2b adapter", () => {
     resetFakeSandbox();
   });
 
-  it("runs the shared adapter contract suite", async () => {
-    await runAdapterContract(e2b());
+  it("runs the shared adapter contract suite and classifies provider failures", async () => {
+    const rateLimited = failingE2B(Object.assign(new Error("sandbox quota exceeded"), { name: "RateLimitError", status: 429 }));
+    await runAdapterContract(rateLimited, {
+      failureScenarios: [
+        {
+          name: "E2B rate limits surface as a retryable rate-limit provider error",
+          exercise: (capsule) => capsule.sandbox.create({ image: "base" }),
+          expectError: (error) => {
+            expect(error).toBeInstanceOf(ProviderRateLimitError);
+            expect((error as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "rate-limit", retryable: true, status: 429 } });
+          }
+        }
+      ]
+    });
+  });
+
+  it("classifies E2B authentication failures as auth provider errors", async () => {
+    const capsule = new Capsule({ adapter: failingE2B(Object.assign(new Error("invalid api key"), { name: "AuthenticationError", status: 401 })) });
+
+    let thrown: unknown;
+    try {
+      await capsule.sandbox.create({ image: "base" });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ProviderAuthError);
+    expect((thrown as Error).message).toBe("invalid api key");
+    expect((thrown as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "auth", retryable: false, status: 401 } });
   });
 
   it("declares real sandbox capabilities", () => {
