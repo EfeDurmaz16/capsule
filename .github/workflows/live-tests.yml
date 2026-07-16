@@ -77,10 +77,16 @@ jobs:
         run: pnpm build
 
       - name: Plan
-        run: node scripts/live-test-matrix.mjs --dry-run --provider "${{ inputs.provider }}"
+        env:
+          PROVIDER: ${{ inputs.provider }}
+        run: node scripts/live-test-matrix.mjs --dry-run --provider "$PROVIDER"
 
       - name: Validate
-        run: pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider "${{ inputs.provider }}"
+        env:
+          PROVIDER: ${{ inputs.provider }}
+        run: pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider "$PROVIDER"
 
       - name: Run live test
-        run: pnpm vitest run "packages/adapter-${{ inputs.provider }}/src/${{ inputs.provider }}.live.test.ts"
+        env:
+          PROVIDER: ${{ inputs.provider }}
+        run: pnpm vitest run "packages/adapter-$PROVIDER/src/$PROVIDER.live.test.ts"
