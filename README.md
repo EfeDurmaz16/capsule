@@ -49,6 +49,40 @@ Capsule does not pretend these providers are the same. Adapters declare a suppor
 
 Use a provider SDK directly when you build for one provider and need its full native API. Use Capsule when an agent platform, CI system, preview controller, or internal tool has to operate across providers and prove what happened. The longer argument lives in the [manifesto](docs/manifesto.md) and the [comparison](docs/comparison.md) (including how Capsule differs from ComputeSDK, Terraform/Pulumi, Nitric/Encore, and plain provider SDKs).
 
+## How Capsule Works
+
+Every operation through Capsule follows a governed path:
+
+```mermaid
+flowchart LR
+  caller[Caller or agent tool]
+  capsule[Capsule facade]
+  capability[Capability check]
+  policy[Policy evaluation]
+  adapter[Adapter operation]
+  provider[Provider API or runtime]
+  receipt[Operation receipt]
+  store[Optional receipt store]
+
+  caller --> capsule
+  capsule --> capability
+  capability -->|unsupported| denied[UnsupportedCapabilityError]
+  capability -->|supported| policy
+  policy -->|denied| violation[PolicyViolationError]
+  policy -->|allowed| adapter
+  adapter --> provider
+  provider --> adapter
+  adapter --> receipt
+  receipt --> store
+  adapter --> caller
+```
+
+1. **Capability check** - Is the operation supported on this adapter? (native/emulated/experimental/unsupported)
+2. **Policy evaluation** - Network, filesystem, secrets, limits, cost, TTL, approval policies
+3. **Adapter execution** - Provider-specific implementation
+4. **Receipt generation** - Normalized evidence record with SHA-256 hashes
+5. **Optional persistence** - JSONL or SQLite storage
+
 ## Status
 
 Capsule is pre-1.0 and **not published to npm yet**. The `@capsule/*` package names in this README are the reserved names for the first release; today you run Capsule from this repository:
@@ -78,6 +112,30 @@ pnpm add @capsule/core @capsule/adapter-docker
 ```
 
 Install only the adapters you use. `@capsule/adapter-mock` is for tests and examples; it never calls real provider APIs. The full release gate is tracked in [publish readiness](docs/publish-readiness.md).
+
+## Package Structure
+
+Capsule is a pnpm monorepo with focused packages:
+
+```mermaid
+flowchart TB
+  core["@capsule/core<br/>facade, types, policy, receipts"]
+  cli["@capsule/cli<br/>inspection and local workflows"]
+  ai["@capsule/ai<br/>framework tool helpers"]
+  presets["@capsule/presets<br/>spec and policy factories"]
+  preview["@capsule/preview<br/>multi-resource orchestration"]
+  stores["@capsule/store-jsonl<br/>@capsule/store-sqlite"]
+  adapters["provider adapters<br/>Docker, E2B, Daytona, Modal,<br/>Cloud Run, Kubernetes, ECS, Fly,<br/>Azure, Cloudflare, Vercel,<br/>Lambda, Neon, EC2"]
+  providers["provider APIs and runtimes"]
+
+  cli --> core
+  ai --> core
+  presets --> core
+  preview --> core
+  core --> adapters
+  adapters --> providers
+  core --> stores
+```
 
 ## Domains
 
@@ -115,6 +173,59 @@ Which domains actually work on which provider. Support levels are declared by ea
 | Azure Container Apps | `@capsule/adapter-azure-container-apps` | unsupported | native | native | unsupported | unsupported | unsupported | unsupported |
 
 Every adapter above is a real SDK- or API-backed integration. `@capsule/adapter-mock` additionally models these providers with fake objects and receipts for tests and examples. The `preview` column is empty because previews are composed from the other domains by `@capsule/preview` rather than provided natively; see [preview environments](docs/preview-environments.md). Remaining per-provider gaps are listed in the [gap register](docs/real-provider-gap-register.md).
+
+### Domain Coverage by Provider
+
+```mermaid
+flowchart LR
+  subgraph Providers["Providers"]
+    D[Docker]
+    E[E2B]
+    Da[Daytona]
+    M[Modal]
+    CR[Cloud Run]
+    K8s[Kubernetes]
+    ECS[ECS]
+    L[Lambda]
+    CF[Cloudflare]
+    V[Vercel]
+    N[Neon]
+    EC2[EC2]
+    F[Fly]
+    AZ[Azure]
+  end
+
+  subgraph Domains["Domains"]
+    SB[Sandbox]
+    JB[Job]
+    SV[Service]
+    ED[Edge]
+    DB[Database]
+    PV[Preview]
+    MC[Machine]
+  end
+
+  D --> SB
+  D --> JB
+  E --> SB
+  Da --> SB
+  M --> SB
+  CR --> JB
+  CR --> SV
+  K8s --> JB
+  K8s --> SV
+  ECS --> JB
+  ECS --> SV
+  L --> JB
+  CF --> ED
+  V --> ED
+  N --> DB
+  EC2 --> MC
+  F --> JB
+  F --> MC
+  AZ --> JB
+  AZ --> SV
+```
 
 ## Capabilities
 
