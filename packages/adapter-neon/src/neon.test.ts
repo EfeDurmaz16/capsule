@@ -21,10 +21,13 @@ describe("neon adapter", () => {
       if (String(url).includes("/connection_uri")) {
         return response({ uri: "postgresql://role:pass@host/db?sslmode=require" });
       }
-      return response({
-        branch: { id: "br_test", name: "pr-42", parent_id: "br_main", current_state: "ready" },
-        endpoints: [{ id: "ep_test", type: "read_write" }]
-      }, 201);
+      return response(
+        {
+          branch: { id: "br_test", name: "pr-42", parent_id: "br_main", current_state: "ready" },
+          endpoints: [{ id: "ep_test", type: "read_write" }]
+        },
+        201
+      );
     }) as typeof fetch;
 
     const capsule = new Capsule({

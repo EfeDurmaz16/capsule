@@ -92,7 +92,8 @@ export const capsuleReceiptJsonSchema = {
       properties: {
         providerRequestId: {
           type: "string",
-          description: "Opaque request id returned by the provider control plane for the API call Capsule observed. This must not contain credentials or bearer tokens."
+          description:
+            "Opaque request id returned by the provider control plane for the API call Capsule observed. This must not contain credentials or bearer tokens."
         },
         providerApiVersion: {
           type: "string",

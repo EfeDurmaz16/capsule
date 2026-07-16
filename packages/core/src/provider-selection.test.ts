@@ -1,10 +1,5 @@
 import { describe, expect, test } from "vitest";
-import {
-  getProviderSelectionRecipe,
-  providerSelectionRecipeIds,
-  rankProvidersByRecipe,
-  type CapabilityMap
-} from "./index.js";
+import { getProviderSelectionRecipe, providerSelectionRecipeIds, rankProvidersByRecipe, type CapabilityMap } from "./index.js";
 
 const sandboxNative: CapabilityMap = {
   sandbox: {

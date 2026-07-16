@@ -54,7 +54,10 @@ describe("ecs adapter", () => {
       taskDefinition: "task-def:1",
       launchType: "FARGATE",
       networkConfiguration: { awsvpcConfiguration: { subnets: ["subnet-1"], securityGroups: ["sg-1"], assignPublicIp: "DISABLED" } },
-      tags: expect.arrayContaining([{ key: "capsule", value: "true" }, { key: "capsule_operation_scope", value: "job_run" }]),
+      tags: expect.arrayContaining([
+        { key: "capsule", value: "true" },
+        { key: "capsule_operation_scope", value: "job_run" }
+      ]),
       overrides: {
         containerOverrides: [{ name: "main", command: ["node", "job.js"], environment: [{ name: "NODE_ENV", value: "test" }], cpu: 256, memory: 512 }]
       }

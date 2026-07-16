@@ -52,8 +52,7 @@ export interface ReceiptVerifier {
 }
 
 export type ReceiptSignatureVerificationResult =
-  | { valid: true }
-  | { valid: false; reason: "missing-signature" | "algorithm-mismatch" | "key-id-mismatch" | "signature-mismatch" };
+  { valid: true } | { valid: false; reason: "missing-signature" | "algorithm-mismatch" | "key-id-mismatch" | "signature-mismatch" };
 
 export interface ReceiptVerificationReport {
   valid: boolean;

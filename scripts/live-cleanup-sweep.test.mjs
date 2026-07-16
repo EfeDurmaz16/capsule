@@ -98,10 +98,13 @@ test("live cleanup sweep deletes stale Fly machines only with explicit acknowled
 
   assert.equal(report.summary.deleted, 1);
   assert.equal(report.providers[0]?.resources[0]?.action, "deleted");
-  assert.deepEqual(calls.map((call) => [call.method, call.url]), [
-    ["GET", "https://api.machines.dev/v1/apps/capsule-app/machines?metadata.capsule_live_test=true"],
-    ["DELETE", "https://api.machines.dev/v1/apps/capsule-app/machines/machine-stale?force=true"]
-  ]);
+  assert.deepEqual(
+    calls.map((call) => [call.method, call.url]),
+    [
+      ["GET", "https://api.machines.dev/v1/apps/capsule-app/machines?metadata.capsule_live_test=true"],
+      ["DELETE", "https://api.machines.dev/v1/apps/capsule-app/machines/machine-stale?force=true"]
+    ]
+  );
 });
 
 test("live cleanup sweep marks receipt-only providers unsupported", async () => {

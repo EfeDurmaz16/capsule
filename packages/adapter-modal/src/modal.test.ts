@@ -97,7 +97,13 @@ describe("modal adapter", () => {
       adapterVersion: "0.1.1",
       terminateWait: false
     });
-    expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create", "sandbox.file.write", "sandbox.file.read", "sandbox.exec", "sandbox.destroy"]);
+    expect(store.receipts.map((receipt) => receipt.type)).toEqual([
+      "sandbox.create",
+      "sandbox.file.write",
+      "sandbox.file.read",
+      "sandbox.exec",
+      "sandbox.destroy"
+    ]);
   });
 
   it("rejects unsupported Modal operations before provider calls", async () => {

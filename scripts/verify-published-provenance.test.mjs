@@ -33,11 +33,7 @@ test("dry-run lists public packages without shelling out to npm", () => {
       version: "1.2.3",
       private: true
     });
-    writeFileSync(
-      join(fakeBinDir, "npm"),
-      "#!/usr/bin/env sh\nprintf 'npm must not be called during dry-run\\n' >&2\nexit 42\n",
-      { mode: 0o755 }
-    );
+    writeFileSync(join(fakeBinDir, "npm"), "#!/usr/bin/env sh\nprintf 'npm must not be called during dry-run\\n' >&2\nexit 42\n", { mode: 0o755 });
 
     const stdout = execFileSync(process.execPath, [scriptPath, "--root", fixtureRoot, "--dry-run"], {
       encoding: "utf8",
@@ -74,9 +70,9 @@ test("real mode checks published dist provenance metadata with npm view", () => 
       join(fakeBinDir, "npm"),
       [
         "#!/usr/bin/env sh",
-        "printf '%s\\n' \"$*\" >> \"$NPM_ARGS_LOG\"",
-        "if [ \"$1\" = \"view\" ]; then",
-        "  printf '%s\\n' '{\"integrity\":\"sha512-test\",\"signatures\":[{\"keyid\":\"SHA256:test\",\"sig\":\"test\"}],\"attestations\":{\"url\":\"https://registry.npmjs.org/-/npm/v1/attestations/@capsule%2fpublic-package@1.2.3\",\"provenance\":{\"predicateType\":\"https://slsa.dev/provenance/v1\"}}}'",
+        'printf \'%s\\n\' "$*" >> "$NPM_ARGS_LOG"',
+        'if [ "$1" = "view" ]; then',
+        '  printf \'%s\\n\' \'{"integrity":"sha512-test","signatures":[{"keyid":"SHA256:test","sig":"test"}],"attestations":{"url":"https://registry.npmjs.org/-/npm/v1/attestations/@capsule%2fpublic-package@1.2.3","provenance":{"predicateType":"https://slsa.dev/provenance/v1"}}}\'',
         "  exit 0",
         "fi",
         "printf 'unexpected npm command\\n' >&2",

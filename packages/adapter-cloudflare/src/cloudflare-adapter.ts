@@ -140,7 +140,9 @@ async function resolveSource(spec: DeployEdgeSpec | VersionEdgeSpec): Promise<st
 
 function assertSupportedBindings(spec: DeployEdgeSpec | VersionEdgeSpec, operation: "deploy" | "version"): void {
   if (spec.bindings && Object.keys(spec.bindings).length > 0) {
-    throw new AdapterExecutionError(`Cloudflare edge.${operation} does not support provider-specific bindings or secret bindings yet. Use env for plain text Worker vars.`);
+    throw new AdapterExecutionError(
+      `Cloudflare edge.${operation} does not support provider-specific bindings or secret bindings yet. Use env for plain text Worker vars.`
+    );
   }
 }
 

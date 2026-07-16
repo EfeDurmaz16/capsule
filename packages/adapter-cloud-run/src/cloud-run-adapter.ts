@@ -125,7 +125,11 @@ function timeout(timeoutMs?: number): string | undefined {
   return timeoutMs === undefined ? undefined : `${Math.ceil(timeoutMs / 1000)}s`;
 }
 
-function labelsWithOperationTag(labels: Record<string, string> | undefined, idempotencyKey: string | undefined, capabilityPath: string): Record<string, string> | undefined {
+function labelsWithOperationTag(
+  labels: Record<string, string> | undefined,
+  idempotencyKey: string | undefined,
+  capabilityPath: string
+): Record<string, string> | undefined {
   const merged = { ...(labels ?? {}), ...(capsuleOperationTags({ idempotencyKey, capabilityPath }) ?? {}) };
   return Object.keys(merged).length > 0 ? merged : undefined;
 }
@@ -215,7 +219,9 @@ function serviceUpdateBody(name: string, spec: UpdateServiceSpec): { body: Recor
   }
 
   if (updateMask.length === 0) {
-    throw new AdapterExecutionError("Cloud Run service.update requires at least one supported change: labels, image, env, resources, ports, healthcheck, or scale.");
+    throw new AdapterExecutionError(
+      "Cloud Run service.update requires at least one supported change: labels, image, env, resources, ports, healthcheck, or scale."
+    );
   }
 
   return { body, updateMask };
@@ -346,11 +352,7 @@ function loggingValue(value: string): string {
   return JSON.stringify(value);
 }
 
-function cloudRunReceiptMetadata(
-  client: CloudRunClient,
-  metadata: Record<string, unknown> = {},
-  apiVersion = providerApiVersion
-): Record<string, unknown> {
+function cloudRunReceiptMetadata(client: CloudRunClient, metadata: Record<string, unknown> = {}, apiVersion = providerApiVersion): Record<string, unknown> {
   return {
     ...providerRuntimeMetadata({
       providerApiVersion: apiVersion,
@@ -362,10 +364,7 @@ function cloudRunReceiptMetadata(
 }
 
 function loggingTimeRange(spec: { since?: string; until?: string }): string[] {
-  return [
-    ...(spec.since ? [`timestamp>=${loggingValue(spec.since)}`] : []),
-    ...(spec.until ? [`timestamp<=${loggingValue(spec.until)}`] : [])
-  ];
+  return [...(spec.since ? [`timestamp>=${loggingValue(spec.since)}`] : []), ...(spec.until ? [`timestamp<=${loggingValue(spec.until)}`] : [])];
 }
 
 function jobLogFilter(client: CloudRunClient, spec: JobLogsSpec): string {
@@ -475,10 +474,7 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
           id: runId,
           provider,
           status,
-          result:
-            status === "succeeded"
-              ? { exitCode: 0, stdout: "", stderr: "", logs: logsFromOutput("", ""), artifacts: [], receipt }
-              : undefined,
+          result: status === "succeeded" ? { exitCode: 0, stdout: "", stderr: "", logs: logsFromOutput("", ""), artifacts: [], receipt } : undefined,
           receipt
         };
       },
@@ -519,7 +515,11 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
                 notes: ["Cloud Run job logs are read through Cloud Logging entries:list."]
               },
               resource: { id: spec.id, name: resourceLeaf(spec.id, "jobs") },
-              metadata: cloudRunReceiptMetadata(client, { filter, resourceNames: [`projects/${client.projectId}`], orderBy: "timestamp desc", pageSize: spec.limit }, loggingApiVersion)
+              metadata: cloudRunReceiptMetadata(
+                client,
+                { filter, resourceNames: [`projects/${client.projectId}`], orderBy: "timestamp desc", pageSize: spec.limit },
+                loggingApiVersion
+              )
             })
           : undefined;
         return { id: spec.id, provider, logs, receipt, metadata: { filter } };
@@ -545,11 +545,7 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
               source: spec.source,
               policy: {
                 ...policy,
-                notes: [
-                  ...policy.notes,
-                  "Cloud Run service deployment is native.",
-                  "This adapter does not change IAM policies or make services public."
-                ]
+                notes: [...policy.notes, "Cloud Run service deployment is native.", "This adapter does not change IAM policies or make services public."]
               },
               resource: { id: spec.name, name: serviceName, status, url },
               metadata: cloudRunReceiptMetadata(client, { operation: operation.name, labels: spec.labels })
@@ -699,7 +695,11 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
                 notes: ["Cloud Run service logs are read through Cloud Logging entries:list."]
               },
               resource: { id: spec.id, name },
-              metadata: cloudRunReceiptMetadata(client, { filter, resourceNames: [`projects/${client.projectId}`], orderBy: "timestamp desc", pageSize: spec.limit }, loggingApiVersion)
+              metadata: cloudRunReceiptMetadata(
+                client,
+                { filter, resourceNames: [`projects/${client.projectId}`], orderBy: "timestamp desc", pageSize: spec.limit },
+                loggingApiVersion
+              )
             })
           : undefined;
         return { id: spec.id, provider, name, logs, receipt, metadata: { filter } };

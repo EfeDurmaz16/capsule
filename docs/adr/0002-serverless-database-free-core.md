@@ -37,4 +37,3 @@ What this loses:
 ## Follow-Up
 
 Future packages may add optional persistence adapters or a hosted control-plane service. Those should consume `CapsuleReceipt` and adapter events from the SDK rather than forcing the SDK to depend on a database.
-

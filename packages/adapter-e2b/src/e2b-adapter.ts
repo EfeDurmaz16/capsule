@@ -206,11 +206,7 @@ function toFileType(type: E2BEntryInfo["type"]): FileEntry["type"] {
   return "unknown";
 }
 
-async function killSandboxAfterFailure(
-  sandbox: E2BSandboxInstance,
-  action: E2BSandboxCleanupMetadata["action"],
-  operationError: unknown
-): Promise<never> {
+async function killSandboxAfterFailure(sandbox: E2BSandboxInstance, action: E2BSandboxCleanupMetadata["action"], operationError: unknown): Promise<never> {
   const cleanup: E2BSandboxCleanupMetadata = {
     action,
     sandboxId: sandbox.sandboxId,

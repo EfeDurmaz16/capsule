@@ -107,7 +107,11 @@ function machineBody(spec: CreateMachineSpec | RunJobSpec, options: FlyAdapterOp
   };
 }
 
-function labelsWithOperationTag(labels: Record<string, string> | undefined, idempotencyKey: string | undefined, capabilityPath: string): Record<string, string> | undefined {
+function labelsWithOperationTag(
+  labels: Record<string, string> | undefined,
+  idempotencyKey: string | undefined,
+  capabilityPath: string
+): Record<string, string> | undefined {
   const merged = { ...(labels ?? {}), ...(capsuleOperationTags({ idempotencyKey, capabilityPath }) ?? {}) };
   return Object.keys(merged).length > 0 ? merged : undefined;
 }
@@ -123,7 +127,18 @@ function flyReceiptMetadata(metadata: Record<string, unknown> | undefined = {}):
   };
 }
 
-function receipt(context: AdapterContext, input: { type: "machine.create" | "machine.status" | "machine.start" | "machine.stop" | "machine.destroy" | "job.run"; path: string; startedAt: Date; id: string; name?: string; status: string; metadata?: Record<string, unknown> }) {
+function receipt(
+  context: AdapterContext,
+  input: {
+    type: "machine.create" | "machine.status" | "machine.start" | "machine.stop" | "machine.destroy" | "job.run";
+    path: string;
+    startedAt: Date;
+    id: string;
+    name?: string;
+    status: string;
+    metadata?: Record<string, unknown>;
+  }
+) {
   return context.receipts
     ? context.createReceipt({
         type: input.type,
@@ -196,21 +211,62 @@ export function fly(options: FlyAdapterOptions = {}): CapsuleAdapter {
           provider,
           name: response.name,
           status,
-          receipt: receipt(context, { type: "machine.status", path: "machine.status", startedAt, id: response.id, name: response.name, status, metadata: { state: response.state, region: response.region ?? options.region } }),
+          receipt: receipt(context, {
+            type: "machine.status",
+            path: "machine.status",
+            startedAt,
+            id: response.id,
+            name: response.name,
+            status,
+            metadata: { state: response.state, region: response.region ?? options.region }
+          }),
           metadata: { state: response.state, region: response.region }
         };
       },
       start: async (spec: StartMachineSpec, context: AdapterContext): Promise<MachineLifecycleResult> => {
         const startedAt = new Date();
-        const response = await getClient().request<FlyMachine>({ method: "POST", path: `/v1/apps/${encodeURIComponent(getApp())}/machines/${encodeURIComponent(spec.id)}/start` });
+        const response = await getClient().request<FlyMachine>({
+          method: "POST",
+          path: `/v1/apps/${encodeURIComponent(getApp())}/machines/${encodeURIComponent(spec.id)}/start`
+        });
         const status = machineStatus(response.state) === "running" ? "running" : "starting";
-        return { id: response.id ?? spec.id, provider, status, receipt: receipt(context, { type: "machine.start", path: "machine.start", startedAt, id: response.id ?? spec.id, status, metadata: { state: response.state, reason: spec.reason } }), metadata: { state: response.state } };
+        return {
+          id: response.id ?? spec.id,
+          provider,
+          status,
+          receipt: receipt(context, {
+            type: "machine.start",
+            path: "machine.start",
+            startedAt,
+            id: response.id ?? spec.id,
+            status,
+            metadata: { state: response.state, reason: spec.reason }
+          }),
+          metadata: { state: response.state }
+        };
       },
       stop: async (spec: StopMachineSpec, context: AdapterContext): Promise<MachineLifecycleResult> => {
         const startedAt = new Date();
-        const response = await getClient().request<FlyMachine>({ method: "POST", path: `/v1/apps/${encodeURIComponent(getApp())}/machines/${encodeURIComponent(spec.id)}/stop`, body: spec.force ? { signal: "SIGKILL" } : undefined });
+        const response = await getClient().request<FlyMachine>({
+          method: "POST",
+          path: `/v1/apps/${encodeURIComponent(getApp())}/machines/${encodeURIComponent(spec.id)}/stop`,
+          body: spec.force ? { signal: "SIGKILL" } : undefined
+        });
         const status = machineStatus(response.state) === "stopped" ? "stopped" : "stopping";
-        return { id: response.id ?? spec.id, provider, status, receipt: receipt(context, { type: "machine.stop", path: "machine.stop", startedAt, id: response.id ?? spec.id, status, metadata: { state: response.state, force: spec.force, reason: spec.reason } }), metadata: { state: response.state } };
+        return {
+          id: response.id ?? spec.id,
+          provider,
+          status,
+          receipt: receipt(context, {
+            type: "machine.stop",
+            path: "machine.stop",
+            startedAt,
+            id: response.id ?? spec.id,
+            status,
+            metadata: { state: response.state, force: spec.force, reason: spec.reason }
+          }),
+          metadata: { state: response.state }
+        };
       },
       destroy: async (spec: DestroyMachineSpec, context: AdapterContext): Promise<MachineLifecycleResult> => {
         const startedAt = new Date();
@@ -219,7 +275,19 @@ export function fly(options: FlyAdapterOptions = {}): CapsuleAdapter {
           path: `/v1/apps/${encodeURIComponent(getApp())}/machines/${encodeURIComponent(spec.id)}`,
           query: spec.force ? { force: true } : undefined
         });
-        return { id: spec.id, provider, status: "deleted", receipt: receipt(context, { type: "machine.destroy", path: "machine.destroy", startedAt, id: spec.id, status: "deleted", metadata: { force: spec.force, reason: spec.reason } }) };
+        return {
+          id: spec.id,
+          provider,
+          status: "deleted",
+          receipt: receipt(context, {
+            type: "machine.destroy",
+            path: "machine.destroy",
+            startedAt,
+            id: spec.id,
+            status: "deleted",
+            metadata: { force: spec.force, reason: spec.reason }
+          })
+        };
       }
     },
     job: {
@@ -252,7 +320,12 @@ export function fly(options: FlyAdapterOptions = {}): CapsuleAdapter {
                   ]
                 },
                 resource: { id: response.id, name: response.name ?? spec.name, status: response.state },
-                metadata: flyReceiptMetadata({ appName: getApp(), region: response.region ?? options.region, autoDestroy: true, ...(spec.labels ? { labels: spec.labels } : {}) })
+                metadata: flyReceiptMetadata({
+                  appName: getApp(),
+                  region: response.region ?? options.region,
+                  autoDestroy: true,
+                  ...(spec.labels ? { labels: spec.labels } : {})
+                })
               })
             : undefined
         };

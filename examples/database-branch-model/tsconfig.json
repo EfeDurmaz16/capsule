@@ -1,1 +1,6 @@
-{"extends":"../../tsconfig.base.json","compilerOptions":{"composite":true,"rootDir":"src","outDir":"dist"},"references":[{"path":"../../packages/core"},{"path":"../../packages/adapter-mock"},{"path":"../../packages/adapter-neon"}],"include":["src"]}
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "composite": true, "rootDir": "src", "outDir": "dist" },
+  "references": [{ "path": "../../packages/core" }, { "path": "../../packages/adapter-mock" }, { "path": "../../packages/adapter-neon" }],
+  "include": ["src"]
+}

@@ -101,12 +101,7 @@ function neonReceiptMetadata(metadata: Record<string, unknown> = {}): Record<str
   };
 }
 
-async function getConnectionString(
-  client: NeonClient,
-  project: string,
-  branchId: string,
-  options: NeonAdapterOptions
-): Promise<string | undefined> {
+async function getConnectionString(client: NeonClient, project: string, branchId: string, options: NeonAdapterOptions): Promise<string | undefined> {
   if (!options.databaseName || !options.roleName) {
     return undefined;
   }
@@ -162,7 +157,9 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
                   applied: context.policy,
                   notes: [
                     "Neon branch creation is native.",
-                    connectionString ? "Connection URI retrieved from Neon API." : "Connection URI not requested; configure databaseName and roleName to retrieve it."
+                    connectionString
+                      ? "Connection URI retrieved from Neon API."
+                      : "Connection URI not requested; configure databaseName and roleName to retrieve it."
                   ]
                 },
                 resource: {
@@ -207,7 +204,9 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
                   applied: context.policy,
                   notes: [
                     "Neon branch deletion is native.",
-                    spec.hardDelete ? "hard_delete requested; branch recovery window is bypassed if Neon account supports it." : "Default Neon delete behavior may allow branch recovery."
+                    spec.hardDelete
+                      ? "hard_delete requested; branch recovery window is bypassed if Neon account supports it."
+                      : "Default Neon delete behavior may allow branch recovery."
                   ]
                 },
                 resource: { id: spec.branchId, status: "deleted" },

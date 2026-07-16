@@ -40,7 +40,15 @@ export interface CapsuleAdapterContractFixture {
   notes: string[];
 }
 
-export const adapterContractFixtureKinds = ["allow", "deny", "unsupported", "partialFailure", "cleanup", "receipt", "liveSkip"] as const satisfies readonly CapsuleAdapterContractFixtureKind[];
+export const adapterContractFixtureKinds = [
+  "allow",
+  "deny",
+  "unsupported",
+  "partialFailure",
+  "cleanup",
+  "receipt",
+  "liveSkip"
+] as const satisfies readonly CapsuleAdapterContractFixtureKind[];
 
 export const adapterContractFixtures: Record<CapsuleAdapterContractFixtureKind, CapsuleAdapterContractFixture> = {
   allow: {

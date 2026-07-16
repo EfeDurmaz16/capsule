@@ -29,9 +29,7 @@ const packageAliases = {
 
 export default defineConfig({
   resolve: {
-    alias: Object.fromEntries(
-      Object.entries(packageAliases).map(([name, path]) => [name, fileURLToPath(new URL(path, import.meta.url))])
-    )
+    alias: Object.fromEntries(Object.entries(packageAliases).map(([name, path]) => [name, fileURLToPath(new URL(path, import.meta.url))]))
   },
   test: {
     include: ["packages/**/*.test.ts", "examples/**/*.test.ts"],

@@ -32,31 +32,15 @@ test("resolves barrel exports into public symbol names", () => {
     });
     writeFileSync(
       join(packageDir, "src", "index.ts"),
-      [
-        'export * from "./policy.js";',
-        'export { renamedValue as publicValue, type InternalOptions as PublicOptions } from "./runtime.js";',
-        ""
-      ].join("\n")
+      ['export * from "./policy.js";', 'export { renamedValue as publicValue, type InternalOptions as PublicOptions } from "./runtime.js";', ""].join("\n")
     );
     writeFileSync(
       join(packageDir, "src", "policy.ts"),
-      [
-        "export interface CapsulePolicy {",
-        "  readonly allow: boolean;",
-        "}",
-        "export const agentSafePolicy = { allow: true };",
-        ""
-      ].join("\n")
+      ["export interface CapsulePolicy {", "  readonly allow: boolean;", "}", "export const agentSafePolicy = { allow: true };", ""].join("\n")
     );
     writeFileSync(
       join(packageDir, "src", "runtime.ts"),
-      [
-        "export interface InternalOptions {",
-        "  readonly name: string;",
-        "}",
-        "export const renamedValue = 1;",
-        ""
-      ].join("\n")
+      ["export interface InternalOptions {", "  readonly name: string;", "}", "export const renamedValue = 1;", ""].join("\n")
     );
 
     execFileSync(process.execPath, [scriptPath, "--root", fixtureRoot], {

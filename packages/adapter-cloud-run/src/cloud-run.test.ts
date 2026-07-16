@@ -294,7 +294,11 @@ describe("cloud-run adapter", () => {
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(url), init: init ?? {} });
       if (String(url).endsWith(":wait")) {
-        return response({ name: "operations/update", done: true, response: { name: serviceName, uri: "https://api.example", latestReadyRevision: `${serviceName}/revisions/api-00003-ghi` } });
+        return response({
+          name: "operations/update",
+          done: true,
+          response: { name: serviceName, uri: "https://api.example", latestReadyRevision: `${serviceName}/revisions/api-00003-ghi` }
+        });
       }
       if (init?.method === "GET") {
         return response({ name: serviceName, uri: "https://api.example", latestReadyRevision: `${serviceName}/revisions/api-00003-ghi` });
@@ -366,9 +370,7 @@ describe("cloud-run adapter", () => {
       adapter: cloudRun({ projectId: "proj", location: "europe-west1", accessToken: "token", fetch: async () => response({}) })
     });
 
-    await expect(capsule.service.update({ id: "api", env: { VERSION: "v2" } })).rejects.toThrow(
-      "requires image when updating container fields"
-    );
+    await expect(capsule.service.update({ id: "api", env: { VERSION: "v2" } })).rejects.toThrow("requires image when updating container fields");
   });
 
   it("allows Cloud Run labels-only service updates", async () => {
@@ -384,10 +386,15 @@ describe("cloud-run adapter", () => {
       adapter: cloudRun({ projectId: "proj", location: "europe-west1", accessToken: "token", fetch: fetchMock })
     });
 
-    await expect(capsule.service.update({ id: "api", labels: { track: "stable" }, idempotencyKey: "cloud-run-update-key" })).resolves.toMatchObject({ status: "ready" });
+    await expect(capsule.service.update({ id: "api", labels: { track: "stable" }, idempotencyKey: "cloud-run-update-key" })).resolves.toMatchObject({
+      status: "ready"
+    });
     const updateUrl = new URL(calls[0]?.url ?? "");
     expect(updateUrl.searchParams.get("updateMask")).toBe("labels");
-    expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({ name: serviceName, labels: { track: "stable", capsule_operation_scope: "service_update" } });
+    expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
+      name: serviceName,
+      labels: { track: "stable", capsule_operation_scope: "service_update" }
+    });
   });
 
   it("rolls back Cloud Run service traffic to an explicit revision", async () => {
@@ -396,8 +403,10 @@ describe("cloud-run adapter", () => {
     const revision = `${serviceName}/revisions/api-00001-abc`;
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(url), init: init ?? {} });
-      if (String(url).endsWith(":wait")) return response({ name: "operations/rollback", done: true, response: { name: serviceName, uri: "https://api.example" } });
-      if (init?.method === "GET") return response({ name: serviceName, uri: "https://api.example", latestReadyRevision: `${serviceName}/revisions/api-00002-def` });
+      if (String(url).endsWith(":wait"))
+        return response({ name: "operations/rollback", done: true, response: { name: serviceName, uri: "https://api.example" } });
+      if (init?.method === "GET")
+        return response({ name: serviceName, uri: "https://api.example", latestReadyRevision: `${serviceName}/revisions/api-00002-def` });
       return response({ name: "operations/rollback", done: false });
     }) as typeof fetch;
     const capsule = new Capsule({

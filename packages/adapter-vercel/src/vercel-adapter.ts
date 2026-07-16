@@ -18,12 +18,7 @@ import {
   type ProviderOptionValue,
   type ReleaseEdgeVersionSpec
 } from "@capsule/core";
-import {
-  VercelClient,
-  type VercelClientOptions,
-  type VercelDeploymentEvent,
-  type VercelRuntimeLog
-} from "./vercel-client.js";
+import { VercelClient, type VercelClientOptions, type VercelDeploymentEvent, type VercelRuntimeLog } from "./vercel-client.js";
 
 export interface VercelAdapterOptions extends VercelClientOptions {
   project?: string;
@@ -131,12 +126,7 @@ function timestamp(ms: number | undefined): string {
 
 function deploymentEventMessage(event: VercelDeploymentEvent): string {
   return (
-    event.payload?.text ??
-    event.payload?.message ??
-    event.payload?.info?.step ??
-    event.payload?.info?.readyState ??
-    event.type ??
-    "Vercel deployment event"
+    event.payload?.text ?? event.payload?.message ?? event.payload?.info?.step ?? event.payload?.info?.readyState ?? event.type ?? "Vercel deployment event"
   );
 }
 
@@ -251,7 +241,11 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
                 ]
               },
               resource: { id: deployment.id, name: deployment.name ?? spec.name, status, url },
-              metadata: vercelReceiptMetadata("v13", { readyState: deployment.readyState, inspectorUrl: deployment.inspectorUrl, target: options.target ?? "preview" })
+              metadata: vercelReceiptMetadata("v13", {
+                readyState: deployment.readyState,
+                inspectorUrl: deployment.inspectorUrl,
+                target: options.target ?? "preview"
+              })
             })
           : undefined;
         return { id: deployment.id, provider, name: deployment.name ?? spec.name, status, url, receipt };
@@ -272,7 +266,11 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
                 notes: ["Vercel deployment status is read from the deployments API."]
               },
               resource: { id: deployment.id, name: deployment.name, status, url },
-              metadata: vercelReceiptMetadata("v13", { readyState: deployment.readyState, inspectorUrl: deployment.inspectorUrl, createdAt: deployment.createdAt })
+              metadata: vercelReceiptMetadata("v13", {
+                readyState: deployment.readyState,
+                inspectorUrl: deployment.inspectorUrl,
+                createdAt: deployment.createdAt
+              })
             })
           : undefined;
         return { id: deployment.id, provider, name: deployment.name, status, url, receipt, metadata: { readyState: deployment.readyState, deployment } };
@@ -297,7 +295,10 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
               policy: {
                 decision: "allowed",
                 applied: context.policy,
-                notes: ["Vercel alias assignment is native and moves the alias from any previous deployment.", "Traffic splits are rejected until Capsule models Vercel canary or split-release semantics explicitly."]
+                notes: [
+                  "Vercel alias assignment is native and moves the alias from any previous deployment.",
+                  "Traffic splits are rejected until Capsule models Vercel canary or split-release semantics explicitly."
+                ]
               },
               resource: { id: result.uid, name: result.alias, status: "ready", url },
               metadata: vercelReceiptMetadata("v2", { deploymentId, oldDeploymentId: result.oldDeploymentId, created: result.created })

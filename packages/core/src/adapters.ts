@@ -71,7 +71,9 @@ export interface AdapterContext {
   policy: CapsulePolicy;
   supportLevel(path: string): import("./types.js").SupportLevel;
   evaluatePolicy(input?: PolicyInput): PolicyDecision;
-  createReceipt(input: Omit<CreateReceiptInput, "provider" | "adapter" | "supportLevel"> & { supportLevel?: import("./types.js").SupportLevel }): CapsuleReceipt;
+  createReceipt(
+    input: Omit<CreateReceiptInput, "provider" | "adapter" | "supportLevel"> & { supportLevel?: import("./types.js").SupportLevel }
+  ): CapsuleReceipt;
 }
 
 export interface SandboxAdapter {

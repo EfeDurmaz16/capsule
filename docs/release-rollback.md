@@ -14,12 +14,12 @@ Capsule should prefer transparent repair over history rewriting. Most release fa
 
 ## Severity
 
-| Severity | Use when | Default action |
-| --- | --- | --- |
-| S0 | Secret leak, malicious package contents, destructive provider behavior, or false security/evidence claim. | Stop release train, rotate any affected credentials, deprecate immediately, publish fixed versions, and open a security advisory path. |
-| S1 | Install failure, broken exports, broken CLI binary, wrong package files, or failed imports. | Deprecate affected versions and publish patch versions. |
-| S2 | Runtime bug in one adapter, docs mismatch, metadata issue, or missing non-critical file. | Publish patch versions or document workaround, depending on blast radius. |
-| S3 | Cosmetic README/package metadata typo with no runtime impact. | Fix in next patch release unless the typo misleads users. |
+| Severity | Use when                                                                                                  | Default action                                                                                                                         |
+| -------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| S0       | Secret leak, malicious package contents, destructive provider behavior, or false security/evidence claim. | Stop release train, rotate any affected credentials, deprecate immediately, publish fixed versions, and open a security advisory path. |
+| S1       | Install failure, broken exports, broken CLI binary, wrong package files, or failed imports.               | Deprecate affected versions and publish patch versions.                                                                                |
+| S2       | Runtime bug in one adapter, docs mismatch, metadata issue, or missing non-critical file.                  | Publish patch versions or document workaround, depending on blast radius.                                                              |
+| S3       | Cosmetic README/package metadata typo with no runtime impact.                                             | Fix in next patch release unless the typo misleads users.                                                                              |
 
 ## Commands
 

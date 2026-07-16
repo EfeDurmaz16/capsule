@@ -30,7 +30,10 @@ function key(provider: string, service: string): string {
 }
 
 function normalize(value: string): string {
-  return value.trim().toLowerCase().replace(/[_\s]+/g, "-");
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
 }
 
 const classifications: ProviderServiceClassification[] = [
@@ -110,7 +113,9 @@ const classifications: ProviderServiceClassification[] = [
     domains: ["database", "resource"],
     likelyCapabilities: ["database.connectionString", "database.migrate"],
     notCapabilities: ["machine.create", "service.deploy"],
-    notes: ["Supabase spans database, auth, storage, and edge functions. A Capsule adapter should split domains instead of flattening Supabase into one primitive."]
+    notes: [
+      "Supabase spans database, auth, storage, and edge functions. A Capsule adapter should split domains instead of flattening Supabase into one primitive."
+    ]
   },
   {
     provider: "railway",

@@ -14,23 +14,23 @@ This is not a hosted product. It has no bundled server, dashboard, auth layer, b
 
 ## Original Requirement Map
 
-| Requirement area | Status | Evidence |
-| --- | --- | --- |
-| TypeScript, ESM, strict mode, pnpm workspace | Shipped | Root `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, package `type: module`, `tsc -b` verification. |
-| Core package with domain types, Capsule facade, capabilities, errors, policy, receipts, logs, artifacts, adapters, contracts | Shipped | `packages/core`; API reference generated in `docs/api-reference.md`. |
-| Sandbox, job, service, edge, database, preview, machine domain APIs | Shipped as SDK contracts and facades | `@capsule/core` and package API docs. |
-| Capability negotiation and support levels | Shipped | `supports`, `supportLevel`, capability maps, contract tests, provider matrix. |
-| Policy model, secret denial, timeout merging, redaction, receipt policy decisions | Shipped | Core policy implementation, tests, docs. |
-| Receipt model with SHA-256 hashes and future signing shape | Shipped | Core receipts, JSON schema export, optional signing interface. |
-| Docker adapter using Docker CLI | Shipped | `@capsule/adapter-docker`, Docker live tests skipped when Docker is unavailable. |
-| Mock adapters | Shipped for tests/examples only | `@capsule/adapter-mock`, README and provider matrix clearly mark mock scope. |
-| Real provider adapters beyond Docker | Shipped for original provider families | E2B, Daytona, Modal, Cloud Run, Cloudflare, Vercel, Neon, Kubernetes, Lambda, ECS, EC2, Fly, Azure Container Apps packages exist and are verified by build/tests. |
-| AI package | Shipped | `@capsule/ai` with framework-agnostic code execution helper. |
-| CLI package | Shipped | `@capsule/cli` with doctor, capabilities, Docker run/sandbox, provider diagnostics, lifecycle commands. |
-| Examples | Shipped | Ten examples under `examples/`, with mock defaults and env-gated real adapters where applicable. |
-| Serious docs | Shipped | README plus architecture, taxonomy, domain, security, comparison, provider, roadmap, contributing, and ADR docs. |
-| Tests | Shipped | 24 test files: 21 passed, 3 skipped; 131 tests total, 123 passed and 8 skipped locally. |
-| Release workflow | Shipped | Changesets, npm provenance workflow, package publish audit, export-map audit. |
+| Requirement area                                                                                                             | Status                                 | Evidence                                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript, ESM, strict mode, pnpm workspace                                                                                 | Shipped                                | Root `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, package `type: module`, `tsc -b` verification.                                                  |
+| Core package with domain types, Capsule facade, capabilities, errors, policy, receipts, logs, artifacts, adapters, contracts | Shipped                                | `packages/core`; API reference generated in `docs/api-reference.md`.                                                                                              |
+| Sandbox, job, service, edge, database, preview, machine domain APIs                                                          | Shipped as SDK contracts and facades   | `@capsule/core` and package API docs.                                                                                                                             |
+| Capability negotiation and support levels                                                                                    | Shipped                                | `supports`, `supportLevel`, capability maps, contract tests, provider matrix.                                                                                     |
+| Policy model, secret denial, timeout merging, redaction, receipt policy decisions                                            | Shipped                                | Core policy implementation, tests, docs.                                                                                                                          |
+| Receipt model with SHA-256 hashes and future signing shape                                                                   | Shipped                                | Core receipts, JSON schema export, optional signing interface.                                                                                                    |
+| Docker adapter using Docker CLI                                                                                              | Shipped                                | `@capsule/adapter-docker`, Docker live tests skipped when Docker is unavailable.                                                                                  |
+| Mock adapters                                                                                                                | Shipped for tests/examples only        | `@capsule/adapter-mock`, README and provider matrix clearly mark mock scope.                                                                                      |
+| Real provider adapters beyond Docker                                                                                         | Shipped for original provider families | E2B, Daytona, Modal, Cloud Run, Cloudflare, Vercel, Neon, Kubernetes, Lambda, ECS, EC2, Fly, Azure Container Apps packages exist and are verified by build/tests. |
+| AI package                                                                                                                   | Shipped                                | `@capsule/ai` with framework-agnostic code execution helper.                                                                                                      |
+| CLI package                                                                                                                  | Shipped                                | `@capsule/cli` with doctor, capabilities, Docker run/sandbox, provider diagnostics, lifecycle commands.                                                           |
+| Examples                                                                                                                     | Shipped                                | Ten examples under `examples/`, with mock defaults and env-gated real adapters where applicable.                                                                  |
+| Serious docs                                                                                                                 | Shipped                                | README plus architecture, taxonomy, domain, security, comparison, provider, roadmap, contributing, and ADR docs.                                                  |
+| Tests                                                                                                                        | Shipped                                | 24 test files: 21 passed, 3 skipped; 131 tests total, 123 passed and 8 skipped locally.                                                                           |
+| Release workflow                                                                                                             | Shipped                                | Changesets, npm provenance workflow, package publish audit, export-map audit.                                                                                     |
 
 ## What Is Real
 

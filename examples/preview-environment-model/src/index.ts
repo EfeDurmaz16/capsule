@@ -209,11 +209,7 @@ export function buildRuntimeConfig(env: Env = process.env): RuntimeConfig {
     plan: livePlan(env, receiptPath),
     receiptPath,
     missingLiveCredentials: [],
-    liveProviders: [
-      "neon",
-      "vercel",
-      ...(hasAll(env, ["GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_RUN_LOCATION", "GOOGLE_OAUTH_ACCESS_TOKEN"]) ? ["cloud-run"] : [])
-    ]
+    liveProviders: ["neon", "vercel", ...(hasAll(env, ["GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_RUN_LOCATION", "GOOGLE_OAUTH_ACCESS_TOKEN"]) ? ["cloud-run"] : [])]
   };
 }
 
@@ -253,7 +249,13 @@ export async function run(env: Env = process.env): Promise<void> {
   printReceipts("create receipts", graph.receipts);
 
   const cleanup = await cleanupPreviewEnvironment(graph.preview, graph.resources);
-  console.log(JSON.stringify({ cleanup: { previewId: cleanup.previewId, status: cleanup.status, cleaned: cleanup.cleaned.length, failed: cleanup.failed.length } }, null, 2));
+  console.log(
+    JSON.stringify(
+      { cleanup: { previewId: cleanup.previewId, status: cleanup.status, cleaned: cleanup.cleaned.length, failed: cleanup.failed.length } },
+      null,
+      2
+    )
+  );
   printReceipts("cleanup receipts", cleanup.receipts);
 }
 

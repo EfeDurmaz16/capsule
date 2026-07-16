@@ -31,5 +31,11 @@ export function capsuleOperationTags(input: CapsuleOperationTagInput): Record<st
 }
 
 function normalizeOperationScope(scope: string): string {
-  return scope.toLowerCase().replace(/[^a-z0-9_-]/g, "_").replace(/^[^a-z0-9]+/, "").slice(0, 63) || "operation";
+  return (
+    scope
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, "_")
+      .replace(/^[^a-z0-9]+/, "")
+      .slice(0, 63) || "operation"
+  );
 }

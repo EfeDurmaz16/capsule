@@ -301,8 +301,7 @@ export function flyVercelNeonPreviewPreset(options: ProviderPreviewPresetOptions
     notes: ["Runs a preview verification job; timeout, logs, artifacts, and cancellation support remain adapter-specific."]
   }));
   const policy =
-    options.policy ??
-    agentSafePolicy({ network: { mode: "allowlist", allowedHosts: ["*.fly.dev", "*.vercel.app", "*.neon.tech"] }, timeoutMs: 300_000 });
+    options.policy ?? agentSafePolicy({ network: { mode: "allowlist", allowedHosts: ["*.fly.dev", "*.vercel.app", "*.neon.tech"] }, timeoutMs: 300_000 });
   validatePolicyCompatibility(policy);
 
   return {

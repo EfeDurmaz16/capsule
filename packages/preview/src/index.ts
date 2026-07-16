@@ -241,7 +241,11 @@ const previewResourceCapabilities: Record<PreviewResourceKind, { create: Capabil
 };
 
 export function createPreviewId(name: string): string {
-  const safeName = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "preview";
+  const safeName =
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "preview";
   return `preview_${safeName}_${Date.now().toString(36)}`;
 }
 
@@ -326,10 +330,7 @@ export function validatePreviewPlanCapabilities(plan: PreviewPlan): PreviewCapab
   };
 }
 
-export function createPreviewDryRunReceiptBundle(
-  plan: PreviewPlan,
-  options: CreatePreviewDryRunReceiptBundleOptions = {}
-): PreviewDryRunReceiptBundle {
+export function createPreviewDryRunReceiptBundle(plan: PreviewPlan, options: CreatePreviewDryRunReceiptBundleOptions = {}): PreviewDryRunReceiptBundle {
   const startedAt = options.startedAt ?? new Date();
   const compiledPlan = compilePreviewPlan(plan);
   const validation = validatePreviewPlanCapabilities(plan);
@@ -386,10 +387,7 @@ export function createPreviewDryRunReceiptBundle(
             "Preview dry run receipt was generated without creating provider resources.",
             "Capability checks describe declared adapter support, not provider-side deployment success."
           ]
-        : [
-            "Preview dry run was denied because at least one required capability is unsupported.",
-            "No provider resources were created."
-          ]
+        : ["Preview dry run was denied because at least one required capability is unsupported.", "No provider resources were created."]
     }
   });
 
@@ -448,7 +446,10 @@ function assertRealProviders(plan: PreviewPlan): void {
   const entries = resourceGroups(plan);
   for (const entry of entries) {
     if (isMockCapsule(entry.capsule)) {
-      throw new MockProviderNotAllowedError(String((entry.capsule.raw() as { provider?: unknown } | undefined)?.provider ?? "unknown"), entry.capsule.adapterName());
+      throw new MockProviderNotAllowedError(
+        String((entry.capsule.raw() as { provider?: unknown } | undefined)?.provider ?? "unknown"),
+        entry.capsule.adapterName()
+      );
     }
   }
 }
@@ -777,7 +778,9 @@ export async function cleanupPreviewEnvironment(
     }
     try {
       let receipt: CapsuleReceipt | undefined;
-      const cleanupAction = cleanupPlan.actions.find((action) => action.resourceId === resource.id && action.capabilityPath === resource.cleanup?.capabilityPath);
+      const cleanupAction = cleanupPlan.actions.find(
+        (action) => action.resourceId === resource.id && action.capabilityPath === resource.cleanup?.capabilityPath
+      );
       const cleanupSpec = cleanupAction?.spec ?? resource.cleanup.spec;
       if (resource.cleanup.kind === "database") {
         const result = await resource.cleanup.capsule.database.branch.delete(cleanupSpec as { project: string; branchId: string; hardDelete?: boolean });

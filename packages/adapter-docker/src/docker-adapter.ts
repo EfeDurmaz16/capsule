@@ -117,10 +117,7 @@ function envArgs(env?: Record<string, string>): string[] {
 }
 
 function resourceArgs(resources?: { cpu?: number; memoryMb?: number }): string[] {
-  return [
-    ...(resources?.memoryMb ? ["--memory", `${resources.memoryMb}m`] : []),
-    ...(resources?.cpu ? ["--cpus", String(resources.cpu)] : [])
-  ];
+  return [...(resources?.memoryMb ? ["--memory", `${resources.memoryMb}m`] : []), ...(resources?.cpu ? ["--cpus", String(resources.cpu)] : [])];
 }
 
 function labelArgs(labels?: Record<string, string>): string[] {
@@ -183,16 +180,10 @@ class DockerSandbox implements Sandbox {
     const startedAt = new Date();
     const policy = this.context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
     const command = normalizeCommand(spec.command);
-    const result = await runDocker(
-      [
-        "exec",
-        ...(spec.cwd ? ["--workdir", spec.cwd] : []),
-        ...envArgs(spec.env),
-        this.handle.id,
-        ...command
-      ],
-      { timeoutMs: spec.timeoutMs, input: spec.input }
-    );
+    const result = await runDocker(["exec", ...(spec.cwd ? ["--workdir", spec.cwd] : []), ...envArgs(spec.env), this.handle.id, ...command], {
+      timeoutMs: spec.timeoutMs,
+      input: spec.input
+    });
     const stdout = redactSecrets(result.stdout, spec.env, this.context.policy);
     const stderr = redactSecrets(result.stderr, spec.env, this.context.policy);
     const receipt = this.context.receipts

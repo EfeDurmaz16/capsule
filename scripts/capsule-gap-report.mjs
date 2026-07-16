@@ -24,12 +24,14 @@ const adapterDefinitions = [
   {
     displayName: "Daytona",
     packageDir: "adapter-daytona",
-    notes: "Sandbox create, exec, file read/write/list, and delete are implemented through the Daytona SDK; job and preview wrappers are unsupported until implemented."
+    notes:
+      "Sandbox create, exec, file read/write/list, and delete are implemented through the Daytona SDK; job and preview wrappers are unsupported until implemented."
   },
   {
     displayName: "Modal",
     packageDir: "adapter-modal",
-    notes: "Sandbox create, exec, file read/write, and terminate are implemented through the Modal JS SDK; file listing and broader function/service workflows are unsupported."
+    notes:
+      "Sandbox create, exec, file read/write, and terminate are implemented through the Modal JS SDK; file listing and broader function/service workflows are unsupported."
   },
   {
     displayName: "Cloud Run",
@@ -68,7 +70,8 @@ const adapterDefinitions = [
   {
     displayName: "ECS/Fargate",
     packageDir: "adapter-ecs",
-    notes: "RunTask and CreateService are implemented for existing task definitions; task-definition registration, previews, and load balancers are future work."
+    notes:
+      "RunTask and CreateService are implemented for existing task definitions; task-definition registration, previews, and load balancers are future work."
   },
   {
     displayName: "EC2",
@@ -78,7 +81,8 @@ const adapterDefinitions = [
   {
     displayName: "Fly Machines",
     packageDir: "adapter-fly",
-    notes: "Fly Machines API supports machine create/status/start/stop/destroy and one-shot job machines; services, logs, volumes, and app networking remain explicit future work."
+    notes:
+      "Fly Machines API supports machine create/status/start/stop/destroy and one-shot job machines; services, logs, volumes, and app networking remain explicit future work."
   },
   {
     displayName: "Azure Container Apps",

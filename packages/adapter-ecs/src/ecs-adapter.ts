@@ -37,13 +37,7 @@ import {
 interface ECSClientLike {
   send(
     command:
-      | RunTaskCommand
-      | CreateServiceCommand
-      | DescribeTasksCommand
-      | StopTaskCommand
-      | DescribeServicesCommand
-      | UpdateServiceCommand
-      | DeleteServiceCommand
+      RunTaskCommand | CreateServiceCommand | DescribeTasksCommand | StopTaskCommand | DescribeServicesCommand | UpdateServiceCommand | DeleteServiceCommand
   ): Promise<any>;
 }
 
@@ -322,7 +316,10 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
           id: task?.taskArn ?? options.taskDefinition,
           provider,
           status,
-          result: status === "failed" ? { exitCode: 1, stdout: "", stderr: JSON.stringify(response.failures ?? []), logs: logsFromOutput("", ""), artifacts: [], receipt } : undefined,
+          result:
+            status === "failed"
+              ? { exitCode: 1, stdout: "", stderr: JSON.stringify(response.failures ?? []), logs: logsFromOutput("", ""), artifacts: [], receipt }
+              : undefined,
           receipt
         };
       },

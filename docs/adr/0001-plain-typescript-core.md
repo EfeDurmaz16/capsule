@@ -36,4 +36,3 @@ What this loses:
 ## Follow-Up
 
 Capsule can still add optional integration packages later, such as `@capsule/effect`, if a real use case needs typed resources or workflow composition. That package should wrap the stable core contract instead of replacing it.
-

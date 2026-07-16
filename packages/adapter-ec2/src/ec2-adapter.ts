@@ -1,4 +1,11 @@
-import { DescribeInstancesCommand, EC2Client, RunInstancesCommand, StartInstancesCommand, StopInstancesCommand, TerminateInstancesCommand } from "@aws-sdk/client-ec2";
+import {
+  DescribeInstancesCommand,
+  EC2Client,
+  RunInstancesCommand,
+  StartInstancesCommand,
+  StopInstancesCommand,
+  TerminateInstancesCommand
+} from "@aws-sdk/client-ec2";
 import {
   AdapterExecutionError,
   capsuleOperationTags,
@@ -102,7 +109,10 @@ function tags(name: string, labels?: Record<string, string>, idempotencyKey?: st
       Tags: [
         { Key: "Name", Value: name },
         { Key: "ManagedBy", Value: "capsule" },
-        ...Object.entries({ ...(labels ?? {}), ...(capsuleOperationTags({ idempotencyKey, capabilityPath: "machine.create" }) ?? {}) }).map(([Key, Value]) => ({ Key, Value }))
+        ...Object.entries({ ...(labels ?? {}), ...(capsuleOperationTags({ idempotencyKey, capabilityPath: "machine.create" }) ?? {}) }).map(([Key, Value]) => ({
+          Key,
+          Value
+        }))
       ]
     }
   ];
@@ -237,7 +247,14 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
           state: status,
           metadata: { awsState: stateName, region: options.region }
         });
-        return { id: spec.id, provider, name: instance?.Tags?.find((tag: any) => tag.Key === "Name")?.Value, status, receipt, metadata: { awsState: stateName } };
+        return {
+          id: spec.id,
+          provider,
+          name: instance?.Tags?.find((tag: any) => tag.Key === "Name")?.Value,
+          status,
+          receipt,
+          metadata: { awsState: stateName }
+        };
       },
       start: async (spec: StartMachineSpec, context: AdapterContext): Promise<MachineLifecycleResult> => {
         const startedAt = new Date();

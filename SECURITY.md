@@ -22,4 +22,3 @@ Security-relevant areas include:
 ## Expectations
 
 Adapters must describe whether enforcement is native, delegated, emulated, best-effort, experimental, or unsupported. Docker local execution should not be presented as safe for hostile untrusted code without additional host hardening.
-

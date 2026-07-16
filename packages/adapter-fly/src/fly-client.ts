@@ -48,7 +48,12 @@ export class FlyClient {
     const text = await response.text();
     const data = text ? JSON.parse(text) : undefined;
     if (!response.ok) {
-      const message = typeof data?.error === "string" ? data.error : typeof data?.message === "string" ? data.message : `Fly API request failed with status ${response.status}`;
+      const message =
+        typeof data?.error === "string"
+          ? data.error
+          : typeof data?.message === "string"
+            ? data.message
+            : `Fly API request failed with status ${response.status}`;
       const providerError = classifyProviderError({ status: response.status, headers: response.headers, error: data });
       throw providerExecutionError(message, providerError, {
         status: response.status,

@@ -331,11 +331,18 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
         const resources = [
           ...(spec.services ?? []).map((service) => ({ type: "service" as const, id: id(`${provider}_service`, service.name), provider, name: service.name })),
           ...(spec.edges ?? []).map((edge) => ({ type: "edge" as const, id: id(`${provider}_edge`, edge.name), provider, name: edge.name })),
-          ...(spec.databases ?? []).map((database) => ({ type: "database" as const, id: id(`${provider}_database`, database.name), provider, name: database.name })),
+          ...(spec.databases ?? []).map((database) => ({
+            type: "database" as const,
+            id: id(`${provider}_database`, database.name),
+            provider,
+            name: database.name
+          })),
           ...(spec.jobs ?? []).map((job) => ({ type: "job" as const, id: id(`${provider}_job`, job.name), provider, name: job.name }))
         ];
         const urls = [
-          ...resources.filter((resource) => resource.type === "service" || resource.type === "edge").map((resource) => `https://${resource.name}.${provider}.preview.mock.capsule.dev`)
+          ...resources
+            .filter((resource) => resource.type === "service" || resource.type === "edge")
+            .map((resource) => `https://${resource.name}.${provider}.preview.mock.capsule.dev`)
         ];
         const receipt = context.receipts
           ? context.createReceipt({
@@ -454,7 +461,10 @@ export function createMockAdapter(options: MockAdapterOptions): CapsuleAdapter {
               capabilityPath: "machine.create",
               startedAt,
               image: spec.image,
-              policy: { ...policy, notes: [...policy.notes, ...receiptNotes(name), "Machine primitives are lower-level and intentionally leak provider details."] },
+              policy: {
+                ...policy,
+                notes: [...policy.notes, ...receiptNotes(name), "Machine primitives are lower-level and intentionally leak provider details."]
+              },
               resource: { id: machineId, name: spec.name, status: "running" },
               metadata: mockReceiptMetadata({ region: spec.region, size: spec.size })
             })

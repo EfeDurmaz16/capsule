@@ -1,9 +1,4 @@
-import {
-  providerCompatibilityScore,
-  type CapabilityRequirement,
-  type CapabilityRequirementInput,
-  type ProviderCompatibilityScore
-} from "./capabilities.js";
+import { providerCompatibilityScore, type CapabilityRequirement, type CapabilityRequirementInput, type ProviderCompatibilityScore } from "./capabilities.js";
 import type { CapabilityMap } from "./types.js";
 
 export const providerSelectionRecipeIds = ["sandbox", "agent-code-execution", "preview-web-db", "edge-web", "service-api", "machine"] as const;
@@ -71,7 +66,16 @@ export const providerSelectionRecipes: Readonly<Record<ProviderSelectionRecipeId
     title: "Service API",
     description: "Long-running HTTP service deployment with status and URL discovery.",
     required: required(["service.deploy", "service.status", "service.url"]),
-    optional: optional(["service.update", "service.delete", "service.logs", "service.scale", "service.rollback", "service.domains", "service.healthcheck", "service.secrets"])
+    optional: optional([
+      "service.update",
+      "service.delete",
+      "service.logs",
+      "service.scale",
+      "service.rollback",
+      "service.domains",
+      "service.healthcheck",
+      "service.secrets"
+    ])
   },
   machine: {
     id: "machine",
@@ -94,7 +98,10 @@ export function providerSelectionRequirements(recipe: ProviderSelectionRecipe): 
   return [...recipe.required, ...recipe.optional];
 }
 
-export function rankProvidersByRecipe(candidates: ProviderSelectionCandidate[], recipeOrId: ProviderSelectionRecipeId | ProviderSelectionRecipe): ProviderSelectionResult[] {
+export function rankProvidersByRecipe(
+  candidates: ProviderSelectionCandidate[],
+  recipeOrId: ProviderSelectionRecipeId | ProviderSelectionRecipe
+): ProviderSelectionResult[] {
   const recipe = typeof recipeOrId === "string" ? getProviderSelectionRecipe(recipeOrId) : recipeOrId;
   const requirements = providerSelectionRequirements(recipe);
 

@@ -51,7 +51,13 @@ export const liveTestMatrixPlans = [
   {
     provider: "cloudflare",
     testPath: "packages/adapter-cloudflare/src/cloudflare.live.test.ts",
-    requiredEnv: ["CAPSULE_LIVE_TESTS", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CAPSULE_CLOUDFLARE_WORKER_NAME", "CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION"],
+    requiredEnv: [
+      "CAPSULE_LIVE_TESTS",
+      "CLOUDFLARE_API_TOKEN",
+      "CLOUDFLARE_ACCOUNT_ID",
+      "CAPSULE_CLOUDFLARE_WORKER_NAME",
+      "CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION"
+    ],
     optionalEnv: ["CLOUDFLARE_COMPATIBILITY_DATE"],
     aliases: {
       CLOUDFLARE_API_TOKEN: ["CAPSULE_WORKER_API_TOKEN", "CLOUDFLARE_WORKERS_FREE_API_TOKEN"],
@@ -80,7 +86,8 @@ export const liveTestMatrixPlans = [
     aliases: { NEON_PROJECT_ID: ["CAPSULE_POSTGRES_PROJECT_ID"] },
     costRisk: "billable",
     costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
-    command: 'NEON_PROJECT_ID="${NEON_PROJECT_ID:-$CAPSULE_POSTGRES_PROJECT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-neon/src/neon.live.test.ts',
+    command:
+      'NEON_PROJECT_ID="${NEON_PROJECT_ID:-$CAPSULE_POSTGRES_PROJECT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-neon/src/neon.live.test.ts',
     notes: ["Creates a Neon branch and hard-deletes it in finally. Project-scoped Postgres aliases can satisfy NEON_PROJECT_ID."]
   },
   {

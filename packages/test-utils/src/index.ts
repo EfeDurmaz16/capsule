@@ -229,7 +229,13 @@ export function liveTestGate(requirement: LiveProviderRequirement): LiveTestGate
 
 export function providerLiveTestGate(
   provider: keyof typeof liveProviderCredentials,
-  options: { env?: LiveTestEnv; credentials?: readonly string[]; costRisk?: LiveProviderCostRisk; maxResourceCount?: number; quarantine?: LiveTestQuarantine } = {}
+  options: {
+    env?: LiveTestEnv;
+    credentials?: readonly string[];
+    costRisk?: LiveProviderCostRisk;
+    maxResourceCount?: number;
+    quarantine?: LiveTestQuarantine;
+  } = {}
 ): LiveTestGate {
   return liveTestGate({
     provider,
