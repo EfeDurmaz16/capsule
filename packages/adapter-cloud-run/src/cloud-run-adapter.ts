@@ -1,5 +1,6 @@
 import {
   AdapterExecutionError,
+  providerErrorStatus,
   capsuleOperationTags,
   logsFromOutput,
   providerRuntimeMetadata,
@@ -432,7 +433,7 @@ async function fetchLogs(
   return redactLogEntries(normalizeLogEntries(response.entries), redactionEnv, context.policy);
 }
 
-export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
+export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
   const getClient = () => new CloudRunClient(options);
   return {
     name: adapter,
@@ -657,10 +658,19 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
         const startedAt = new Date();
         const client = getClient();
         const name = serviceName(client, spec.id);
-        const operation = await client.deleteService(name);
-        const waited = await client.waitOperation(operation);
-        if (waited.error) {
-          throw new AdapterExecutionError("Cloud Run service deletion failed.", { operation: waited });
+        let alreadyAbsent = false;
+        let waited: Awaited<ReturnType<typeof client.waitOperation>> | undefined;
+        try {
+          const operation = await client.deleteService(name);
+          waited = await client.waitOperation(operation);
+          if (waited.error) {
+            throw new AdapterExecutionError("Cloud Run service deletion failed.", { operation: waited });
+          }
+        } catch (error) {
+          if (providerErrorStatus(error) !== 404) {
+            throw error;
+          }
+          alreadyAbsent = true;
         }
         const receipt = context.receipts
           ? context.createReceipt({
@@ -670,10 +680,13 @@ export function cloudRun(options: CloudRunAdapterOptions): CapsuleAdapter {
               policy: {
                 decision: "allowed",
                 applied: context.policy,
-                notes: ["Cloud Run service deletion is native through the Admin API."]
+                notes: [
+                  "Cloud Run service deletion is native through the Admin API.",
+                  ...(alreadyAbsent ? ["Service was already absent; delete treated as idempotent success."] : [])
+                ]
               },
               resource: { id: spec.id, name, status: "deleted" },
-              metadata: cloudRunReceiptMetadata(client, { operation: waited.name, operationResource: waited })
+              metadata: cloudRunReceiptMetadata(client, { operation: waited?.name, operationResource: waited })
             })
           : undefined;
         return { id: spec.id, provider, name, status: "deleted", receipt };

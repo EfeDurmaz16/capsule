@@ -101,6 +101,15 @@ describe("neon adapter", () => {
     expect(calls[0]?.url).toContain("hard_delete=true");
   });
 
+  test("treats deleting an already-absent branch as idempotent success", async () => {
+    const fetchMock = (async () => response({ message: "branch not found" }, 404)) as typeof fetch;
+    const capsule = new Capsule({ adapter: neon({ apiKey: "test", fetch: fetchMock }), receipts: true });
+    const deleted = await capsule.database.branch.delete({ project: "project-1", branchId: "br_gone", hardDelete: true });
+
+    expect(deleted.status).toBe("deleted");
+    expect(deleted.receipt?.policy?.notes).toContain("Branch was already absent; delete treated as idempotent success.");
+  });
+
   test("resets a branch from a source branch", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {

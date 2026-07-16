@@ -3,6 +3,7 @@ import {
   AdapterExecutionError,
   type CapsuleAdapter,
   type CapabilityMap,
+  providerErrorStatus,
   providerRuntimeMetadata,
   type CreateDatabaseBranchSpec,
   type DatabaseBranch,
@@ -189,11 +190,19 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
         delete: async (spec: DeleteDatabaseBranchSpec, context: AdapterContext): Promise<DeletedDatabaseBranch> => {
           const client = getClient();
           const startedAt = new Date();
-          await client.request<unknown>({
-            method: "DELETE",
-            path: `/projects/${encodeURIComponent(spec.project)}/branches/${encodeURIComponent(spec.branchId)}`,
-            query: { hard_delete: spec.hardDelete }
-          });
+          let alreadyAbsent = false;
+          try {
+            await client.request<unknown>({
+              method: "DELETE",
+              path: `/projects/${encodeURIComponent(spec.project)}/branches/${encodeURIComponent(spec.branchId)}`,
+              query: { hard_delete: spec.hardDelete }
+            });
+          } catch (error) {
+            if (providerErrorStatus(error) !== 404) {
+              throw error;
+            }
+            alreadyAbsent = true;
+          }
           const receipt = context.receipts
             ? context.createReceipt({
                 type: "database.branch.delete",
@@ -206,7 +215,8 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
                     "Neon branch deletion is native.",
                     spec.hardDelete
                       ? "hard_delete requested; branch recovery window is bypassed if Neon account supports it."
-                      : "Default Neon delete behavior may allow branch recovery."
+                      : "Default Neon delete behavior may allow branch recovery.",
+                    ...(alreadyAbsent ? ["Branch was already absent; delete treated as idempotent success."] : [])
                   ]
                 },
                 resource: { id: spec.branchId, status: "deleted" },

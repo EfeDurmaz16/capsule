@@ -526,6 +526,19 @@ describe("cloud-run adapter", () => {
     expect(calls[1]).toMatchObject({ url: expect.stringContaining("/v2/operations/delete:wait"), init: { method: "POST" } });
   });
 
+  it("treats deleting an already-absent service as idempotent success", async () => {
+    const fetchMock = (async () => response({ error: { message: "service not found" } }, 404)) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: cloudRun({ projectId: "proj", location: "europe-west1", accessToken: "token", fetch: fetchMock }),
+      receipts: true
+    });
+
+    const deleted = await capsule.service.delete({ id: "gone" });
+
+    expect(deleted.status).toBe("deleted");
+    expect(deleted.receipt?.policy?.notes).toContain("Service was already absent; delete treated as idempotent success.");
+  });
+
   it("requires project and location only when used", async () => {
     const capsule = new Capsule({ adapter: cloudRun({ projectId: "", location: "", accessToken: "token" }) });
     await expect(capsule.job.run({ image: "image" })).rejects.toThrow("Cloud Run adapter requires projectId");
