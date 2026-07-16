@@ -26,8 +26,14 @@ Cleanup evidence is explicit. Every resource gets a cleanup disposition:
 
 - `cleaned`: Capsule invoked a cleanup action and the provider receipt reported deletion or did not expose a conflicting status.
 - `partial`: Capsule invoked cleanup, but the provider receipt did not confirm a deleted terminal state.
-- `unsupported`: the resource has no cleanup action in the current preview graph.
+- `unsupported`: the resource has no cleanup action in the current preview graph. Edge and job resources are unsupported by design because Capsule does not register a delete action for them.
 - `leaked`: Capsule attempted cleanup and the provider operation failed, so the resource may still exist.
+
+The cleanup result also carries an overall `status` derived from those dispositions:
+
+- `cleaned`: every disposition is `cleaned`.
+- `unsupported`: nothing failed, but at least one resource was left behind because its kind has no cleanup action by design (edge, job). This is not a failure.
+- `partial`: at least one disposition is `partial` or `leaked`, meaning a real cleanup failure occurred.
 
 `createPreviewEnvironmentWithCleanup(...)` attempts cleanup when creation fails after earlier resources were provisioned. The cleanup result includes underlying provider receipts plus an orchestration-level `preview.cleanup` receipt from `@capsule/preview`. That receipt summarizes the cleanup status and per-resource dispositions. Provider receipts remain the strongest evidence for what happened at each provider; preview orchestration does not claim provider-native preview support unless an adapter exposes it.
 
@@ -63,7 +69,7 @@ Each resource entry has an `adapter`, optional adapter `options`, and a domain s
 
 The cleanup file uses schema `capsule.preview.cleanup.v1`. It stores the preview identity, resource graph, cleanup capability path, adapter name, adapter options, and cleanup spec. It does not serialize `Capsule` instances or provider clients, and database connection strings are not written into the cleanup plan.
 
-`preview destroy` rebuilds the required Capsule instances from the recorded cleanup actions, walks the resource graph in reverse order through `@capsule/preview`, prints cleanup dispositions, and exits non-zero for partial cleanup.
+`preview destroy` rebuilds the required Capsule instances from the recorded cleanup actions, walks the resource graph in reverse order through `@capsule/preview`, and prints cleanup dispositions plus a summary that counts `cleaned`, `partial`, `failed`, `unsupported`, and `leaked` resources. It exits non-zero only for a real failure (overall status `partial`). A run whose only leftovers are by-design-unsupported kinds (edge, job) reports status `unsupported` and exits 0; the dispositions explain what was left behind and why.
 
 ## Example
 

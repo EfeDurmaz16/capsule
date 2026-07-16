@@ -170,7 +170,7 @@ export interface PreviewPlan {
 
 export interface PreviewCleanupResult {
   previewId: string;
-  status: "cleaned" | "partial";
+  status: "cleaned" | "unsupported" | "partial";
   cleaned: PreviewResourceRecord[];
   failed: Array<{
     resource: PreviewResourceRecord;
@@ -470,6 +470,19 @@ function dispositionFromReceipt(receipt: CapsuleReceipt | undefined): PreviewCle
     return "cleaned";
   }
   return receipt.resource.status === "deleted" ? "cleaned" : "partial";
+}
+
+// Resource kinds without a cleanup action by design (edge, job) resolve to an "unsupported"
+// disposition. Those must not fail the run, so status is "unsupported" (exit 0) unless a real
+// failure (leaked or partial) is present, which stays "partial" (exit 1).
+function previewCleanupStatus(dispositions: PreviewCleanupDispositionRecord[]): PreviewCleanupResult["status"] {
+  if (dispositions.some((entry) => entry.disposition === "leaked" || entry.disposition === "partial")) {
+    return "partial";
+  }
+  if (dispositions.some((entry) => entry.disposition === "unsupported")) {
+    return "unsupported";
+  }
+  return "cleaned";
 }
 
 export function createPreviewCleanupPlan(
@@ -806,7 +819,7 @@ export async function cleanupPreviewEnvironment(
     }
   }
 
-  const status = dispositions.every((entry) => entry.disposition === "cleaned") ? "cleaned" : "partial";
+  const status = previewCleanupStatus(dispositions);
   const receipt = createCleanupReceipt(preview, status, dispositions, startedAt, cleanupPlan);
   return {
     previewId: preview.id,

@@ -50,9 +50,14 @@ The CLI can verify a JSONL receipt store without executing provider actions:
 
 ```bash
 capsule receipt verify --receipt-file .capsule/receipts.jsonl
+capsule receipt verify --receipt-file .capsule/receipts.jsonl --public-key ./capsule-receipts.pub --require-signature
 ```
 
-The CLI report includes store readability, receipt counts, schema errors, signature status, and redaction findings. Redaction findings name the unsafe field path and do not echo the unsafe value.
+Pass `--public-key <path-or-value>` to authenticate signatures. The value is either a path to an ed25519 public key in PEM (SPKI) form or an inline PEM string. The CLI builds a `ReceiptVerifier` compatible with `verifyReceipt`, so a receipt whose signature does not verify against that key reports `invalid` and fails the run.
+
+`--require-signature` fails any receipt that is not backed by a verified signature. Without `--public-key`, a receipt that merely carries a signature object reports `present-unverified`; under `--require-signature` that is a failure, because presence is not proof. Pass `--allow-unverified-signatures` to explicitly downgrade `--require-signature` to a presence-only check when no public key is available.
+
+The CLI report includes store readability, receipt counts, schema errors, signature status, and redaction findings. Redaction findings name the unsafe field path and do not echo the unsafe value. An empty but readable store adds a `receipts: 0` note and stays exit 0, except under `--require-signature`, where verifying nothing is a failure.
 
 Evidence bundles are explicit exports above individual receipts. `createEvidenceBundle` collects receipts, normalized logs, artifact metadata, policy decisions, and provider metadata into a `capsule.evidence.bundle.v1` object and adds a SHA-256 digest over the canonical bundle payload. `verifyEvidenceBundle` recomputes that digest to detect local bundle tampering. Bundle verification does not replace receipt signature verification or provider-native audit evidence.
 
