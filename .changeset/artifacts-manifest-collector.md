@@ -1,0 +1,6 @@
+---
+"@capsule/core": minor
+"@capsule/adapter-docker": patch
+---
+
+Add the artifact evidence surface. `verifyArtifactHash(artifact, content)` recomputes a file's sha256 and reports a structured result, treating a missing claimed hash as unverifiable rather than trusted. `createArtifactManifest(artifacts)` produces a versioned `capsule.artifact.manifest.v1` manifest whose sha256 digest is taken over the canonical (key-sorted, undefined-dropped) payload, with `verifyArtifactManifest` for tamper detection; the digest is stable under key order and covers `createdAt` and every entry. `collectFileArtifacts(dir, options?)` walks a directory with `node:fs`, hashes each regular file into an `Artifact`, never follows symlinks, emits deterministic sorted output, and bounds the walk with `maxFiles` (default 1000) and `maxBytes` (default 64 MiB), returning explicit truncation info. `ExecSpec` gains an optional `artifactPaths?: string[]`. The Docker adapter now honors it: `sandbox.exec` copies the requested container paths out with `docker cp` and hashes them via the collector, returning them on `ExecResult.artifacts` and the receipt's `artifactHashes`. `job.run` still returns no artifacts because `docker run --rm` removes the container before collection; this stays documented in the capability map and docs/artifacts.md.

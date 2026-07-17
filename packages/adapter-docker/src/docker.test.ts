@@ -1,5 +1,8 @@
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { beforeAll, describe, expect, test } from "vitest";
-import { AdapterExecutionError, Capsule, MemoryReceiptStore, ProviderRetryableError, ProviderValidationError, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, MemoryReceiptStore, ProviderRetryableError, ProviderValidationError, runAdapterContract, sha256 } from "@capsule/core";
+import type { DockerCommandResult, RunDockerOptions } from "./docker-cli.js";
 import { liveTest, liveTestGate, type LiveTestGate } from "@capsule/test-utils";
 import { classifyDockerCliError, docker, dockerAvailable, runDocker } from "./index.js";
 import { dockerSandboxCreateArgs } from "./docker-adapter.js";
@@ -114,6 +117,47 @@ describe("docker adapter", () => {
       { timestamp: expect.any(String), stream: "stdout", message: "line two", source: containerId },
       { timestamp: expect.any(String), stream: "stderr", message: "boom", source: containerId }
     ]);
+  });
+
+  test("collects sandbox exec artifacts from the live container via docker cp", async () => {
+    const runner = async (args: string[], _options?: RunDockerOptions): Promise<DockerCommandResult> => {
+      if (args[0] === "create") {
+        return { exitCode: 0, stdout: "container-artifacts", stderr: "" };
+      }
+      if (args[0] === "cp") {
+        // args: ["cp", "<id>:<path>", <destDir>]; simulate docker copying the file out.
+        writeFileSync(join(args[2]!, "out.txt"), "artifact body");
+        return dockerResult(0);
+      }
+      return dockerResult(0);
+    };
+    const capsule = new Capsule({ adapter: docker({ checkAvailable: async () => true, runner }), receipts: true });
+    const sandbox = await capsule.sandbox.create({ image: "node:22", name: "capsule-artifacts" });
+    const exec = await sandbox.exec({ command: ["true"], artifactPaths: ["/workspace/out.txt"] });
+
+    expect(exec.artifacts).toEqual([{ name: "out.txt", path: "out.txt", sizeBytes: 13, sha256: sha256("artifact body") }]);
+    expect(exec.receipt?.artifactHashes).toEqual([sha256("artifact body")]);
+  });
+
+  test("returns no artifacts when sandbox exec does not request any", async () => {
+    const capsule = new Capsule({ adapter: docker({ checkAvailable: async () => true, runner: async () => dockerResult(0) }), receipts: true });
+    const sandbox = await capsule.sandbox.create({ image: "node:22", name: "capsule-no-artifacts" });
+    const exec = await sandbox.exec({ command: ["true"] });
+    expect(exec.artifacts).toEqual([]);
+  });
+
+  test("surfaces a docker cp artifact failure as a provider error", async () => {
+    const runner = async (args: string[]): Promise<DockerCommandResult> =>
+      args[0] === "cp" ? dockerResult(1, "Error: No such container:path") : args[0] === "create" ? { exitCode: 0, stdout: "id", stderr: "" } : dockerResult(0);
+    const capsule = new Capsule({ adapter: docker({ checkAvailable: async () => true, runner }) });
+    const sandbox = await capsule.sandbox.create({ image: "node:22", name: "capsule-artifacts-fail" });
+    await expect(sandbox.exec({ command: ["true"], artifactPaths: ["/workspace/missing.txt"] })).rejects.toThrow("docker cp artifact failed");
+  });
+
+  test("job.run returns no artifacts because --rm removes the container before collection", async () => {
+    const capsule = new Capsule({ adapter: docker({ checkAvailable: async () => true, runner: async () => dockerResult(0) }), receipts: true });
+    const run = await capsule.job.run({ image: "node:22", command: ["true"] });
+    expect(run.result?.artifacts).toEqual([]);
   });
 
   test("declares Docker capabilities", () => {
