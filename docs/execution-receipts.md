@@ -44,6 +44,8 @@ Receipts created through Capsule's adapter context are operation-scoped. Capsule
 
 Receipts prove what Capsule observed. They do not prove absolute provider truth or complete runtime isolation.
 
+Captured logs follow the same observational rule (ADR 0004): a receipt's `logs` are a best-effort bounded snapshot of what the adapter read at that moment, not a complete or guaranteed transcript of the run. See [log normalization](log-normalization.md) for the per-provider bounds.
+
 Receipt signing is optional and disabled by default. `@capsule/core` exposes a small synchronous `ReceiptSigner` interface that receives the unsigned receipt plus a canonical JSON payload and returns a signature value plus algorithm/key metadata. The canonical payload sorts object keys, omits undefined values, and excludes the `signature` field. `canonicalReceiptPayload`, `unsignedReceipt`, and `verifyReceiptSignature` are exported so tests, CI systems, or future FIDES-style integrations can attach and verify deterministic signatures without adding a crypto dependency to core.
 
 Signatures cover Capsule's unsigned receipt object before the `signature` field is attached. They are not provider attestations unless the caller's signer explicitly binds provider evidence.
