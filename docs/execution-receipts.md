@@ -5,6 +5,8 @@ Receipts record runtime actions across sandboxes, jobs, services, edge deploymen
 The schema includes:
 
 - receipt id
+- `schemaVersion`: the receipt schema version, stamped as `capsule.receipt.v1` by `createReceipt`. It is optional so receipts written before versioning stay valid.
+- `parentId`: optional id of a parent receipt, so chained operations can record receipt lineage.
 - action type
 - provider and adapter
 - capability path and support level
@@ -12,7 +14,7 @@ The schema includes:
 - start, finish, and duration
 - exit code
 - SHA-256 hashes of stdout, stderr, and artifacts
-- policy decision, applied policy, and notes
+- policy decision, applied policy, and notes, plus the decision `enforcement` mode and `trace`, and the `cost`, `ttl`, and `network` diagnostics when the policy declares them (see the Policy Model)
 - resource id, name, URL, and status
 - metadata
 - optional signature fields
@@ -27,6 +29,8 @@ Receipt metadata uses these common provider fields when an adapter can observe t
 - `idempotencyKey`: opaque idempotency key supplied to or observed from the provider request when the adapter can safely record it. Callers should generate non-secret keys and avoid embedding user data or credentials.
 - `idempotencyScope`: provider-specific operation or resource scope where the idempotency key applies, such as `job.run` or a provider resource path.
 - `operationTag`: deterministic non-secret hash derived from `idempotencyKey` plus scope. Adapters use this tag for provider labels/tags where those channels already exist, avoiding raw caller idempotency keys in provider-visible metadata.
+- `sourceResourceId`: resource id this operation derived from, when the receipt records lineage from a source resource such as a branch created from a project.
+- `parentResourceId`: resource id that owns or precedes the resource in this receipt, when the receipt records resource lineage.
 
 Mutating operation specs accept `idempotencyKey`. Capsule attaches that key to receipts created through the operation-scoped adapter context, using the capability path as the default `idempotencyScope`, and derives `operationTag` for non-secret provider correlation. If an adapter also supplies idempotency metadata, the caller-provided operation key remains authoritative and other provider metadata is preserved.
 

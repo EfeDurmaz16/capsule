@@ -24,7 +24,7 @@ export interface CapsuleAdapterContractOptions {
   failureScenarios?: CapsuleAdapterFailureScenario[];
 }
 
-export type CapsuleAdapterContractFixtureKind = "allow" | "deny" | "unsupported" | "partialFailure" | "cleanup" | "receipt" | "liveSkip";
+export type CapsuleAdapterContractFixtureKind = "allow" | "deny" | "unsupported" | "partialFailure" | "cleanup" | "receipt" | "liveSkip" | "logs" | "lifecycle";
 
 export interface CapsuleAdapterContractFixture {
   kind: CapsuleAdapterContractFixtureKind;
@@ -47,7 +47,9 @@ export const adapterContractFixtureKinds = [
   "partialFailure",
   "cleanup",
   "receipt",
-  "liveSkip"
+  "liveSkip",
+  "logs",
+  "lifecycle"
 ] as const satisfies readonly CapsuleAdapterContractFixtureKind[];
 
 export const adapterContractFixtures: Record<CapsuleAdapterContractFixtureKind, CapsuleAdapterContractFixture> = {
@@ -105,6 +107,23 @@ export const adapterContractFixtures: Record<CapsuleAdapterContractFixtureKind, 
     env: {},
     skipReasonIncludes: "CAPSULE_LIVE_TESTS=1",
     notes: ["Use this fixture to prove live tests skip by default unless explicitly enabled."]
+  },
+  logs: {
+    kind: "logs",
+    name: "job logs read",
+    capabilityPath: "job.logs",
+    spec: { id: "capsule-contract-test" },
+    expectedReceiptTypes: ["job.logs"],
+    notes: ["Use this fixture to prove log retrieval reports the adapter streaming support level honestly instead of faking output."]
+  },
+  lifecycle: {
+    kind: "lifecycle",
+    name: "resource lifecycle sequence",
+    capabilityPath: "sandbox.create",
+    spec: { image: "node:22" },
+    cleanup: { action: "destroy-resource", status: "destroyed" },
+    expectedReceiptTypes: ["sandbox.create", "sandbox.destroy"],
+    notes: ["Use this fixture to prove create, status, and destroy lifecycle transitions are exercised end to end and produce receipts."]
   }
 };
 

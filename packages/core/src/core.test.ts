@@ -26,7 +26,8 @@ import {
   providerExecutionError
 } from "./errors.js";
 import { capsuleOperationTag, capsuleOperationTags } from "./idempotency.js";
-import { evaluatePolicy, explainPolicy, mergeTimeout, redactError, redactLogEntries, redactSecrets } from "./policy.js";
+import { evaluatePolicy, explainPolicy, mergePolicy, mergeTimeout, redactError, redactLogEntries, redactSecrets } from "./policy.js";
+import { redactionFixtureObject, redactionFixtureTokens } from "./redaction-fixtures.js";
 import {
   agentSafePolicy,
   ciJobPreset,
@@ -41,7 +42,14 @@ import {
   validatePresetAgainstPolicy
 } from "./presets.js";
 import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
-import { canonicalReceiptPayload, createReceipt, providerRuntimeMetadata, verifyReceipt, verifyReceiptSignature } from "./receipts.js";
+import {
+  CAPSULE_RECEIPT_SCHEMA_VERSION,
+  canonicalReceiptPayload,
+  createReceipt,
+  providerRuntimeMetadata,
+  verifyReceipt,
+  verifyReceiptSignature
+} from "./receipts.js";
 import { MemoryReceiptStore } from "./stores.js";
 import { adapterContractFixtureKinds, adapterContractFixtures, assertAdapterContract, runCapsuleAdapterContract } from "./contract.js";
 import type { CapsuleAdapter, CapabilityMap } from "./index.js";
@@ -424,7 +432,7 @@ describe("capabilities", () => {
   });
 
   test("contract exposes reusable fixtures for adapter author scenarios", () => {
-    expect(adapterContractFixtureKinds).toEqual(["allow", "deny", "unsupported", "partialFailure", "cleanup", "receipt", "liveSkip"]);
+    expect(adapterContractFixtureKinds).toEqual(["allow", "deny", "unsupported", "partialFailure", "cleanup", "receipt", "liveSkip", "logs", "lifecycle"]);
     expect(adapterContractFixtures.allow).toMatchObject({
       kind: "allow",
       capabilityPath: "job.run",
@@ -456,6 +464,17 @@ describe("capabilities", () => {
       kind: "liveSkip",
       skipReasonIncludes: "CAPSULE_LIVE_TESTS=1"
     });
+    expect(adapterContractFixtures.logs).toMatchObject({
+      kind: "logs",
+      capabilityPath: "job.logs",
+      expectedReceiptTypes: ["job.logs"]
+    });
+    expect(adapterContractFixtures.lifecycle).toMatchObject({
+      kind: "lifecycle",
+      capabilityPath: "sandbox.create",
+      expectedReceiptTypes: ["sandbox.create", "sandbox.destroy"]
+    });
+    expect(adapterContractFixtures.lifecycle.cleanup).toMatchObject({ action: "destroy-resource", status: "destroyed" });
   });
 
   test("contract rejects declared preview lifecycle support without implementation", () => {
@@ -670,6 +689,110 @@ describe("policy", () => {
       "Cost policy is a control-plane constraint; provider billing enforcement is not guaranteed by Capsule.",
       "TTL policy is a control-plane cleanup constraint; cleanup depends on adapter/provider lifecycle support."
     ]);
+  });
+
+  test("derives enforcement mode conservatively from adapter support level", () => {
+    expect(evaluatePolicy({}, {}).enforcement).toBe("delegated");
+    expect(evaluatePolicy({}, { capabilityPath: "job.run", supportLevel: "native" }).enforcement).toBe("native");
+    expect(evaluatePolicy({}, { capabilityPath: "job.run", supportLevel: "emulated" }).enforcement).toBe("delegated");
+    expect(evaluatePolicy({}, { capabilityPath: "job.run", supportLevel: "unsupported" }).enforcement).toBe("unsupported");
+    expect(evaluatePolicy({}, { enforcement: "advisory" }).enforcement).toBe("advisory");
+  });
+
+  test("records a policy evaluation trace alongside notes", () => {
+    const decision = evaluatePolicy(
+      { network: { mode: "none" }, secrets: { allowed: ["SECRET"] } },
+      { env: { SECRET: "value" }, capabilityPath: "sandbox.exec", supportLevel: "native" }
+    );
+    expect(decision.trace).toEqual([
+      { check: "network", verdict: "noted" },
+      { check: "support-level", verdict: "noted" },
+      { check: "secrets", verdict: "passed" }
+    ]);
+  });
+
+  test("surfaces a denied trace entry for denied decisions", () => {
+    expect(explainPolicy({ approvals: { required: true, reason: "production cleanup" } }, {}).trace).toEqual([
+      { check: "production cleanup", verdict: "denied" }
+    ]);
+  });
+
+  test("builds a cost decision object when the policy declares a cost limit", () => {
+    expect(evaluatePolicy({ cost: { maxUsd: 5 } }, { costUsd: 3 }).cost).toEqual({ requestedUsd: 3, limitUsd: 5, withinLimit: true });
+    expect(evaluatePolicy({ cost: { maxUsd: 5 } }, { costUsd: 8 }).cost).toEqual({ requestedUsd: 8, limitUsd: 5, withinLimit: false });
+    expect(evaluatePolicy({ cost: { maxUsd: 5 } }, {}).cost).toEqual({ limitUsd: 5, withinLimit: true });
+    expect(evaluatePolicy({}, {}).cost).toBeUndefined();
+  });
+
+  test("builds a ttl decision object when the policy declares a ttl limit", () => {
+    expect(evaluatePolicy({ ttl: { maxMs: 60_000 } }, { ttlMs: 30_000 }).ttl).toEqual({ requestedMs: 30_000, limitMs: 60_000, withinLimit: true });
+    expect(evaluatePolicy({ ttl: { maxMs: 60_000 } }, {}).ttl).toEqual({ limitMs: 60_000, withinLimit: true });
+    expect(evaluatePolicy({}, {}).ttl).toBeUndefined();
+  });
+
+  test("reports network allowlist diagnostics with adapter support level", () => {
+    expect(
+      evaluatePolicy({ network: { mode: "allowlist", allowedHosts: ["api.example.com", "cdn.example.com"] } }, { networkPolicySupport: "emulated" }).network
+    ).toEqual({
+      mode: "allowlist",
+      support: "emulated",
+      hosts: [
+        { host: "api.example.com", allowed: true },
+        { host: "cdn.example.com", allowed: true }
+      ]
+    });
+    expect(evaluatePolicy({ network: { mode: "none", allowedHosts: ["api.example.com"] } }, {}).network).toEqual({
+      mode: "none",
+      support: "unknown",
+      hosts: [{ host: "api.example.com", allowed: false }]
+    });
+  });
+
+  test("merges policies toward the stricter side per field", () => {
+    const merged = mergePolicy(
+      {
+        network: { mode: "allowlist", allowedHosts: ["a.com", "b.com"] },
+        secrets: { allowed: ["A", "B"], redactionProfile: "standard", redactKeys: ["x"] },
+        limits: { timeoutMs: 2000, memoryMb: 512 },
+        cost: { maxUsd: 10 },
+        ttl: { maxMs: 60_000 },
+        filesystem: { read: ["/a", "/b"] }
+      },
+      {
+        network: { mode: "none", allowedHosts: ["b.com", "c.com"] },
+        secrets: { allowed: ["B", "C"], redactFromLogs: true, redactionProfile: "strict", redactKeys: ["y"] },
+        limits: { timeoutMs: 1000 },
+        cost: { maxUsd: 5 },
+        ttl: { maxMs: 30_000 },
+        filesystem: { read: ["/b", "/c"] }
+      }
+    );
+    expect(merged).toEqual({
+      network: { mode: "none", allowedHosts: ["b.com"] },
+      secrets: { allowed: ["B"], redactFromLogs: true, redactionProfile: "strict", redactKeys: ["x", "y"] },
+      limits: { timeoutMs: 1000, memoryMb: 512 },
+      cost: { maxUsd: 5 },
+      ttl: { maxMs: 30_000 },
+      filesystem: { read: ["/b"] }
+    });
+  });
+
+  test("mergePolicy keeps a single declared side and ORs approvals toward safety", () => {
+    expect(mergePolicy({ limits: { timeoutMs: 1000 } }, {})).toEqual({ limits: { timeoutMs: 1000 } });
+    expect(mergePolicy({}, { approvals: { required: true, reason: "override" } }).approvals).toEqual({ required: true, reason: "override" });
+    expect(mergePolicy({ approvals: { required: true } }, { approvals: {} }).approvals).toEqual({ required: true });
+  });
+
+  test("redaction fixtures are redacted on the default profile", () => {
+    for (const fixture of redactionFixtureTokens) {
+      expect(redactSecrets(fixture.value, undefined, {})).toContain("[REDACTED]");
+    }
+    const redacted = redactError(redactionFixtureObject, undefined, {}) as typeof redactionFixtureObject;
+    expect(redacted.safe).toBe(redactionFixtureObject.safe);
+    expect(redacted.apiKey).toBe("[REDACTED]");
+    expect(redacted.authorization).toBe("[REDACTED]");
+    expect(redacted.nested.password).toBe("[REDACTED]");
+    expect(redacted.nested.token).toBe("[REDACTED]");
   });
 
   test("redacts exact secret values from output repeatedly", () => {
@@ -1052,6 +1175,64 @@ describe("receipts", () => {
     expect(receipt.policy.decision).toBe("allowed");
     expect(receipt.durationMs).toBe(1000);
     expect(receipt.signature).toBeUndefined();
+  });
+
+  test("stamps the receipt schema version", () => {
+    const receipt = createReceipt({
+      type: "job.run",
+      provider: "test",
+      adapter: "test",
+      capabilityPath: "job.run",
+      supportLevel: "native",
+      startedAt: new Date("2026-01-01T00:00:00.000Z"),
+      finishedAt: new Date("2026-01-01T00:00:00.500Z")
+    });
+    expect(receipt.schemaVersion).toBe(CAPSULE_RECEIPT_SCHEMA_VERSION);
+    expect(receipt.schemaVersion).toBe("capsule.receipt.v1");
+  });
+
+  test("threads a parent receipt id for chained receipts", () => {
+    const receipt = createReceipt({
+      type: "job.run",
+      parentId: "receipt-parent-123",
+      provider: "test",
+      adapter: "test",
+      capabilityPath: "job.run",
+      supportLevel: "native",
+      startedAt: new Date("2026-01-01T00:00:00.000Z"),
+      finishedAt: new Date("2026-01-01T00:00:00.500Z")
+    });
+    expect(receipt.parentId).toBe("receipt-parent-123");
+  });
+
+  test("surfaces the policy enforcement mode in the receipt policy section", () => {
+    const decision = evaluatePolicy({}, { capabilityPath: "job.run", supportLevel: "native" });
+    const receipt = createReceipt({
+      type: "job.run",
+      provider: "test",
+      adapter: "test",
+      capabilityPath: "job.run",
+      supportLevel: "native",
+      startedAt: new Date("2026-01-01T00:00:00.000Z"),
+      finishedAt: new Date("2026-01-01T00:00:00.500Z"),
+      policy: decision
+    });
+    expect(receipt.policy.enforcement).toBe("native");
+    expect(receipt.policy.trace).toEqual([{ check: "support-level", verdict: "noted" }]);
+  });
+
+  test("records resource lineage metadata when supplied", () => {
+    const receipt = createReceipt({
+      type: "database.branch.create",
+      provider: "test",
+      adapter: "test",
+      capabilityPath: "database.branchCreate",
+      supportLevel: "native",
+      startedAt: new Date("2026-01-01T00:00:00.000Z"),
+      finishedAt: new Date("2026-01-01T00:00:00.500Z"),
+      metadata: { sourceResourceId: "branch-main", parentResourceId: "project-app" }
+    });
+    expect(receipt.metadata).toMatchObject({ sourceResourceId: "branch-main", parentResourceId: "project-app" });
   });
 
   test("optionally signs receipts with a provided signer", () => {
@@ -1877,7 +2058,15 @@ describe("receipts", () => {
       adapterVersion: { type: "string" },
       idempotencyKey: { type: "string" },
       idempotencyScope: { type: "string" },
-      operationTag: { type: "string" }
+      operationTag: { type: "string" },
+      sourceResourceId: { type: "string" },
+      parentResourceId: { type: "string" }
+    });
+    expect(capsuleReceiptJsonSchema.properties.schemaVersion).toEqual({ type: "string", const: "capsule.receipt.v1" });
+    expect(capsuleReceiptJsonSchema.properties.parentId).toEqual({ type: "string" });
+    expect(capsuleReceiptJsonSchema.properties.policy.properties.enforcement).toEqual({
+      type: "string",
+      enum: ["native", "delegated", "advisory", "unsupported"]
     });
     expect(validateAgainstSimpleSchema(capsuleReceiptJsonSchema, JSON.parse(JSON.stringify(receipt)))).toEqual([]);
   });

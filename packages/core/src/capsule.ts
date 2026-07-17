@@ -608,7 +608,8 @@ export class Capsule {
     return evaluatePolicy(this.options.policy, {
       ...input,
       capabilityPath: path,
-      supportLevel: input.supportLevel ?? supportLevel(this.options.adapter.capabilities, path)
+      supportLevel: input.supportLevel ?? supportLevel(this.options.adapter.capabilities, path),
+      networkPolicySupport: input.networkPolicySupport ?? this.options.adapter.capabilities.sandbox?.networkPolicy
     });
   }
 
@@ -823,6 +824,7 @@ export class Capsule {
           capabilityPath,
           supportLevel:
             input.supportLevel ?? options.supportLevel ?? (capabilityPath ? supportLevel(adapter.capabilities, capabilityPath as CapabilityPath) : undefined),
+          networkPolicySupport: input.networkPolicySupport ?? adapter.capabilities.sandbox?.networkPolicy,
           resource: input.resource ?? options.resource
         });
       },

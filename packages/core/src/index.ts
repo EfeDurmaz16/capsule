@@ -11,6 +11,7 @@ export * from "./policy.js";
 export * from "./presets.js";
 export * from "./provider-classifier.js";
 export * from "./provider-selection.js";
+export * from "./redaction-fixtures.js";
 export * from "./receipts.js";
 export * from "./receipt-schema.js";
 export * from "./stores.js";
