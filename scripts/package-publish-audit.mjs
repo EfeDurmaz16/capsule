@@ -97,8 +97,8 @@ function auditPackage(packageDir) {
     errors.push(`${pkg.name}: description must be a useful string.`);
   }
 
-  if (pkg.license !== "Apache-2.0") {
-    errors.push(`${pkg.name}: license must be Apache-2.0.`);
+  if (pkg.license !== "MIT") {
+    errors.push(`${pkg.name}: license must be MIT.`);
   }
 
   if (pkg.repository?.type !== "git" || typeof pkg.repository?.url !== "string" || typeof pkg.repository?.directory !== "string") {

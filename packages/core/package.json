@@ -25,7 +25,7 @@
     "dist"
   ],
   "description": "Domain-aware TypeScript contracts, policies, capabilities, receipts, and facade APIs for Capsule runtime adapters.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EfeDurmaz16/capsule.git",

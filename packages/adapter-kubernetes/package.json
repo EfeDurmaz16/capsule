@@ -30,7 +30,7 @@
     "dist"
   ],
   "description": "Kubernetes adapter for Capsule jobs, services, and machine-adjacent primitives.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EfeDurmaz16/capsule.git",

@@ -2354,7 +2354,7 @@ export function createAdapterScaffoldPlan(options: { provider: string; domains: 
           publishConfig: { access: "public" },
           files: ["dist"],
           description: `Capsule adapter scaffold for ${segment}.`,
-          license: "Apache-2.0",
+          license: "MIT",
           engines: { node: ">=22" }
         },
         null,

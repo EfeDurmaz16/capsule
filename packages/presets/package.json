@@ -29,7 +29,7 @@
     "dist"
   ],
   "description": "Provider-oriented preset factories for Capsule runtime and preview environment specs.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EfeDurmaz16/capsule.git",

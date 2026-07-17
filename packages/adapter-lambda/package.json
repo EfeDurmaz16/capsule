@@ -30,7 +30,7 @@
     "dist"
   ],
   "description": "AWS Lambda adapter for Capsule function and job-style execution.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EfeDurmaz16/capsule.git",

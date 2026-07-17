@@ -30,7 +30,7 @@
     "dist"
   ],
   "description": "Fly Machines adapter for Capsule job and service runtime primitives.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EfeDurmaz16/capsule.git",

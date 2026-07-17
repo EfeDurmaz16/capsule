@@ -49,7 +49,7 @@
     "dist"
   ],
   "description": "Command-line interface for inspecting Capsule capabilities and running provider-backed jobs.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EfeDurmaz16/capsule.git",

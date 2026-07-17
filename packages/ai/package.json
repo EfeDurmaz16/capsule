@@ -28,7 +28,7 @@
     "dist"
   ],
   "description": "Framework-agnostic AI code execution helper built on Capsule sandboxes.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EfeDurmaz16/capsule.git",

@@ -18,7 +18,7 @@ function validPackageJson(overrides = {}) {
     version: "1.2.3",
     type: "module",
     description: "Capsule fixture package for publish metadata tests.",
-    license: "Apache-2.0",
+    license: "MIT",
     repository: {
       type: "git",
       url: "https://github.com/capsule/runtime.git",
@@ -101,7 +101,7 @@ test("dry-run rejects missing metadata, private publish access, and dist test ar
       join(packageDir, "package.json"),
       validPackageJson({
         description: "too short",
-        license: "MIT",
+        license: "Apache-2.0",
         publishConfig: {
           access: "restricted"
         }
@@ -118,7 +118,7 @@ test("dry-run rejects missing metadata, private publish access, and dist test ar
     assert.equal(result.status, 1);
     assert.match(result.stderr, /Package publish audit failed:/);
     assert.match(result.stderr, /description must be a useful string/);
-    assert.match(result.stderr, /license must be Apache-2\.0/);
+    assert.match(result.stderr, /license must be MIT/);
     assert.match(result.stderr, /publishConfig\.access must be public/);
     assert.match(result.stderr, /publishable dist contains test artifact dist\/index\.test\.js/);
   } finally {

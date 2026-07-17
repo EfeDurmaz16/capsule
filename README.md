@@ -176,7 +176,7 @@ Which domains actually work on which provider. Support levels are declared by ea
 | Fly Machines         | `@capsule/adapter-fly`                  | unsupported | native      | unsupported | unsupported | unsupported | unsupported | native      |
 | Azure Container Apps | `@capsule/adapter-azure-container-apps` | unsupported | native      | native      | unsupported | unsupported | unsupported | unsupported |
 
-Every adapter above is a real SDK- or API-backed integration. `@capsule/adapter-mock` additionally models these providers with fake objects and receipts for tests and examples. The `preview` column is empty because previews are composed from the other domains by `@capsule/preview` rather than provided natively; see [preview environments](docs/preview-environments.md). Remaining per-provider gaps are listed in the [gap register](docs/real-provider-gap-register.md).
+Every adapter above is a real SDK- or API-backed integration. `@capsule/adapter-mock` additionally models eleven of them (E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2) with fake objects and receipts for tests and examples. Every provider's `Preview` column reads `unsupported` because previews are composed from the other domains by `@capsule/preview` rather than provided natively; see [preview environments](docs/preview-environments.md). Remaining per-provider gaps are listed in the [gap register](docs/real-provider-gap-register.md).
 
 ### Domain Coverage by Provider
 
