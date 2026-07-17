@@ -375,6 +375,7 @@ Exports:
 - `createReceipt` (function)
 - `CreateReceiptInput` (interface)
 - `CreateSandboxSpec` (interface)
+- `credentialTokenPatternSource` (const)
 - `DatabaseAdapter` (interface)
 - `DatabaseBranch` (interface)
 - `DatabaseBranchAdapter` (interface)
