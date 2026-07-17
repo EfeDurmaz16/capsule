@@ -7,6 +7,8 @@ export const capsuleReceiptJsonSchema = {
   required: ["id", "type", "provider", "adapter", "capabilityPath", "supportLevel", "startedAt", "finishedAt", "durationMs", "policy"],
   properties: {
     id: { type: "string" },
+    schemaVersion: { type: "string", const: "capsule.receipt.v1" },
+    parentId: { type: "string" },
     type: {
       type: "string",
       enum: [
@@ -73,7 +75,61 @@ export const capsuleReceiptJsonSchema = {
       properties: {
         decision: { type: "string", enum: ["allowed", "denied"] },
         applied: { type: "object", additionalProperties: true },
-        notes: { type: "array", items: { type: "string" } }
+        notes: { type: "array", items: { type: "string" } },
+        enforcement: { type: "string", enum: ["native", "delegated", "advisory", "unsupported"] },
+        trace: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["check", "verdict"],
+            properties: {
+              check: { type: "string" },
+              verdict: { type: "string", enum: ["passed", "noted", "denied"] }
+            }
+          }
+        },
+        cost: {
+          type: "object",
+          additionalProperties: false,
+          required: ["limitUsd", "withinLimit"],
+          properties: {
+            requestedUsd: { type: "number" },
+            limitUsd: { type: "number" },
+            withinLimit: { type: "boolean" }
+          }
+        },
+        ttl: {
+          type: "object",
+          additionalProperties: false,
+          required: ["limitMs", "withinLimit"],
+          properties: {
+            requestedMs: { type: "number" },
+            limitMs: { type: "number" },
+            withinLimit: { type: "boolean" }
+          }
+        },
+        network: {
+          type: "object",
+          additionalProperties: false,
+          required: ["mode", "support", "hosts"],
+          properties: {
+            mode: { type: "string", enum: ["none", "allowlist", "all"] },
+            support: { type: "string", enum: ["native", "emulated", "unsupported", "experimental", "unknown"] },
+            hosts: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["host", "allowed"],
+                properties: {
+                  host: { type: "string" },
+                  allowed: { type: "boolean" }
+                }
+              }
+            }
+          }
+        }
       }
     },
     resource: {
@@ -119,7 +175,15 @@ export const capsuleReceiptJsonSchema = {
           type: "string",
           description: "Provider-specific operation or resource scope where the idempotency key applies."
         },
-        operationTag: { type: "string" }
+        operationTag: { type: "string" },
+        sourceResourceId: {
+          type: "string",
+          description: "Resource id this operation derived from, when the receipt records lineage from a source resource."
+        },
+        parentResourceId: {
+          type: "string",
+          description: "Resource id that owns or precedes the resource in this receipt, when the receipt records resource lineage."
+        }
       }
     },
     signature: {

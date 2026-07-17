@@ -2,12 +2,24 @@ import { randomUUID } from "node:crypto";
 import { sha256 } from "./artifacts.js";
 import { isSensitiveKey, redactSensitiveText } from "./policy.js";
 import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
-import type { Artifact, CapsulePolicy, CapsuleReceipt, CapsuleReceiptMetadata, ProviderOptions, ProviderOptionValue, SupportLevel } from "./types.js";
+import type {
+  Artifact,
+  CapsulePolicy,
+  CapsuleReceipt,
+  CapsuleReceiptMetadata,
+  CapsuleReceiptPolicy,
+  ProviderOptions,
+  ProviderOptionValue,
+  SupportLevel
+} from "./types.js";
+
+export const CAPSULE_RECEIPT_SCHEMA_VERSION = "capsule.receipt.v1";
 
 export type UnsignedReceipt = Omit<CapsuleReceipt, "signature">;
 
 export interface CreateReceiptInput {
   type: CapsuleReceipt["type"];
+  parentId?: string;
   provider: string;
   adapter: string;
   capabilityPath: string;
@@ -23,11 +35,7 @@ export interface CreateReceiptInput {
   stdout?: string;
   stderr?: string;
   artifacts?: Artifact[];
-  policy?: {
-    decision: "allowed" | "denied";
-    applied: CapsulePolicy;
-    notes?: string[];
-  };
+  policy?: CapsuleReceiptPolicy;
   resource?: CapsuleReceipt["resource"];
   metadata?: CapsuleReceiptMetadata;
 }
@@ -282,6 +290,8 @@ export function createReceipt(input: CreateReceiptInput, signer?: ReceiptSigner)
   const artifactHashes = input.artifacts?.map((artifact) => artifact.sha256).filter((hash): hash is string => Boolean(hash));
   const receipt: UnsignedReceipt = {
     id: randomUUID(),
+    schemaVersion: CAPSULE_RECEIPT_SCHEMA_VERSION,
+    parentId: input.parentId,
     type: input.type,
     provider: input.provider,
     adapter: input.adapter,

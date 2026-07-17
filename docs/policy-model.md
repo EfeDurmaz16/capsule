@@ -12,6 +12,32 @@ Limit policy includes timeout, output size, memory, and CPU. Timeout is straight
 
 Approval policies fail closed in core when `policy.approvals.required` is set and the operation spec does not include `approval: { approved: true, ... }`. Approval grants can carry an approval id, approver, reason, `approvedAt`, `expiresAt`, allowed `capabilities`, scoped `resources`, and small metadata for audit context. Expired grants, invalid expiry timestamps, capability mismatches, and resource-scope mismatches are denied before provider execution. TTL policy fails closed in core when a request includes `ttlMs` above `policy.ttl.maxMs`; provider-side cleanup still depends on adapter/provider lifecycle support.
 
+## Decision Shape
+
+`evaluatePolicy` returns a typed `PolicyDecision`. Alongside `decision`, `applied`, and human-readable `notes`, it reports:
+
+- `enforcement`: how the decision is enforced, one of `native`, `delegated`, `advisory`, or `unsupported`. It is derived conservatively from the adapter-declared support level for the capability: `native` support maps to `native`, `unsupported` maps to `unsupported`, and everything else defaults to `delegated`. Callers may pass an explicit `enforcement` (for example `advisory` for control-plane-only constraints) to override the derivation.
+- `trace`: an ordered `Array<{ check, verdict }>` mirroring the checks `evaluatePolicy` ran, with `verdict` of `passed`, `noted`, or `denied`. Denied decisions surface a single denied entry.
+- `cost`: present when the policy declares `cost.maxUsd`, as `{ requestedUsd?, limitUsd, withinLimit }`. Cost is advisory; Capsule does not enforce provider billing.
+- `ttl`: present when the policy declares `ttl.maxMs`, as `{ requestedMs?, limitMs, withinLimit }`.
+- `network`: present when the policy declares a network block, as `{ mode, support, hosts }` where `support` is the adapter's declared `networkPolicy` support level (or `unknown`) and `hosts` is a per-host `{ host, allowed }` diagnostic derived from the declared allowlist.
+
+The `enforcement` mode, `trace`, `cost`, `ttl`, and `network` diagnostics travel with the decision into the receipt `policy` section, so an audit can replay both the verdict and how it was enforced.
+
+## Merging Policies
+
+`mergePolicy(base, override)` combines two policies and always fails toward the stricter side:
+
+- `network.mode`: the stricter mode wins (`none` > `allowlist` > `all`); an undeclared side is treated as unrestricted.
+- `network.allowedHosts`: intersected when both sides declare an allowlist; otherwise the declared list is kept.
+- `secrets.allowed`: intersected when both declare it; otherwise the declared list is kept.
+- `secrets.redactFromLogs`: OR toward safety.
+- `secrets.redactionProfile`: `strict` wins over `standard`.
+- `secrets.redactKeys`: union.
+- `filesystem.read` / `filesystem.write`: intersected when both declare a list; otherwise the declared list is kept.
+- `limits.*`, `cost.maxUsd`, `ttl.maxMs`: the smaller (stricter) declared value wins.
+- `approvals.required`: OR toward safety.
+
 ## Policy Explain
 
 `explainPolicy(policy, input)` returns an allowed or denied decision without throwing and without executing an adapter action. Denied reports include the violation reason and violating fields; allowed reports include the same notes `evaluatePolicy` would record in receipts.

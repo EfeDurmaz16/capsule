@@ -125,6 +125,47 @@ export interface CapsulePolicy {
   };
 }
 
+export type PolicyEnforcement = "native" | "delegated" | "advisory" | "unsupported";
+
+export interface PolicyTraceEntry {
+  check: string;
+  verdict: "passed" | "noted" | "denied";
+}
+
+export interface PolicyCostDecision {
+  requestedUsd?: number;
+  limitUsd: number;
+  withinLimit: boolean;
+}
+
+export interface PolicyTtlDecision {
+  requestedMs?: number;
+  limitMs: number;
+  withinLimit: boolean;
+}
+
+export interface PolicyNetworkHostDecision {
+  host: string;
+  allowed: boolean;
+}
+
+export interface PolicyNetworkDecision {
+  mode: "none" | "allowlist" | "all";
+  support: SupportLevel | "unknown";
+  hosts: PolicyNetworkHostDecision[];
+}
+
+export interface CapsuleReceiptPolicy {
+  decision: "allowed" | "denied";
+  applied: CapsulePolicy;
+  notes?: string[];
+  enforcement?: PolicyEnforcement;
+  trace?: PolicyTraceEntry[];
+  cost?: PolicyCostDecision;
+  ttl?: PolicyTtlDecision;
+  network?: PolicyNetworkDecision;
+}
+
 export interface CapsuleApprovalGrant {
   approved: boolean;
   id?: string;
@@ -163,6 +204,8 @@ export interface Artifact {
 
 export interface CapsuleReceipt {
   id: string;
+  schemaVersion?: string;
+  parentId?: string;
   type:
     | "sandbox.create"
     | "sandbox.exec"
@@ -218,11 +261,7 @@ export interface CapsuleReceipt {
   stdoutHash?: string;
   stderrHash?: string;
   artifactHashes?: string[];
-  policy: {
-    decision: "allowed" | "denied";
-    applied: CapsulePolicy;
-    notes?: string[];
-  };
+  policy: CapsuleReceiptPolicy;
   resource?: {
     id?: string;
     name?: string;
@@ -246,6 +285,8 @@ export interface CapsuleReceiptMetadata extends Record<string, unknown> {
   idempotencyKey?: string;
   idempotencyScope?: string;
   operationTag?: string;
+  sourceResourceId?: string;
+  parentResourceId?: string;
 }
 
 export interface ExecResult {
