@@ -28,10 +28,10 @@ Install:
 pnpm install
 ```
 
-Run a local Docker job:
+Run a local Docker sandbox:
 
 ```bash
-pnpm --filter @capsule-sdk/example-job-docker start
+pnpm --filter @capsule-sdk/example-sandbox-docker start
 ```
 
 Run a local Docker sandbox:
@@ -159,10 +159,10 @@ export NEON_ROLE=neondb_owner
 export CAPSULE_LIVE_TESTS=1
 ```
 
-Run:
+Inspect the declared capabilities:
 
 ```bash
-pnpm --filter @capsule-sdk/example-database-branch-model start
+pnpm --filter @capsule-sdk/cli exec node dist/index.js capabilities --adapter neon
 ```
 
 Credentials: `NEON_API_KEY`, `NEON_PROJECT_ID`. `NEON_DATABASE` and `NEON_ROLE` are required only when you want Capsule to retrieve a connection URI.
@@ -286,10 +286,10 @@ export VERCEL_PROJECT=... # optional
 export CAPSULE_LIVE_TESTS=1
 ```
 
-Run:
+Inspect the declared capabilities:
 
 ```bash
-pnpm --filter @capsule-sdk/example-edge-model start
+pnpm --filter @capsule-sdk/cli exec node dist/index.js capabilities --adapter cloudflare
 ```
 
 Credentials: `VERCEL_TOKEN`; optional team/project scoping through `VERCEL_TEAM_ID` and `VERCEL_PROJECT`.
