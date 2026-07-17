@@ -1,8 +1,3 @@
 title: Capsule
 description: One governed layer for cloud runtimes
 theme: jekyll-theme-primer
-exclude:
-  - productization-plan.md
-  - v1-readiness-audit.md
-  - v2-readiness-audit.md
-  - v2-plan.md

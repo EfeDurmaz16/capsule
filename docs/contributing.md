@@ -35,6 +35,10 @@ Adapter PRs are expected to explain:
 - which live tests are gated by `CAPSULE_LIVE_TESTS=1`;
 - which provider-specific fields are exposed through `raw` or typed options.
 
+## Release Gate
+
+`pnpm release:markers` fails the release if shipped source under `packages`, `examples`, or `scripts` contains unfinished-work markers (`TODO`, `FIXME`, `stub`, `mock-level`, `technical-debt`). Generated `dist` output, dependencies, docs, and test files are exempt so tests and docs can describe the policy itself. `not implemented` is intentionally excluded because Capsule uses explicit unsupported-capability errors and provider limitation notes instead.
+
 ## Official Provider Adapters
 
 Provider teams are welcome to propose official adapters. An official adapter should have a named maintainer, provider-reviewed capability map, public quickstart, contract tests, skipped-by-default live tests, and compatibility notes for provider API changes.
