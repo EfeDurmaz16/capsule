@@ -2,7 +2,7 @@
 
 Capsule adapters are small, explicit mappings from a provider service to one or more Capsule runtime domains. They are not generic HTTP clients and they are not portability promises.
 
-Use this guide when adding a new package such as `@capsule-sdk/adapter-supabase`, `@capsule-sdk/adapter-railway`, or `@capsule-sdk/adapter-render`.
+Use this guide when adding a new package such as `@capsule-sdk/supabase`, `@capsule-sdk/railway`, or `@capsule-sdk/render`.
 
 ## 1. Classify The Provider Service
 
@@ -36,7 +36,7 @@ capsule adapter scaffold acme-cloud --domain sandbox --domain job
 The scaffold creates:
 
 ```text
-packages/adapter-<provider>/
+packages/<provider>/
   package.json
   tsconfig.json
   src/index.ts

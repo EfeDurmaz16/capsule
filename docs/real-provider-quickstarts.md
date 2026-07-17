@@ -84,7 +84,7 @@ Use the adapter directly:
 
 ```ts
 import { Capsule } from "@capsule-sdk/core";
-import { daytona } from "@capsule-sdk/adapter-daytona";
+import { daytona } from "@capsule-sdk/daytona";
 
 const capsule = new Capsule({ adapter: daytona({ apiKey: process.env.DAYTONA_API_KEY }), receipts: true });
 const sandbox = await capsule.sandbox.create({ name: "capsule-quickstart" });
@@ -118,7 +118,7 @@ Use the adapter directly:
 
 ```ts
 import { Capsule } from "@capsule-sdk/core";
-import { modal } from "@capsule-sdk/adapter-modal";
+import { modal } from "@capsule-sdk/modal";
 
 const capsule = new Capsule({
   adapter: modal({
@@ -194,7 +194,7 @@ Use the adapter directly:
 
 ```ts
 import { Capsule } from "@capsule-sdk/core";
-import { cloudflare } from "@capsule-sdk/adapter-cloudflare";
+import { cloudflare } from "@capsule-sdk/cloudflare";
 
 const capsule = new Capsule({ adapter: cloudflare(), receipts: true });
 const deployment = await capsule.edge.deploy({
@@ -250,7 +250,7 @@ Use the adapter directly:
 
 ```ts
 import { Capsule } from "@capsule-sdk/core";
-import { cloudRun } from "@capsule-sdk/adapter-cloud-run";
+import { cloudRun } from "@capsule-sdk/cloud-run";
 
 const capsule = new Capsule({
   adapter: cloudRun({
@@ -313,7 +313,7 @@ Use the adapter directly:
 
 ```ts
 import { Capsule } from "@capsule-sdk/core";
-import { kubernetes } from "@capsule-sdk/adapter-kubernetes";
+import { kubernetes } from "@capsule-sdk/kubernetes";
 
 const capsule = new Capsule({ adapter: kubernetes({ namespace: "default" }), receipts: true });
 const job = await capsule.job.run({
@@ -347,7 +347,7 @@ Use the adapter directly:
 
 ```ts
 import { Capsule } from "@capsule-sdk/core";
-import { lambda } from "@capsule-sdk/adapter-lambda";
+import { lambda } from "@capsule-sdk/lambda";
 
 const capsule = new Capsule({ adapter: lambda({ region: process.env.AWS_REGION }), receipts: true });
 const run = await capsule.job.run({
@@ -380,7 +380,7 @@ Use the adapter directly:
 
 ```ts
 import { Capsule } from "@capsule-sdk/core";
-import { ecs } from "@capsule-sdk/adapter-ecs";
+import { ecs } from "@capsule-sdk/ecs";
 
 const capsule = new Capsule({
   adapter: ecs({
@@ -421,7 +421,7 @@ Use the adapter directly:
 
 ```ts
 import { Capsule } from "@capsule-sdk/core";
-import { ec2 } from "@capsule-sdk/adapter-ec2";
+import { ec2 } from "@capsule-sdk/ec2";
 
 const capsule = new Capsule({ adapter: ec2({ region: process.env.AWS_REGION }), receipts: true });
 const machine = await capsule.machine.create({
@@ -454,7 +454,7 @@ Use the adapter directly:
 
 ```ts
 import { Capsule } from "@capsule-sdk/core";
-import { fly } from "@capsule-sdk/adapter-fly";
+import { fly } from "@capsule-sdk/fly";
 
 const capsule = new Capsule({ adapter: fly({ appName: process.env.FLY_APP_NAME }), receipts: true });
 const run = await capsule.job.run({
@@ -490,7 +490,7 @@ Use the adapter directly:
 
 ```ts
 import { Capsule } from "@capsule-sdk/core";
-import { azureContainerApps } from "@capsule-sdk/adapter-azure-container-apps";
+import { azureContainerApps } from "@capsule-sdk/azure";
 
 const capsule = new Capsule({
   adapter: azureContainerApps({

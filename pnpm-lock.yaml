@@ -32,18 +32,18 @@ importers:
 
   examples/agent-code-execution:
     dependencies:
-      '@capsule-sdk/adapter-e2b':
-        specifier: workspace:*
-        version: link:../../packages/adapter-e2b
-      '@capsule-sdk/adapter-mock':
-        specifier: workspace:*
-        version: link:../../packages/adapter-mock
       '@capsule-sdk/ai':
         specifier: workspace:*
         version: link:../../packages/ai
       '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@capsule-sdk/e2b':
+        specifier: workspace:*
+        version: link:../../packages/e2b
+      '@capsule-sdk/mock':
+        specifier: workspace:*
+        version: link:../../packages/mock
     devDependencies:
       tsx:
         specifier: ^4.20.6
@@ -54,15 +54,15 @@ importers:
 
   examples/agent-preview-environment:
     dependencies:
-      '@capsule-sdk/adapter-mock':
-        specifier: workspace:*
-        version: link:../../packages/adapter-mock
       '@capsule-sdk/ai':
         specifier: workspace:*
         version: link:../../packages/ai
       '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@capsule-sdk/mock':
+        specifier: workspace:*
+        version: link:../../packages/mock
       '@capsule-sdk/preview':
         specifier: workspace:*
         version: link:../../packages/preview
@@ -79,12 +79,12 @@ importers:
 
   examples/capability-check:
     dependencies:
-      '@capsule-sdk/adapter-mock':
-        specifier: workspace:*
-        version: link:../../packages/adapter-mock
       '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@capsule-sdk/mock':
+        specifier: workspace:*
+        version: link:../../packages/mock
     devDependencies:
       tsx:
         specifier: ^4.20.6
@@ -95,15 +95,15 @@ importers:
 
   examples/database-branch-model:
     dependencies:
-      '@capsule-sdk/adapter-mock':
-        specifier: workspace:*
-        version: link:../../packages/adapter-mock
-      '@capsule-sdk/adapter-neon':
-        specifier: workspace:*
-        version: link:../../packages/adapter-neon
       '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@capsule-sdk/mock':
+        specifier: workspace:*
+        version: link:../../packages/mock
+      '@capsule-sdk/neon':
+        specifier: workspace:*
+        version: link:../../packages/neon
     devDependencies:
       tsx:
         specifier: ^4.20.6
@@ -114,12 +114,12 @@ importers:
 
   examples/deployment-model:
     dependencies:
-      '@capsule-sdk/adapter-mock':
-        specifier: workspace:*
-        version: link:../../packages/adapter-mock
       '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@capsule-sdk/mock':
+        specifier: workspace:*
+        version: link:../../packages/mock
     devDependencies:
       tsx:
         specifier: ^4.20.6
@@ -130,15 +130,15 @@ importers:
 
   examples/edge-model:
     dependencies:
-      '@capsule-sdk/adapter-mock':
-        specifier: workspace:*
-        version: link:../../packages/adapter-mock
-      '@capsule-sdk/adapter-vercel':
-        specifier: workspace:*
-        version: link:../../packages/adapter-vercel
       '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@capsule-sdk/mock':
+        specifier: workspace:*
+        version: link:../../packages/mock
+      '@capsule-sdk/vercel':
+        specifier: workspace:*
+        version: link:../../packages/vercel
     devDependencies:
       tsx:
         specifier: ^4.20.6
@@ -149,12 +149,12 @@ importers:
 
   examples/job-docker:
     dependencies:
-      '@capsule-sdk/adapter-docker':
-        specifier: workspace:*
-        version: link:../../packages/adapter-docker
       '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@capsule-sdk/docker':
+        specifier: workspace:*
+        version: link:../../packages/docker
     devDependencies:
       tsx:
         specifier: ^4.20.6
@@ -165,12 +165,12 @@ importers:
 
   examples/machine-model:
     dependencies:
-      '@capsule-sdk/adapter-mock':
-        specifier: workspace:*
-        version: link:../../packages/adapter-mock
       '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@capsule-sdk/mock':
+        specifier: workspace:*
+        version: link:../../packages/mock
     devDependencies:
       tsx:
         specifier: ^4.20.6
@@ -181,12 +181,12 @@ importers:
 
   examples/policy-receipts:
     dependencies:
-      '@capsule-sdk/adapter-mock':
-        specifier: workspace:*
-        version: link:../../packages/adapter-mock
       '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@capsule-sdk/mock':
+        specifier: workspace:*
+        version: link:../../packages/mock
     devDependencies:
       tsx:
         specifier: ^4.20.6
@@ -197,27 +197,27 @@ importers:
 
   examples/preview-environment-model:
     dependencies:
-      '@capsule-sdk/adapter-cloud-run':
+      '@capsule-sdk/cloud-run':
         specifier: workspace:*
-        version: link:../../packages/adapter-cloud-run
-      '@capsule-sdk/adapter-mock':
-        specifier: workspace:*
-        version: link:../../packages/adapter-mock
-      '@capsule-sdk/adapter-neon':
-        specifier: workspace:*
-        version: link:../../packages/adapter-neon
-      '@capsule-sdk/adapter-vercel':
-        specifier: workspace:*
-        version: link:../../packages/adapter-vercel
+        version: link:../../packages/cloud-run
       '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@capsule-sdk/mock':
+        specifier: workspace:*
+        version: link:../../packages/mock
+      '@capsule-sdk/neon':
+        specifier: workspace:*
+        version: link:../../packages/neon
       '@capsule-sdk/preview':
         specifier: workspace:*
         version: link:../../packages/preview
       '@capsule-sdk/store-jsonl':
         specifier: workspace:*
         version: link:../../packages/store-jsonl
+      '@capsule-sdk/vercel':
+        specifier: workspace:*
+        version: link:../../packages/vercel
     devDependencies:
       tsx:
         specifier: ^4.20.6
@@ -247,12 +247,12 @@ importers:
 
   examples/sandbox-docker:
     dependencies:
-      '@capsule-sdk/adapter-docker':
-        specifier: workspace:*
-        version: link:../../packages/adapter-docker
       '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@capsule-sdk/docker':
+        specifier: workspace:*
+        version: link:../../packages/docker
     devDependencies:
       tsx:
         specifier: ^4.20.6
@@ -263,12 +263,12 @@ importers:
 
   examples/stripe-projects-provisioning:
     dependencies:
-      '@capsule-sdk/adapter-mock':
-        specifier: workspace:*
-        version: link:../../packages/adapter-mock
       '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@capsule-sdk/mock':
+        specifier: workspace:*
+        version: link:../../packages/mock
     devDependencies:
       tsx:
         specifier: ^4.20.6
@@ -280,7 +280,20 @@ importers:
         specifier: ^4.0.14
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(vite@8.0.12(@types/node@24.12.4)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.9.0))
 
-  packages/adapter-azure-container-apps:
+  packages/ai:
+    dependencies:
+      '@capsule-sdk/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(postcss@8.5.14)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/azure:
     dependencies:
       '@capsule-sdk/core':
         specifier: workspace:*
@@ -299,7 +312,77 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(vite@8.0.12(@types/node@24.12.4)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.9.0))
 
-  packages/adapter-cloud-run:
+  packages/cli:
+    dependencies:
+      '@capsule-sdk/azure':
+        specifier: workspace:*
+        version: link:../azure
+      '@capsule-sdk/cloud-run':
+        specifier: workspace:*
+        version: link:../cloud-run
+      '@capsule-sdk/cloudflare':
+        specifier: workspace:*
+        version: link:../cloudflare
+      '@capsule-sdk/core':
+        specifier: workspace:*
+        version: link:../core
+      '@capsule-sdk/daytona':
+        specifier: workspace:*
+        version: link:../daytona
+      '@capsule-sdk/docker':
+        specifier: workspace:*
+        version: link:../docker
+      '@capsule-sdk/e2b':
+        specifier: workspace:*
+        version: link:../e2b
+      '@capsule-sdk/ec2':
+        specifier: workspace:*
+        version: link:../ec2
+      '@capsule-sdk/ecs':
+        specifier: workspace:*
+        version: link:../ecs
+      '@capsule-sdk/fly':
+        specifier: workspace:*
+        version: link:../fly
+      '@capsule-sdk/kubernetes':
+        specifier: workspace:*
+        version: link:../kubernetes
+      '@capsule-sdk/lambda':
+        specifier: workspace:*
+        version: link:../lambda
+      '@capsule-sdk/mock':
+        specifier: workspace:*
+        version: link:../mock
+      '@capsule-sdk/modal':
+        specifier: workspace:*
+        version: link:../modal
+      '@capsule-sdk/neon':
+        specifier: workspace:*
+        version: link:../neon
+      '@capsule-sdk/presets':
+        specifier: workspace:*
+        version: link:../presets
+      '@capsule-sdk/preview':
+        specifier: workspace:*
+        version: link:../preview
+      '@capsule-sdk/store-jsonl':
+        specifier: workspace:*
+        version: link:../store-jsonl
+      '@capsule-sdk/vercel':
+        specifier: workspace:*
+        version: link:../vercel
+    devDependencies:
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(postcss@8.5.14)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(vite@8.0.12(@types/node@24.12.4)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.9.0))
+
+  packages/cloud-run:
     dependencies:
       '@capsule-sdk/core':
         specifier: workspace:*
@@ -318,7 +401,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/adapter-cloudflare:
+  packages/cloudflare:
     dependencies:
       '@capsule-sdk/core':
         specifier: workspace:*
@@ -334,7 +417,16 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/adapter-daytona:
+  packages/core:
+    devDependencies:
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(postcss@8.5.14)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/daytona:
     dependencies:
       '@capsule-sdk/core':
         specifier: workspace:*
@@ -353,7 +445,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/adapter-docker:
+  packages/docker:
     dependencies:
       '@capsule-sdk/core':
         specifier: workspace:*
@@ -369,7 +461,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/adapter-e2b:
+  packages/e2b:
     dependencies:
       '@capsule-sdk/core':
         specifier: workspace:*
@@ -388,7 +480,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/adapter-ec2:
+  packages/ec2:
     dependencies:
       '@aws-sdk/client-ec2':
         specifier: ^3.955.0
@@ -404,7 +496,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/adapter-ecs:
+  packages/ecs:
     dependencies:
       '@aws-sdk/client-ecs':
         specifier: ^3.955.0
@@ -420,7 +512,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/adapter-fly:
+  packages/fly:
     dependencies:
       '@capsule-sdk/core':
         specifier: workspace:*
@@ -439,7 +531,7 @@ importers:
         specifier: ^4.0.14
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(vite@8.0.12(@types/node@24.12.4)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.9.0))
 
-  packages/adapter-kubernetes:
+  packages/kubernetes:
     dependencies:
       '@capsule-sdk/core':
         specifier: workspace:*
@@ -458,7 +550,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/adapter-lambda:
+  packages/lambda:
     dependencies:
       '@aws-sdk/client-lambda':
         specifier: ^3.955.0
@@ -477,7 +569,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/adapter-mock:
+  packages/mock:
     dependencies:
       '@capsule-sdk/core':
         specifier: workspace:*
@@ -490,7 +582,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/adapter-modal:
+  packages/modal:
     dependencies:
       '@capsule-sdk/core':
         specifier: workspace:*
@@ -509,7 +601,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/adapter-neon:
+  packages/neon:
     dependencies:
       '@capsule-sdk/core':
         specifier: workspace:*
@@ -518,114 +610,6 @@ importers:
       '@capsule-sdk/test-utils':
         specifier: workspace:*
         version: link:../test-utils
-      tsup:
-        specifier: ^8.5.0
-        version: 8.5.1(postcss@8.5.14)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.9.0)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  packages/adapter-vercel:
-    dependencies:
-      '@capsule-sdk/core':
-        specifier: workspace:*
-        version: link:../core
-    devDependencies:
-      '@capsule-sdk/test-utils':
-        specifier: workspace:*
-        version: link:../test-utils
-      tsup:
-        specifier: ^8.5.0
-        version: 8.5.1(postcss@8.5.14)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.9.0)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  packages/ai:
-    dependencies:
-      '@capsule-sdk/core':
-        specifier: workspace:*
-        version: link:../core
-    devDependencies:
-      tsup:
-        specifier: ^8.5.0
-        version: 8.5.1(postcss@8.5.14)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.9.0)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  packages/cli:
-    dependencies:
-      '@capsule-sdk/adapter-azure-container-apps':
-        specifier: workspace:*
-        version: link:../adapter-azure-container-apps
-      '@capsule-sdk/adapter-cloud-run':
-        specifier: workspace:*
-        version: link:../adapter-cloud-run
-      '@capsule-sdk/adapter-cloudflare':
-        specifier: workspace:*
-        version: link:../adapter-cloudflare
-      '@capsule-sdk/adapter-daytona':
-        specifier: workspace:*
-        version: link:../adapter-daytona
-      '@capsule-sdk/adapter-docker':
-        specifier: workspace:*
-        version: link:../adapter-docker
-      '@capsule-sdk/adapter-e2b':
-        specifier: workspace:*
-        version: link:../adapter-e2b
-      '@capsule-sdk/adapter-ec2':
-        specifier: workspace:*
-        version: link:../adapter-ec2
-      '@capsule-sdk/adapter-ecs':
-        specifier: workspace:*
-        version: link:../adapter-ecs
-      '@capsule-sdk/adapter-fly':
-        specifier: workspace:*
-        version: link:../adapter-fly
-      '@capsule-sdk/adapter-kubernetes':
-        specifier: workspace:*
-        version: link:../adapter-kubernetes
-      '@capsule-sdk/adapter-lambda':
-        specifier: workspace:*
-        version: link:../adapter-lambda
-      '@capsule-sdk/adapter-mock':
-        specifier: workspace:*
-        version: link:../adapter-mock
-      '@capsule-sdk/adapter-modal':
-        specifier: workspace:*
-        version: link:../adapter-modal
-      '@capsule-sdk/adapter-neon':
-        specifier: workspace:*
-        version: link:../adapter-neon
-      '@capsule-sdk/adapter-vercel':
-        specifier: workspace:*
-        version: link:../adapter-vercel
-      '@capsule-sdk/core':
-        specifier: workspace:*
-        version: link:../core
-      '@capsule-sdk/presets':
-        specifier: workspace:*
-        version: link:../presets
-      '@capsule-sdk/preview':
-        specifier: workspace:*
-        version: link:../preview
-      '@capsule-sdk/store-jsonl':
-        specifier: workspace:*
-        version: link:../store-jsonl
-    devDependencies:
-      tsup:
-        specifier: ^8.5.0
-        version: 8.5.1(postcss@8.5.14)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.9.0)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(vite@8.0.12(@types/node@24.12.4)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.9.0))
-
-  packages/core:
-    devDependencies:
       tsup:
         specifier: ^8.5.0
         version: 8.5.1(postcss@8.5.14)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.9.0)
@@ -708,6 +692,22 @@ importers:
       vitest:
         specifier: ^4.0.14
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(vite@8.0.12(@types/node@24.12.4)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.9.0))
+
+  packages/vercel:
+    dependencies:
+      '@capsule-sdk/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@capsule-sdk/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(postcss@8.5.14)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
 packages:
 
@@ -1710,6 +1710,7 @@ packages:
   '@smithy/core@3.24.1':
     resolution: {integrity: sha512-3mT7o4qQyUWttYnVK3A0Z/u3Xha3E81tXn32Tz6vjZiUXhBrkEivpw1hBYfh84iFF9CSzkBU9Y1DJ3Q6RQ231g==}
     engines: {node: '>=18.0.0'}
+    deprecated: Deprecated due to bug in browser bundling instructions https://github.com/smithy-lang/smithy-typescript/issues/2025
 
   '@smithy/credential-provider-imds@4.3.1':
     resolution: {integrity: sha512-0S/acwHnqX4WrjXzhdiDRxsG2s9SC0cpPIK9nZ1R6UOHd+j7uL28+4bHu22urbLk2TVw3fkp6na/+fkUt/pLNQ==}

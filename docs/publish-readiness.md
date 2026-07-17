@@ -26,21 +26,21 @@ Before the first publish, verify these manually with the npm account that will p
 2. The publishing account has owner or maintainer permission for the `@capsule` organization.
 3. Every intended public package name is available under the chosen namespace:
    - `@capsule-sdk/core`
-   - `@capsule-sdk/adapter-docker`
-   - `@capsule-sdk/adapter-mock`
-   - `@capsule-sdk/adapter-e2b`
-   - `@capsule-sdk/adapter-daytona`
-   - `@capsule-sdk/adapter-modal`
-   - `@capsule-sdk/adapter-cloud-run`
-   - `@capsule-sdk/adapter-cloudflare`
-   - `@capsule-sdk/adapter-vercel`
-   - `@capsule-sdk/adapter-neon`
-   - `@capsule-sdk/adapter-kubernetes`
-   - `@capsule-sdk/adapter-lambda`
-   - `@capsule-sdk/adapter-ecs`
-   - `@capsule-sdk/adapter-ec2`
-   - `@capsule-sdk/adapter-fly`
-   - `@capsule-sdk/adapter-azure-container-apps`
+   - `@capsule-sdk/docker`
+   - `@capsule-sdk/mock`
+   - `@capsule-sdk/e2b`
+   - `@capsule-sdk/daytona`
+   - `@capsule-sdk/modal`
+   - `@capsule-sdk/cloud-run`
+   - `@capsule-sdk/cloudflare`
+   - `@capsule-sdk/vercel`
+   - `@capsule-sdk/neon`
+   - `@capsule-sdk/kubernetes`
+   - `@capsule-sdk/lambda`
+   - `@capsule-sdk/ecs`
+   - `@capsule-sdk/ec2`
+   - `@capsule-sdk/fly`
+   - `@capsule-sdk/azure`
    - `@capsule-sdk/ai`
    - `@capsule-sdk/cli`
    - `@capsule-sdk/preview`

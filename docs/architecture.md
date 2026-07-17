@@ -3,12 +3,12 @@
 Capsule is a pnpm monorepo with focused packages:
 
 - `@capsule-sdk/core`: shared types, capability lookup, policy checks, receipts, domain facades, contract helpers, and errors.
-- `@capsule-sdk/adapter-docker`, `@capsule-sdk/adapter-e2b`, `@capsule-sdk/adapter-daytona`, and `@capsule-sdk/adapter-modal`: sandbox execution adapters with provider-specific lifecycle semantics.
-- `@capsule-sdk/adapter-cloud-run`, `@capsule-sdk/adapter-kubernetes`, `@capsule-sdk/adapter-ecs`, `@capsule-sdk/adapter-fly`, and `@capsule-sdk/adapter-azure-container-apps`: container job/service adapters.
-- `@capsule-sdk/adapter-cloudflare`, `@capsule-sdk/adapter-vercel`, and `@capsule-sdk/adapter-lambda`: edge, function, deployment, and runtime adapters.
-- `@capsule-sdk/adapter-neon`: database branch resource adapter.
-- `@capsule-sdk/adapter-ec2`: machine lifecycle adapter.
-- `@capsule-sdk/adapter-mock`: realistic mock providers for examples, tests, and future adapter design.
+- `@capsule-sdk/docker`, `@capsule-sdk/e2b`, `@capsule-sdk/daytona`, and `@capsule-sdk/modal`: sandbox execution adapters with provider-specific lifecycle semantics.
+- `@capsule-sdk/cloud-run`, `@capsule-sdk/kubernetes`, `@capsule-sdk/ecs`, `@capsule-sdk/fly`, and `@capsule-sdk/azure`: container job/service adapters.
+- `@capsule-sdk/cloudflare`, `@capsule-sdk/vercel`, and `@capsule-sdk/lambda`: edge, function, deployment, and runtime adapters.
+- `@capsule-sdk/neon`: database branch resource adapter.
+- `@capsule-sdk/ec2`: machine lifecycle adapter.
+- `@capsule-sdk/mock`: realistic mock providers for examples, tests, and future adapter design.
 - `@capsule-sdk/ai`: framework-agnostic code execution tool helper and dependency-free framework descriptors for Vercel AI SDK, OpenAI Agents/Responses, LangChain, Mastra, and CrewAI.
 - `@capsule-sdk/cli`: CLI for capabilities, provider comparison, live-test planning, Docker runs, sandbox smoke tests, adapter scaffolding, and doctor checks. `capsule doctor` reports Node support, workspace health, package versions, release-audit script availability, Docker availability, and provider credential env-var presence without printing secret values.
 - `@capsule-sdk/presets`: provider-oriented runtime and preview preset factories.

@@ -12,7 +12,7 @@ One or two sentences describing the release outcome and who should care.
 
 ## Adapters
 
-- `@capsule-sdk/adapter-<provider>`: Describe provider behavior, lifecycle cleanup, idempotency, receipt metadata, policy support, or live-test coverage changes.
+- `@capsule-sdk/<provider>`: Describe provider behavior, lifecycle cleanup, idempotency, receipt metadata, policy support, or live-test coverage changes.
 
 ## CLI, Presets, Preview, And AI
 

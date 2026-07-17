@@ -1,7 +1,7 @@
 import { pathToFileURL } from "node:url";
 import { Capsule, type CapsuleReceipt } from "@capsule-sdk/core";
 import { createCodeExecutionTool } from "@capsule-sdk/ai";
-import { mockE2B, mockNeon, mockVercel, mockCloudRun } from "@capsule-sdk/adapter-mock";
+import { mockE2B, mockNeon, mockVercel, mockCloudRun } from "@capsule-sdk/mock";
 import { createPreviewGraph, cleanupPreviewEnvironment } from "@capsule-sdk/preview";
 
 // End-to-end shape: an agent runs a code-execution check in a Capsule sandbox, and only if that

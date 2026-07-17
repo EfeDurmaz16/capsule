@@ -43,7 +43,7 @@ describe("capsule gap report", () => {
     const markdown = renderProviderMatrix([
       {
         displayName: "Example",
-        packageName: "@capsule-sdk/adapter-example",
+        packageName: "@capsule-sdk/example",
         capabilities: {
           sandbox: { create: "native", exec: "native", networkPolicy: "native", filesystemPolicy: "emulated", secretMounting: "experimental" },
           job: { run: "unsupported" }
@@ -56,7 +56,7 @@ describe("capsule gap report", () => {
     assert.match(markdown, /Network policy \| Filesystem policy \| Secret mounting \| Support notes/);
     assert.match(
       markdown,
-      /\| Example \| `@capsule-sdk\/adapter-example` \| native \| unsupported \| unsupported \| unsupported \| unsupported \| unsupported \| unsupported \| native \| emulated \| experimental \| Example adapter notes\. \|/
+      /\| Example \| `@capsule-sdk\/example` \| native \| unsupported \| unsupported \| unsupported \| unsupported \| unsupported \| unsupported \| native \| emulated \| experimental \| Example adapter notes\. \|/
     );
   });
 });

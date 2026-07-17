@@ -7,7 +7,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@capsule-sdk/adapter-mock": "workspace:*",
+    "@capsule-sdk/mock": "workspace:*",
     "@capsule-sdk/core": "workspace:*"
   },
   "devDependencies": {

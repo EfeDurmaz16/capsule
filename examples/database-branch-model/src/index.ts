@@ -1,6 +1,6 @@
 import { Capsule } from "@capsule-sdk/core";
-import { mockNeon } from "@capsule-sdk/adapter-mock";
-import { neon } from "@capsule-sdk/adapter-neon";
+import { mockNeon } from "@capsule-sdk/mock";
+import { neon } from "@capsule-sdk/neon";
 
 const live = process.env.CAPSULE_LIVE_TESTS === "1" && Boolean(process.env.NEON_API_KEY && process.env.NEON_PROJECT_ID);
 const capsule = new Capsule({

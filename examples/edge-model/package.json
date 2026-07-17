@@ -8,8 +8,8 @@
   },
   "dependencies": {
     "@capsule-sdk/core": "workspace:*",
-    "@capsule-sdk/adapter-mock": "workspace:*",
-    "@capsule-sdk/adapter-vercel": "workspace:*"
+    "@capsule-sdk/mock": "workspace:*",
+    "@capsule-sdk/vercel": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.20.6",

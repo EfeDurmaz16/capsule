@@ -8,7 +8,7 @@ These helpers do not add framework dependencies. They return typed object shapes
 
 ```ts
 import { Capsule } from "@capsule-sdk/core";
-import { docker } from "@capsule-sdk/adapter-docker";
+import { docker } from "@capsule-sdk/docker";
 import { createCodeExecutionTool } from "@capsule-sdk/ai";
 
 const capsule = new Capsule({

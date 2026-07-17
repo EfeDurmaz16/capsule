@@ -32,8 +32,8 @@ test("live test matrix reports ready read-only providers without leaking secret 
       missingResourceLimitEnv: [],
       requiredEnv: ["CAPSULE_LIVE_TESTS", "VERCEL_TOKEN", "CAPSULE_VERCEL_DEPLOYMENT_ID"],
       optionalEnv: ["VERCEL_TEAM_ID", "VERCEL_TEAM_SLUG", "VERCEL_PROJECT_ID"],
-      testPath: "packages/adapter-vercel/src/vercel.live.test.ts",
-      command: "CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-vercel/src/vercel.live.test.ts",
+      testPath: "packages/vercel/src/vercel.live.test.ts",
+      command: "CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/vercel/src/vercel.live.test.ts",
       notes: ["Reads an existing Vercel deployment status; no resource is created."]
     }
   ]);
@@ -143,19 +143,19 @@ test("live test matrix reports quarantined flaky providers with revalidation met
     reason: "provider control plane intermittently returns 503",
     lastObservedFailure: "2026-05-30T10:00:00Z",
     owner: "runtime-team",
-    revalidationCommand: "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"
+    revalidationCommand: "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/fly/src/fly.live.test.ts"
   };
   const report = createLiveTestMatrix({
     provider: "fly",
     plans: [
       {
         provider: "fly",
-        testPath: "packages/adapter-fly/src/fly.live.test.ts",
+        testPath: "packages/fly/src/fly.live.test.ts",
         requiredEnv: ["CAPSULE_LIVE_TESTS", "FLY_API_TOKEN", "FLY_APP_NAME"],
         optionalEnv: [],
         costRisk: "billable",
         costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
-        command: "CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts",
+        command: "CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/fly/src/fly.live.test.ts",
         quarantine,
         notes: []
       }
@@ -183,17 +183,17 @@ test("live test matrix lets explicitly revalidated flaky providers become ready"
     plans: [
       {
         provider: "fly",
-        testPath: "packages/adapter-fly/src/fly.live.test.ts",
+        testPath: "packages/fly/src/fly.live.test.ts",
         requiredEnv: ["CAPSULE_LIVE_TESTS", "FLY_API_TOKEN", "FLY_APP_NAME"],
         optionalEnv: [],
         costRisk: "billable",
         costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
-        command: "CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts",
+        command: "CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/fly/src/fly.live.test.ts",
         quarantine: {
           reason: "provider control plane intermittently returns 503",
           lastObservedFailure: "2026-05-30T10:00:00Z",
           owner: "runtime-team",
-          revalidationCommand: "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"
+          revalidationCommand: "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/fly/src/fly.live.test.ts"
         },
         notes: []
       }

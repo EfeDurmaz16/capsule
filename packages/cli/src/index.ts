@@ -55,20 +55,20 @@ import {
   mockModal,
   mockNeon,
   mockVercel
-} from "@capsule-sdk/adapter-mock";
-import { azureContainerApps } from "@capsule-sdk/adapter-azure-container-apps";
-import { cloudflare } from "@capsule-sdk/adapter-cloudflare";
-import { cloudRun } from "@capsule-sdk/adapter-cloud-run";
-import { daytona } from "@capsule-sdk/adapter-daytona";
-import { docker, dockerAvailable } from "@capsule-sdk/adapter-docker";
-import { e2b } from "@capsule-sdk/adapter-e2b";
-import { ec2 } from "@capsule-sdk/adapter-ec2";
-import { ecs } from "@capsule-sdk/adapter-ecs";
-import { fly } from "@capsule-sdk/adapter-fly";
-import { kubernetes } from "@capsule-sdk/adapter-kubernetes";
-import { lambda } from "@capsule-sdk/adapter-lambda";
-import { modal } from "@capsule-sdk/adapter-modal";
-import { neon } from "@capsule-sdk/adapter-neon";
+} from "@capsule-sdk/mock";
+import { azureContainerApps } from "@capsule-sdk/azure";
+import { cloudflare } from "@capsule-sdk/cloudflare";
+import { cloudRun } from "@capsule-sdk/cloud-run";
+import { daytona } from "@capsule-sdk/daytona";
+import { docker, dockerAvailable } from "@capsule-sdk/docker";
+import { e2b } from "@capsule-sdk/e2b";
+import { ec2 } from "@capsule-sdk/ec2";
+import { ecs } from "@capsule-sdk/ecs";
+import { fly } from "@capsule-sdk/fly";
+import { kubernetes } from "@capsule-sdk/kubernetes";
+import { lambda } from "@capsule-sdk/lambda";
+import { modal } from "@capsule-sdk/modal";
+import { neon } from "@capsule-sdk/neon";
 import {
   cleanupPreviewEnvironment,
   createPreviewDryRunReceiptBundle,
@@ -81,7 +81,7 @@ import {
   type PreviewResourceRecord
 } from "@capsule-sdk/preview";
 import { presetCatalog, type PresetCatalogEntry } from "@capsule-sdk/presets";
-import { vercel } from "@capsule-sdk/adapter-vercel";
+import { vercel } from "@capsule-sdk/vercel";
 import { jsonlReceiptStore } from "@capsule-sdk/store-jsonl";
 
 interface ParsedArgs {
@@ -633,46 +633,46 @@ type ShellCompletionTarget = (typeof completionShells)[number];
 const liveTestPlans: LiveTestPlan[] = [
   {
     provider: "e2b",
-    testPath: "packages/adapter-e2b/src/e2b.live.test.ts",
+    testPath: "packages/e2b/src/e2b.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "E2B_API_KEY"],
     optionalEnv: [],
     costRisk: "billable",
     costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
-    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-e2b/src/e2b.live.test.ts"],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/e2b/src/e2b.live.test.ts"],
     notes: ["Creates a sandbox, exercises exec and file operations, then destroys the sandbox."]
   },
   {
     provider: "daytona",
-    testPath: "packages/adapter-daytona/src/daytona.live.test.ts",
+    testPath: "packages/daytona/src/daytona.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "DAYTONA_API_KEY"],
     optionalEnv: [],
     costRisk: "billable",
     costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
-    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-daytona/src/daytona.live.test.ts"],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/daytona/src/daytona.live.test.ts"],
     notes: ["Creates an ephemeral sandbox with auto-stop configured and destroys it in finally."]
   },
   {
     provider: "modal",
-    testPath: "packages/adapter-modal/src/modal.live.test.ts",
+    testPath: "packages/modal/src/modal.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"],
     optionalEnv: ["MODAL_APP_NAME", "MODAL_IMAGE", "MODAL_ENVIRONMENT"],
     costRisk: "billable",
     costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
-    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-modal/src/modal.live.test.ts"],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/modal/src/modal.live.test.ts"],
     notes: ["Creates a Modal sandbox, exercises exec and file operations, then destroys the sandbox."]
   },
   {
     provider: "cloud-run",
-    testPath: "packages/adapter-cloud-run/src/cloud-run.live.test.ts",
+    testPath: "packages/cloud-run/src/cloud-run.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_RUN_LOCATION", "GOOGLE_OAUTH_ACCESS_TOKEN", "CAPSULE_CLOUD_RUN_SERVICE_ID"],
     optionalEnv: [],
     costRisk: "read-only",
-    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-cloud-run/src/cloud-run.live.test.ts"],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/cloud-run/src/cloud-run.live.test.ts"],
     notes: ["Reads an existing Cloud Run service status; no resource is created."]
   },
   {
     provider: "cloudflare",
-    testPath: "packages/adapter-cloudflare/src/cloudflare.live.test.ts",
+    testPath: "packages/cloudflare/src/cloudflare.live.test.ts",
     requiredEnv: [
       "CAPSULE_LIVE_TESTS",
       "CLOUDFLARE_API_TOKEN",
@@ -688,22 +688,22 @@ const liveTestPlans: LiveTestPlan[] = [
       CLOUDFLARE_ACCOUNT_ID: ["CAPSULE_WORKER_ACCOUNT_ID", "CLOUDFLARE_WORKERS_FREE_ACCOUNT_ID"]
     },
     safeCommands: [
-      'CLOUDFLARE_API_TOKEN="${CLOUDFLARE_API_TOKEN:-$CAPSULE_WORKER_API_TOKEN}" CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-$CAPSULE_WORKER_ACCOUNT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-cloudflare/src/cloudflare.live.test.ts'
+      'CLOUDFLARE_API_TOKEN="${CLOUDFLARE_API_TOKEN:-$CAPSULE_WORKER_API_TOKEN}" CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-$CAPSULE_WORKER_ACCOUNT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/cloudflare/src/cloudflare.live.test.ts'
     ],
     notes: ["Creates an unreleased Worker version. Project-scoped Worker aliases can satisfy the Cloudflare token and account env vars."]
   },
   {
     provider: "vercel",
-    testPath: "packages/adapter-vercel/src/vercel.live.test.ts",
+    testPath: "packages/vercel/src/vercel.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "VERCEL_TOKEN", "CAPSULE_VERCEL_DEPLOYMENT_ID"],
     optionalEnv: ["VERCEL_TEAM_ID", "VERCEL_TEAM_SLUG", "VERCEL_PROJECT_ID"],
     costRisk: "read-only",
-    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-vercel/src/vercel.live.test.ts"],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/vercel/src/vercel.live.test.ts"],
     notes: ["Reads an existing Vercel deployment status; no resource is created."]
   },
   {
     provider: "neon",
-    testPath: "packages/adapter-neon/src/neon.live.test.ts",
+    testPath: "packages/neon/src/neon.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "NEON_API_KEY", "NEON_PROJECT_ID"],
     optionalEnv: ["NEON_PARENT_BRANCH_ID", "NEON_DATABASE", "NEON_ROLE", "NEON_POOLED"],
     costRisk: "billable",
@@ -712,43 +712,43 @@ const liveTestPlans: LiveTestPlan[] = [
       NEON_PROJECT_ID: ["CAPSULE_POSTGRES_PROJECT_ID"]
     },
     safeCommands: [
-      'NEON_PROJECT_ID="${NEON_PROJECT_ID:-$CAPSULE_POSTGRES_PROJECT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-neon/src/neon.live.test.ts'
+      'NEON_PROJECT_ID="${NEON_PROJECT_ID:-$CAPSULE_POSTGRES_PROJECT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/neon/src/neon.live.test.ts'
     ],
     notes: ["Creates a Neon branch and hard-deletes it in finally. Project-scoped Postgres aliases can satisfy NEON_PROJECT_ID."]
   },
   {
     provider: "kubernetes",
-    testPath: "packages/adapter-kubernetes/src/kubernetes.live.test.ts",
+    testPath: "packages/kubernetes/src/kubernetes.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "CAPSULE_KUBERNETES_NAMESPACE"],
     optionalEnv: ["KUBECONFIG", "KUBECONFIG_CONTEXT", "CAPSULE_KUBERNETES_IMAGE"],
     costRisk: "billable",
     costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
-    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-kubernetes/src/kubernetes.live.test.ts"],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/kubernetes/src/kubernetes.live.test.ts"],
     notes: ["Creates a Kubernetes Job and best-effort cancels it in finally."]
   },
   {
     provider: "lambda",
-    testPath: "packages/adapter-lambda/src/lambda.live.test.ts",
+    testPath: "packages/lambda/src/lambda.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "AWS_REGION", "CAPSULE_LAMBDA_FUNCTION_NAME"],
     optionalEnv: ["AWS_PROFILE", "AWS_ACCESS_KEY_ID", "AWS_WEB_IDENTITY_TOKEN_FILE"],
     costRisk: "billable",
     costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
-    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-lambda/src/lambda.live.test.ts"],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/lambda/src/lambda.live.test.ts"],
     notes: ["Uses the AWS SDK default credential chain and invokes an existing Lambda function."]
   },
   {
     provider: "fly",
-    testPath: "packages/adapter-fly/src/fly.live.test.ts",
+    testPath: "packages/fly/src/fly.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "FLY_API_TOKEN", "FLY_APP_NAME", "CAPSULE_FLY_IMAGE"],
     optionalEnv: ["FLY_REGION", "CAPSULE_FLY_MEMORY_MB", "CAPSULE_FLY_CPUS"],
     costRisk: "billable",
     costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
-    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/fly/src/fly.live.test.ts"],
     notes: ["Creates a Fly Machine and destroys it in finally."]
   },
   {
     provider: "azure-container-apps",
-    testPath: "packages/adapter-azure-container-apps/src/azure-container-apps.live.test.ts",
+    testPath: "packages/azure/src/azure-container-apps.live.test.ts",
     requiredEnv: [
       "CAPSULE_LIVE_TESTS",
       "AZURE_ACCESS_TOKEN",
@@ -761,7 +761,7 @@ const liveTestPlans: LiveTestPlan[] = [
     optionalEnv: ["CAPSULE_AZURE_CONTAINER_PORT"],
     costRisk: "billable",
     costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
-    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-azure-container-apps/src/azure-container-apps.live.test.ts"],
+    safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/azure/src/azure-container-apps.live.test.ts"],
     notes: ["Deploys an Azure Container App service and deletes it in finally."]
   }
 ];
@@ -2168,7 +2168,7 @@ export async function createProviderVerificationReport(
       configuredEnv: [],
       missingEnv: [],
       requiredEnv: [],
-      safeCommands: ["pnpm vitest run packages/adapter-docker/src/docker.test.ts"],
+      safeCommands: ["pnpm vitest run packages/docker/src/docker.test.ts"],
       notes: [
         dockerOk
           ? "Docker daemon is available for local Docker adapter tests."
@@ -2368,7 +2368,7 @@ export function createAdapterScaffoldPlan(options: { provider: string; domains: 
   const segment = toPackageSegment(options.provider);
   const factoryName = toFactoryName(segment);
   const typeName = toTypeName(factoryName);
-  const packageName = `@capsule-sdk/adapter-${segment}`;
+  const packageName = `@capsule-sdk/${segment}`;
   const domains = assertScaffoldDomains(options.domains);
   const packageDir = join(options.outDir ?? "packages", `adapter-${segment}`);
   const capabilities = capabilityMapForDomains(domains);
@@ -2462,9 +2462,9 @@ describe("${segment} adapter", () => {
 
 function adapterPackageName(adapter: string): string {
   if (adapter.startsWith("mock-")) {
-    return "@capsule-sdk/adapter-mock";
+    return "@capsule-sdk/mock";
   }
-  return `@capsule-sdk/adapter-${toPackageSegment(adapter)}`;
+  return `@capsule-sdk/${toPackageSegment(adapter)}`;
 }
 
 export function createProjectInitPlan(options: { adapter?: string; outDir?: string } = {}): ProjectInitPlan {

@@ -276,7 +276,7 @@ export function dockerLocalAgentPreset(options: DockerLocalAgentPresetOptions = 
       labels: { ...base.spec.labels, "capsule.io/preset": "docker-local-agent" }
     },
     policy: agentSafePolicy({ timeoutMs: options.timeoutMs, secretEnv: options.secretEnv, network: options.network }),
-    notes: ["Creates a sandbox spec for a locally sandboxed agent on Docker with a deny-by-default network; pair with @capsule-sdk/adapter-docker."]
+    notes: ["Creates a sandbox spec for a locally sandboxed agent on Docker with a deny-by-default network; pair with @capsule-sdk/docker."]
   };
 }
 

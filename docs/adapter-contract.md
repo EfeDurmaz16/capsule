@@ -57,7 +57,7 @@ Never silently emulate without marking the feature as `emulated`. Never mark som
 For a longer onboarding walkthrough, see [Adding a provider adapter](adding-provider-adapter.md).
 
 1. Classify the provider service with `capsule classify provider <provider> <service>`.
-2. Create `packages/adapter-provider-name`, or run `capsule adapter scaffold <provider> --domain <domain>`.
+2. Create `packages/provider-name`, or run `capsule adapter scaffold <provider> --domain <domain>`.
 3. Add `package.json`, `tsconfig.json`, `src/index.ts`, and a provider adapter file if you are not using the scaffold.
 4. Export a factory function such as `providerName(options)`.
 5. Define the smallest truthful `CapabilityMap`.

@@ -19,19 +19,19 @@
 - Updated dependencies [68b5121]
 - Updated dependencies [d3fe15c]
 - Updated dependencies [0a3331f]
-  - @capsule-sdk/adapter-azure-container-apps@0.1.1
-  - @capsule-sdk/adapter-cloud-run@0.1.1
+  - @capsule-sdk/azure@0.1.1
+  - @capsule-sdk/cloud-run@0.1.1
   - @capsule-sdk/core@0.1.1
-  - @capsule-sdk/adapter-cloudflare@0.1.1
-  - @capsule-sdk/adapter-kubernetes@0.1.1
-  - @capsule-sdk/adapter-docker@0.1.1
-  - @capsule-sdk/adapter-lambda@0.1.1
-  - @capsule-sdk/adapter-daytona@0.1.1
-  - @capsule-sdk/adapter-e2b@0.1.1
-  - @capsule-sdk/adapter-ec2@0.1.1
-  - @capsule-sdk/adapter-ecs@0.1.1
-  - @capsule-sdk/adapter-fly@0.1.1
-  - @capsule-sdk/adapter-modal@0.1.1
-  - @capsule-sdk/adapter-neon@0.1.1
-  - @capsule-sdk/adapter-vercel@0.1.1
+  - @capsule-sdk/cloudflare@0.1.1
+  - @capsule-sdk/kubernetes@0.1.1
+  - @capsule-sdk/docker@0.1.1
+  - @capsule-sdk/lambda@0.1.1
+  - @capsule-sdk/daytona@0.1.1
+  - @capsule-sdk/e2b@0.1.1
+  - @capsule-sdk/ec2@0.1.1
+  - @capsule-sdk/ecs@0.1.1
+  - @capsule-sdk/fly@0.1.1
+  - @capsule-sdk/modal@0.1.1
+  - @capsule-sdk/neon@0.1.1
+  - @capsule-sdk/vercel@0.1.1
   - @capsule-sdk/store-jsonl@0.1.1

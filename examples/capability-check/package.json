@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@capsule-sdk/core": "workspace:*",
-    "@capsule-sdk/adapter-mock": "workspace:*"
+    "@capsule-sdk/mock": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.20.6",

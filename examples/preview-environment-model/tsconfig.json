@@ -7,10 +7,10 @@
   },
   "references": [
     { "path": "../../packages/core" },
-    { "path": "../../packages/adapter-mock" },
-    { "path": "../../packages/adapter-neon" },
-    { "path": "../../packages/adapter-vercel" },
-    { "path": "../../packages/adapter-cloud-run" },
+    { "path": "../../packages/mock" },
+    { "path": "../../packages/neon" },
+    { "path": "../../packages/vercel" },
+    { "path": "../../packages/cloud-run" },
     { "path": "../../packages/preview" },
     { "path": "../../packages/store-jsonl" }
   ],

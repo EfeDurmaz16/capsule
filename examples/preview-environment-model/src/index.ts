@@ -1,9 +1,9 @@
 import { pathToFileURL } from "node:url";
 import { Capsule, type CapsuleReceipt, type CapabilityMap } from "@capsule-sdk/core";
-import { createMockAdapter } from "@capsule-sdk/adapter-mock";
-import { neon } from "@capsule-sdk/adapter-neon";
-import { vercel } from "@capsule-sdk/adapter-vercel";
-import { cloudRun } from "@capsule-sdk/adapter-cloud-run";
+import { createMockAdapter } from "@capsule-sdk/mock";
+import { neon } from "@capsule-sdk/neon";
+import { vercel } from "@capsule-sdk/vercel";
+import { cloudRun } from "@capsule-sdk/cloud-run";
 import { createPreviewGraph, cleanupPreviewEnvironment, type PreviewPlan } from "@capsule-sdk/preview";
 import { jsonlReceiptStore } from "@capsule-sdk/store-jsonl";
 

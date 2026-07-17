@@ -192,7 +192,7 @@ describe("CLI capability explanations", () => {
 
     expect(plan).toMatchObject({
       provider: "acme-cloud",
-      packageName: "@capsule-sdk/adapter-acme-cloud",
+      packageName: "@capsule-sdk/acme-cloud",
       factoryName: "acmeCloud",
       packageDir: join("tmp-packages", "adapter-acme-cloud"),
       domains: ["sandbox", "job"]
@@ -441,7 +441,7 @@ describe("CLI project init", () => {
     expect(plan).toMatchObject({
       adapter: "e2b",
       outDir: "sample",
-      installHint: "pnpm add @capsule-sdk/core @capsule-sdk/adapter-e2b"
+      installHint: "pnpm add @capsule-sdk/core @capsule-sdk/e2b"
     });
     expect(plan.files.map((file) => file.path)).toEqual([join("sample", "capsule.config.json"), join("sample", "capsule.policy.json")]);
     expect(JSON.stringify(plan)).not.toMatch(/API_KEY|TOKEN=|SECRET=|sk_/);
@@ -466,7 +466,7 @@ describe("CLI project init", () => {
       expect(output).toMatchObject({
         adapter: "mock-neon",
         files: [join(root, "capsule.config.json"), join(root, "capsule.policy.json")],
-        installHint: "pnpm add @capsule-sdk/core @capsule-sdk/adapter-mock"
+        installHint: "pnpm add @capsule-sdk/core @capsule-sdk/mock"
       });
       expect(output.notes).toContain("No secrets were written; configure provider credentials through environment variables or provider-native auth.");
       expect(output.notes.some((note) => note.includes("secrets.allowed to []") && note.includes("denies every environment key by default"))).toBe(true);
@@ -1170,11 +1170,11 @@ describe("CLI live-test planner", () => {
     expect(plan).toEqual([
       expect.objectContaining({
         provider: "neon",
-        testPath: "packages/adapter-neon/src/neon.live.test.ts",
+        testPath: "packages/neon/src/neon.live.test.ts",
         requiredEnv: ["CAPSULE_LIVE_TESTS", "NEON_API_KEY", "NEON_PROJECT_ID"],
         aliases: { NEON_PROJECT_ID: ["CAPSULE_POSTGRES_PROJECT_ID"] },
         safeCommands: [
-          'CAPSULE_LIVE_TEST_COST_ACK=1 CAPSULE_LIVE_TEST_MAX_RESOURCES=1 NEON_PROJECT_ID="${NEON_PROJECT_ID:-$CAPSULE_POSTGRES_PROJECT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-neon/src/neon.live.test.ts'
+          'CAPSULE_LIVE_TEST_COST_ACK=1 CAPSULE_LIVE_TEST_MAX_RESOURCES=1 NEON_PROJECT_ID="${NEON_PROJECT_ID:-$CAPSULE_POSTGRES_PROJECT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/neon/src/neon.live.test.ts'
         ]
       })
     ]);
@@ -1200,7 +1200,7 @@ describe("CLI live-test planner", () => {
       }
     });
     expect(plan.safeCommands[0]).toContain('CLOUDFLARE_API_TOKEN="${CLOUDFLARE_API_TOKEN:-$CAPSULE_WORKER_API_TOKEN}"');
-    expect(plan.safeCommands[0]).toContain("pnpm vitest run packages/adapter-cloudflare/src/cloudflare.live.test.ts");
+    expect(plan.safeCommands[0]).toContain("pnpm vitest run packages/cloudflare/src/cloudflare.live.test.ts");
   });
 
   test("prints the selected live-test plan", async () => {
@@ -1212,7 +1212,7 @@ describe("CLI live-test planner", () => {
         expect.objectContaining({
           provider: "vercel",
           requiredEnv: ["CAPSULE_LIVE_TESTS", "VERCEL_TOKEN", "CAPSULE_VERCEL_DEPLOYMENT_ID"],
-          safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-vercel/src/vercel.live.test.ts"]
+          safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/vercel/src/vercel.live.test.ts"]
         })
       ]);
     } finally {
@@ -1370,19 +1370,19 @@ describe("CLI live-test planner", () => {
       reason: "provider control plane intermittently returns 503",
       lastObservedFailure: "2026-05-30T10:00:00Z",
       owner: "runtime-team",
-      revalidationCommand: "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"
+      revalidationCommand: "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/fly/src/fly.live.test.ts"
     };
     const report = createLiveEnvironmentValidationReport({
       provider: "fly",
       plans: [
         {
           provider: "fly",
-          testPath: "packages/adapter-fly/src/fly.live.test.ts",
+          testPath: "packages/fly/src/fly.live.test.ts",
           requiredEnv: ["CAPSULE_LIVE_TESTS", "FLY_API_TOKEN", "FLY_APP_NAME"],
           optionalEnv: [],
           costRisk: "billable",
           costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
-          safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"],
+          safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/fly/src/fly.live.test.ts"],
           quarantine,
           notes: []
         }
@@ -1403,7 +1403,7 @@ describe("CLI live-test planner", () => {
       quarantineRevalidationEnv: "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY"
     });
     expect(report.providers[0]?.notes).toContain(
-      "Quarantined flaky live test: provider control plane intermittently returns 503. Owner: runtime-team. Last observed failure: 2026-05-30T10:00:00Z. Revalidate with: CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"
+      "Quarantined flaky live test: provider control plane intermittently returns 503. Owner: runtime-team. Last observed failure: 2026-05-30T10:00:00Z. Revalidate with: CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/fly/src/fly.live.test.ts"
     );
     expect(JSON.stringify(report)).not.toContain("secret-token");
   });

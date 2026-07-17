@@ -1,6 +1,6 @@
 # Agent preview environment (end to end)
 
-A credential-free example that chains an agent code-execution tool with preview orchestration. It uses `@capsule-sdk/adapter-mock` for every provider, so it calls no real provider API.
+A credential-free example that chains an agent code-execution tool with preview orchestration. It uses `@capsule-sdk/mock` for every provider, so it calls no real provider API.
 
 ## The chain
 

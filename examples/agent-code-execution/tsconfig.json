@@ -1,11 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "composite": true, "rootDir": "src", "outDir": "dist" },
-  "references": [
-    { "path": "../../packages/core" },
-    { "path": "../../packages/ai" },
-    { "path": "../../packages/adapter-e2b" },
-    { "path": "../../packages/adapter-mock" }
-  ],
+  "references": [{ "path": "../../packages/core" }, { "path": "../../packages/ai" }, { "path": "../../packages/e2b" }, { "path": "../../packages/mock" }],
   "include": ["src"]
 }
