@@ -4,10 +4,9 @@ Start with the [README](https://github.com/EfeDurmaz16/capsule#readme) for the p
 
 ## Concepts
 
-- [Architecture](architecture.md) and [architecture diagrams](architecture-diagrams.md)
+- [Architecture](architecture.md): packages, the governed operation path, runtime domains, and source diagrams
 - [Manifesto](manifesto.md): why a domain-aware adapter layer instead of a universal cloud abstraction
-- [Primitive taxonomy](primitive-taxonomy.md): how the seven runtime domains are carved
-- [Capability model](capability-model.md): support levels and capability negotiation
+- [Capability model](capability-model.md): support levels, capability negotiation, and provider selection
 - [Policy model](policy-model.md): checks that run before every runtime action
 - [Execution receipts](execution-receipts.md): what receipts record and what they prove
 - [Log normalization](log-normalization.md): how each provider's raw logs map into a single LogEntry shape
@@ -17,11 +16,7 @@ Start with the [README](https://github.com/EfeDurmaz16/capsule#readme) for the p
 
 ## Domain References
 
-- [Sandbox model](sandbox-model.md)
-- [Deployment model](deployment-model.md)
-- [Edge model](edge-model.md)
-- [Database resource model](database-resource-model.md)
-- [Machine model](machine-model.md)
+- [Domains](domains.md): sandbox, jobs and services, edge, database resources, and machines
 - [Preview environments](preview-environments.md)
 
 ## Using Capsule
@@ -29,7 +24,7 @@ Start with the [README](https://github.com/EfeDurmaz16/capsule#readme) for the p
 - [Operations guide](operations-guide.md): the CLI surface, task by task
 - [Real provider quickstarts](real-provider-quickstarts.md)
 - [Real orchestration walkthrough](real-orchestration-walkthrough.md): Neon plus Vercel plus Cloud Run preview end to end
-- [Provider matrix](provider-matrix.md) (generated) and [provider selection](provider-selection.md)
+- [Provider matrix](provider-matrix.md) (generated)
 - [AI framework wrappers](ai-framework-wrappers.md)
 
 ## Extending Capsule
@@ -44,6 +39,4 @@ Start with the [README](https://github.com/EfeDurmaz16/capsule#readme) for the p
 - [API reference](api-reference.md) (generated)
 - [Technical decisions](technical-decisions.md) and [ADRs](adr/README.md)
 - [Roadmap](roadmap.md)
-- [Real provider gap register](real-provider-gap-register.md)
-- [Release rollback runbook](release-rollback.md) and [release notes template](release-notes-template.md)
-- [Publish readiness](publish-readiness.md) and [unfinished marker gate](unfinished-marker-gate.md)
+- [Release operations](release-rollback.md): publish readiness and rollback

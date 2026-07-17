@@ -24,7 +24,7 @@ Before publishing, CI runs `pnpm release:audit` to check that public packages ha
 
 ## Release Notes
 
-Use [the release notes template](../docs/release-notes-template.md) when preparing a Changesets release PR, GitHub release, or npm publish summary. Group changes by domain so users can quickly separate core policy/receipt changes, provider adapter behavior, CLI and example updates, documentation-only changes, security/evidence implications, and breaking changes.
+When preparing a Changesets release PR, GitHub release, or npm publish summary, group changes by domain so users can quickly separate core policy/receipt changes, provider adapter behavior, CLI and example updates, documentation-only changes, security/evidence implications, and breaking changes.
 
 Every release note should include the exact verification commands that ran for the release. At minimum, include:
 
