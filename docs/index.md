@@ -11,6 +11,7 @@ Start with the [README](https://github.com/EfeDurmaz16/capsule#readme) for the p
 - [Policy model](policy-model.md): checks that run before every runtime action
 - [Execution receipts](execution-receipts.md): what receipts record and what they prove
 - [Log normalization](log-normalization.md): how each provider's raw logs map into a single LogEntry shape
+- [Artifacts](artifacts.md): hashing, manifests, and the filesystem collector
 - [Security model](security-model.md)
 - [Comparison](comparison.md): Capsule against provider SDKs, IaC, frameworks, and ComputeSDK
 
