@@ -7,7 +7,7 @@ import {
   ProviderRetryableError,
   runAdapterContract,
   UnsupportedCapabilityError
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 import { modal, modalCapabilities } from "./index.js";
 
 function failingModal(error: Error) {

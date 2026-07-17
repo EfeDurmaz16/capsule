@@ -21,7 +21,7 @@ test("resolves barrel exports into public symbol names", () => {
     mkdirSync(join(fixtureRoot, "docs"), { recursive: true });
 
     writeJson(join(packageDir, "package.json"), {
-      name: "@capsule/core",
+      name: "@capsule-sdk/core",
       version: "1.2.3",
       exports: {
         ".": {

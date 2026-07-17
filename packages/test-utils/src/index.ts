@@ -27,7 +27,7 @@ export interface LiveProviderRequirement {
 
 export interface LiveProviderRegistryEntry {
   provider: string;
-  packageName: `@capsule/${string}`;
+  packageName: `@capsule-sdk/${string}`;
   credentials: readonly string[];
   notes?: readonly string[];
 }
@@ -100,20 +100,20 @@ export const liveProviderMaxResourceCount: Record<string, number> = {
 };
 
 export const liveProviderRegistry = [
-  { provider: "docker", packageName: "@capsule/adapter-docker", credentials: liveProviderCredentials.docker, notes: ["Uses the local Docker daemon."] },
-  { provider: "e2b", packageName: "@capsule/adapter-e2b", credentials: liveProviderCredentials.e2b },
-  { provider: "daytona", packageName: "@capsule/adapter-daytona", credentials: liveProviderCredentials.daytona },
-  { provider: "modal", packageName: "@capsule/adapter-modal", credentials: liveProviderCredentials.modal },
-  { provider: "cloud-run", packageName: "@capsule/adapter-cloud-run", credentials: liveProviderCredentials["cloud-run"] },
-  { provider: "cloudflare", packageName: "@capsule/adapter-cloudflare", credentials: liveProviderCredentials.cloudflare },
-  { provider: "vercel", packageName: "@capsule/adapter-vercel", credentials: liveProviderCredentials.vercel },
-  { provider: "neon", packageName: "@capsule/adapter-neon", credentials: liveProviderCredentials.neon },
-  { provider: "kubernetes", packageName: "@capsule/adapter-kubernetes", credentials: liveProviderCredentials.kubernetes },
-  { provider: "lambda", packageName: "@capsule/adapter-lambda", credentials: liveProviderCredentials.lambda, notes: ["Uses AWS SDK ambient credentials."] },
-  { provider: "ecs", packageName: "@capsule/adapter-ecs", credentials: liveProviderCredentials.ecs, notes: ["Uses AWS SDK ambient credentials."] },
-  { provider: "ec2", packageName: "@capsule/adapter-ec2", credentials: liveProviderCredentials.ec2, notes: ["Uses AWS SDK ambient credentials."] },
-  { provider: "fly", packageName: "@capsule/adapter-fly", credentials: liveProviderCredentials.fly },
-  { provider: "azure-container-apps", packageName: "@capsule/adapter-azure-container-apps", credentials: liveProviderCredentials.azure }
+  { provider: "docker", packageName: "@capsule-sdk/adapter-docker", credentials: liveProviderCredentials.docker, notes: ["Uses the local Docker daemon."] },
+  { provider: "e2b", packageName: "@capsule-sdk/adapter-e2b", credentials: liveProviderCredentials.e2b },
+  { provider: "daytona", packageName: "@capsule-sdk/adapter-daytona", credentials: liveProviderCredentials.daytona },
+  { provider: "modal", packageName: "@capsule-sdk/adapter-modal", credentials: liveProviderCredentials.modal },
+  { provider: "cloud-run", packageName: "@capsule-sdk/adapter-cloud-run", credentials: liveProviderCredentials["cloud-run"] },
+  { provider: "cloudflare", packageName: "@capsule-sdk/adapter-cloudflare", credentials: liveProviderCredentials.cloudflare },
+  { provider: "vercel", packageName: "@capsule-sdk/adapter-vercel", credentials: liveProviderCredentials.vercel },
+  { provider: "neon", packageName: "@capsule-sdk/adapter-neon", credentials: liveProviderCredentials.neon },
+  { provider: "kubernetes", packageName: "@capsule-sdk/adapter-kubernetes", credentials: liveProviderCredentials.kubernetes },
+  { provider: "lambda", packageName: "@capsule-sdk/adapter-lambda", credentials: liveProviderCredentials.lambda, notes: ["Uses AWS SDK ambient credentials."] },
+  { provider: "ecs", packageName: "@capsule-sdk/adapter-ecs", credentials: liveProviderCredentials.ecs, notes: ["Uses AWS SDK ambient credentials."] },
+  { provider: "ec2", packageName: "@capsule-sdk/adapter-ec2", credentials: liveProviderCredentials.ec2, notes: ["Uses AWS SDK ambient credentials."] },
+  { provider: "fly", packageName: "@capsule-sdk/adapter-fly", credentials: liveProviderCredentials.fly },
+  { provider: "azure-container-apps", packageName: "@capsule-sdk/adapter-azure-container-apps", credentials: liveProviderCredentials.azure }
 ] as const satisfies readonly LiveProviderRegistryEntry[];
 
 function quarantineSkipReason(provider: string, quarantine: LiveTestQuarantine): string {

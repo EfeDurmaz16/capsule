@@ -94,7 +94,7 @@ const adapterDefinitions = [
 ];
 
 const plannedRows = [
-  "| Mock provider models | mock | varies | varies | varies | varies | varies | varies | varies | varies | varies | varies | `@capsule/adapter-mock` provides fake E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models for tests/examples only. It returns fake objects and does not call real provider APIs. |",
+  "| Mock provider models | mock | varies | varies | varies | varies | varies | varies | varies | varies | varies | varies | `@capsule-sdk/adapter-mock` provides fake E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models for tests/examples only. It returns fake objects and does not call real provider APIs. |",
   "| Cloudflare Sandbox | planned | experimental | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Future sandbox-focused adapter target; not implemented as a real provider adapter in this repo yet. |",
   "| Cloudflare Containers | planned | unsupported | experimental | experimental | experimental | unsupported | experimental | unsupported | unsupported | unsupported | unsupported | Hybrid runtime model still needs a real adapter and provider-specific lifecycle design. |",
   "| Microsandbox | planned | experimental | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Sandbox-focused future adapter target. |"
@@ -167,7 +167,7 @@ export function renderProviderMatrix(adapters) {
 Status legend:
 
 - \`real\`: implemented against a real provider/runtime API in this repo.
-- \`mock\`: modeled by \`@capsule/adapter-mock\` for tests/examples only.
+- \`mock\`: modeled by \`@capsule-sdk/adapter-mock\` for tests/examples only.
 - \`planned\`: documented target with no real adapter yet.
 
 Policy enforcement columns (Network policy, Filesystem policy, Secret mounting) report adapter-declared \`sandbox\` support levels for policy controls. \`unsupported\` means the adapter does not model that policy control, not that the control is unsafe.
@@ -180,9 +180,9 @@ ${realRows.join("\n")}
 
 ## Preset Packages
 
-\`@capsule/core\` includes generic spec and policy factories such as Node sandboxes, one-shot jobs, HTTP services, edge workers, database branches, and preview environments.
+\`@capsule-sdk/core\` includes generic spec and policy factories such as Node sandboxes, one-shot jobs, HTTP services, edge workers, database branches, and preview environments.
 
-\`@capsule/presets\` adds provider-oriented composition helpers. These helpers are intentionally not adapter shortcuts: they produce typed specs, policies, notes, and capability paths for common shapes such as Fly + Vercel + Neon previews. Callers still instantiate the provider adapters, check support levels, execute through Capsule, and keep receipts for each action.
+\`@capsule-sdk/presets\` adds provider-oriented composition helpers. These helpers are intentionally not adapter shortcuts: they produce typed specs, policies, notes, and capability paths for common shapes such as Fly + Vercel + Neon previews. Callers still instantiate the provider adapters, check support levels, execute through Capsule, and keep receipts for each action.
 
 ## Mock And Planned Modeling
 
@@ -206,7 +206,7 @@ export function renderGapReport(adapters, mockExamples) {
 
   lines.push("", "## Mock-First Example References");
   if (mockExamples.length === 0) {
-    lines.push("No examples import @capsule/adapter-mock.");
+    lines.push("No examples import @capsule-sdk/adapter-mock.");
   } else {
     lines.push(...mockExamples.map((file) => `- ${file}`));
   }
@@ -287,7 +287,7 @@ export function mockExampleReferences(root) {
   }
   return walk(examplesDir)
     .filter((file) => file.endsWith(".ts") || file.endsWith("package.json"))
-    .filter((file) => readFileSync(file, "utf8").includes("@capsule/adapter-mock"))
+    .filter((file) => readFileSync(file, "utf8").includes("@capsule-sdk/adapter-mock"))
     .map((file) => relative(root, file))
     .sort();
 }

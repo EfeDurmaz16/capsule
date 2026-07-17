@@ -3,7 +3,7 @@
 An adapter exports `name`, `provider`, `capabilities`, optional `raw`, and one or more domain adapter objects. Each adapter should implement only the domains it owns.
 
 ```ts
-import type { CapsuleAdapter, CapabilityMap } from "@capsule/core";
+import type { CapsuleAdapter, CapabilityMap } from "@capsule-sdk/core";
 
 export const exampleCapabilities: CapabilityMap = {
   sandbox: {
@@ -115,7 +115,7 @@ Use the core contract helpers first. They verify that declared public capabiliti
 
 ```ts
 import { describe, expect, test } from "vitest";
-import { Capsule, runCapsuleAdapterContract } from "@capsule/core";
+import { Capsule, runCapsuleAdapterContract } from "@capsule-sdk/core";
 import { exampleAdapter } from "./example-adapter.js";
 
 describe("example adapter", () => {
@@ -176,8 +176,8 @@ For live tests:
 
 ```ts
 import { describe, test } from "vitest";
-import { Capsule } from "@capsule/core";
-import { liveTest, providerLiveTestGate } from "@capsule/test-utils";
+import { Capsule } from "@capsule-sdk/core";
+import { liveTest, providerLiveTestGate } from "@capsule-sdk/test-utils";
 import { exampleAdapter } from "./example-adapter.js";
 
 describe("example adapter live", () => {

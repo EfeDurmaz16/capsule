@@ -27,7 +27,7 @@ import {
   type ServiceStatusResult,
   type ServiceStatusSpec,
   type UpdateServiceSpec
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 import {
   CloudRunClient,
   type CloudRunClientOptions,

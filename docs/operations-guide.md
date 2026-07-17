@@ -5,8 +5,8 @@ Task-oriented reference for the Capsule CLI. Every command here is sourced from 
 Build the CLI once, then invoke it from the workspace:
 
 ```bash
-pnpm --filter @capsule/cli build
-pnpm --filter @capsule/cli exec node dist/index.js <command>
+pnpm --filter @capsule-sdk/cli build
+pnpm --filter @capsule-sdk/cli exec node dist/index.js <command>
 ```
 
 A `capsule.config.json` in the working directory supplies a default adapter, `receipts.path`, and `policyFile`. Explicit flags (`--adapter`, `--receipt-file`, `--policy-file`) always override the config file.

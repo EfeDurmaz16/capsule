@@ -1,5 +1,5 @@
 {
-  "name": "@capsule/presets",
+  "name": "@capsule-sdk/presets",
   "version": "0.1.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -15,7 +15,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@capsule/core": "workspace:*"
+    "@capsule-sdk/core": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.5.0",

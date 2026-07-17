@@ -1,6 +1,6 @@
 import { mkdir, open, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { CapsuleReceipt, ReceiptStore } from "@capsule/core";
+import type { CapsuleReceipt, ReceiptStore } from "@capsule-sdk/core";
 
 export interface JsonlReceiptStoreOptions {
   path: string;

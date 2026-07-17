@@ -15,7 +15,7 @@ import {
   type RunJobSpec,
   type StartMachineSpec,
   type StopMachineSpec
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 import { FlyClient, type FlyClientOptions } from "./fly-client.js";
 
 export interface FlyAdapterOptions extends FlyClientOptions {

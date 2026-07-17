@@ -1,15 +1,15 @@
 # AI Framework Wrappers
 
-`@capsule/ai` exposes a framework-agnostic Capsule code execution tool plus small descriptor helpers for common agent frameworks.
+`@capsule-sdk/ai` exposes a framework-agnostic Capsule code execution tool plus small descriptor helpers for common agent frameworks.
 
 These helpers do not add framework dependencies. They return typed object shapes that can be passed into the framework-specific tool registration APIs in the application that already depends on that framework.
 
 ## Base Tool
 
 ```ts
-import { Capsule } from "@capsule/core";
-import { docker } from "@capsule/adapter-docker";
-import { createCodeExecutionTool } from "@capsule/ai";
+import { Capsule } from "@capsule-sdk/core";
+import { docker } from "@capsule-sdk/adapter-docker";
+import { createCodeExecutionTool } from "@capsule-sdk/ai";
 
 const capsule = new Capsule({
   adapter: docker(),
@@ -40,7 +40,7 @@ The result is Capsule's `ExecResult`: stdout, stderr, logs, artifacts, and optio
 
 ```ts
 import { tool } from "ai";
-import { createVercelAiSdkTool } from "@capsule/ai";
+import { createVercelAiSdkTool } from "@capsule-sdk/ai";
 
 const descriptor = createVercelAiSdkTool(codeExecution);
 
@@ -56,7 +56,7 @@ export const tools = {
 ## OpenAI Agents
 
 ```ts
-import { createOpenAIAgentsTool } from "@capsule/ai";
+import { createOpenAIAgentsTool } from "@capsule-sdk/ai";
 
 const descriptor = createOpenAIAgentsTool(codeExecution);
 
@@ -71,7 +71,7 @@ const openAiTool = {
 ## OpenAI Responses Function Tool
 
 ```ts
-import { createOpenAIResponsesFunctionTool } from "@capsule/ai";
+import { createOpenAIResponsesFunctionTool } from "@capsule-sdk/ai";
 
 const descriptor = createOpenAIResponsesFunctionTool(codeExecution);
 
@@ -85,7 +85,7 @@ async function handleFunctionCall(args: unknown) {
 ## LangChain
 
 ```ts
-import { createLangChainTool } from "@capsule/ai";
+import { createLangChainTool } from "@capsule-sdk/ai";
 
 const descriptor = createLangChainTool(codeExecution);
 
@@ -100,7 +100,7 @@ const langChainTool = {
 ## Mastra
 
 ```ts
-import { createMastraTool } from "@capsule/ai";
+import { createMastraTool } from "@capsule-sdk/ai";
 
 const descriptor = createMastraTool(codeExecution);
 
@@ -115,7 +115,7 @@ const mastraTool = {
 ## CrewAI
 
 ```ts
-import { createCrewAiTool } from "@capsule/ai";
+import { createCrewAiTool } from "@capsule-sdk/ai";
 
 const descriptor = createCrewAiTool(codeExecution);
 

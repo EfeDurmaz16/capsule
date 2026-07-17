@@ -32,12 +32,12 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  core["@capsule/core\nfacade, types, policy, receipts"]
-  cli["@capsule/cli\ninspection and local workflows"]
-  ai["@capsule/ai\nframework tool helpers"]
-  presets["@capsule/presets\nspec and policy factories"]
-  preview["@capsule/preview\nmulti-resource orchestration"]
-  stores["@capsule/store-jsonl\n@capsule/store-sqlite"]
+  core["@capsule-sdk/core\nfacade, types, policy, receipts"]
+  cli["@capsule-sdk/cli\ninspection and local workflows"]
+  ai["@capsule-sdk/ai\nframework tool helpers"]
+  presets["@capsule-sdk/presets\nspec and policy factories"]
+  preview["@capsule-sdk/preview\nmulti-resource orchestration"]
+  stores["@capsule-sdk/store-jsonl\n@capsule-sdk/store-sqlite"]
   adapters["provider adapters\nDocker, E2B, Daytona, Modal,\nCloud Run, Kubernetes, ECS, Fly,\nAzure, Cloudflare, Vercel,\nLambda, Neon, EC2"]
   providers["provider APIs and runtimes"]
 

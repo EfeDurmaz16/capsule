@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule-sdk/core";
 import { CloudRunClient, cloudRun, cloudRunCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200): Response {

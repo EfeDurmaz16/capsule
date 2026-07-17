@@ -22,11 +22,11 @@ Capsule receipts are JSON-serializable evidence records. The caller can store th
 
 Persistence should be added as optional layers, not as a hard dependency:
 
-- `@capsule/core`: types, policy, capabilities, receipts, adapter contracts.
-- `@capsule/cli`: can write local JSONL receipt files.
-- `@capsule/store-sqlite`: optional local persistence.
-- `@capsule/store-postgres`: optional hosted persistence.
-- `@capsule/server`: future hosted/control-plane layer.
+- `@capsule-sdk/core`: types, policy, capabilities, receipts, adapter contracts.
+- `@capsule-sdk/cli`: can write local JSONL receipt files.
+- `@capsule-sdk/store-sqlite`: optional local persistence.
+- `@capsule-sdk/store-postgres`: optional hosted persistence.
+- `@capsule-sdk/server`: future hosted/control-plane layer.
 
 This keeps library adoption simple while leaving room for deployment history, audit trails, and multi-user control planes later.
 
@@ -48,9 +48,9 @@ Effect could help internally with typed errors, resource lifecycles, retries, ti
 
 Decision:
 
-- Do not require Effect in `@capsule/core`.
+- Do not require Effect in `@capsule-sdk/core`.
 - Keep `await capsule.sandbox.create(...)` and `await capsule.job.run(...)`.
-- Consider a future optional `@capsule/effect` package that wraps the same core contracts for teams that want Effect.
+- Consider a future optional `@capsule-sdk/effect` package that wraps the same core contracts for teams that want Effect.
 
 ## Research: files-sdk
 

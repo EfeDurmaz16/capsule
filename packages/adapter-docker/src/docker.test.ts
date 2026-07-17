@@ -1,9 +1,17 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeAll, describe, expect, test } from "vitest";
-import { AdapterExecutionError, Capsule, MemoryReceiptStore, ProviderRetryableError, ProviderValidationError, runAdapterContract, sha256 } from "@capsule/core";
+import {
+  AdapterExecutionError,
+  Capsule,
+  MemoryReceiptStore,
+  ProviderRetryableError,
+  ProviderValidationError,
+  runAdapterContract,
+  sha256
+} from "@capsule-sdk/core";
 import type { DockerCommandResult, RunDockerOptions } from "./docker-cli.js";
-import { liveTest, liveTestGate, type LiveTestGate } from "@capsule/test-utils";
+import { liveTest, liveTestGate, type LiveTestGate } from "@capsule-sdk/test-utils";
 import { classifyDockerCliError, docker, dockerAvailable, runDocker } from "./index.js";
 import { dockerSandboxCreateArgs } from "./docker-adapter.js";
 import { normalizeDockerReceiptFixtures } from "./docker-receipt-fixtures.js";

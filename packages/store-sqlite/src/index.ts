@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import type { CapsuleReceipt, ReceiptStore } from "@capsule/core";
+import type { CapsuleReceipt, ReceiptStore } from "@capsule-sdk/core";
 
 export interface SqliteReceiptStoreOptions {
   path: string;

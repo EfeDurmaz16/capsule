@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { Capsule, MemoryReceiptStore } from "@capsule/core";
-import { liveResourceMetadata, liveTest, providerLiveTestGate } from "@capsule/test-utils";
+import { Capsule, MemoryReceiptStore } from "@capsule-sdk/core";
+import { liveResourceMetadata, liveTest, providerLiveTestGate } from "@capsule-sdk/test-utils";
 import { daytona } from "./daytona-adapter.js";
 
 const daytonaLiveGate = providerLiveTestGate("daytona");

@@ -1,11 +1,11 @@
 import { pathToFileURL } from "node:url";
-import { Capsule, type CapsuleReceipt, type CapabilityMap } from "@capsule/core";
-import { createMockAdapter } from "@capsule/adapter-mock";
-import { neon } from "@capsule/adapter-neon";
-import { vercel } from "@capsule/adapter-vercel";
-import { cloudRun } from "@capsule/adapter-cloud-run";
-import { createPreviewGraph, cleanupPreviewEnvironment, type PreviewPlan } from "@capsule/preview";
-import { jsonlReceiptStore } from "@capsule/store-jsonl";
+import { Capsule, type CapsuleReceipt, type CapabilityMap } from "@capsule-sdk/core";
+import { createMockAdapter } from "@capsule-sdk/adapter-mock";
+import { neon } from "@capsule-sdk/adapter-neon";
+import { vercel } from "@capsule-sdk/adapter-vercel";
+import { cloudRun } from "@capsule-sdk/adapter-cloud-run";
+import { createPreviewGraph, cleanupPreviewEnvironment, type PreviewPlan } from "@capsule-sdk/preview";
+import { jsonlReceiptStore } from "@capsule-sdk/store-jsonl";
 
 type Env = Record<string, string | undefined>;
 

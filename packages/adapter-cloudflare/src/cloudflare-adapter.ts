@@ -11,7 +11,7 @@ import {
   type EdgeVersion,
   type RollbackEdgeSpec,
   type VersionEdgeSpec
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 import { CloudflareClient, type CloudflareClientOptions } from "./cloudflare-client.js";
 
 export interface CloudflareAdapterOptions extends CloudflareClientOptions {

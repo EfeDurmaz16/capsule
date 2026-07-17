@@ -1,6 +1,6 @@
 # Capsule + Stripe Projects provisioning
 
-A credential-free example where a Stripe-style payment intent gates an infrastructure provisioning flow. It uses `@capsule/adapter-mock`, so it calls no real provider and no real Stripe API.
+A credential-free example where a Stripe-style payment intent gates an infrastructure provisioning flow. It uses `@capsule-sdk/adapter-mock`, so it calls no real provider and no real Stripe API.
 
 ## The idea
 
@@ -12,7 +12,7 @@ A confirmed payment should be the thing that authorizes provisioning, and it sho
 ## Run it
 
 ```bash
-pnpm --filter @capsule/example-stripe-projects-provisioning start
+pnpm --filter @capsule-sdk/example-stripe-projects-provisioning start
 ```
 
 Expected output (ids are illustrative):

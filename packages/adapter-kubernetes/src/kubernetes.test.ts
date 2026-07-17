@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, ProviderRetryableError, ProviderValidationError, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, ProviderRetryableError, ProviderValidationError, runAdapterContract } from "@capsule-sdk/core";
 import { kubernetes, kubernetesCapabilities } from "./index.js";
 
 function k8sError(code: number, reason: string, message = reason): Error {

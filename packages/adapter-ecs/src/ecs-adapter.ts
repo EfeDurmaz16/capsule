@@ -33,7 +33,7 @@ import {
   type ServiceStatus,
   type ServiceStatusResult,
   type ServiceStatusSpec
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 
 interface ECSClientLike {
   send(

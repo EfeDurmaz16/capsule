@@ -1,5 +1,5 @@
 {
-  "name": "@capsule/adapter-cloudflare",
+  "name": "@capsule-sdk/adapter-cloudflare",
   "version": "0.1.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -15,10 +15,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@capsule/core": "workspace:*"
+    "@capsule-sdk/core": "workspace:*"
   },
   "devDependencies": {
-    "@capsule/test-utils": "workspace:*",
+    "@capsule-sdk/test-utils": "workspace:*",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3"
   },

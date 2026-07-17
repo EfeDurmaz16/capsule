@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, runAdapterContract } from "@capsule-sdk/core";
 import { vercel, vercelCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200): Response {

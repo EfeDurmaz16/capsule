@@ -1,5 +1,5 @@
 {
-  "name": "@capsule/adapter-modal",
+  "name": "@capsule-sdk/adapter-modal",
   "version": "0.1.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -15,11 +15,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@capsule/core": "workspace:*",
+    "@capsule-sdk/core": "workspace:*",
     "modal": "^0.7.4"
   },
   "devDependencies": {
-    "@capsule/test-utils": "workspace:*",
+    "@capsule-sdk/test-utils": "workspace:*",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3"
   },

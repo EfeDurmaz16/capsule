@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { Capsule } from "@capsule/core";
-import { liveResourceMetadata, liveTest, providerLiveTestGate } from "@capsule/test-utils";
+import { Capsule } from "@capsule-sdk/core";
+import { liveResourceMetadata, liveTest, providerLiveTestGate } from "@capsule-sdk/test-utils";
 import { neon } from "./index.js";
 
 describe("neon live smoke", () => {

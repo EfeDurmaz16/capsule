@@ -1,6 +1,6 @@
 ---
-"@capsule/preview": patch
-"@capsule/cli": patch
+"@capsule-sdk/preview": patch
+"@capsule-sdk/cli": patch
 ---
 
 Preview cleanup no longer reports `partial` for resource kinds that have no cleanup action by design. Edge and job resources resolve to an `unsupported` disposition, and the overall cleanup status is now `cleaned`, `unsupported`, or `partial`; `capsule preview destroy` exits 0 when the only leftovers are unsupported and exits non-zero only for real failures. Its summary gains a `partial` bucket so partial dispositions are visible.

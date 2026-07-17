@@ -14,7 +14,7 @@ import {
   type FileEntry,
   type Sandbox,
   type SandboxHandle
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 
 interface ModalReadStreamLike {
   readText(): Promise<string>;

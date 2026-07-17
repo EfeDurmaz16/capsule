@@ -2,7 +2,7 @@ import { generateKeyPairSync, sign as signWithKey } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createReceipt, explainPolicy } from "@capsule/core";
+import { createReceipt, explainPolicy } from "@capsule-sdk/core";
 import { describe, expect, test, vi } from "vitest";
 import {
   applyCapsuleConfig,
@@ -119,13 +119,13 @@ describe("CLI doctor credential diagnostics", () => {
       packageManager: "pnpm@10.32.1",
       missingFiles: []
     });
-    expect(report.packages.find((pkg) => pkg.name === "@capsule/core")).toMatchObject({
-      name: "@capsule/core",
+    expect(report.packages.find((pkg) => pkg.name === "@capsule-sdk/core")).toMatchObject({
+      name: "@capsule-sdk/core",
       version: "0.1.1",
       private: false
     });
-    expect(report.packages.find((pkg) => pkg.name === "@capsule/test-utils")).toMatchObject({
-      name: "@capsule/test-utils",
+    expect(report.packages.find((pkg) => pkg.name === "@capsule-sdk/test-utils")).toMatchObject({
+      name: "@capsule-sdk/test-utils",
       version: "0.1.0",
       private: true
     });
@@ -192,7 +192,7 @@ describe("CLI capability explanations", () => {
 
     expect(plan).toMatchObject({
       provider: "acme-cloud",
-      packageName: "@capsule/adapter-acme-cloud",
+      packageName: "@capsule-sdk/adapter-acme-cloud",
       factoryName: "acmeCloud",
       packageDir: join("tmp-packages", "adapter-acme-cloud"),
       domains: ["sandbox", "job"]
@@ -441,7 +441,7 @@ describe("CLI project init", () => {
     expect(plan).toMatchObject({
       adapter: "e2b",
       outDir: "sample",
-      installHint: "pnpm add @capsule/core @capsule/adapter-e2b"
+      installHint: "pnpm add @capsule-sdk/core @capsule-sdk/adapter-e2b"
     });
     expect(plan.files.map((file) => file.path)).toEqual([join("sample", "capsule.config.json"), join("sample", "capsule.policy.json")]);
     expect(JSON.stringify(plan)).not.toMatch(/API_KEY|TOKEN=|SECRET=|sk_/);
@@ -466,7 +466,7 @@ describe("CLI project init", () => {
       expect(output).toMatchObject({
         adapter: "mock-neon",
         files: [join(root, "capsule.config.json"), join(root, "capsule.policy.json")],
-        installHint: "pnpm add @capsule/core @capsule/adapter-mock"
+        installHint: "pnpm add @capsule-sdk/core @capsule-sdk/adapter-mock"
       });
       expect(output.notes).toContain("No secrets were written; configure provider credentials through environment variables or provider-native auth.");
       expect(output.notes.some((note) => note.includes("secrets.allowed to []") && note.includes("denies every environment key by default"))).toBe(true);
@@ -502,9 +502,9 @@ describe("CLI runnable examples", () => {
     const report = await createExamplesReport({ workspaceRoot: process.cwd() });
 
     expect(report.examples.find((example) => example.id === "capability-check")).toMatchObject({
-      packageName: "@capsule/example-capability-check",
+      packageName: "@capsule-sdk/example-capability-check",
       runnableWithoutCredentials: true,
-      command: ["pnpm", "--filter", "@capsule/example-capability-check", "start"]
+      command: ["pnpm", "--filter", "@capsule-sdk/example-capability-check", "start"]
     });
     expect(report.examples.find((example) => example.id === "sandbox-docker")).toMatchObject({
       runnableWithoutCredentials: false,
@@ -524,7 +524,7 @@ describe("CLI runnable examples", () => {
       const runOutput = JSON.parse(String(log.mock.calls[0]?.[0])) as { status: string; command: string[]; example: { id: string } };
       expect(runOutput).toMatchObject({
         status: "planned",
-        command: ["pnpm", "--filter", "@capsule/example-policy-receipts", "start"],
+        command: ["pnpm", "--filter", "@capsule-sdk/example-policy-receipts", "start"],
         example: { id: "policy-receipts" }
       });
     } finally {
@@ -550,7 +550,7 @@ describe("CLI runnable examples", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({
       command: "pnpm",
-      args: ["--filter", "@capsule/example-agent-code-execution", "start"]
+      args: ["--filter", "@capsule-sdk/example-agent-code-execution", "start"]
     });
     expect(calls[0]?.env.CAPSULE_LIVE_TESTS).toBeUndefined();
 
@@ -1662,7 +1662,7 @@ describe("CLI preset catalog", () => {
       await main(["preset", "list"]);
       const table = String(log.mock.calls[0]?.[0]);
       expect(table).toContain("node-sandbox");
-      expect(table).toContain("@capsule/presets");
+      expect(table).toContain("@capsule-sdk/presets");
       expect(() => JSON.parse(table)).toThrow();
 
       log.mockClear();
@@ -1679,7 +1679,7 @@ describe("CLI preset catalog", () => {
     try {
       await main(["preset", "explain", "cost-limited-preview"]);
       const entry = JSON.parse(String(log.mock.calls[0]?.[0])) as { id: string; package: string; capabilityPaths: string[] };
-      expect(entry).toMatchObject({ id: "cost-limited-preview", package: "@capsule/core" });
+      expect(entry).toMatchObject({ id: "cost-limited-preview", package: "@capsule-sdk/core" });
       expect(entry.capabilityPaths).toContain("preview.create");
 
       await expect(main(["preset", "explain", "does-not-exist"])).rejects.toThrow('Unknown preset "does-not-exist"');

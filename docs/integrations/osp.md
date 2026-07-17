@@ -105,7 +105,7 @@ OSP decides or records what was provisioned. Capsule proves what runtime/provide
 
 Do not make Capsule depend on OSP.
 
-Do not put OSP lifecycle state into `@capsule/core`.
+Do not put OSP lifecycle state into `@capsule-sdk/core`.
 
 Do not make OSP claim Capsule adapter support. Capability support remains an adapter declaration.
 
@@ -118,7 +118,7 @@ Do not flatten provider differences. If OSP resolves a Cloudflare Worker, Capsul
 A future optional package could be:
 
 ```text
-@capsule/osp
+@capsule-sdk/osp
 ```
 
 Possible responsibilities:

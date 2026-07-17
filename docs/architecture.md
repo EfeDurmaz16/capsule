@@ -2,19 +2,19 @@
 
 Capsule is a pnpm monorepo with focused packages:
 
-- `@capsule/core`: shared types, capability lookup, policy checks, receipts, domain facades, contract helpers, and errors.
-- `@capsule/adapter-docker`, `@capsule/adapter-e2b`, `@capsule/adapter-daytona`, and `@capsule/adapter-modal`: sandbox execution adapters with provider-specific lifecycle semantics.
-- `@capsule/adapter-cloud-run`, `@capsule/adapter-kubernetes`, `@capsule/adapter-ecs`, `@capsule/adapter-fly`, and `@capsule/adapter-azure-container-apps`: container job/service adapters.
-- `@capsule/adapter-cloudflare`, `@capsule/adapter-vercel`, and `@capsule/adapter-lambda`: edge, function, deployment, and runtime adapters.
-- `@capsule/adapter-neon`: database branch resource adapter.
-- `@capsule/adapter-ec2`: machine lifecycle adapter.
-- `@capsule/adapter-mock`: realistic mock providers for examples, tests, and future adapter design.
-- `@capsule/ai`: framework-agnostic code execution tool helper and dependency-free framework descriptors for Vercel AI SDK, OpenAI Agents/Responses, LangChain, Mastra, and CrewAI.
-- `@capsule/cli`: CLI for capabilities, provider comparison, live-test planning, Docker runs, sandbox smoke tests, adapter scaffolding, and doctor checks. `capsule doctor` reports Node support, workspace health, package versions, release-audit script availability, Docker availability, and provider credential env-var presence without printing secret values.
-- `@capsule/presets`: provider-oriented runtime and preview preset factories.
-- `@capsule/preview`: preview environment composition helpers for resources, cleanup evidence, and receipts.
-- `@capsule/store-jsonl` and `@capsule/store-sqlite`: receipt persistence packages.
-- `@capsule/test-utils`: private workspace helpers for contract and live provider tests.
+- `@capsule-sdk/core`: shared types, capability lookup, policy checks, receipts, domain facades, contract helpers, and errors.
+- `@capsule-sdk/adapter-docker`, `@capsule-sdk/adapter-e2b`, `@capsule-sdk/adapter-daytona`, and `@capsule-sdk/adapter-modal`: sandbox execution adapters with provider-specific lifecycle semantics.
+- `@capsule-sdk/adapter-cloud-run`, `@capsule-sdk/adapter-kubernetes`, `@capsule-sdk/adapter-ecs`, `@capsule-sdk/adapter-fly`, and `@capsule-sdk/adapter-azure-container-apps`: container job/service adapters.
+- `@capsule-sdk/adapter-cloudflare`, `@capsule-sdk/adapter-vercel`, and `@capsule-sdk/adapter-lambda`: edge, function, deployment, and runtime adapters.
+- `@capsule-sdk/adapter-neon`: database branch resource adapter.
+- `@capsule-sdk/adapter-ec2`: machine lifecycle adapter.
+- `@capsule-sdk/adapter-mock`: realistic mock providers for examples, tests, and future adapter design.
+- `@capsule-sdk/ai`: framework-agnostic code execution tool helper and dependency-free framework descriptors for Vercel AI SDK, OpenAI Agents/Responses, LangChain, Mastra, and CrewAI.
+- `@capsule-sdk/cli`: CLI for capabilities, provider comparison, live-test planning, Docker runs, sandbox smoke tests, adapter scaffolding, and doctor checks. `capsule doctor` reports Node support, workspace health, package versions, release-audit script availability, Docker availability, and provider credential env-var presence without printing secret values.
+- `@capsule-sdk/presets`: provider-oriented runtime and preview preset factories.
+- `@capsule-sdk/preview`: preview environment composition helpers for resources, cleanup evidence, and receipts.
+- `@capsule-sdk/store-jsonl` and `@capsule-sdk/store-sqlite`: receipt persistence packages.
+- `@capsule-sdk/test-utils`: private workspace helpers for contract and live provider tests.
 
 The `Capsule` class receives an adapter, optional policy, and receipt setting. Domain APIs such as `capsule.sandbox.create` and `capsule.job.run` validate capability paths, evaluate policy, call the adapter, and attach receipts where the domain result supports them.
 

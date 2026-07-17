@@ -26,7 +26,7 @@ Capsule should prefer transparent repair over history rewriting. Most release fa
 Set the package and version explicitly before running npm commands:
 
 ```bash
-PACKAGE='@capsule/core'
+PACKAGE='@capsule-sdk/core'
 BAD_VERSION='0.1.1'
 FIX_VERSION='0.1.2'
 ```

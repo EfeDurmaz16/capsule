@@ -7,7 +7,7 @@ import {
   ProviderRetryableError,
   ProviderValidationError,
   runAdapterContract
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 import { daytona, daytonaCapabilities } from "./index.js";
 
 function failingDaytona(error: Error) {

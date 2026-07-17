@@ -42,7 +42,7 @@ import {
   type ProviderCompatibilityScore,
   type RunJobSpec,
   type SupportLevelExplanation
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 import {
   mockCloudRun,
   mockCloudflare,
@@ -55,20 +55,20 @@ import {
   mockModal,
   mockNeon,
   mockVercel
-} from "@capsule/adapter-mock";
-import { azureContainerApps } from "@capsule/adapter-azure-container-apps";
-import { cloudflare } from "@capsule/adapter-cloudflare";
-import { cloudRun } from "@capsule/adapter-cloud-run";
-import { daytona } from "@capsule/adapter-daytona";
-import { docker, dockerAvailable } from "@capsule/adapter-docker";
-import { e2b } from "@capsule/adapter-e2b";
-import { ec2 } from "@capsule/adapter-ec2";
-import { ecs } from "@capsule/adapter-ecs";
-import { fly } from "@capsule/adapter-fly";
-import { kubernetes } from "@capsule/adapter-kubernetes";
-import { lambda } from "@capsule/adapter-lambda";
-import { modal } from "@capsule/adapter-modal";
-import { neon } from "@capsule/adapter-neon";
+} from "@capsule-sdk/adapter-mock";
+import { azureContainerApps } from "@capsule-sdk/adapter-azure-container-apps";
+import { cloudflare } from "@capsule-sdk/adapter-cloudflare";
+import { cloudRun } from "@capsule-sdk/adapter-cloud-run";
+import { daytona } from "@capsule-sdk/adapter-daytona";
+import { docker, dockerAvailable } from "@capsule-sdk/adapter-docker";
+import { e2b } from "@capsule-sdk/adapter-e2b";
+import { ec2 } from "@capsule-sdk/adapter-ec2";
+import { ecs } from "@capsule-sdk/adapter-ecs";
+import { fly } from "@capsule-sdk/adapter-fly";
+import { kubernetes } from "@capsule-sdk/adapter-kubernetes";
+import { lambda } from "@capsule-sdk/adapter-lambda";
+import { modal } from "@capsule-sdk/adapter-modal";
+import { neon } from "@capsule-sdk/adapter-neon";
 import {
   cleanupPreviewEnvironment,
   createPreviewDryRunReceiptBundle,
@@ -79,10 +79,10 @@ import {
   type PreviewPlan,
   type PreviewResourceKind,
   type PreviewResourceRecord
-} from "@capsule/preview";
-import { presetCatalog, type PresetCatalogEntry } from "@capsule/presets";
-import { vercel } from "@capsule/adapter-vercel";
-import { jsonlReceiptStore } from "@capsule/store-jsonl";
+} from "@capsule-sdk/preview";
+import { presetCatalog, type PresetCatalogEntry } from "@capsule-sdk/presets";
+import { vercel } from "@capsule-sdk/adapter-vercel";
+import { jsonlReceiptStore } from "@capsule-sdk/store-jsonl";
 
 interface ParsedArgs {
   command?: string;
@@ -2368,7 +2368,7 @@ export function createAdapterScaffoldPlan(options: { provider: string; domains: 
   const segment = toPackageSegment(options.provider);
   const factoryName = toFactoryName(segment);
   const typeName = toTypeName(factoryName);
-  const packageName = `@capsule/adapter-${segment}`;
+  const packageName = `@capsule-sdk/adapter-${segment}`;
   const domains = assertScaffoldDomains(options.domains);
   const packageDir = join(options.outDir ?? "packages", `adapter-${segment}`);
   const capabilities = capabilityMapForDomains(domains);
@@ -2387,7 +2387,7 @@ export function createAdapterScaffoldPlan(options: { provider: string; domains: 
             build: "tsup src/index.ts --format esm && tsc -p tsconfig.json --emitDeclarationOnly",
             typecheck: "tsc -p tsconfig.json --noEmit"
           },
-          dependencies: { "@capsule/core": "workspace:*" },
+          dependencies: { "@capsule-sdk/core": "workspace:*" },
           devDependencies: { tsup: "^8.5.0", typescript: "^5.9.3", vitest: "^4.1.6" },
           publishConfig: { access: "public" },
           files: ["dist"],
@@ -2420,7 +2420,7 @@ export function createAdapterScaffoldPlan(options: { provider: string; domains: 
     },
     {
       path: join(packageDir, `src/${segment}-adapter.ts`),
-      content: `import type { CapsuleAdapter, CapabilityMap } from "@capsule/core";
+      content: `import type { CapsuleAdapter, CapabilityMap } from "@capsule-sdk/core";
 
 export interface ${typeName}AdapterOptions {
   raw?: unknown;
@@ -2441,7 +2441,7 @@ export function ${factoryName}(options: ${typeName}AdapterOptions = {}): Capsule
     {
       path: join(packageDir, `src/${segment}.test.ts`),
       content: `import { describe, expect, test } from "vitest";
-import { Capsule, runCapsuleAdapterContract } from "@capsule/core";
+import { Capsule, runCapsuleAdapterContract } from "@capsule-sdk/core";
 import { ${factoryName}, ${factoryName}Capabilities } from "./index.js";
 
 describe("${segment} adapter", () => {
@@ -2462,9 +2462,9 @@ describe("${segment} adapter", () => {
 
 function adapterPackageName(adapter: string): string {
   if (adapter.startsWith("mock-")) {
-    return "@capsule/adapter-mock";
+    return "@capsule-sdk/adapter-mock";
   }
-  return `@capsule/adapter-${toPackageSegment(adapter)}`;
+  return `@capsule-sdk/adapter-${toPackageSegment(adapter)}`;
 }
 
 export function createProjectInitPlan(options: { adapter?: string; outDir?: string } = {}): ProjectInitPlan {
@@ -2508,7 +2508,7 @@ export function createProjectInitPlan(options: { adapter?: string; outDir?: stri
         content: `${JSON.stringify(policy, null, 2)}\n`
       }
     ],
-    installHint: `pnpm add @capsule/core ${adapterPackageName(adapter)}`,
+    installHint: `pnpm add @capsule-sdk/core ${adapterPackageName(adapter)}`,
     notes: [
       "No secrets were written; configure provider credentials through environment variables or provider-native auth.",
       "The scaffolded policy sets secrets.allowed to [], which denies every environment key by default; add keys to secrets.allowed in capsule.policy.json to permit them.",
@@ -2566,7 +2566,7 @@ const liveProviderCredentialEnv = [
 ];
 
 function exampleId(packageName: string): string {
-  return packageName.replace(/^@capsule\/example-/, "");
+  return packageName.replace(/^@capsule-sdk\/example-/, "");
 }
 
 function exampleCredentialMode(id: string): ExampleCredentialMode {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { Capsule } from "@capsule/core";
-import { liveResourceMetadata, liveTest, liveTestGate } from "@capsule/test-utils";
+import { Capsule } from "@capsule-sdk/core";
+import { liveResourceMetadata, liveTest, liveTestGate } from "@capsule-sdk/test-utils";
 import { cloudRun } from "./index.js";
 
 describe("cloud run live smoke", () => {

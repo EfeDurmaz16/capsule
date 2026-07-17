@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { Capsule, MemoryReceiptStore } from "@capsule/core";
+import { Capsule, MemoryReceiptStore } from "@capsule-sdk/core";
 import { docker } from "./docker-adapter.js";
 import { runDocker } from "./docker-cli.js";
 

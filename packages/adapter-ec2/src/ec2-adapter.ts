@@ -21,7 +21,7 @@ import {
   type MachineStatusSpec,
   type StartMachineSpec,
   type StopMachineSpec
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 
 interface EC2ClientLike {
   send(command: RunInstancesCommand | DescribeInstancesCommand | StartInstancesCommand | StopInstancesCommand | TerminateInstancesCommand): Promise<any>;

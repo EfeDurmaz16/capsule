@@ -64,28 +64,28 @@ const packagesDir = join(root, "packages");
 const kib = 1024;
 // Packed tarball budgets are rounded up from current pnpm pack artifacts.
 const packedSizeBudgetBytes = {
-  "@capsule/adapter-azure-container-apps": 8 * kib,
-  "@capsule/adapter-cloud-run": 12 * kib,
-  "@capsule/adapter-cloudflare": 8 * kib,
-  "@capsule/adapter-daytona": 6 * kib,
-  "@capsule/adapter-docker": 8 * kib,
-  "@capsule/adapter-e2b": 6 * kib,
-  "@capsule/adapter-ec2": 6 * kib,
-  "@capsule/adapter-ecs": 8 * kib,
-  "@capsule/adapter-fly": 8 * kib,
-  "@capsule/adapter-kubernetes": 12 * kib,
-  "@capsule/adapter-lambda": 6 * kib,
-  "@capsule/adapter-mock": 10 * kib,
-  "@capsule/adapter-modal": 6 * kib,
-  "@capsule/adapter-neon": 6 * kib,
-  "@capsule/adapter-vercel": 10 * kib,
-  "@capsule/ai": 6 * kib,
-  "@capsule/cli": 28 * kib,
-  "@capsule/core": 47 * kib,
-  "@capsule/presets": 6 * kib,
-  "@capsule/preview": 9 * kib,
-  "@capsule/store-jsonl": 4 * kib,
-  "@capsule/store-sqlite": 5 * kib
+  "@capsule-sdk/adapter-azure-container-apps": 8 * kib,
+  "@capsule-sdk/adapter-cloud-run": 12 * kib,
+  "@capsule-sdk/adapter-cloudflare": 8 * kib,
+  "@capsule-sdk/adapter-daytona": 6 * kib,
+  "@capsule-sdk/adapter-docker": 8 * kib,
+  "@capsule-sdk/adapter-e2b": 6 * kib,
+  "@capsule-sdk/adapter-ec2": 6 * kib,
+  "@capsule-sdk/adapter-ecs": 8 * kib,
+  "@capsule-sdk/adapter-fly": 8 * kib,
+  "@capsule-sdk/adapter-kubernetes": 12 * kib,
+  "@capsule-sdk/adapter-lambda": 6 * kib,
+  "@capsule-sdk/adapter-mock": 10 * kib,
+  "@capsule-sdk/adapter-modal": 6 * kib,
+  "@capsule-sdk/adapter-neon": 6 * kib,
+  "@capsule-sdk/adapter-vercel": 10 * kib,
+  "@capsule-sdk/ai": 6 * kib,
+  "@capsule-sdk/cli": 28 * kib,
+  "@capsule-sdk/core": 47 * kib,
+  "@capsule-sdk/presets": 6 * kib,
+  "@capsule-sdk/preview": 9 * kib,
+  "@capsule-sdk/store-jsonl": 4 * kib,
+  "@capsule-sdk/store-sqlite": 5 * kib
 };
 
 function readJson(path) {
@@ -279,7 +279,7 @@ try {
     );
     run("pnpm", ["install", "--ignore-scripts", "--no-frozen-lockfile"], { cwd: fixtureDir, stdio: "inherit" });
     run("node", ["smoke.mjs"], { cwd: fixtureDir, stdio: "inherit" });
-    if (tarballs.some((tarball) => tarball.name === "@capsule/cli")) {
+    if (tarballs.some((tarball) => tarball.name === "@capsule-sdk/cli")) {
       smokeCliBin(fixtureDir);
     }
     console.log(`Package pack smoke passed for ${tarballs.length} packages in ${basename(tempRoot)}.`);

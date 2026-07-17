@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, ProviderAuthError, ProviderRateLimitError, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, ProviderAuthError, ProviderRateLimitError, runAdapterContract } from "@capsule-sdk/core";
 import { ec2, ec2Capabilities } from "./index.js";
 
 function awsError(name: string, httpStatusCode: number, message = name): Error {

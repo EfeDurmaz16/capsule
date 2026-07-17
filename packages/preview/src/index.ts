@@ -16,8 +16,8 @@ import type {
   PreviewUrlEntry,
   RunJobSpec,
   ServiceDeployment
-} from "@capsule/core";
-import { createReceipt, evaluateCapabilityRequirements } from "@capsule/core";
+} from "@capsule-sdk/core";
+import { createReceipt, evaluateCapabilityRequirements } from "@capsule-sdk/core";
 
 export type PreviewResourceKind = "database" | "service" | "edge" | "job";
 export type PreviewCleanupDisposition = "cleaned" | "partial" | "unsupported" | "leaked";
@@ -338,7 +338,7 @@ export function createPreviewDryRunReceiptBundle(plan: PreviewPlan, options: Cre
   const receipt = createReceipt({
     type: "preview.create",
     provider: "capsule-preview",
-    adapter: "@capsule/preview",
+    adapter: "@capsule-sdk/preview",
     capabilityPath: "preview.create",
     supportLevel: "emulated",
     startedAt,
@@ -553,7 +553,7 @@ function previewCreateReceipt(
   return createReceipt({
     type: "preview.create",
     provider: "capsule-preview",
-    adapter: "@capsule/preview",
+    adapter: "@capsule-sdk/preview",
     capabilityPath: "preview.create",
     supportLevel: "emulated",
     startedAt,
@@ -593,7 +593,7 @@ function previewCreateReceipt(
       decision: preview.status === "failed" ? "denied" : "allowed",
       applied: {},
       notes: [
-        "Preview create receipt is emitted by @capsule/preview orchestration.",
+        "Preview create receipt is emitted by @capsule-sdk/preview orchestration.",
         "Cleanup plan actions are recorded in reverse create order and include idempotency keys."
       ]
     }
@@ -610,7 +610,7 @@ function createCleanupReceipt(
   return createReceipt({
     type: "preview.cleanup",
     provider: "capsule-preview",
-    adapter: "@capsule/preview",
+    adapter: "@capsule-sdk/preview",
     capabilityPath: "preview.cleanup",
     supportLevel: "emulated",
     startedAt,
@@ -645,7 +645,7 @@ function createCleanupReceipt(
       decision: "allowed",
       applied: {},
       notes: [
-        "Preview cleanup receipt is emitted by @capsule/preview orchestration.",
+        "Preview cleanup receipt is emitted by @capsule-sdk/preview orchestration.",
         "Provider cleanup evidence is limited to the receipts returned by each resource adapter."
       ]
     }

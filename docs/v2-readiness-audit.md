@@ -35,32 +35,32 @@ When the audit PR for this file is merged, the v2 issue set is closed by merged 
 3. package pack smoke for every public package;
 4. temporary install fixture using packed tarballs;
 5. import smoke for all packed packages;
-6. `@capsule/cli` bin smoke through `pnpm exec capsule capabilities`.
+6. `@capsule-sdk/cli` bin smoke through `pnpm exec capsule capabilities`.
 
 The pack smoke covers 22 public packages:
 
-- `@capsule/core`
-- `@capsule/adapter-docker`
-- `@capsule/adapter-mock`
-- `@capsule/adapter-e2b`
-- `@capsule/adapter-daytona`
-- `@capsule/adapter-modal`
-- `@capsule/adapter-cloud-run`
-- `@capsule/adapter-cloudflare`
-- `@capsule/adapter-vercel`
-- `@capsule/adapter-neon`
-- `@capsule/adapter-kubernetes`
-- `@capsule/adapter-lambda`
-- `@capsule/adapter-ecs`
-- `@capsule/adapter-ec2`
-- `@capsule/adapter-fly`
-- `@capsule/adapter-azure-container-apps`
-- `@capsule/ai`
-- `@capsule/cli`
-- `@capsule/presets`
-- `@capsule/preview`
-- `@capsule/store-jsonl`
-- `@capsule/store-sqlite`
+- `@capsule-sdk/core`
+- `@capsule-sdk/adapter-docker`
+- `@capsule-sdk/adapter-mock`
+- `@capsule-sdk/adapter-e2b`
+- `@capsule-sdk/adapter-daytona`
+- `@capsule-sdk/adapter-modal`
+- `@capsule-sdk/adapter-cloud-run`
+- `@capsule-sdk/adapter-cloudflare`
+- `@capsule-sdk/adapter-vercel`
+- `@capsule-sdk/adapter-neon`
+- `@capsule-sdk/adapter-kubernetes`
+- `@capsule-sdk/adapter-lambda`
+- `@capsule-sdk/adapter-ecs`
+- `@capsule-sdk/adapter-ec2`
+- `@capsule-sdk/adapter-fly`
+- `@capsule-sdk/adapter-azure-container-apps`
+- `@capsule-sdk/ai`
+- `@capsule-sdk/cli`
+- `@capsule-sdk/presets`
+- `@capsule-sdk/preview`
+- `@capsule-sdk/store-jsonl`
+- `@capsule-sdk/store-sqlite`
 
 ## Marker Audit
 
@@ -112,7 +112,7 @@ Results:
 
 ## What Is Mocked
 
-`@capsule/adapter-mock` remains intentionally mocked for tests, examples, demos, and capability modeling. It is explicitly marked as mock metadata and is blocked from production preview plans when `requireRealProviders` is enabled unless the plan also allows mock providers.
+`@capsule-sdk/adapter-mock` remains intentionally mocked for tests, examples, demos, and capability modeling. It is explicitly marked as mock metadata and is blocked from production preview plans when `requireRealProviders` is enabled unless the plan also allows mock providers.
 
 Mock providers are not used to claim real provider support.
 

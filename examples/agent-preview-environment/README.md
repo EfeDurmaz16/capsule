@@ -1,11 +1,11 @@
 # Agent preview environment (end to end)
 
-A credential-free example that chains an agent code-execution tool with preview orchestration. It uses `@capsule/adapter-mock` for every provider, so it calls no real provider API.
+A credential-free example that chains an agent code-execution tool with preview orchestration. It uses `@capsule-sdk/adapter-mock` for every provider, so it calls no real provider API.
 
 ## The chain
 
-1. **Agent check**: `@capsule/ai` `createCodeExecutionTool` runs a smoke check inside a Capsule sandbox (mock E2B) and returns stdout plus an execution receipt.
-2. **Provision**: only if the check passes, `@capsule/preview` `createPreviewGraph` provisions a preview across three mock providers: a Neon-style database branch, a Vercel-style web edge, and a Cloud Run-style smoke job.
+1. **Agent check**: `@capsule-sdk/ai` `createCodeExecutionTool` runs a smoke check inside a Capsule sandbox (mock E2B) and returns stdout plus an execution receipt.
+2. **Provision**: only if the check passes, `@capsule-sdk/preview` `createPreviewGraph` provisions a preview across three mock providers: a Neon-style database branch, a Vercel-style web edge, and a Cloud Run-style smoke job.
 3. **Cleanup**: `cleanupPreviewEnvironment` tears the preview down in reverse create order and returns cleanup receipts.
 
 This is the shape an agent uses to gate a preview on a passing check and to guarantee the preview is cleaned up afterward.
@@ -13,7 +13,7 @@ This is the shape an agent uses to gate a preview on a passing check and to guar
 ## Run it
 
 ```bash
-pnpm --filter @capsule/example-agent-preview-environment start
+pnpm --filter @capsule-sdk/example-agent-preview-environment start
 ```
 
 Expected output (ids are illustrative):

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, CleanupFailureError, ProviderRetryableError, ProviderValidationError, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, CleanupFailureError, ProviderRetryableError, ProviderValidationError, runAdapterContract } from "@capsule-sdk/core";
 import { ecs, ecsCapabilities } from "./index.js";
 
 function awsError(name: string, httpStatusCode: number, message = name): Error {

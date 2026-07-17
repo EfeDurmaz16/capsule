@@ -17,7 +17,7 @@ import {
   type ProviderOptions,
   type ProviderOptionValue,
   type ReleaseEdgeVersionSpec
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 import { VercelClient, type VercelClientOptions, type VercelDeploymentEvent, type VercelRuntimeLog } from "./vercel-client.js";
 
 export interface VercelAdapterOptions extends VercelClientOptions {

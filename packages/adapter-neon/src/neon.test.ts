@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { AdapterExecutionError, Capsule, ProviderRetryableError, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, ProviderRetryableError, runAdapterContract } from "@capsule-sdk/core";
 import { neon } from "./index.js";
 
 function response(body: unknown, status = 200): Response {

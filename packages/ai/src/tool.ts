@@ -1,4 +1,4 @@
-import type { Capsule, ExecResult } from "@capsule/core";
+import type { Capsule, ExecResult } from "@capsule-sdk/core";
 
 export interface CodeExecutionFile {
   path: string;

@@ -1,4 +1,4 @@
-import { AdapterExecutionError, classifyProviderError, providerExecutionError } from "@capsule/core";
+import { AdapterExecutionError, classifyProviderError, providerExecutionError } from "@capsule-sdk/core";
 
 export interface AzureContainerAppsClientOptions {
   accessToken?: string;

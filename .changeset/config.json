@@ -8,19 +8,19 @@
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": [
-    "@capsule/example-agent-code-execution",
-    "@capsule/example-agent-preview-environment",
-    "@capsule/example-capability-check",
-    "@capsule/example-database-branch-model",
-    "@capsule/example-deployment-model",
-    "@capsule/example-edge-model",
-    "@capsule/example-job-docker",
-    "@capsule/example-machine-model",
-    "@capsule/example-policy-receipts",
-    "@capsule/example-preview-environment-model",
-    "@capsule/example-provider-presets",
-    "@capsule/example-sandbox-docker",
-    "@capsule/example-stripe-projects-provisioning",
-    "@capsule/test-utils"
+    "@capsule-sdk/example-agent-code-execution",
+    "@capsule-sdk/example-agent-preview-environment",
+    "@capsule-sdk/example-capability-check",
+    "@capsule-sdk/example-database-branch-model",
+    "@capsule-sdk/example-deployment-model",
+    "@capsule-sdk/example-edge-model",
+    "@capsule-sdk/example-job-docker",
+    "@capsule-sdk/example-machine-model",
+    "@capsule-sdk/example-policy-receipts",
+    "@capsule-sdk/example-preview-environment-model",
+    "@capsule-sdk/example-provider-presets",
+    "@capsule-sdk/example-sandbox-docker",
+    "@capsule-sdk/example-stripe-projects-provisioning",
+    "@capsule-sdk/test-utils"
   ]
 }

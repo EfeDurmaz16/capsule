@@ -90,7 +90,7 @@ test("rejects unexpected public package runtime dependencies", () => {
   try {
     mkdirSync(packageDir, { recursive: true });
     writeJson(join(packageDir, "package.json"), {
-      name: "@capsule/fixture",
+      name: "@capsule-sdk/fixture",
       version: "1.0.0",
       dependencies: {
         "left-pad": "1.3.0"
@@ -109,7 +109,7 @@ test("rejects unexpected public package runtime dependencies", () => {
     });
 
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /@capsule\/fixture: unexpected runtime dependency left-pad/);
+    assert.match(result.stderr, /@capsule-sdk\/fixture: unexpected runtime dependency left-pad/);
   } finally {
     rmSync(fixtureRoot, { recursive: true, force: true });
   }

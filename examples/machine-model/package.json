@@ -1,5 +1,5 @@
 {
-  "name": "@capsule/example-machine-model",
+  "name": "@capsule-sdk/example-machine-model",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,8 +7,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@capsule/core": "workspace:*",
-    "@capsule/adapter-mock": "workspace:*"
+    "@capsule-sdk/core": "workspace:*",
+    "@capsule-sdk/adapter-mock": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.20.6",

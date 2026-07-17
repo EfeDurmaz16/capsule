@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, expect, test } from "vitest";
-import { createReceipt } from "@capsule/core";
+import { createReceipt } from "@capsule-sdk/core";
 import { sqliteReceiptStore } from "./index.js";
 
 function receiptAt(offsetMs: number) {

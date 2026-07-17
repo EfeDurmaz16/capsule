@@ -1,4 +1,4 @@
-import { Capsule } from "@capsule/core";
+import { Capsule } from "@capsule-sdk/core";
 import {
   mockCloudRun,
   mockCloudflare,
@@ -11,7 +11,7 @@ import {
   mockModal,
   mockNeon,
   mockVercel
-} from "@capsule/adapter-mock";
+} from "@capsule-sdk/adapter-mock";
 
 const adapters = [
   mockE2B(),

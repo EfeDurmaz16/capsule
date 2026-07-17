@@ -29,7 +29,7 @@ function linkPackageNodeModules(sourceNodeModules: string, targetNodeModules: st
   mkdirSync(targetNodeModules, { recursive: true });
   for (const entry of readdirSync(sourceNodeModules)) {
     if (entry === ".bin") continue;
-    if (entry === "@capsule") {
+    if (entry === "@capsule-sdk") {
       const sourceScope = join(sourceNodeModules, entry);
       const targetScope = join(targetNodeModules, entry);
       mkdirSync(targetScope, { recursive: true });
@@ -49,7 +49,7 @@ function expectedRuntimeExportsByPackage() {
   for (const section of apiReference.split(/^## /m).slice(1)) {
     const [packageNameLine = "", ...lines] = section.split("\n");
     const packageName = packageNameLine.trim();
-    if (!packageName.startsWith("@capsule/")) continue;
+    if (!packageName.startsWith("@capsule-sdk/")) continue;
     const runtimeExports: string[] = [];
     for (const line of lines) {
       const match = line.match(/^- `([^`]+)` \(([^)]+)\)$/);
@@ -85,10 +85,10 @@ describe("package export maps", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "capsule-package-exports-"));
     try {
       const tempNodeModules = join(tempRoot, "node_modules");
-      const scopedNodeModules = join(tempNodeModules, "@capsule");
+      const scopedNodeModules = join(tempNodeModules, "@capsule-sdk");
       mkdirSync(scopedNodeModules, { recursive: true });
       for (const { dir, pkg } of packages) {
-        const packageRoot = join(scopedNodeModules, String(pkg.name).replace("@capsule/", ""));
+        const packageRoot = join(scopedNodeModules, String(pkg.name).replace("@capsule-sdk/", ""));
         mkdirSync(packageRoot, { recursive: true });
         writeFileSync(
           join(packageRoot, "package.json"),
@@ -98,7 +98,7 @@ describe("package export maps", () => {
       }
 
       for (const { dir, pkg } of packages) {
-        const packageRoot = join(scopedNodeModules, String(pkg.name).replace("@capsule/", ""));
+        const packageRoot = join(scopedNodeModules, String(pkg.name).replace("@capsule-sdk/", ""));
         linkPackageNodeModules(join(dir, "node_modules"), join(packageRoot, "node_modules"), scopedNodeModules);
       }
 
@@ -128,7 +128,7 @@ process.exit(0);
   }, 35_000);
 
   test("examples import packages through public package exports", () => {
-    const privateImportPattern = /from\s+["'](@capsule\/[^"']+\/[^"']+)["']/g;
+    const privateImportPattern = /from\s+["'](@capsule-sdk\/[^"']+\/[^"']+)["']/g;
     for (const exampleDir of packageDirs(examplesDir)) {
       const srcDir = join(exampleDir, "src");
       if (!existsSync(srcDir)) continue;

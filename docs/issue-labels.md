@@ -6,10 +6,10 @@ Capsule uses labels to keep productization work reviewable and parallel-agent sa
 
 | Label             | Use for                                                                                                                                               |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `area:core`       | `@capsule/core`, capability model, policy model, receipt creation, adapter contracts, shared errors, and public SDK types.                            |
+| `area:core`       | `@capsule-sdk/core`, capability model, policy model, receipt creation, adapter contracts, shared errors, and public SDK types.                        |
 | `area:adapter`    | One provider adapter package, provider client code, adapter-specific lifecycle behavior, and adapter tests. Pair with a provider label when possible. |
 | `area:store`      | Receipt stores, durability checks, JSONL, SQLite, and future append-only persistence.                                                                 |
-| `area:cli`        | `@capsule/cli`, command output, local config, doctor commands, support bundles, and human/operator UX.                                                |
+| `area:cli`        | `@capsule-sdk/cli`, command output, local config, doctor commands, support bundles, and human/operator UX.                                            |
 | `area:docs`       | README, public docs, ADRs, examples, quickstarts, and public project positioning.                                                                     |
 | `area:release`    | Changesets, package metadata, provenance, pack smoke, CI, npm publish, and release rollback work.                                                     |
 | `area:live-tests` | Credential checks, provider live tests, cleanup sweeps, cost gates, and sanitized live receipts.                                                      |

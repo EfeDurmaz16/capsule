@@ -12,7 +12,7 @@ import {
   type ExecResult,
   type JobRun,
   type RunJobSpec
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 
 interface LambdaClientLike {
   send(command: InvokeCommand): Promise<{

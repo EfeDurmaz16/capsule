@@ -26,7 +26,7 @@ import {
   type ServiceLogsSpec,
   type ServiceStatusResult,
   type ServiceStatusSpec
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 
 interface KubernetesObject {
   metadata?: {

@@ -7,7 +7,7 @@ import {
   ProviderRateLimitError,
   ProviderValidationError,
   runAdapterContract
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 import { AzureContainerAppsClient, azureContainerApps, azureContainerAppsCapabilities } from "./index.js";
 
 function response(body: unknown, status = 200, headers: Record<string, string> = {}): Response {

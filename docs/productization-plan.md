@@ -57,7 +57,7 @@
 | CAP-P009 | done   | High     | Add dependency and license audit              | Add a lightweight script that reports non-MIT-compatible licenses and unexpected new runtime dependencies.                                                                 | `pnpm test && pnpm release:audit`                                                |
 | CAP-P010 | done   | Medium   | Add release rollback runbook                  | Document how to yank, deprecate, or hotfix a bad package release without rewriting history.                                                                                | `git diff --check`                                                               |
 
-Supply-chain note: CAP-P009 gates production licenses and reviewed direct runtime dependencies. It does not yet make `pnpm audit --prod --audit-level high` a release gate because the current dependency tree reports high-severity `protobufjs` advisories through `@capsule/adapter-daytona` -> `@daytona/sdk` -> OpenTelemetry. Resolve that dependency path before the first public npm release or document the adapter as excluded from release.
+Supply-chain note: CAP-P009 gates production licenses and reviewed direct runtime dependencies. It does not yet make `pnpm audit --prod --audit-level high` a release gate because the current dependency tree reports high-severity `protobufjs` advisories through `@capsule-sdk/adapter-daytona` -> `@daytona/sdk` -> OpenTelemetry. Resolve that dependency path before the first public npm release or document the adapter as excluded from release.
 
 ### Public Surface And Documentation Truth
 
