@@ -310,7 +310,7 @@ interface SerializedPreviewResourceRecord {
 }
 
 interface PreviewCleanupPlanFile {
-  schema: "capsule.preview.cleanup.v1";
+  schema: typeof previewCleanupPlanFileSchema | typeof legacyPreviewCleanupPlanFileSchema;
   id: string;
   previewId: string;
   createdAt: string;
@@ -491,7 +491,8 @@ const liveTestFlakyRevalidationEnv = "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY";
 const liveTestCiOptInEnv = "CAPSULE_LIVE_TEST_CI_OPT_IN";
 const liveTestCiUntrustedForkEnv = "CAPSULE_LIVE_TEST_UNTRUSTED_FORK";
 const liveTestCiLabel = "capsule:live-tests";
-const previewCleanupPlanSchema = "capsule.preview.cleanup.v1" as const;
+const previewCleanupPlanFileSchema = "capsule.cli.preview-cleanup-file.v1" as const;
+const legacyPreviewCleanupPlanFileSchema = "capsule.preview.cleanup.v1" as const;
 const mockAdapterFactories: Record<string, () => CapsuleAdapter> = {
   "mock-e2b": mockE2B,
   "mock-daytona": mockDaytona,
@@ -1734,7 +1735,7 @@ function createPreviewCleanupPlanFile(
   const configs = previewResourceConfigs(config);
   const actionByResourceId = new Map(cleanupPlan.actions.map((action) => [action.resourceId, action]));
   return {
-    schema: previewCleanupPlanSchema,
+    schema: previewCleanupPlanFileSchema,
     id: cleanupPlan.id,
     previewId: cleanupPlan.previewId,
     createdAt: cleanupPlan.createdAt,
@@ -1776,8 +1777,8 @@ async function createPreviewCreateReport(parsed: ParsedArgs): Promise<PreviewCre
 }
 
 function validatePreviewCleanupPlan(record: Record<string, unknown>, label: string): PreviewCleanupPlanFile {
-  if (record.schema !== previewCleanupPlanSchema) {
-    throw new Error(`${label}.schema must be ${previewCleanupPlanSchema}.`);
+  if (record.schema !== previewCleanupPlanFileSchema && record.schema !== legacyPreviewCleanupPlanFileSchema) {
+    throw new Error(`${label}.schema must be ${previewCleanupPlanFileSchema}.`);
   }
   const preview = assertRecordValue(record.preview, `${label}.preview`) as unknown as PreviewEnvironment;
   const resources = record.resources;
@@ -1786,7 +1787,7 @@ function validatePreviewCleanupPlan(record: Record<string, unknown>, label: stri
   }
   const previewId = typeof record.previewId === "string" ? record.previewId : preview.id;
   return {
-    schema: previewCleanupPlanSchema,
+    schema: previewCleanupPlanFileSchema,
     id: typeof record.id === "string" ? record.id : `cleanup_${previewId}`,
     previewId,
     createdAt: assertStringValue(record.createdAt, `${label}.createdAt`),

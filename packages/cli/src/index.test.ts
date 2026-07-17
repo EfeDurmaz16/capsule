@@ -1055,7 +1055,7 @@ describe("CLI preview lifecycle", () => {
       expect(createOutput.cleanupPlan.id).toBe(cleanupPlan.id);
       expect(createOutput.cleanupPlan.previewId).toBe(cleanupPlan.previewId);
       expect(cleanupPlan).toMatchObject({
-        schema: "capsule.preview.cleanup.v1",
+        schema: "capsule.cli.preview-cleanup-file.v1",
         id: createOutput.cleanupPlan.id,
         previewId: createOutput.cleanupPlan.previewId,
         cleanupOrder: "reverse-create-order",

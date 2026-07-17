@@ -12,8 +12,9 @@ import type {
   SupportLevel
 } from "./types.js";
 
-const credentialTokenValue =
-  /(?<=\bBearer\s+)\S+|\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9_-]{16,}\b|\bgh[pousr]_[A-Za-z0-9_]{20,}\b|\bxox[baprs]-[A-Za-z0-9-]{20,}\b|\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/gi;
+export const credentialTokenPatternSource =
+  "(?<=\\bBearer\\s+)\\S+|\\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9_-]{16,}\\b|\\bgh[pousr]_[A-Za-z0-9_]{20,}\\b|\\bxox[baprs]-[A-Za-z0-9-]{20,}\\b|\\beyJ[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\b|\\bAKIA[A-Z0-9]{16}\\b|\\bpostgres(?:ql)?:\\/\\/[^\\s]+|\\bpassword=[^\\s&]+";
+const credentialTokenValue = new RegExp(credentialTokenPatternSource, "gi");
 const broadTokenLikeValue = /\b[A-Za-z0-9_-]{48,}\b/g;
 const defaultSensitiveKey = /(api[-_]?key|auth|credential|password|private[-_]?key|secret|token)/i;
 

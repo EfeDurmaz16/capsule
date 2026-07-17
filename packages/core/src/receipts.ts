@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { sha256 } from "./artifacts.js";
-import { isSensitiveKey, redactSensitiveText } from "./policy.js";
+import { credentialTokenPatternSource, isSensitiveKey, redactSensitiveText } from "./policy.js";
 import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
 import type {
   Artifact,
@@ -113,8 +113,7 @@ export function verifyReceiptSignature(receipt: CapsuleReceipt, verifier: Receip
 
 const receiptTypes = new Set<string>(capsuleReceiptJsonSchema.properties.type.enum);
 const supportLevels = new Set<string>(["native", "emulated", "unsupported", "experimental"]);
-const credentialLikeValue =
-  /\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9_-]{16,}\b|\bgh[pousr]_[A-Za-z0-9_]{20,}\b|\bxox[baprs]-[A-Za-z0-9-]{20,}\b|\bBearer\s+[A-Za-z0-9._~+/-]+=*\b|\bpassword=[^\s&]+\b|\bpostgres(?:ql)?:\/\/[^\s]+|\bAKIA[A-Z0-9]{16}\b/i;
+const credentialLikeValue = new RegExp(credentialTokenPatternSource, "i");
 
 export function verifyReceipt(receipt: unknown, options: VerifyReceiptOptions = {}): ReceiptVerificationReport {
   const schemaErrors = receiptSchemaErrors(receipt);
@@ -297,10 +296,10 @@ export function createReceipt(input: CreateReceiptInput, signer?: ReceiptSigner)
     adapter: input.adapter,
     capabilityPath: input.capabilityPath,
     supportLevel: input.supportLevel,
-    command: input.command,
+    command: input.command?.map((part) => redactSensitiveText(part, undefined, input.policy?.applied ?? {})),
     image: input.image,
-    source: input.source,
-    cwd: input.cwd,
+    source: input.source === undefined ? undefined : sanitizeReceiptMetadata(input.source, input.policy?.applied),
+    cwd: input.cwd === undefined ? undefined : redactSensitiveText(input.cwd, undefined, input.policy?.applied ?? {}),
     providerOptions: sanitizeProviderOptions(input.providerOptions, input.policy?.applied),
     startedAt: input.startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),

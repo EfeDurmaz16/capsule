@@ -812,6 +812,29 @@ describe("policy", () => {
     expect(redactSecrets("bearer xyz987 rejected", undefined, {})).toBe("bearer [REDACTED] rejected");
     expect(redactSecrets("key sk_live_abcdefghijklmnop123 leaked", undefined, {})).toBe("key [REDACTED] leaked");
     expect(redactSecrets("pat ghp_abcdefghijklmnopqrstu leaked", undefined, {})).toBe("pat [REDACTED] leaked");
+    expect(redactSecrets("aws AKIAIOSFODNN7EXAMPLE used", undefined, {})).toBe("aws [REDACTED] used");
+    expect(redactSecrets("dsn postgresql://user:pass@host/db failed", undefined, {})).toBe("dsn [REDACTED] failed");
+    expect(redactSecrets("arg password=hunter2&x=1", undefined, {})).toBe("arg [REDACTED]&x=1");
+  });
+
+  test("redacts credential-shaped values from receipt command, source, and cwd at creation", () => {
+    const receipt = createReceipt({
+      type: "job.run",
+      provider: "test",
+      adapter: "test",
+      capabilityPath: "job.run",
+      supportLevel: "native",
+      startedAt: new Date("2026-01-01T00:00:00.000Z"),
+      command: ["psql", "postgresql://user:pass@host/db", "--file", "run.sql"],
+      cwd: "/workspace",
+      source: { repository: "https://example.com/repo.git", token: "irrelevant" },
+      policy: { decision: "allowed", applied: {} }
+    });
+
+    expect(receipt.command).toEqual(["psql", "[REDACTED]", "--file", "run.sql"]);
+    expect(receipt.cwd).toBe("/workspace");
+    expect(receipt.source).toEqual({ repository: "https://example.com/repo.git", token: "[REDACTED]" });
+    expect(verifyReceipt(receipt).redaction.findings).toEqual([]);
   });
 
   test("keeps long non-credential strings unless the strict profile is enabled", () => {
@@ -1859,6 +1882,45 @@ describe("receipts", () => {
     expect(receiptStore.receipts[1]?.metadata).toMatchObject({ path: "/workspace/hello.txt", byteLength: 5 });
     expect(receiptStore.receipts[2]?.metadata).toMatchObject({ path: "/workspace/hello.txt", byteLength: 5 });
     expect(receiptStore.receipts[3]?.metadata).toMatchObject({ path: "/workspace", entryCount: 1 });
+  });
+
+  test("records one receipt per concurrent sandbox sub-operation", async () => {
+    const receiptStore = new MemoryReceiptStore();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const slowAdapter: CapsuleAdapter = {
+      ...adapter,
+      sandbox: {
+        create: async (_spec, context) => {
+          context.createReceipt({ type: "sandbox.create", capabilityPath: "sandbox.create", startedAt: new Date("2026-01-01T00:00:00.000Z") });
+          return {
+            handle: { id: "box", provider: "test", createdAt: new Date("2026-01-01T00:00:00.000Z").toISOString() },
+            exec: async () => ({ exitCode: 0, stdout: "", stderr: "", logs: [], artifacts: [] }),
+            writeFile: async (path: string) => {
+              if (path.endsWith("slow.txt")) {
+                await gate;
+              }
+            },
+            readFile: async () => new Uint8Array(),
+            listFiles: async () => [],
+            destroy: async () => undefined
+          };
+        }
+      }
+    };
+    const capsule = new Capsule({ adapter: slowAdapter, receipts: true, receiptStore });
+
+    const box = await capsule.sandbox.create({});
+    const slow = box.writeFile("/workspace/slow.txt", "slow");
+    await box.writeFile("/workspace/fast.txt", "fast");
+    release();
+    await slow;
+
+    const writes = receiptStore.receipts.filter((receipt) => receipt.type === "sandbox.file.write");
+    expect(writes).toHaveLength(2);
+    expect(writes.map((receipt) => receipt.metadata?.path).sort()).toEqual(["/workspace/fast.txt", "/workspace/slow.txt"]);
   });
 
   test("continues when best-effort receipt persistence fails", async () => {
