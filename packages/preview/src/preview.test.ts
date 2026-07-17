@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { Capsule, type CapsuleAdapter, type CapabilityMap } from "@capsule/core";
 import {
+  aggregatePreviewStatus,
   cleanupPreviewEnvironment,
   compilePreviewPlan,
   compilePreviewSpec,
@@ -9,8 +10,10 @@ import {
   createPreviewGraph,
   MockProviderNotAllowedError,
   PreviewCreationError,
+  previewUrlRegistry,
   validatePreviewPlanCapabilities,
-  type PreviewPlan
+  type PreviewPlan,
+  type PreviewResourceRecord
 } from "./index.js";
 
 const capabilities: CapabilityMap = {
@@ -463,5 +466,27 @@ describe("preview orchestration", () => {
     await expect(createPreviewGraph(previewPlan)).resolves.toMatchObject({
       preview: { status: "ready" }
     });
+  });
+
+  test("aggregates preview status from resource statuses", () => {
+    const record = (status?: string): PreviewResourceRecord => ({ type: "service", kind: "service", id: "r", provider: "test", status });
+    expect(aggregatePreviewStatus([record("ready"), record("running")])).toBe("ready");
+    expect(aggregatePreviewStatus([record("ready"), record("failed")])).toBe("failed");
+    expect(aggregatePreviewStatus([record("ready"), record("creating")])).toBe("creating");
+    expect(aggregatePreviewStatus([record("failed"), record("creating")])).toBe("failed");
+    expect(aggregatePreviewStatus([record("deleted"), record("deleted")])).toBe("deleted");
+    expect(aggregatePreviewStatus([record(undefined)])).toBe("ready");
+    expect(aggregatePreviewStatus([])).toBe("ready");
+  });
+
+  test("exposes a per-resource url registry on the preview environment", async () => {
+    const result = await createPreviewGraph(plan(fakeCapsule()));
+    const entries = previewUrlRegistry(result.resources);
+    expect(result.preview.urlEntries).toEqual(entries);
+    for (const entry of entries) {
+      expect(entry).toMatchObject({ resourceId: expect.any(String), provider: expect.any(String), url: expect.any(String) });
+      expect(result.resources.find((resource) => resource.id === entry.resourceId)?.url).toBe(entry.url);
+    }
+    expect(result.preview.urls).toEqual(entries.map((entry) => entry.url));
   });
 });

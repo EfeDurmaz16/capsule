@@ -465,6 +465,7 @@ Exports:
 - `PreviewLogsSpec` (interface)
 - `PreviewStatusResult` (interface)
 - `PreviewStatusSpec` (interface)
+- `PreviewUrlEntry` (interface)
 - `PreviewUrlsResult` (interface)
 - `PreviewUrlsSpec` (interface)
 - `ProviderAuthError` (class)
@@ -583,6 +584,7 @@ Exports:
 - Source: `packages/preview/src/index.ts`
 
 Exports:
+- `aggregatePreviewStatus` (function)
 - `cleanupPreviewEnvironment` (function)
 - `CleanupPreviewEnvironmentOptions` (interface)
 - `compilePreviewPlan` (function)
@@ -617,6 +619,7 @@ Exports:
 - `PreviewResourceGroup` (interface)
 - `PreviewResourceKind` (type)
 - `PreviewResourceRecord` (interface)
+- `previewUrlRegistry` (function)
 - `validatePreviewPlanCapabilities` (function)
 
 ## @capsule/store-jsonl

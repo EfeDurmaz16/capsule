@@ -810,12 +810,20 @@ export interface CreatePreviewSpec {
   providerOptions?: ProviderOptions;
 }
 
+export interface PreviewUrlEntry {
+  resourceId: string;
+  type: CapsuleDomain;
+  provider: string;
+  url: string;
+}
+
 export interface PreviewEnvironment {
   id: string;
   provider: string;
   name: string;
   status: "creating" | "ready" | "failed" | "deleted";
   urls: string[];
+  urlEntries?: PreviewUrlEntry[];
   resources: Array<{
     type: CapsuleDomain;
     id: string;

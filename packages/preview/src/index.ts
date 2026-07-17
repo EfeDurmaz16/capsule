@@ -13,6 +13,7 @@ import type {
   ExecResult,
   JobRun,
   PreviewEnvironment,
+  PreviewUrlEntry,
   RunJobSpec,
   ServiceDeployment
 } from "@capsule/core";
@@ -712,13 +713,38 @@ function jobRecord(resource: JobRun): PreviewResourceRecord {
   };
 }
 
+const failedResourceStatuses = new Set(["failed", "error", "errored", "crashed"]);
+const pendingResourceStatuses = new Set(["creating", "pending", "provisioning", "queued", "deploying"]);
+
+export function aggregatePreviewStatus(resources: PreviewResourceRecord[]): PreviewEnvironment["status"] {
+  const statuses = resources.map((resource) => resource.status?.toLowerCase()).filter((status): status is string => typeof status === "string");
+  if (statuses.some((status) => failedResourceStatuses.has(status))) {
+    return "failed";
+  }
+  if (statuses.some((status) => pendingResourceStatuses.has(status))) {
+    return "creating";
+  }
+  if (statuses.length > 0 && statuses.every((status) => status === "deleted")) {
+    return "deleted";
+  }
+  return "ready";
+}
+
+export function previewUrlRegistry(resources: PreviewResourceRecord[]): PreviewUrlEntry[] {
+  return resources
+    .filter((resource): resource is PreviewResourceRecord & { url: string } => typeof resource.url === "string")
+    .map((resource) => ({ resourceId: resource.id, type: resource.type, provider: resource.provider, url: resource.url }));
+}
+
 function previewFromResources(id: string, plan: PreviewPlan, status: PreviewEnvironment["status"], resources: PreviewResourceRecord[]): PreviewEnvironment {
+  const urlEntries = previewUrlRegistry(resources);
   return {
     id,
     provider: "capsule-preview",
     name: plan.name,
     status,
-    urls: resources.map((resource) => resource.url).filter((url): url is string => typeof url === "string"),
+    urls: urlEntries.map((entry) => entry.url),
+    urlEntries,
     resources: resources.map((resource) => ({
       type: resource.type,
       id: resource.id,
@@ -751,7 +777,7 @@ export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrch
       resources.push(jobRecord(await entry.capsule.job.run(entry.spec)));
     }
 
-    const preview = previewFromResources(id, plan, "ready", resources);
+    const preview = previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
     const cleanupPlan = createPreviewCleanupPlan(preview, resources);
     const receipt = previewCreateReceipt(preview, resources, cleanupPlan, new Date());
 
@@ -850,7 +876,7 @@ export async function createPreviewEnvironmentWithCleanup(plan: PreviewPlan): Pr
     for (const entry of plan.jobs ?? []) {
       resources.push(jobRecord(await entry.capsule.job.run(entry.spec)));
     }
-    return previewFromResources(id, plan, "ready", resources);
+    return previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
   } catch (error) {
     const failedPreview = previewFromResources(id, plan, "failed", resources);
     const cleanupPlan = createPreviewCleanupPlan(failedPreview, resources);
