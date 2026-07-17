@@ -8,8 +8,8 @@
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": [
-    "@capsule/test-utils",
     "@capsule/example-agent-code-execution",
+    "@capsule/example-agent-preview-environment",
     "@capsule/example-capability-check",
     "@capsule/example-database-branch-model",
     "@capsule/example-deployment-model",
@@ -19,6 +19,8 @@
     "@capsule/example-policy-receipts",
     "@capsule/example-preview-environment-model",
     "@capsule/example-provider-presets",
-    "@capsule/example-sandbox-docker"
+    "@capsule/example-sandbox-docker",
+    "@capsule/example-stripe-projects-provisioning",
+    "@capsule/test-utils"
   ]
 }
