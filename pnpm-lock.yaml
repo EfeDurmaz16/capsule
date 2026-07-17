@@ -52,6 +52,31 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  examples/agent-preview-environment:
+    dependencies:
+      '@capsule/adapter-mock':
+        specifier: workspace:*
+        version: link:../../packages/adapter-mock
+      '@capsule/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
+      '@capsule/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@capsule/preview':
+        specifier: workspace:*
+        version: link:../../packages/preview
+    devDependencies:
+      tsx:
+        specifier: ^4.20.6
+        version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.14
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(vite@8.0.12(@types/node@24.12.4)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.9.0))
+
   examples/capability-check:
     dependencies:
       '@capsule/adapter-mock':
@@ -235,6 +260,25 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+
+  examples/stripe-projects-provisioning:
+    dependencies:
+      '@capsule/adapter-mock':
+        specifier: workspace:*
+        version: link:../../packages/adapter-mock
+      '@capsule/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      tsx:
+        specifier: ^4.20.6
+        version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.14
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(vite@8.0.12(@types/node@24.12.4)(esbuild@0.27.7)(tsx@4.21.0)(yaml@2.9.0))
 
   packages/adapter-azure-container-apps:
     dependencies:

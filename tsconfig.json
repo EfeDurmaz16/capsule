@@ -34,6 +34,8 @@
     { "path": "./examples/database-branch-model" },
     { "path": "./examples/preview-environment-model" },
     { "path": "./examples/provider-presets" },
-    { "path": "./examples/machine-model" }
+    { "path": "./examples/machine-model" },
+    { "path": "./examples/stripe-projects-provisioning" },
+    { "path": "./examples/agent-preview-environment" }
   ]
 }

@@ -15,6 +15,11 @@ on:
         required: false
         type: boolean
         default: false
+      use_kind:
+        description: "For provider=kubernetes, spin up a disposable kind cluster and target its default namespace"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   live:
@@ -57,15 +62,15 @@ jobs:
       CAPSULE_AZURE_CONTAINER_IMAGE: ${{ secrets.CAPSULE_AZURE_CONTAINER_IMAGE }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@b0f76dfb45f55f8421693e4803ac7bb65143bd34 # v6
         with:
           version: 10.32.1
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           cache: pnpm
@@ -75,6 +80,16 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      # Optional kind path for the kubernetes provider: creates a disposable cluster so the
+      # live job smoke has a real API server without a preconfigured external cluster.
+      - name: Create kind cluster
+        if: ${{ inputs.provider == 'kubernetes' && inputs.use_kind }}
+        uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
+
+      - name: Target kind default namespace
+        if: ${{ inputs.provider == 'kubernetes' && inputs.use_kind }}
+        run: echo "CAPSULE_KUBERNETES_NAMESPACE=default" >> "$GITHUB_ENV"
 
       - name: Plan
         env:
