@@ -212,6 +212,35 @@ describe("cloud-run adapter", () => {
     });
   });
 
+  it("pages Cloud Run logs by forwarding the cursor as pageToken and returning nextPageToken", async () => {
+    const calls: Array<{ body: unknown }> = [];
+    const fetchMock = (async (_url: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      calls.push({ body });
+      // First page returns a token; second page (cursor supplied) returns none.
+      if (body.pageToken) {
+        return response({ entries: [{ logName: "projects/proj/logs/stdout", timestamp: "2026-01-01T00:00:03.000Z", textPayload: "page two" }] });
+      }
+      return response({
+        entries: [{ logName: "projects/proj/logs/stdout", timestamp: "2026-01-01T00:00:02.000Z", textPayload: "page one" }],
+        nextPageToken: "cursor-abc"
+      });
+    }) as typeof fetch;
+    const capsule = new Capsule({
+      adapter: cloudRun({ projectId: "proj", location: "us-central1", accessToken: "token", fetch: fetchMock })
+    });
+
+    const first = await capsule.service.logs({ id: "projects/proj/locations/us-central1/services/api", limit: 1 });
+    expect(first.logs).toEqual([{ timestamp: "2026-01-01T00:00:02.000Z", stream: "stdout", message: "page one" }]);
+    expect(first.nextCursor).toBe("cursor-abc");
+    expect((calls[0]?.body as { pageToken?: string }).pageToken).toBeUndefined();
+
+    const second = await capsule.service.logs({ id: "projects/proj/locations/us-central1/services/api", limit: 1, cursor: first.nextCursor });
+    expect((calls[1]?.body as { pageToken?: string }).pageToken).toBe("cursor-abc");
+    expect(second.logs).toEqual([{ timestamp: "2026-01-01T00:00:03.000Z", stream: "stdout", message: "page two" }]);
+    expect(second.nextCursor).toBeUndefined();
+  });
+
   it("fails explicitly instead of returning fake logs when Cloud Logging configuration is missing", async () => {
     const capsule = new Capsule({ adapter: cloudRun({ projectId: "", location: "us-central1", accessToken: "token" }) });
 

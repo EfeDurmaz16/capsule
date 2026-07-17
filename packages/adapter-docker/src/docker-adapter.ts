@@ -262,7 +262,7 @@ class DockerSandbox implements Sandbox {
       exitCode: result.exitCode,
       stdout,
       stderr,
-      logs: logsFromOutput(stdout, stderr),
+      logs: logsFromOutput(stdout, stderr, this.handle.id),
       artifacts: [],
       receipt
     };

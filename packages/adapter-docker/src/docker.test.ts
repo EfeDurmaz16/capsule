@@ -92,6 +92,30 @@ describe("docker adapter", () => {
     expect((thrown as AdapterExecutionError).cause).toMatchObject({ providerError: { category: "validation", retryable: false } });
   });
 
+  test("normalizes exec output into stdout/stderr log entries tagged with the container id source", async () => {
+    const containerId = "c0ffee1234567890";
+    const capsule = new Capsule({
+      adapter: docker({
+        checkAvailable: async () => true,
+        runner: async (args) => {
+          if (args[0] === "create") return { exitCode: 0, stdout: `${containerId}\n`, stderr: "" };
+          if (args[0] === "start") return dockerResult(0);
+          if (args[0] === "exec") return { exitCode: 0, stdout: "line one\nline two\n", stderr: "boom\n" };
+          return dockerResult(0);
+        }
+      })
+    });
+
+    const sandbox = await capsule.sandbox.create({ image: "node:22", name: "capsule-normalize" });
+    const exec = await sandbox.exec({ command: ["node", "-e", "0"] });
+
+    expect(exec.logs).toEqual([
+      { timestamp: expect.any(String), stream: "stdout", message: "line one", source: containerId },
+      { timestamp: expect.any(String), stream: "stdout", message: "line two", source: containerId },
+      { timestamp: expect.any(String), stream: "stderr", message: "boom", source: containerId }
+    ]);
+  });
+
   test("declares Docker capabilities", () => {
     const capsule = new Capsule({ adapter: docker() });
     expect(capsule.supportLevel("sandbox.exec")).toBe("native");

@@ -57,6 +57,14 @@ export const cloudflareCapabilities: CapabilityMap = {
     rollback: "native",
     routes: "native",
     bindings: "unsupported",
+    // Live Worker tail (GET .../scripts/{name}/tails) is a WebSocket stream, which Capsule's bounded
+    // fetch-only log model does not consume. A non-WebSocket bounded read does exist via the Workers
+    // Observability telemetry query API (POST .../workers/observability/telemetry/query), but it is
+    // opt-in per Worker (observability defaults off), sampled under load, retained only a few days, and
+    // its per-event body schema is handler-dependent and unversioned. Normalizing that into LogEntry
+    // without a live account to verify the message/timestamp fields would fake a support level, so edge
+    // logs stay unsupported until the telemetry event shape is pinned against a real account. See
+    // docs/log-normalization.md ("Cloudflare Workers") for the full rationale.
     logs: "unsupported",
     url: "experimental"
   },

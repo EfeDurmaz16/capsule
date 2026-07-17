@@ -752,4 +752,52 @@ describe("kubernetes adapter", () => {
 
     await expect(capsule.service.logs({ id: "external" })).rejects.toThrow(AdapterExecutionError);
   });
+
+  it("tags each combined log line with its source pod and pages through the pod list continue token", async () => {
+    const lists: Array<{ namespace: string; labelSelector?: string; _continue?: string }> = [];
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "preview",
+        clients: {
+          batch: { createNamespacedJob: async () => ({}) },
+          apps: { createNamespacedDeployment: async () => ({}) },
+          core: {
+            createNamespacedService: async () => ({}),
+            readNamespacedService: async () => ({
+              metadata: { name: "api", uid: "service-uid" },
+              spec: { selector: { "app.kubernetes.io/name": "api" } }
+            }),
+            listNamespacedPod: async (input) => {
+              lists.push(input);
+              // First page: two pods plus a continue token. Second page: one pod, no token.
+              if (input._continue === "pods-page-2") {
+                return { items: [{ metadata: { name: "api-pod-c" }, spec: { containers: [{ name: "web" }] } }], metadata: {} };
+              }
+              return {
+                items: [
+                  { metadata: { name: "api-pod-a" }, spec: { containers: [{ name: "web" }] } },
+                  { metadata: { name: "api-pod-b" }, spec: { containers: [{ name: "web" }] } }
+                ],
+                metadata: { continue: "pods-page-2" }
+              };
+            },
+            readNamespacedPodLog: async (input) => `2026-05-13T10:01:00Z ${input.name} up\n`
+          }
+        }
+      })
+    });
+
+    const first = await capsule.service.logs({ id: "api", limit: 5 });
+    expect(first.logs).toEqual([
+      { timestamp: "2026-05-13T10:01:00Z", stream: "stdout", message: "api-pod-a up", source: "api-pod-a" },
+      { timestamp: "2026-05-13T10:01:00Z", stream: "stdout", message: "api-pod-b up", source: "api-pod-b" }
+    ]);
+    expect(first.nextCursor).toBe("pods-page-2");
+    expect(lists[0]?._continue).toBeUndefined();
+
+    const second = await capsule.service.logs({ id: "api", limit: 5, cursor: first.nextCursor });
+    expect(lists[1]?._continue).toBe("pods-page-2");
+    expect(second.logs).toEqual([{ timestamp: "2026-05-13T10:01:00Z", stream: "stdout", message: "api-pod-c up", source: "api-pod-c" }]);
+    expect(second.nextCursor).toBeUndefined();
+  });
 });

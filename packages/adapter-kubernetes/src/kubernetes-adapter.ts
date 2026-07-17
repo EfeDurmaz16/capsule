@@ -79,7 +79,7 @@ interface CoreApi {
     propagationPolicy?: string;
     body?: unknown;
   }): Promise<KubernetesObject>;
-  listNamespacedPod?(input: { namespace: string; labelSelector?: string }): Promise<KubernetesPodList>;
+  listNamespacedPod?(input: { namespace: string; labelSelector?: string; limit?: number; _continue?: string }): Promise<KubernetesPodList>;
   readNamespacedPodLog?(input: {
     namespace: string;
     name: string;
@@ -484,16 +484,17 @@ function parseTimestamp(value: string): number {
   return Date.parse(normalized);
 }
 
-function parseKubernetesLog(text: string, stream: LogEntry["stream"], fallbackTimestamp: string): LogEntry[] {
+function parseKubernetesLog(text: string, stream: LogEntry["stream"], fallbackTimestamp: string, source?: string): LogEntry[] {
   return text
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line) => {
       const match = line.match(/^(\d{4}-\d{2}-\d{2}T\S+)\s(.*)$/);
-      if (match && !Number.isNaN(parseTimestamp(match[1]))) {
-        return { timestamp: match[1], stream, message: match[2] };
-      }
-      return { timestamp: fallbackTimestamp, stream, message: line };
+      const base =
+        match && !Number.isNaN(parseTimestamp(match[1]))
+          ? { timestamp: match[1], stream, message: match[2] }
+          : { timestamp: fallbackTimestamp, stream, message: line };
+      return source ? { ...base, source } : base;
     });
 }
 
@@ -539,9 +540,10 @@ async function collectPodLogs(
     until?: string;
     limit?: number;
     follow?: boolean;
+    cursor?: string;
     context: AdapterContext;
   }
-): Promise<{ logs: LogEntry[]; metadata: Record<string, unknown> }> {
+): Promise<{ logs: LogEntry[]; nextCursor?: string; metadata: Record<string, unknown> }> {
   if (!input.selector) {
     throw new AdapterExecutionError(`Kubernetes ${input.selectorSource} logs require a pod selector for ${input.id}.`);
   }
@@ -550,8 +552,12 @@ async function collectPodLogs(
   }
   const listNamespacedPod = requireCoreMethod(core, "listNamespacedPod");
   const readNamespacedPodLog = requireCoreMethod(core, "readNamespacedPodLog");
-  const podList = await listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: input.selector });
+  // Pagination rides the pod list continue token: one page of matched pods per call, their logs
+  // fanned out and tagged with source. readNamespacedPodLog itself has no cursor, so the log lines
+  // within a pod are always a bounded tail, never a full transcript.
+  const podList = await listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: input.selector, _continue: input.cursor });
   const pods = podList.items ?? [];
+  const nextCursor = typeof podList.metadata?.["continue"] === "string" && podList.metadata["continue"] ? (podList.metadata["continue"] as string) : undefined;
   const sinceSeconds = secondsSince(input.since);
   const fallbackTimestamp = new Date().toISOString();
   const logs: LogEntry[] = [];
@@ -569,13 +575,14 @@ async function collectPodLogs(
         tailLines: input.limit,
         timestamps: true
       });
-      logs.push(...parseKubernetesLog(text, "stdout", fallbackTimestamp));
+      logs.push(...parseKubernetesLog(text, "stdout", fallbackTimestamp, podName));
     }
   }
   const redactionEnv = literalEnv(pods);
   const redactedLogs = redactLiteralEnvValues(filterUntil(logs, input.until), redactionEnv, input.context);
   return {
     logs: limitLogs(redactedLogs, input.limit),
+    nextCursor,
     metadata: {
       namespace: input.namespace,
       selector: input.selector,
@@ -759,6 +766,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
           until: spec.until,
           limit: spec.limit,
           follow: spec.follow,
+          cursor: spec.cursor,
           context
         });
         const policy = context.evaluatePolicy();
@@ -781,7 +789,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
               metadata: kubernetesReceiptMetadata("batch/v1+v1", { ...result.metadata, kubernetesName: name, uid: job.metadata?.uid })
             })
           : undefined;
-        return { id: name, provider, logs: result.logs, metadata: result.metadata, receipt };
+        return { id: name, provider, logs: result.logs, nextCursor: result.nextCursor, metadata: result.metadata, receipt };
       }
     },
     service: {
@@ -925,6 +933,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
           until: spec.until,
           limit: spec.limit,
           follow: spec.follow,
+          cursor: spec.cursor,
           context
         });
         const policy = context.evaluatePolicy();
@@ -947,7 +956,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
               metadata: kubernetesReceiptMetadata("v1", { ...result.metadata, serviceName: name, uid: service.metadata?.uid })
             })
           : undefined;
-        return { id: name, provider, name, logs: result.logs, metadata: result.metadata, receipt };
+        return { id: name, provider, name, logs: result.logs, nextCursor: result.nextCursor, metadata: result.metadata, receipt };
       }
     }
   };
