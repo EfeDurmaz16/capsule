@@ -420,7 +420,7 @@ async function fetchLogs(
   context: AdapterContext,
   filter: string,
   redactionEnv: Record<string, string> | undefined
-): Promise<LogEntry[]> {
+): Promise<{ logs: LogEntry[]; nextCursor?: string }> {
   if (spec.follow) {
     throw new AdapterExecutionError("Cloud Run logs follow is not supported by Cloud Logging entries:list. Call logs again to fetch newer entries.");
   }
@@ -428,9 +428,13 @@ async function fetchLogs(
     resourceNames: [`projects/${client.projectId}`],
     filter,
     orderBy: "timestamp desc",
-    pageSize: spec.limit
+    pageSize: spec.limit,
+    pageToken: spec.cursor
   });
-  return redactLogEntries(normalizeLogEntries(response.entries), redactionEnv, context.policy);
+  return {
+    logs: redactLogEntries(normalizeLogEntries(response.entries), redactionEnv, context.policy),
+    nextCursor: response.nextPageToken || undefined
+  };
 }
 
 export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
@@ -504,7 +508,7 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const client = getClient();
         const filter = jobLogFilter(client, spec);
-        const logs = await fetchLogs(client, spec, context, filter, options.logRedactionEnv);
+        const { logs, nextCursor } = await fetchLogs(client, spec, context, filter, options.logRedactionEnv);
         const receipt = context.receipts
           ? context.createReceipt({
               type: "job.logs",
@@ -523,7 +527,7 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
               )
             })
           : undefined;
-        return { id: spec.id, provider, logs, receipt, metadata: { filter } };
+        return { id: spec.id, provider, logs, nextCursor, receipt, metadata: { filter } };
       }
     },
     service: {
@@ -695,7 +699,7 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const client = getClient();
         const filter = serviceLogFilter(client, spec);
-        const logs = await fetchLogs(client, spec, context, filter, options.logRedactionEnv);
+        const { logs, nextCursor } = await fetchLogs(client, spec, context, filter, options.logRedactionEnv);
         const name = serviceName(client, spec.id);
         const receipt = context.receipts
           ? context.createReceipt({
@@ -715,7 +719,7 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
               )
             })
           : undefined;
-        return { id: spec.id, provider, name, logs, receipt, metadata: { filter } };
+        return { id: spec.id, provider, name, logs, nextCursor, receipt, metadata: { filter } };
       }
     }
   };
