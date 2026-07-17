@@ -1,5 +1,22 @@
 # @capsule-sdk/vercel
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [e1f022d]
+- Updated dependencies [fc02fac]
+- Updated dependencies [72d873a]
+- Updated dependencies [a0d12be]
+- Updated dependencies [b14410b]
+- Updated dependencies [aa604d6]
+- Updated dependencies [78f0b9a]
+- Updated dependencies [2856feb]
+- Updated dependencies [8a5abed]
+- Updated dependencies [951af73]
+- Updated dependencies [f78c06f]
+  - @capsule-sdk/core@0.2.0
+
 ## 0.1.1
 
 ### Patch Changes
