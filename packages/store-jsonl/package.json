@@ -28,7 +28,7 @@
     "dist"
   ],
   "description": "JSONL receipt store for persisting Capsule execution and deployment receipts.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EfeDurmaz16/capsule.git",

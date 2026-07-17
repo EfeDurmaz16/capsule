@@ -29,7 +29,7 @@
     "dist"
   ],
   "description": "Preview environment composition package for Capsule resources, cleanup evidence, and receipts.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EfeDurmaz16/capsule.git",

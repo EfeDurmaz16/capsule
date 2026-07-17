@@ -29,7 +29,7 @@
     "dist"
   ],
   "description": "Docker CLI adapter for Capsule sandbox and job execution.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EfeDurmaz16/capsule.git",

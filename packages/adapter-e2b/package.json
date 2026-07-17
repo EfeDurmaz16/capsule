@@ -30,7 +30,7 @@
     "dist"
   ],
   "description": "E2B adapter for Capsule cloud sandbox execution workflows.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EfeDurmaz16/capsule.git",
