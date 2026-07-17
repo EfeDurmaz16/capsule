@@ -567,7 +567,7 @@ describe("CLI shell completions", () => {
 
     expect(createShellCompletionScript("bash")).toContain("complete -F _capsule_completions capsule");
     expect(createShellCompletionScript("bash")).toContain(
-      "doctor verify live-test classify policy receipt preview init examples adapter select compare capabilities run sandbox job service machine edge neon completion"
+      "doctor verify live-test classify policy receipt preview preset init examples adapter select compare capabilities run sandbox job service machine edge neon completion"
     );
     expect(createShellCompletionScript("zsh")).toContain("#compdef capsule");
     expect(createShellCompletionScript("zsh")).toContain("shells=(bash zsh fish)");
@@ -1569,5 +1569,167 @@ describe("CLI job lifecycle parsing", () => {
       reason: "cleanup",
       rest: ["cancel"]
     });
+  });
+});
+
+describe("CLI doctor provider filter", () => {
+  test("filters provider credential diagnostics with --provider", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await main(["doctor", "--provider", "neon", "--json"]);
+      const report = JSON.parse(String(log.mock.calls[0]?.[0])) as Awaited<ReturnType<typeof createDoctorReport>>;
+      expect(report.providers).toHaveLength(1);
+      expect(report.providers[0]?.provider).toBe("neon");
+    } finally {
+      log.mockRestore();
+      process.exitCode = undefined;
+    }
+  });
+});
+
+describe("CLI receipt inspect", () => {
+  test("parses receipt inspect flags", () => {
+    expect(parse(["receipt", "inspect", "--receipt-file", "receipts.jsonl", "--id", "rcpt_1"])).toMatchObject({
+      command: "receipt",
+      rest: ["inspect"],
+      receiptFile: "receipts.jsonl",
+      id: "rcpt_1"
+    });
+  });
+
+  test("pretty-prints stored receipts and filters by id", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-receipt-inspect-"));
+    const receiptFile = join(root, "receipts.jsonl");
+    const first = createReceipt({
+      type: "job.run",
+      provider: "test",
+      adapter: "test",
+      capabilityPath: "job.run",
+      supportLevel: "native",
+      startedAt: new Date("2026-01-01T00:00:00.000Z"),
+      policy: { decision: "allowed", applied: {} }
+    });
+    const second = createReceipt({
+      type: "sandbox.create",
+      provider: "test",
+      adapter: "test",
+      capabilityPath: "sandbox.create",
+      supportLevel: "native",
+      startedAt: new Date("2026-01-01T00:00:02.000Z"),
+      policy: { decision: "allowed", applied: {} }
+    });
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await writeFile(receiptFile, `${JSON.stringify(first)}\n${JSON.stringify(second)}\n`, "utf8");
+
+      await main(["receipt", "inspect", "--receipt-file", receiptFile]);
+      const all = JSON.parse(String(log.mock.calls[0]?.[0])) as { store: { path: string; receiptCount: number }; receipts: Array<{ id: string }> };
+      expect(all.store.receiptCount).toBe(2);
+      expect(all.receipts.map((receipt) => receipt.id)).toEqual([first.id, second.id]);
+
+      log.mockClear();
+      await main(["receipt", "inspect", "--receipt-file", receiptFile, "--id", second.id]);
+      const filtered = JSON.parse(String(log.mock.calls[0]?.[0])) as { receipts: Array<{ id: string; type: string }> };
+      expect(filtered.receipts).toHaveLength(1);
+      expect(filtered.receipts[0]).toMatchObject({ id: second.id, type: "sandbox.create" });
+    } finally {
+      log.mockRestore();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects an unknown receipt id", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-receipt-inspect-"));
+    const receiptFile = join(root, "receipts.jsonl");
+    try {
+      await writeFile(receiptFile, "", "utf8");
+      await expect(main(["receipt", "inspect", "--receipt-file", receiptFile, "--id", "missing"])).rejects.toThrow('No receipt with id "missing"');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("CLI preset catalog", () => {
+  test("parses preset list and explain", () => {
+    expect(parse(["preset", "list", "--json"])).toMatchObject({ command: "preset", rest: ["list"], json: true });
+    expect(parse(["preset", "explain", "node-sandbox"])).toMatchObject({ command: "preset", rest: ["explain", "node-sandbox"] });
+  });
+
+  test("lists presets as a table and as json", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await main(["preset", "list"]);
+      const table = String(log.mock.calls[0]?.[0]);
+      expect(table).toContain("node-sandbox");
+      expect(table).toContain("@capsule/presets");
+      expect(() => JSON.parse(table)).toThrow();
+
+      log.mockClear();
+      await main(["preset", "list", "--json"]);
+      const entries = JSON.parse(String(log.mock.calls[0]?.[0])) as Array<{ id: string }>;
+      expect(entries.some((entry) => entry.id === "cloudflare-neon-preview")).toBe(true);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  test("explains a single preset and rejects unknown ids", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await main(["preset", "explain", "cost-limited-preview"]);
+      const entry = JSON.parse(String(log.mock.calls[0]?.[0])) as { id: string; package: string; capabilityPaths: string[] };
+      expect(entry).toMatchObject({ id: "cost-limited-preview", package: "@capsule/core" });
+      expect(entry.capabilityPaths).toContain("preview.create");
+
+      await expect(main(["preset", "explain", "does-not-exist"])).rejects.toThrow('Unknown preset "does-not-exist"');
+      await expect(main(["preset", "explain"])).rejects.toThrow("Missing preset id");
+    } finally {
+      log.mockRestore();
+    }
+  });
+});
+
+describe("CLI preview plan", () => {
+  test("parses preview plan flags", () => {
+    expect(parse(["preview", "plan", "--config-file", "preview.json"])).toMatchObject({
+      command: "preview",
+      rest: ["plan"],
+      configFile: "preview.json"
+    });
+  });
+
+  test("produces a side-effect-free dry-run report from a preview config", async () => {
+    const root = await mkdtemp(join(tmpdir(), "capsule-preview-plan-"));
+    const configFile = join(root, "preview.json");
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await writeFile(
+        configFile,
+        JSON.stringify({
+          name: "pr-90",
+          allowMockProviders: true,
+          databases: [{ adapter: "mock-neon", spec: { project: "app", name: "pr-90-db" } }]
+        }),
+        "utf8"
+      );
+
+      await main(["preview", "plan", "--config-file", configFile]);
+      const report = JSON.parse(String(log.mock.calls[0]?.[0])) as {
+        plan: { name: string; resources: Array<{ kind: string }> };
+        validation: { ok: boolean };
+        receipt: { type: string; resource: { status: string } };
+      };
+
+      expect(report.plan.name).toBe("pr-90");
+      expect(report.plan.resources.map((resource) => resource.kind)).toEqual(["database"]);
+      expect(report.validation.ok).toBe(true);
+      expect(report.receipt).toMatchObject({ type: "preview.create", resource: { status: "ready" } });
+      expect(process.exitCode).toBe(0);
+    } finally {
+      log.mockRestore();
+      process.exitCode = undefined;
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

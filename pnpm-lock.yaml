@@ -604,6 +604,9 @@ importers:
       '@capsule/core':
         specifier: workspace:*
         version: link:../core
+      '@capsule/presets':
+        specifier: workspace:*
+        version: link:../presets
       '@capsule/preview':
         specifier: workspace:*
         version: link:../preview
