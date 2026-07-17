@@ -4,6 +4,15 @@ Capsule capability paths use dot notation, such as `sandbox.exec`, `service.depl
 
 `supportLevel(path)` returns the declared support level. `supports(path)` returns true for `native`, `emulated`, and `experimental`, and false for `unsupported`.
 
+## Support Levels
+
+- `native`: the provider exposes the capability directly and the adapter uses that API.
+- `emulated`: Capsule or the adapter approximates the behavior outside the provider's native model.
+- `experimental`: the adapter exposes the capability, but semantics, coverage, or provider behavior still need explicit verification.
+- `unsupported`: the adapter does not implement the capability; public calls must fail rather than fake it.
+
+Support level is about the adapter contract, not about whether the current operator can reach the provider today. For production workflows, prefer requirement sets that name acceptable levels explicitly.
+
 ## Requirement Sets
 
 Callers can evaluate a group of required and optional capability paths before choosing an adapter:
@@ -62,3 +71,58 @@ Examples:
 - Kubernetes: jobs and services are native through the real Kubernetes adapter. Service deploy creates a Deployment and Service, service status reads both resources, service delete removes both resources in the configured namespace, and URLs prefer assigned LoadBalancer ingress before falling back to in-cluster DNS. Job and service logs are native when a Job selector or Service selector can identify Pods; Capsule reads combined Pod logs without alpha split-stream query parameters and rejects follow-mode streaming until bounded streaming is modeled. Sandbox, preview, and machine support remain unsupported until explicit public wrappers exist.
 - Azure Container Apps: jobs and services are native through the ARM Container Apps API. Job status reads an execution resource, job cancel stops an execution, service status reads the Container App resource, and service delete deletes the Container App. Revision activate/deactivate ARM APIs are not exposed as generic rollback until Capsule has a service rollback contract.
 - EC2: `machine.create`, `machine.status`, `machine.start`, `machine.stop`, and `machine.destroy` are native through the real EC2 adapter. `machine.destroy` records current and previous EC2 states plus force/skip-OS-shutdown settings, and it fails if EC2 does not return termination state. Job/service wrappers, exec, and snapshot remain unsupported until modeled explicitly.
+
+## Choosing A Provider
+
+Provider choice starts from workflow requirements, not from provider preference. A provider is a fit only when its adapter declares the required capability paths at acceptable support levels and the operator can verify the real account path without leaking credentials into docs, logs, or receipts. Build a requirement set for the workflow, score candidates with `providerCompatibilityScore`, and read `explainSupportLevel` for the load-bearing paths:
+
+```ts
+import { providerCompatibilityScore, explainSupportLevel } from "@capsule-sdk/core";
+import { docker } from "@capsule-sdk/docker";
+import { neon } from "@capsule-sdk/neon";
+
+const previewDatabaseRequirements = [
+  { path: "database.branchCreate", levels: ["native"] },
+  { path: "database.branchDelete", levels: ["native"] },
+  { path: "database.connectionString", levels: ["native"] },
+  { path: "database.branchReset", levels: ["native"], optional: true, reason: "Repeatable preview refresh" }
+];
+
+for (const candidate of [
+  { name: "Docker", capabilities: docker().capabilities },
+  { name: "Neon", capabilities: neon().capabilities }
+]) {
+  const score = providerCompatibilityScore(candidate.capabilities, previewDatabaseRequirements);
+  console.log(candidate.name, score.score, score.missingRequired);
+}
+```
+
+Interpretation:
+
+- A provider with missing required capabilities is not a fit, even if its optional score is high.
+- `native` required support is appropriate for production deploy, database, rollback, and cleanup flows.
+- `experimental` can be acceptable for local workflows or gated previews when the operator explicitly opts in.
+- `emulated` can be acceptable for developer convenience, but do not present it as provider-native behavior.
+
+Current provider fit:
+
+| Workflow                                            | Prefer             | Why                                                                                                                              | Avoid when                                                                                                                 |
+| --------------------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Local trusted sandbox or one-shot job               | Docker             | `sandbox.create`, `sandbox.exec`, file operations, `sandbox.destroy`, and `job.run` are native; no cloud credentials needed.     | Code is hostile or the workflow needs cloud isolation, provider IAM, managed networking, or remote service lifecycle.      |
+| Preview database branch                             | Neon               | `database.branchCreate/branchDelete/branchReset/connectionString` are native.                                                    | You need migrations, snapshots, restore, or full preview orchestration as one native provider object.                      |
+| Worker-style edge deployment                        | Cloudflare Workers | `edge.deploy`, `edge.version`, `edge.rollback`, and `edge.routes` are native; `edge.url` is experimental.                        | You require native log reads, secret/binding management, gradual rollout, or database primitives through the same adapter. |
+| Web/edge deployment with URL, status, release, logs | Vercel             | `edge.deploy`, `edge.status`, `edge.release`, `edge.logs`, and `edge.url` are native.                                            | You require rollback, routes, provider env management, large source upload/SHA flow, or preview orchestration today.       |
+| Machine-backed job or low-level machine lifecycle   | Fly Machines       | `job.run`, `job.env`, and `machine.create/status/start/stop/destroy` are native; resources and machine network are experimental. | You require service deploy, logs, volumes, app networking, snapshots, or machine exec today.                               |
+
+Vercel and Fly are pending live account verification until their credential environment variables are configured in an operator environment. Record "pending credentials" as an operator state, not as adapter support.
+
+## Credential Boundary
+
+Provider selection docs must stay public and secret-free:
+
+- document environment variable names, never values;
+- do not include account IDs, project IDs, deployment IDs, connection strings, real branch names, bearer tokens, signed URLs, or provider console URLs;
+- run live verification only behind `CAPSULE_LIVE_TESTS=1` and provider-specific credentials;
+- persist receipts only after checking they contain no raw secrets or connection strings.
+
+Support level is about the adapter contract. Credential availability is about whether the current operator can verify that provider today. Keep those separate.
