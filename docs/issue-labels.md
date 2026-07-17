@@ -76,6 +76,17 @@ Capsule uses labels to keep productization work reviewable and parallel-agent sa
 | `good-first-issue`         | Small, low-risk issue with clear files, tests, and expected behavior.                                         |
 | `needs-live-verification`  | Local tests are not enough; maintainer must run opt-in live provider checks.                                  |
 
+## Status Labels
+
+| Label                | Use for                                                                   |
+| -------------------- | ------------------------------------------------------------------------- |
+| `needs-verification` | Work is not done until verification evidence is posted.                   |
+| `needs-design`       | Contract or architecture shape is not ready for implementation.           |
+| `blocked`            | External dependency or missing decision prevents progress.                |
+| `release:v1`         | Targets the first public release gate.                                    |
+| `release:v2`         | Targets the v2 layer.                                                     |
+| `area:oss`           | Repository polish, comparison, contribution model, public GitHub surface. |
+
 ## Default Label Sets
 
 - Core security fix: `area:core`, `risk:security`, `risk:evidence`, `type:bug`, `priority:p0`, `agent:needs-main-review`.
