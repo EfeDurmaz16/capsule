@@ -29,12 +29,16 @@ import { capsuleOperationTag, capsuleOperationTags } from "./idempotency.js";
 import { evaluatePolicy, explainPolicy, mergeTimeout, redactError, redactLogEntries, redactSecrets } from "./policy.js";
 import {
   agentSafePolicy,
+  ciJobPreset,
+  costLimitedPreviewPreset,
+  dockerLocalAgentPreset,
   edgeWorkerPreset,
   httpServicePreset,
   nodeJobPreset,
   nodeSandboxPreset,
   previewDatabaseBranchPreset,
-  previewEnvironmentPreset
+  previewEnvironmentPreset,
+  validatePresetAgainstPolicy
 } from "./presets.js";
 import { capsuleReceiptJsonSchema } from "./receipt-schema.js";
 import { canonicalReceiptPayload, createReceipt, providerRuntimeMetadata, verifyReceipt, verifyReceiptSignature } from "./receipts.js";
@@ -964,6 +968,69 @@ describe("presets", () => {
       mode: "allowlist",
       allowedHosts: ["api.example.com"]
     });
+  });
+
+  test("wraps nodeJobPreset with CI defaults", () => {
+    const preset = ciJobPreset({ command: ["pnpm", "test"] });
+
+    expect(preset.name).toBe("ci-job");
+    expect(preset.domain).toBe("job");
+    expect(preset.capabilityPaths).toEqual(["job.run"]);
+    expect(preset.spec.env).toEqual({ CI: "true" });
+    expect(preset.spec.timeoutMs).toBe(900_000);
+    expect(preset.spec.labels).toEqual({ "capsule.io/preset": "ci-job" });
+    expect(preset.policy?.limits?.timeoutMs).toBe(900_000);
+  });
+
+  test("lets ci-job callers override the CI defaults", () => {
+    const preset = ciJobPreset({ command: ["node", "job.js"], env: { CI: "false", EXTRA: "1" }, timeoutMs: 1_000 });
+
+    expect(preset.spec.env).toEqual({ CI: "false", EXTRA: "1" });
+    expect(preset.spec.timeoutMs).toBe(1_000);
+  });
+
+  test("wraps nodeSandboxPreset for a local Docker agent", () => {
+    const preset = dockerLocalAgentPreset({ timeoutMs: 5_000 });
+
+    expect(preset.name).toBe("docker-local-agent");
+    expect(preset.domain).toBe("sandbox");
+    expect(preset.capabilityPaths).toEqual(["sandbox.create", "sandbox.exec", "sandbox.fileWrite", "sandbox.destroy"]);
+    expect(preset.spec.labels).toEqual({ "capsule.io/preset": "docker-local-agent" });
+    expect(preset.policy?.network).toEqual({ mode: "none" });
+  });
+
+  test("passes an explicit network through the docker local agent policy", () => {
+    const preset = dockerLocalAgentPreset({ network: { mode: "allowlist", allowedHosts: ["registry.local"] } });
+
+    expect(preset.policy?.network).toEqual({ mode: "allowlist", allowedHosts: ["registry.local"] });
+    expect(() => dockerLocalAgentPreset({ network: { mode: "allowlist" } })).toThrow("network allowlist requires at least one allowed host");
+  });
+
+  test("adds a cost cap to the preview environment policy", () => {
+    const preset = costLimitedPreviewPreset({ name: "pr-42", ttlMs: 60_000, maxUsd: 12 });
+
+    expect(preset.name).toBe("cost-limited-preview");
+    expect(preset.domain).toBe("preview");
+    expect(preset.policy).toEqual({ ttl: { maxMs: 60_000 }, cost: { maxUsd: 12 } });
+  });
+
+  test("defaults the cost cap and rejects a non-positive cap", () => {
+    expect(costLimitedPreviewPreset({ name: "pr-42" }).policy?.cost).toEqual({ maxUsd: 5 });
+    expect(() => costLimitedPreviewPreset({ name: "pr-42", maxUsd: 0 })).toThrow("cost-limited-preview maxUsd must be greater than 0");
+  });
+
+  test("validates a preset against a policy and returns structured findings", () => {
+    expect(validatePresetAgainstPolicy(undefined, {})).toEqual({ ok: true, findings: [] });
+
+    const emptyAllowlist = validatePresetAgainstPolicy(undefined, { network: { mode: "allowlist" } });
+    expect(emptyAllowlist.ok).toBe(false);
+    expect(emptyAllowlist.findings[0]).toMatchObject({ code: "network.allowlist.empty", path: "network.allowedHosts" });
+
+    const badCost = validatePresetAgainstPolicy(undefined, { cost: { maxUsd: -1 }, ttl: { maxMs: 0 }, limits: { timeoutMs: -5 } });
+    expect(badCost.findings.map((finding) => finding.code)).toEqual(["cost.maxUsd.invalid", "ttl.maxMs.invalid", "limits.timeoutMs.invalid"]);
+
+    const fromPreset = validatePresetAgainstPolicy(costLimitedPreviewPreset({ name: "pr-42", maxUsd: 3 }));
+    expect(fromPreset.ok).toBe(true);
   });
 });
 

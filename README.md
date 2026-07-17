@@ -268,7 +268,7 @@ for (const path of preset.capabilityPaths) {
 const sandbox = await capsule.sandbox.create(preset.spec);
 ```
 
-Core ships `nodeSandboxPreset`, `nodeJobPreset`, `httpServicePreset`, `edgeWorkerPreset`, `previewDatabaseBranchPreset`, and `previewEnvironmentPreset`. Provider-oriented compositions such as `flyVercelNeonPreviewPreset` live in `@capsule/presets`.
+Core ships `nodeSandboxPreset`, `nodeJobPreset`, `ciJobPreset`, `dockerLocalAgentPreset`, `httpServicePreset`, `edgeWorkerPreset`, `previewDatabaseBranchPreset`, `previewEnvironmentPreset`, and `costLimitedPreviewPreset`, plus `validatePresetAgainstPolicy` for structured policy findings. Provider-oriented compositions such as `flyVercelNeonPreviewPreset`, `cloudflareNeonPreviewPreset`, and `vercelNeonPreviewPreset` live in `@capsule/presets`, which also exports a `presetCatalog` for discovery.
 
 ## CLI
 
@@ -279,10 +279,14 @@ capsule capabilities --adapter neon
 capsule examples run capability-check
 capsule policy explain --adapter docker --capability job.run --policy-file policy.json --spec-file job-spec.json
 capsule receipt verify --receipt-file .capsule/receipts.jsonl
+capsule receipt inspect --receipt-file .capsule/receipts.jsonl
+capsule preset list
+capsule preset explain node-sandbox
+capsule preview plan --config-file preview.json
 capsule preview create --config-file preview.json --cleanup-file .capsule/preview-cleanup.json
 ```
 
-`capsule doctor` checks Node support, workspace health, Docker availability, and provider credential env vars without printing secret values. Report commands take `--json` for automation. Run `capsule --help` for the full command list, including provider-specific `service`, `job`, and `neon` commands.
+`capsule doctor` checks Node support, workspace health, Docker availability, and provider credential env vars without printing secret values; `--provider` (or `--adapter`) filters the credential diagnostics to one provider. `capsule receipt inspect` pretty-prints stored receipts (optionally one `--id`) without validating them. `capsule preset list` and `capsule preset explain <id>` browse the preset catalog. `capsule preview plan` compiles a config into a side-effect-free dry-run report. Report commands take `--json` for automation. Run `capsule --help` for the full command list, including provider-specific `service`, `job`, and `neon` commands.
 
 `capsule init` scaffolds a `capsule.config.json`. Commands read it from the working directory and apply its `adapter`, `receipts.path`, and `policyFile` when the matching flag is not passed; explicit flags always override the config file. The scaffolded policy sets `secrets.allowed` to `[]`, which denies every environment key by default until you add keys to it.
 

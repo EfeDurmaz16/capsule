@@ -247,6 +247,55 @@ export function previewEnvironmentPreset(options: PreviewEnvironmentPresetOption
   };
 }
 
+export interface CiJobPresetOptions extends NodeJobPresetOptions {}
+
+export function ciJobPreset(options: CiJobPresetOptions): CapsulePreset<RunJobSpec> {
+  const base = nodeJobPreset({ ...options, timeoutMs: options.timeoutMs ?? 900_000, env: { CI: "true", ...options.env } });
+  return {
+    ...base,
+    name: "ci-job",
+    spec: {
+      ...base.spec,
+      labels: { ...base.spec.labels, "capsule.io/preset": "ci-job" }
+    },
+    notes: ["Creates a one-shot CI job spec with CI defaults (CI=true env, 15 minute timeout); timeout and resource enforcement depend on adapter support."]
+  };
+}
+
+export interface DockerLocalAgentPresetOptions extends NodeSandboxPresetOptions {
+  network?: CapsulePolicy["network"];
+}
+
+export function dockerLocalAgentPreset(options: DockerLocalAgentPresetOptions = {}): CapsulePreset<CreateSandboxSpec> {
+  const base = nodeSandboxPreset(options);
+  return {
+    ...base,
+    name: "docker-local-agent",
+    spec: {
+      ...base.spec,
+      labels: { ...base.spec.labels, "capsule.io/preset": "docker-local-agent" }
+    },
+    policy: agentSafePolicy({ timeoutMs: options.timeoutMs, secretEnv: options.secretEnv, network: options.network }),
+    notes: ["Creates a sandbox spec for a locally sandboxed agent on Docker with a deny-by-default network; pair with @capsule/adapter-docker."]
+  };
+}
+
+export interface CostLimitedPreviewPresetOptions extends PreviewEnvironmentPresetOptions {
+  maxUsd?: number;
+}
+
+export function costLimitedPreviewPreset(options: CostLimitedPreviewPresetOptions): CapsulePreset<CreatePreviewSpec> {
+  const maxUsd = options.maxUsd ?? 5;
+  validatePositiveNumber(maxUsd, "cost-limited-preview maxUsd");
+  const base = previewEnvironmentPreset(options);
+  return {
+    ...base,
+    name: "cost-limited-preview",
+    policy: { ...base.policy, cost: { maxUsd } },
+    notes: [...base.notes, `Caps preview spend at $${maxUsd} through policy.cost.maxUsd; adapters must enforce cost limits for this cap to bind.`]
+  };
+}
+
 function requireNonEmptyString(value: string | undefined, field: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new TypeError(`${field} is required`);
@@ -311,8 +360,40 @@ function hasSourceLocator(source: DeployServiceSpec["source"] | DeployEdgeSpec["
   return isNonEmptyString(source?.path) || isNonEmptyString(source?.repo);
 }
 
+export interface PresetPolicyFinding {
+  code: "network.allowlist.empty" | "cost.maxUsd.invalid" | "ttl.maxMs.invalid" | "limits.timeoutMs.invalid";
+  path: string;
+  message: string;
+}
+
+export interface PresetPolicyValidation {
+  ok: boolean;
+  findings: PresetPolicyFinding[];
+}
+
+// Read-only, throw-free policy check shared by every preset factory. Callers that want a hard failure
+// (the historical validatePresetPolicy behavior) inspect findings and throw the message themselves.
+export function validatePresetAgainstPolicy(preset: Pick<CapsulePreset<unknown>, "policy"> | undefined, policy?: CapsulePolicy): PresetPolicyValidation {
+  const effective = policy ?? preset?.policy ?? {};
+  const findings: PresetPolicyFinding[] = [];
+  if (effective.network?.mode === "allowlist" && !(effective.network.allowedHosts ?? []).some(isNonEmptyString)) {
+    findings.push({ code: "network.allowlist.empty", path: "network.allowedHosts", message: "network allowlist requires at least one allowed host" });
+  }
+  if (effective.cost?.maxUsd !== undefined && (!Number.isFinite(effective.cost.maxUsd) || effective.cost.maxUsd <= 0)) {
+    findings.push({ code: "cost.maxUsd.invalid", path: "cost.maxUsd", message: "cost.maxUsd must be greater than 0" });
+  }
+  if (effective.ttl?.maxMs !== undefined && (!Number.isFinite(effective.ttl.maxMs) || effective.ttl.maxMs <= 0)) {
+    findings.push({ code: "ttl.maxMs.invalid", path: "ttl.maxMs", message: "ttl.maxMs must be greater than 0" });
+  }
+  if (effective.limits?.timeoutMs !== undefined && (!Number.isFinite(effective.limits.timeoutMs) || effective.limits.timeoutMs <= 0)) {
+    findings.push({ code: "limits.timeoutMs.invalid", path: "limits.timeoutMs", message: "limits.timeoutMs must be greater than 0" });
+  }
+  return { ok: findings.length === 0, findings };
+}
+
 function validatePresetPolicy(policy: CapsulePolicy): void {
-  if (policy.network?.mode === "allowlist" && !(policy.network.allowedHosts ?? []).some(isNonEmptyString)) {
-    throw new TypeError("network allowlist requires at least one allowed host");
+  const finding = validatePresetAgainstPolicy(undefined, policy).findings.find((entry) => entry.code === "network.allowlist.empty");
+  if (finding) {
+    throw new TypeError(finding.message);
   }
 }

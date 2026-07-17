@@ -1,4 +1,5 @@
 import type {
+  CapabilityPath,
   CapsulePolicy,
   CapsulePreset,
   CreateDatabaseBranchSpec,
@@ -10,7 +11,7 @@ import type {
   ProviderOptionValue,
   RunJobSpec
 } from "@capsule/core";
-import { agentSafePolicy } from "@capsule/core";
+import { agentSafePolicy, validatePresetAgainstPolicy } from "@capsule/core";
 
 function providerOptions(input: Record<string, ProviderOptionValue | undefined>): ProviderOptions {
   return Object.fromEntries(Object.entries(input).filter((entry): entry is [string, ProviderOptionValue] => entry[1] !== undefined));
@@ -21,10 +22,6 @@ function requireNonEmptyString(value: string | undefined, field: string): string
     throw new TypeError(`${field} is required`);
   }
   return value;
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
 }
 
 function validatePositiveNumber(value: number | undefined, field: string): void {
@@ -55,8 +52,9 @@ function validateScale(minScale: number | undefined, maxScale: number | undefine
 }
 
 function validatePolicyCompatibility(policy: CapsulePolicy): void {
-  if (policy.network?.mode === "allowlist" && !(policy.network.allowedHosts ?? []).some(isNonEmptyString)) {
-    throw new TypeError("network allowlist requires at least one allowed host");
+  const finding = validatePresetAgainstPolicy(undefined, policy).findings.find((entry) => entry.code === "network.allowlist.empty");
+  if (finding) {
+    throw new TypeError(finding.message);
   }
 }
 
@@ -343,3 +341,263 @@ export function flyVercelNeonPreviewPreset(options: ProviderPreviewPresetOptions
     policy
   };
 }
+
+interface EdgeNeonPreviewParams {
+  presetName: string;
+  name: string;
+  source?: CreatePreviewSpec["source"];
+  ttlMs?: number;
+  edge?: CapsulePreset<DeployEdgeSpec>;
+  database?: CapsulePreset<CreateDatabaseBranchSpec>;
+  checks?: RunJobSpec[];
+  labels?: Record<string, string>;
+  policy?: CapsulePolicy;
+  defaultAllowedHosts: string[];
+}
+
+function composeEdgeNeonPreview(params: EdgeNeonPreviewParams): ProviderPreviewPreset {
+  const name = requireNonEmptyString(params.name, `${params.presetName} name`);
+  const edge = params.edge;
+  const database = params.database;
+  const checks = (params.checks ?? []).map((spec, index): CapsulePreset<RunJobSpec> => ({
+    name: `preview-check-${index + 1}`,
+    domain: "job",
+    capabilityPaths: ["job.run", "job.logs"],
+    spec: {
+      ...spec,
+      labels: { ...spec.labels, "capsule.io/preset": params.presetName }
+    },
+    notes: ["Runs a preview verification job; timeout, logs, artifacts, and cancellation support remain adapter-specific."]
+  }));
+  const policy = params.policy ?? agentSafePolicy({ network: { mode: "allowlist", allowedHosts: params.defaultAllowedHosts }, timeoutMs: 300_000 });
+  validatePolicyCompatibility(policy);
+
+  return {
+    name: params.presetName,
+    preview: {
+      name: params.presetName,
+      domain: "preview",
+      capabilityPaths: [
+        "preview.create",
+        "preview.destroy",
+        "preview.urls",
+        ...(edge ? edge.capabilityPaths : []),
+        ...(database ? database.capabilityPaths : []),
+        ...checks.flatMap((check) => check.capabilityPaths)
+      ],
+      spec: {
+        name,
+        source: params.source,
+        ttlMs: params.ttlMs,
+        edges: edge ? [edge.spec] : undefined,
+        databases: database ? [database.spec] : undefined,
+        jobs: checks.map((check) => check.spec),
+        labels: { ...params.labels, "capsule.io/preset": params.presetName }
+      },
+      policy,
+      notes: [
+        "Composes a common preview shape: an edge web/worker deployment, a Neon branch, and optional check jobs.",
+        "This preset does not execute or orchestrate providers; use Capsule adapters and @capsule/preview to run it with explicit receipts."
+      ]
+    },
+    components: {
+      web: edge,
+      api: undefined,
+      database,
+      checks
+    },
+    policy
+  };
+}
+
+export interface CloudflareNeonPreviewPresetOptions {
+  name: string;
+  source?: CreatePreviewSpec["source"];
+  ttlMs?: number;
+  worker?: CloudflareWorkerPresetOptions;
+  database?: NeonPreviewBranchPresetOptions;
+  checks?: RunJobSpec[];
+  labels?: Record<string, string>;
+  policy?: CapsulePolicy;
+}
+
+export function cloudflareNeonPreviewPreset(options: CloudflareNeonPreviewPresetOptions): ProviderPreviewPreset {
+  requireNonEmptyString(options.name, "cloudflare-neon-preview name");
+  validatePositiveNumber(options.ttlMs, "cloudflare-neon-preview ttlMs");
+  const edge = options.worker ? cloudflareWorkerPreset(options.worker) : undefined;
+  const database = options.database ? neonPreviewBranchPreset(options.database) : undefined;
+  return composeEdgeNeonPreview({
+    presetName: "cloudflare-neon-preview",
+    name: options.name,
+    source: options.source,
+    ttlMs: options.ttlMs,
+    edge,
+    database,
+    checks: options.checks,
+    labels: options.labels,
+    policy: options.policy,
+    defaultAllowedHosts: ["*.workers.dev", "*.neon.tech"]
+  });
+}
+
+export interface VercelNeonPreviewPresetOptions {
+  name: string;
+  source?: CreatePreviewSpec["source"];
+  ttlMs?: number;
+  web?: VercelWebPresetOptions;
+  database?: NeonPreviewBranchPresetOptions;
+  checks?: RunJobSpec[];
+  labels?: Record<string, string>;
+  policy?: CapsulePolicy;
+}
+
+export function vercelNeonPreviewPreset(options: VercelNeonPreviewPresetOptions): ProviderPreviewPreset {
+  requireNonEmptyString(options.name, "vercel-neon-preview name");
+  validatePositiveNumber(options.ttlMs, "vercel-neon-preview ttlMs");
+  const edge = options.web ? vercelWebPreset(options.web) : undefined;
+  const database = options.database ? neonPreviewBranchPreset(options.database) : undefined;
+  return composeEdgeNeonPreview({
+    presetName: "vercel-neon-preview",
+    name: options.name,
+    source: options.source,
+    ttlMs: options.ttlMs,
+    edge,
+    database,
+    checks: options.checks,
+    labels: options.labels,
+    policy: options.policy,
+    defaultAllowedHosts: ["*.vercel.app", "*.neon.tech"]
+  });
+}
+
+export interface PresetCatalogEntry {
+  id: string;
+  name: string;
+  package: "@capsule/core" | "@capsule/presets";
+  description: string;
+  capabilityPaths: CapabilityPath[];
+}
+
+// Static discovery catalog for the CLI (capsule preset list / explain). capabilityPaths mirror what each
+// factory declares; presets.test.ts asserts the non-composed entries stay in sync with the factories.
+export const presetCatalog: PresetCatalogEntry[] = [
+  {
+    id: "node-sandbox",
+    name: "nodeSandboxPreset",
+    package: "@capsule/core",
+    description: "Agent-safe Node.js sandbox spec with a deny-by-default network policy.",
+    capabilityPaths: ["sandbox.create", "sandbox.exec", "sandbox.fileWrite", "sandbox.destroy"]
+  },
+  {
+    id: "node-job",
+    name: "nodeJobPreset",
+    package: "@capsule/core",
+    description: "One-shot Node.js job spec with an agent-safe policy.",
+    capabilityPaths: ["job.run"]
+  },
+  {
+    id: "ci-job",
+    name: "ciJobPreset",
+    package: "@capsule/core",
+    description: "Node.js job spec with CI defaults (CI=true env, 15 minute timeout).",
+    capabilityPaths: ["job.run"]
+  },
+  {
+    id: "docker-local-agent",
+    name: "dockerLocalAgentPreset",
+    package: "@capsule/core",
+    description: "Locally sandboxed agent spec for @capsule/adapter-docker with a deny-by-default network.",
+    capabilityPaths: ["sandbox.create", "sandbox.exec", "sandbox.fileWrite", "sandbox.destroy"]
+  },
+  {
+    id: "http-service",
+    name: "httpServicePreset",
+    package: "@capsule/core",
+    description: "Public HTTP service spec with health checks and scaling hints.",
+    capabilityPaths: ["service.deploy", "service.status", "service.url"]
+  },
+  {
+    id: "edge-worker",
+    name: "edgeWorkerPreset",
+    package: "@capsule/core",
+    description: "Edge runtime deployment spec with routes and bindings.",
+    capabilityPaths: ["edge.deploy", "edge.routes"]
+  },
+  {
+    id: "preview-database-branch",
+    name: "previewDatabaseBranchPreset",
+    package: "@capsule/core",
+    description: "Ephemeral database branch spec for previews with an optional TTL policy.",
+    capabilityPaths: ["database.branchCreate", "database.connectionString"]
+  },
+  {
+    id: "preview-environment",
+    name: "previewEnvironmentPreset",
+    package: "@capsule/core",
+    description: "Composed preview environment spec across services, edges, databases, and jobs.",
+    capabilityPaths: ["preview.create", "preview.destroy", "preview.urls"]
+  },
+  {
+    id: "cost-limited-preview",
+    name: "costLimitedPreviewPreset",
+    package: "@capsule/core",
+    description: "Preview environment spec with a policy.cost.maxUsd spend cap.",
+    capabilityPaths: ["preview.create", "preview.destroy", "preview.urls"]
+  },
+  {
+    id: "fly-machine",
+    name: "flyMachinePreset",
+    package: "@capsule/presets",
+    description: "Fly Machines spec targeting @capsule/adapter-fly.",
+    capabilityPaths: ["machine.create", "machine.status", "machine.start", "machine.stop", "machine.destroy"]
+  },
+  {
+    id: "fly-http-service",
+    name: "flyHttpServicePreset",
+    package: "@capsule/presets",
+    description: "Fly-hosted HTTP service spec for adapters that expose service semantics.",
+    capabilityPaths: ["service.deploy", "service.status", "service.url"]
+  },
+  {
+    id: "vercel-web",
+    name: "vercelWebPreset",
+    package: "@capsule/presets",
+    description: "Vercel web/edge deployment spec targeting @capsule/adapter-vercel.",
+    capabilityPaths: ["edge.deploy", "edge.status", "edge.release", "edge.url"]
+  },
+  {
+    id: "cloudflare-worker",
+    name: "cloudflareWorkerPreset",
+    package: "@capsule/presets",
+    description: "Cloudflare Workers spec targeting @capsule/adapter-cloudflare.",
+    capabilityPaths: ["edge.deploy", "edge.version", "edge.rollback", "edge.routes"]
+  },
+  {
+    id: "neon-preview-branch",
+    name: "neonPreviewBranchPreset",
+    package: "@capsule/presets",
+    description: "Neon branch spec targeting @capsule/adapter-neon with an optional TTL policy.",
+    capabilityPaths: ["database.branchCreate", "database.connectionString", "database.branchDelete"]
+  },
+  {
+    id: "fly-vercel-neon-preview",
+    name: "flyVercelNeonPreviewPreset",
+    package: "@capsule/presets",
+    description: "Preview composition: Fly API service, Vercel web deployment, and a Neon branch.",
+    capabilityPaths: ["preview.create", "preview.destroy", "preview.urls"]
+  },
+  {
+    id: "cloudflare-neon-preview",
+    name: "cloudflareNeonPreviewPreset",
+    package: "@capsule/presets",
+    description: "Preview composition: Cloudflare Worker deployment and a Neon branch.",
+    capabilityPaths: ["preview.create", "preview.destroy", "preview.urls"]
+  },
+  {
+    id: "vercel-neon-preview",
+    name: "vercelNeonPreviewPreset",
+    package: "@capsule/presets",
+    description: "Preview composition: Vercel web deployment and a Neon branch.",
+    capabilityPaths: ["preview.create", "preview.destroy", "preview.urls"]
+  }
+];

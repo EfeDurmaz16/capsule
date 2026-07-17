@@ -71,13 +71,16 @@ import { modal } from "@capsule/adapter-modal";
 import { neon } from "@capsule/adapter-neon";
 import {
   cleanupPreviewEnvironment,
+  createPreviewDryRunReceiptBundle,
   createPreviewGraph,
   type PreviewCleanupPlan,
   type PreviewCleanupDisposition,
+  type PreviewDryRunReceiptBundle,
   type PreviewPlan,
   type PreviewResourceKind,
   type PreviewResourceRecord
 } from "@capsule/preview";
+import { presetCatalog, type PresetCatalogEntry } from "@capsule/presets";
 import { vercel } from "@capsule/adapter-vercel";
 import { jsonlReceiptStore } from "@capsule/store-jsonl";
 
@@ -570,6 +573,7 @@ const completionCommands = [
   "policy",
   "receipt",
   "preview",
+  "preset",
   "init",
   "examples",
   "adapter",
@@ -1484,6 +1488,39 @@ async function createReceiptVerifyReport(parsed: ParsedArgs): Promise<ReceiptVer
       receipts: []
     };
   }
+}
+
+interface ReceiptInspectReport {
+  store: { path: string; receiptCount: number };
+  receipts: CapsuleReceipt[];
+}
+
+// Pretty-prints stored receipts as-is. No signature or schema validation: use receipt verify for that.
+async function createReceiptInspectReport(parsed: ParsedArgs): Promise<ReceiptInspectReport> {
+  if (!parsed.receiptFile) {
+    throw new Error("Missing --receipt-file for receipt inspect.");
+  }
+  const receipts = await jsonlReceiptStore(parsed.receiptFile).readAll();
+  const selected = parsed.id ? receipts.filter((receipt) => receipt.id === parsed.id) : receipts;
+  if (parsed.id && selected.length === 0) {
+    throw new Error(`No receipt with id "${parsed.id}" in ${parsed.receiptFile}.`);
+  }
+  return {
+    store: { path: parsed.receiptFile, receiptCount: receipts.length },
+    receipts: selected
+  };
+}
+
+function formatPresetCatalogTable(entries: PresetCatalogEntry[]): string {
+  return formatTable(
+    ["ID", "Package", "Description"],
+    entries.map((entry) => [entry.id, entry.package, entry.description])
+  );
+}
+
+async function createPreviewPlanReport(parsed: ParsedArgs): Promise<PreviewDryRunReceiptBundle> {
+  const config = await readPreviewConfigFile(parsed.configFile);
+  return createPreviewDryRunReceiptBundle(createPreviewPlanFromConfig(config));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -2675,6 +2712,12 @@ Commands:
   capsule receipt verify --receipt-file .capsule/receipts.jsonl
   capsule receipt verify --receipt-file .capsule/receipts.jsonl --public-key ./capsule-receipts.pub --require-signature
   capsule receipt verify --receipt-file .capsule/receipts.jsonl --require-signature --allow-unverified-signatures
+  capsule receipt inspect --receipt-file .capsule/receipts.jsonl
+  capsule receipt inspect --receipt-file .capsule/receipts.jsonl --id <receiptId>
+  capsule preset list
+  capsule preset list --json
+  capsule preset explain node-sandbox
+  capsule preview plan --config-file preview.json
   capsule preview create --config-file preview.json --cleanup-file .capsule/preview-cleanup.json
   capsule preview destroy --cleanup-file .capsule/preview-cleanup.json
   capsule init --adapter docker --out-dir .
@@ -2946,7 +2989,7 @@ export async function main(argv: string[]): Promise<void> {
       throw new Error("Unknown neon command. Use branch-create or branch-delete.");
     }
     case "doctor": {
-      const report = await createDoctorReport({ adapter: parsed.adapter });
+      const report = await createDoctorReport({ adapter: parsed.provider ?? parsed.adapter });
       printReport(parsed, report, formatDoctorReport(report));
       process.exitCode =
         report.docker === "available" && report.node.supported && report.workspace.status === "ok" && report.releaseAudit.status === "available" ? 0 : 1;
@@ -2993,16 +3036,46 @@ export async function main(argv: string[]): Promise<void> {
     }
     case "receipt": {
       const action = parsed.rest[0];
-      if (action !== "verify") {
-        throw new Error("Unknown receipt command. Use verify.");
+      if (action === "verify") {
+        const report = await createReceiptVerifyReport(parsed);
+        console.log(JSON.stringify(report, null, 2));
+        process.exitCode = report.summary.valid ? 0 : 1;
+        return;
       }
-      const report = await createReceiptVerifyReport(parsed);
-      console.log(JSON.stringify(report, null, 2));
-      process.exitCode = report.summary.valid ? 0 : 1;
-      return;
+      if (action === "inspect") {
+        console.log(JSON.stringify(await createReceiptInspectReport(parsed), null, 2));
+        return;
+      }
+      throw new Error("Unknown receipt command. Use verify or inspect.");
+    }
+    case "preset": {
+      const action = parsed.rest[0];
+      if (action === "list") {
+        console.log(parsed.json ? JSON.stringify(presetCatalog, null, 2) : formatPresetCatalogTable(presetCatalog));
+        return;
+      }
+      if (action === "explain") {
+        const id = parsed.rest[1];
+        if (!id) {
+          throw new Error("Missing preset id. Use capsule preset explain <id>.");
+        }
+        const entry = presetCatalog.find((preset) => preset.id === id);
+        if (!entry) {
+          throw new Error(`Unknown preset "${id}". Run capsule preset list to see available presets.`);
+        }
+        console.log(JSON.stringify(entry, null, 2));
+        return;
+      }
+      throw new Error("Unknown preset command. Use list or explain.");
     }
     case "preview": {
       const action = parsed.rest[0];
+      if (action === "plan") {
+        const report = await createPreviewPlanReport(parsed);
+        console.log(JSON.stringify(report, null, 2));
+        process.exitCode = report.validation.ok ? 0 : 1;
+        return;
+      }
       if (action === "create") {
         console.log(JSON.stringify(await createPreviewCreateReport(parsed), null, 2));
         process.exitCode = 0;
@@ -3016,7 +3089,7 @@ export async function main(argv: string[]): Promise<void> {
         process.exitCode = report.status === "partial" ? 1 : 0;
         return;
       }
-      throw new Error("Unknown preview command. Use create or destroy.");
+      throw new Error("Unknown preview command. Use plan, create, or destroy.");
     }
     case "classify": {
       const action = parsed.rest[0];

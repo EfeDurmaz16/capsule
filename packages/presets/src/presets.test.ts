@@ -1,10 +1,24 @@
+import {
+  ciJobPreset,
+  costLimitedPreviewPreset,
+  dockerLocalAgentPreset,
+  edgeWorkerPreset,
+  httpServicePreset,
+  nodeJobPreset,
+  nodeSandboxPreset,
+  previewDatabaseBranchPreset,
+  previewEnvironmentPreset
+} from "@capsule/core";
 import { describe, expect, test } from "vitest";
 import {
+  cloudflareNeonPreviewPreset,
   cloudflareWorkerPreset,
   flyHttpServicePreset,
   flyMachinePreset,
   flyVercelNeonPreviewPreset,
   neonPreviewBranchPreset,
+  presetCatalog,
+  vercelNeonPreviewPreset,
   vercelWebPreset
 } from "./index.js";
 
@@ -373,5 +387,94 @@ describe("flyVercelNeonPreviewPreset composition", () => {
 
   test("propagates invalid component inputs from the underlying preset validation", () => {
     expect(() => flyVercelNeonPreviewPreset({ name: "pr-42", api: { name: "api", image: "" } })).toThrow("fly-http-service image is required");
+  });
+});
+
+describe("cloudflareNeonPreviewPreset", () => {
+  test("composes a Cloudflare Worker edge and a Neon branch into a preview", () => {
+    const preset = cloudflareNeonPreviewPreset({
+      name: "pr-42",
+      ttlMs: 86_400_000,
+      worker: { name: "worker-pr-42", sourcePath: "worker.js" },
+      database: { project: "silent-river-123", name: "pr-42" },
+      checks: [{ image: "node:22", command: ["echo", "ok"] }]
+    });
+
+    expect(preset.name).toBe("cloudflare-neon-preview");
+    expect(preset.preview.domain).toBe("preview");
+    expect(preset.preview.spec.edges).toHaveLength(1);
+    expect(preset.preview.spec.databases).toHaveLength(1);
+    expect(preset.preview.spec.services).toBeUndefined();
+    expect(preset.components.web?.name).toBe("cloudflare-worker");
+    expect(preset.components.api).toBeUndefined();
+    expect(preset.preview.capabilityPaths).toContain("edge.rollback");
+    expect(preset.preview.capabilityPaths).toContain("database.branchCreate");
+    expect(preset.policy.network).toEqual({ mode: "allowlist", allowedHosts: ["*.workers.dev", "*.neon.tech"] });
+    expect(preset.components.checks[0].spec.labels).toEqual({ "capsule.io/preset": "cloudflare-neon-preview" });
+  });
+
+  test("validates name, ttl, and allowlist policies", () => {
+    expect(() => cloudflareNeonPreviewPreset({ name: "" })).toThrow("cloudflare-neon-preview name is required");
+    expect(() => cloudflareNeonPreviewPreset({ name: "pr-42", ttlMs: 0 })).toThrow("cloudflare-neon-preview ttlMs must be greater than 0");
+    expect(() => cloudflareNeonPreviewPreset({ name: "pr-42", policy: { network: { mode: "allowlist" } } })).toThrow(
+      "network allowlist requires at least one allowed host"
+    );
+  });
+});
+
+describe("vercelNeonPreviewPreset", () => {
+  test("composes a Vercel web edge and a Neon branch into a preview", () => {
+    const preset = vercelNeonPreviewPreset({
+      name: "pr-42",
+      ttlMs: 86_400_000,
+      web: { name: "web-pr-42", sourcePath: "dist/index.js" },
+      database: { project: "silent-river-123", name: "pr-42" }
+    });
+
+    expect(preset.name).toBe("vercel-neon-preview");
+    expect(preset.preview.spec.edges).toHaveLength(1);
+    expect(preset.preview.spec.databases).toHaveLength(1);
+    expect(preset.components.web?.name).toBe("vercel-web");
+    expect(preset.preview.capabilityPaths).toContain("edge.release");
+    expect(preset.policy.network).toEqual({ mode: "allowlist", allowedHosts: ["*.vercel.app", "*.neon.tech"] });
+  });
+
+  test("validates name and ttl before composing sub-specs", () => {
+    expect(() => vercelNeonPreviewPreset({ name: "pr-42", ttlMs: -1 })).toThrow("vercel-neon-preview ttlMs must be greater than 0");
+    expect(() => vercelNeonPreviewPreset({ name: "pr-42", web: { name: "web", sourcePath: "" } })).toThrow("vercel-web sourcePath is required");
+  });
+});
+
+describe("presetCatalog", () => {
+  test("has unique ids and covers core and provider presets", () => {
+    const ids = presetCatalog.map((entry) => entry.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toContain("cost-limited-preview");
+    expect(ids).toContain("cloudflare-neon-preview");
+    expect(ids).toContain("vercel-neon-preview");
+    expect(presetCatalog.some((entry) => entry.package === "@capsule/core")).toBe(true);
+    expect(presetCatalog.some((entry) => entry.package === "@capsule/presets")).toBe(true);
+  });
+
+  test("catalog capabilityPaths stay in sync with the non-composed factories", () => {
+    const factoryPaths: Record<string, string[]> = {
+      "node-sandbox": nodeSandboxPreset().capabilityPaths,
+      "node-job": nodeJobPreset({ command: ["node", "-e", "1"] }).capabilityPaths,
+      "ci-job": ciJobPreset({ command: ["pnpm", "test"] }).capabilityPaths,
+      "docker-local-agent": dockerLocalAgentPreset().capabilityPaths,
+      "http-service": httpServicePreset({ name: "api", image: "example/api" }).capabilityPaths,
+      "edge-worker": edgeWorkerPreset({ name: "worker" }).capabilityPaths,
+      "preview-database-branch": previewDatabaseBranchPreset({ project: "app", name: "pr-42" }).capabilityPaths,
+      "preview-environment": previewEnvironmentPreset({ name: "pr-42" }).capabilityPaths,
+      "cost-limited-preview": costLimitedPreviewPreset({ name: "pr-42" }).capabilityPaths,
+      "fly-machine": flyMachinePreset({ name: "api", image: "img:1" }).capabilityPaths,
+      "fly-http-service": flyHttpServicePreset({ name: "api", image: "img:1" }).capabilityPaths,
+      "vercel-web": vercelWebPreset({ name: "web", sourcePath: "dist/index.js" }).capabilityPaths,
+      "cloudflare-worker": cloudflareWorkerPreset({ name: "worker", sourcePath: "worker.js" }).capabilityPaths,
+      "neon-preview-branch": neonPreviewBranchPreset({ project: "app", name: "pr-42" }).capabilityPaths
+    };
+    for (const [id, paths] of Object.entries(factoryPaths)) {
+      expect(presetCatalog.find((entry) => entry.id === id)?.capabilityPaths, id).toEqual(paths);
+    }
   });
 });

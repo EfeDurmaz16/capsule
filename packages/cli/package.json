@@ -34,6 +34,7 @@
     "@capsule/adapter-neon": "workspace:*",
     "@capsule/adapter-vercel": "workspace:*",
     "@capsule/core": "workspace:*",
+    "@capsule/presets": "workspace:*",
     "@capsule/preview": "workspace:*",
     "@capsule/store-jsonl": "workspace:*"
   },
