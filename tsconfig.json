@@ -25,16 +25,11 @@
     { "path": "./packages/store-jsonl" },
     { "path": "./packages/store-sqlite" },
     { "path": "./examples/sandbox-docker" },
-    { "path": "./examples/job-docker" },
     { "path": "./examples/agent-code-execution" },
     { "path": "./examples/capability-check" },
     { "path": "./examples/policy-receipts" },
-    { "path": "./examples/deployment-model" },
-    { "path": "./examples/edge-model" },
-    { "path": "./examples/database-branch-model" },
     { "path": "./examples/preview-environment-model" },
     { "path": "./examples/provider-presets" },
-    { "path": "./examples/machine-model" },
     { "path": "./examples/stripe-projects-provisioning" },
     { "path": "./examples/agent-preview-environment" }
   ]

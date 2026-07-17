@@ -103,7 +103,6 @@ pnpm --filter @capsule-sdk/example-policy-receipts start
 
 # Docker-backed examples (require a local Docker daemon)
 pnpm --filter @capsule-sdk/example-sandbox-docker start
-pnpm --filter @capsule-sdk/example-job-docker start
 
 # the CLI
 pnpm --filter @capsule-sdk/cli exec node dist/index.js doctor
