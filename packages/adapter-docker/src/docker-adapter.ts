@@ -5,6 +5,7 @@ import {
   AdapterExecutionError,
   providerExecutionError,
   type AdapterContext,
+  type Artifact,
   type CapsuleAdapter,
   type CapabilityMap,
   type CreateSandboxSpec,
@@ -16,7 +17,7 @@ import {
   type Sandbox,
   type SandboxHandle
 } from "@capsule/core";
-import { capsuleOperationTags, logsFromOutput, redactSecrets } from "@capsule/core";
+import { capsuleOperationTags, collectFileArtifacts, logsFromOutput, redactSecrets } from "@capsule/core";
 import { dockerAvailable, runDocker, type DockerCommandResult, type RunDockerOptions } from "./docker-cli.js";
 
 type DockerRunner = (args: string[], options?: RunDockerOptions) => Promise<DockerCommandResult>;
@@ -105,6 +106,8 @@ export const dockerCapabilities: CapabilityMap = {
     networkPolicy: "experimental",
     filesystemPolicy: "emulated",
     secretMounting: "emulated",
+    // Emulated at the adapter boundary: exec collects ExecSpec.artifactPaths from the live container
+    // with `docker cp` and hashes them, rather than a provider-native artifact store.
     artifacts: "emulated"
   },
   job: {
@@ -112,6 +115,9 @@ export const dockerCapabilities: CapabilityMap = {
     status: "unsupported",
     cancel: "unsupported",
     logs: "unsupported",
+    // Emulated in principle, but job.run uses `docker run --rm`, so the container is gone before we
+    // can `docker cp` from it. Job artifacts stay []; use sandbox.exec + ExecSpec.artifactPaths to
+    // collect artifacts. See docs/artifacts.md.
     artifacts: "emulated",
     timeout: "native",
     env: "native",
@@ -221,6 +227,24 @@ export function dockerSandboxCreateArgs(input: DockerSandboxCreateArgsInput): st
   ];
 }
 
+// Copy the requested container paths into a throwaway temp dir with `docker cp`, then hash them with
+// the shared filesystem collector. Only works while the container is alive, so this is used for
+// sandbox.exec (long-lived container) and not for job.run (which uses `docker run --rm`).
+async function collectSandboxArtifacts(runner: DockerRunner, containerId: string, paths: string[]): Promise<Artifact[]> {
+  const dir = await mkdtemp(join(tmpdir(), "capsule-docker-artifacts-"));
+  try {
+    for (const path of paths) {
+      const copied = await runner(["cp", `${containerId}:${path}`, dir]);
+      if (copied.exitCode !== 0) {
+        throw dockerCliError(`docker cp artifact failed for ${path}: ${copied.stderr}`, copied);
+      }
+    }
+    return collectFileArtifacts(dir).artifacts;
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 async function ensureDocker(checkAvailable: () => Promise<boolean>): Promise<void> {
   if (!(await checkAvailable())) {
     throw providerExecutionError("Docker CLI is not available or the Docker daemon is not reachable.", { category: "retryable", retryable: true });
@@ -244,6 +268,7 @@ class DockerSandbox implements Sandbox {
     });
     const stdout = redactSecrets(result.stdout, spec.env, this.context.policy);
     const stderr = redactSecrets(result.stderr, spec.env, this.context.policy);
+    const artifacts = spec.artifactPaths?.length ? await collectSandboxArtifacts(this.runner, this.handle.id, spec.artifactPaths) : [];
     const receipt = this.context.receipts
       ? this.context.createReceipt({
           type: "sandbox.exec",
@@ -254,6 +279,7 @@ class DockerSandbox implements Sandbox {
           exitCode: result.exitCode,
           stdout,
           stderr,
+          artifacts,
           policy: { ...policy, notes: [...policy.notes, ...policyNotes(this.context)] },
           resource: { id: this.handle.id, status: "running" }
         })
@@ -263,7 +289,7 @@ class DockerSandbox implements Sandbox {
       stdout,
       stderr,
       logs: logsFromOutput(stdout, stderr, this.handle.id),
-      artifacts: [],
+      artifacts,
       receipt
     };
   }
