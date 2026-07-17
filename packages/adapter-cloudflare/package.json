@@ -28,7 +28,7 @@
   "files": [
     "dist"
   ],
-  "description": "Cloudflare adapter for Capsule edge deployments and related runtime primitives.",
+  "description": "Cloudflare Workers adapter for Capsule edge deployments and version release.",
   "license": "MIT",
   "repository": {
     "type": "git",

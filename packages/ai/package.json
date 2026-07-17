@@ -27,7 +27,7 @@
   "files": [
     "dist"
   ],
-  "description": "Framework-agnostic AI code execution helper built on Capsule sandboxes.",
+  "description": "Capsule code execution tool plus dependency-free tool descriptors for Vercel AI SDK, OpenAI, LangChain, Mastra, and CrewAI.",
   "license": "MIT",
   "repository": {
     "type": "git",

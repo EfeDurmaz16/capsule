@@ -1,5 +1,6 @@
 {
   "name": "@capsule-sdk/test-utils",
+  "description": "Shared live-test gating and provider credential harness for Capsule adapter test suites.",
   "version": "0.1.0",
   "private": true,
   "type": "module",

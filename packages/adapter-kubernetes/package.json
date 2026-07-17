@@ -29,7 +29,7 @@
   "files": [
     "dist"
   ],
-  "description": "Kubernetes adapter for Capsule jobs, services, and machine-adjacent primitives.",
+  "description": "Kubernetes adapter for Capsule jobs, services, and combined pod log reads.",
   "license": "MIT",
   "repository": {
     "type": "git",

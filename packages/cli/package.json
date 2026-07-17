@@ -49,7 +49,7 @@
   "files": [
     "dist"
   ],
-  "description": "Command-line interface for inspecting Capsule capabilities and running provider-backed jobs.",
+  "description": "Capsule command line: doctor, capabilities, policy explain, receipts, presets, preview lifecycle, and provider-backed runs.",
   "license": "MIT",
   "repository": {
     "type": "git",
