@@ -1,9 +1,9 @@
 ---
 "@capsule-sdk/core": minor
-"@capsule-sdk/adapter-cloud-run": patch
-"@capsule-sdk/adapter-kubernetes": patch
-"@capsule-sdk/adapter-docker": patch
-"@capsule-sdk/adapter-cloudflare": patch
+"@capsule-sdk/cloud-run": patch
+"@capsule-sdk/kubernetes": patch
+"@capsule-sdk/docker": patch
+"@capsule-sdk/cloudflare": patch
 ---
 
 Add optional log cursor pagination and log source attribution to the core log surface. `JobLogsSpec`, `ServiceLogsSpec`, `EdgeLogsSpec`, and `PreviewLogsSpec` gain an optional `cursor`, their results gain an optional `nextCursor`, and `LogEntry` gains an optional `source` for instance attribution. Both additions are optional and backward compatible.

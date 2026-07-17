@@ -1,6 +1,6 @@
 # Capsule + Stripe Projects provisioning
 
-A credential-free example where a Stripe-style payment intent gates an infrastructure provisioning flow. It uses `@capsule-sdk/adapter-mock`, so it calls no real provider and no real Stripe API.
+A credential-free example where a Stripe-style payment intent gates an infrastructure provisioning flow. It uses `@capsule-sdk/mock`, so it calls no real provider and no real Stripe API.
 
 ## The idea
 

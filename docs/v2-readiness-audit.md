@@ -40,21 +40,21 @@ When the audit PR for this file is merged, the v2 issue set is closed by merged 
 The pack smoke covers 22 public packages:
 
 - `@capsule-sdk/core`
-- `@capsule-sdk/adapter-docker`
-- `@capsule-sdk/adapter-mock`
-- `@capsule-sdk/adapter-e2b`
-- `@capsule-sdk/adapter-daytona`
-- `@capsule-sdk/adapter-modal`
-- `@capsule-sdk/adapter-cloud-run`
-- `@capsule-sdk/adapter-cloudflare`
-- `@capsule-sdk/adapter-vercel`
-- `@capsule-sdk/adapter-neon`
-- `@capsule-sdk/adapter-kubernetes`
-- `@capsule-sdk/adapter-lambda`
-- `@capsule-sdk/adapter-ecs`
-- `@capsule-sdk/adapter-ec2`
-- `@capsule-sdk/adapter-fly`
-- `@capsule-sdk/adapter-azure-container-apps`
+- `@capsule-sdk/docker`
+- `@capsule-sdk/mock`
+- `@capsule-sdk/e2b`
+- `@capsule-sdk/daytona`
+- `@capsule-sdk/modal`
+- `@capsule-sdk/cloud-run`
+- `@capsule-sdk/cloudflare`
+- `@capsule-sdk/vercel`
+- `@capsule-sdk/neon`
+- `@capsule-sdk/kubernetes`
+- `@capsule-sdk/lambda`
+- `@capsule-sdk/ecs`
+- `@capsule-sdk/ec2`
+- `@capsule-sdk/fly`
+- `@capsule-sdk/azure`
 - `@capsule-sdk/ai`
 - `@capsule-sdk/cli`
 - `@capsule-sdk/presets`
@@ -112,7 +112,7 @@ Results:
 
 ## What Is Mocked
 
-`@capsule-sdk/adapter-mock` remains intentionally mocked for tests, examples, demos, and capability modeling. It is explicitly marked as mock metadata and is blocked from production preview plans when `requireRealProviders` is enabled unless the plan also allows mock providers.
+`@capsule-sdk/mock` remains intentionally mocked for tests, examples, demos, and capability modeling. It is explicitly marked as mock metadata and is blocked from production preview plans when `requireRealProviders` is enabled unless the plan also allows mock providers.
 
 Mock providers are not used to claim real provider support.
 

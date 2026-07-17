@@ -72,7 +72,7 @@ Cloudflare edge logs are intentionally left `unsupported`. The honest reasons:
 - A non-WebSocket bounded read does exist: the Workers Observability telemetry query API (`POST .../accounts/{account_id}/workers/observability/telemetry/query`) is a plain HTTP POST. But it is opt-in per Worker (observability defaults off), sampled under load, retained only a few days, and its per-event body schema is handler-dependent and unversioned.
 - Normalizing that event body into `LogEntry` without a live account to confirm which fields hold the message, timestamp, and level would fake a support level. Per the honesty rule (do not claim support Capsule cannot back), edge logs stay `unsupported` until the telemetry event shape is pinned against a real account, at which point a bounded, `experimental`-level `edge.logs` reading recent invocation events becomes the natural next step.
 
-The same reasoning is recorded as a comment on the `edge.logs` line in `packages/adapter-cloudflare/src/cloudflare-adapter.ts`.
+The same reasoning is recorded as a comment on the `edge.logs` line in `packages/cloudflare/src/cloudflare-adapter.ts`.
 
 ### Other adapters
 

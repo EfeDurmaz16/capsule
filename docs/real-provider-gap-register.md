@@ -10,7 +10,7 @@ No original provider family is currently represented only by mocks. Remaining wo
 
 A provider leaves this register only when:
 
-1. A real package exists under `packages/adapter-*`.
+1. A real package exists under `packages/*`.
 2. It authenticates against the real provider API or official SDK.
 3. Tests cover request mapping without live credentials.
 4. Receipts include provider, capability path, support level, resource IDs, and policy notes.

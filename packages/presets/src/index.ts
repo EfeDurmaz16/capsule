@@ -90,7 +90,7 @@ export function flyMachinePreset(options: FlyMachinePresetOptions): CapsulePrese
       })
     },
     notes: [
-      "Targets Fly Machines through @capsule-sdk/adapter-fly.",
+      "Targets Fly Machines through @capsule-sdk/fly.",
       "Fly app, process group, services, volumes, autostart, autostop, and network semantics remain Fly-specific."
     ]
   };
@@ -177,7 +177,7 @@ export function vercelWebPreset(options: VercelWebPresetOptions): CapsulePreset<
       })
     },
     notes: [
-      "Targets Vercel deployment-style edge/web runtimes through @capsule-sdk/adapter-vercel.",
+      "Targets Vercel deployment-style edge/web runtimes through @capsule-sdk/vercel.",
       "Project linking, build settings, aliases, environment variables, and framework output remain Vercel-specific."
     ]
   };
@@ -212,7 +212,7 @@ export function cloudflareWorkerPreset(options: CloudflareWorkerPresetOptions): 
       labels: { ...options.labels, "capsule.io/preset": "cloudflare-worker" }
     },
     notes: [
-      "Targets Cloudflare Workers through @capsule-sdk/adapter-cloudflare.",
+      "Targets Cloudflare Workers through @capsule-sdk/cloudflare.",
       "Bindings, routes, compatibility dates, secrets, and account/zone configuration remain Cloudflare-specific."
     ]
   };
@@ -252,7 +252,7 @@ export function neonPreviewBranchPreset(options: NeonPreviewBranchPresetOptions)
     },
     policy: options.ttlMs ? { ttl: { maxMs: options.ttlMs } } : undefined,
     notes: [
-      "Targets Neon branching through @capsule-sdk/adapter-neon.",
+      "Targets Neon branching through @capsule-sdk/neon.",
       "Connection roles, pooling, migrations, endpoint lifecycle, and branch cleanup remain explicit."
     ]
   };
@@ -506,7 +506,7 @@ export const presetCatalog: PresetCatalogEntry[] = [
     id: "docker-local-agent",
     name: "dockerLocalAgentPreset",
     package: "@capsule-sdk/core",
-    description: "Locally sandboxed agent spec for @capsule-sdk/adapter-docker with a deny-by-default network.",
+    description: "Locally sandboxed agent spec for @capsule-sdk/docker with a deny-by-default network.",
     capabilityPaths: ["sandbox.create", "sandbox.exec", "sandbox.fileWrite", "sandbox.destroy"]
   },
   {
@@ -548,7 +548,7 @@ export const presetCatalog: PresetCatalogEntry[] = [
     id: "fly-machine",
     name: "flyMachinePreset",
     package: "@capsule-sdk/presets",
-    description: "Fly Machines spec targeting @capsule-sdk/adapter-fly.",
+    description: "Fly Machines spec targeting @capsule-sdk/fly.",
     capabilityPaths: ["machine.create", "machine.status", "machine.start", "machine.stop", "machine.destroy"]
   },
   {
@@ -562,21 +562,21 @@ export const presetCatalog: PresetCatalogEntry[] = [
     id: "vercel-web",
     name: "vercelWebPreset",
     package: "@capsule-sdk/presets",
-    description: "Vercel web/edge deployment spec targeting @capsule-sdk/adapter-vercel.",
+    description: "Vercel web/edge deployment spec targeting @capsule-sdk/vercel.",
     capabilityPaths: ["edge.deploy", "edge.status", "edge.release", "edge.url"]
   },
   {
     id: "cloudflare-worker",
     name: "cloudflareWorkerPreset",
     package: "@capsule-sdk/presets",
-    description: "Cloudflare Workers spec targeting @capsule-sdk/adapter-cloudflare.",
+    description: "Cloudflare Workers spec targeting @capsule-sdk/cloudflare.",
     capabilityPaths: ["edge.deploy", "edge.version", "edge.rollback", "edge.routes"]
   },
   {
     id: "neon-preview-branch",
     name: "neonPreviewBranchPreset",
     package: "@capsule-sdk/presets",
-    description: "Neon branch spec targeting @capsule-sdk/adapter-neon with an optional TTL policy.",
+    description: "Neon branch spec targeting @capsule-sdk/neon with an optional TTL policy.",
     capabilityPaths: ["database.branchCreate", "database.connectionString", "database.branchDelete"]
   },
   {

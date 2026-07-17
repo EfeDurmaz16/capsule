@@ -100,20 +100,20 @@ export const liveProviderMaxResourceCount: Record<string, number> = {
 };
 
 export const liveProviderRegistry = [
-  { provider: "docker", packageName: "@capsule-sdk/adapter-docker", credentials: liveProviderCredentials.docker, notes: ["Uses the local Docker daemon."] },
-  { provider: "e2b", packageName: "@capsule-sdk/adapter-e2b", credentials: liveProviderCredentials.e2b },
-  { provider: "daytona", packageName: "@capsule-sdk/adapter-daytona", credentials: liveProviderCredentials.daytona },
-  { provider: "modal", packageName: "@capsule-sdk/adapter-modal", credentials: liveProviderCredentials.modal },
-  { provider: "cloud-run", packageName: "@capsule-sdk/adapter-cloud-run", credentials: liveProviderCredentials["cloud-run"] },
-  { provider: "cloudflare", packageName: "@capsule-sdk/adapter-cloudflare", credentials: liveProviderCredentials.cloudflare },
-  { provider: "vercel", packageName: "@capsule-sdk/adapter-vercel", credentials: liveProviderCredentials.vercel },
-  { provider: "neon", packageName: "@capsule-sdk/adapter-neon", credentials: liveProviderCredentials.neon },
-  { provider: "kubernetes", packageName: "@capsule-sdk/adapter-kubernetes", credentials: liveProviderCredentials.kubernetes },
-  { provider: "lambda", packageName: "@capsule-sdk/adapter-lambda", credentials: liveProviderCredentials.lambda, notes: ["Uses AWS SDK ambient credentials."] },
-  { provider: "ecs", packageName: "@capsule-sdk/adapter-ecs", credentials: liveProviderCredentials.ecs, notes: ["Uses AWS SDK ambient credentials."] },
-  { provider: "ec2", packageName: "@capsule-sdk/adapter-ec2", credentials: liveProviderCredentials.ec2, notes: ["Uses AWS SDK ambient credentials."] },
-  { provider: "fly", packageName: "@capsule-sdk/adapter-fly", credentials: liveProviderCredentials.fly },
-  { provider: "azure-container-apps", packageName: "@capsule-sdk/adapter-azure-container-apps", credentials: liveProviderCredentials.azure }
+  { provider: "docker", packageName: "@capsule-sdk/docker", credentials: liveProviderCredentials.docker, notes: ["Uses the local Docker daemon."] },
+  { provider: "e2b", packageName: "@capsule-sdk/e2b", credentials: liveProviderCredentials.e2b },
+  { provider: "daytona", packageName: "@capsule-sdk/daytona", credentials: liveProviderCredentials.daytona },
+  { provider: "modal", packageName: "@capsule-sdk/modal", credentials: liveProviderCredentials.modal },
+  { provider: "cloud-run", packageName: "@capsule-sdk/cloud-run", credentials: liveProviderCredentials["cloud-run"] },
+  { provider: "cloudflare", packageName: "@capsule-sdk/cloudflare", credentials: liveProviderCredentials.cloudflare },
+  { provider: "vercel", packageName: "@capsule-sdk/vercel", credentials: liveProviderCredentials.vercel },
+  { provider: "neon", packageName: "@capsule-sdk/neon", credentials: liveProviderCredentials.neon },
+  { provider: "kubernetes", packageName: "@capsule-sdk/kubernetes", credentials: liveProviderCredentials.kubernetes },
+  { provider: "lambda", packageName: "@capsule-sdk/lambda", credentials: liveProviderCredentials.lambda, notes: ["Uses AWS SDK ambient credentials."] },
+  { provider: "ecs", packageName: "@capsule-sdk/ecs", credentials: liveProviderCredentials.ecs, notes: ["Uses AWS SDK ambient credentials."] },
+  { provider: "ec2", packageName: "@capsule-sdk/ec2", credentials: liveProviderCredentials.ec2, notes: ["Uses AWS SDK ambient credentials."] },
+  { provider: "fly", packageName: "@capsule-sdk/fly", credentials: liveProviderCredentials.fly },
+  { provider: "azure-container-apps", packageName: "@capsule-sdk/azure", credentials: liveProviderCredentials.azure }
 ] as const satisfies readonly LiveProviderRegistryEntry[];
 
 function quarantineSkipReason(provider: string, quarantine: LiveTestQuarantine): string {

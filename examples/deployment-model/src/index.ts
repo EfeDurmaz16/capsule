@@ -1,5 +1,5 @@
 import { Capsule } from "@capsule-sdk/core";
-import { mockCloudRun, mockCloudflare, mockVercel } from "@capsule-sdk/adapter-mock";
+import { mockCloudRun, mockCloudflare, mockVercel } from "@capsule-sdk/mock";
 
 console.log("Example mode: mock deployment model only. No real provider APIs are called.");
 for (const adapter of [mockCloudRun(), mockVercel(), mockCloudflare()]) {

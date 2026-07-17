@@ -104,4 +104,4 @@ jobs:
       - name: Run live test
         env:
           PROVIDER: ${{ inputs.provider }}
-        run: pnpm vitest run "packages/adapter-$PROVIDER/src/$PROVIDER.live.test.ts"
+        run: pnpm vitest run packages/*/src/"$PROVIDER".live.test.ts

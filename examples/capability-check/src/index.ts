@@ -11,7 +11,7 @@ import {
   mockModal,
   mockNeon,
   mockVercel
-} from "@capsule-sdk/adapter-mock";
+} from "@capsule-sdk/mock";
 
 const adapters = [
   mockE2B(),

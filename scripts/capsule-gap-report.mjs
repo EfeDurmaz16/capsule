@@ -13,88 +13,88 @@ const supportOrder = ["unsupported", "experimental", "emulated", "native"];
 const adapterDefinitions = [
   {
     displayName: "Docker",
-    packageDir: "adapter-docker",
+    packageDir: "docker",
     notes:
       "Local Docker is useful but not safe for hostile code by default. Sandbox port exposure is supported through local-only `127.0.0.1` Docker publish flags unless a caller explicitly opts into another bind IP. Sandbox snapshot/restore are unsupported because Capsule exposes no public restore API or portable Docker restore semantics today."
   },
   {
     displayName: "E2B",
-    packageDir: "adapter-e2b",
+    packageDir: "e2b",
     notes: "Cloud sandbox create, exec, file read/write/list, and destroy are implemented through the E2B SDK."
   },
   {
     displayName: "Daytona",
-    packageDir: "adapter-daytona",
+    packageDir: "daytona",
     notes:
       "Sandbox create, exec, file read/write/list, and delete are implemented through the Daytona SDK; job and preview wrappers are unsupported until implemented."
   },
   {
     displayName: "Modal",
-    packageDir: "adapter-modal",
+    packageDir: "modal",
     notes:
       "Sandbox create, exec, file read/write, and terminate are implemented through the Modal JS SDK; file listing and broader function/service workflows are unsupported."
   },
   {
     displayName: "Cloud Run",
-    packageDir: "adapter-cloud-run",
+    packageDir: "cloud-run",
     notes:
       "Cloud Run Jobs and Services are implemented via Admin API v2; service update uses `services.patch` with `forceNewRevision`, rollback migrates traffic to an explicit or selected previous revision, job/service logs use Cloud Logging `entries:list`; IAM/public access and preview orchestration are not faked."
   },
   {
     displayName: "Cloudflare Workers",
-    packageDir: "adapter-cloudflare",
+    packageDir: "cloudflare",
     notes:
       "Worker module upload, route creation, version upload, and rollback via Workers Deployments are implemented; secrets, logs, provider-specific bindings, and gradual traffic-split release remain explicit future capabilities."
   },
   {
     displayName: "Vercel",
-    packageDir: "adapter-vercel",
+    packageDir: "vercel",
     notes:
       "Inline deployment creation, deployment status, full alias release, bounded deployment event logs, and project runtime logs are implemented; runtime logs require `projectId`, traffic splits other than 100% and follow streaming are rejected, and service/preview wrappers, large file upload/SHA flow, env, routes, and rollback remain explicit future capabilities."
   },
   {
     displayName: "Neon",
-    packageDir: "adapter-neon",
+    packageDir: "neon",
     notes: "Database branch create/delete/reset and connection URI retrieval are implemented; migrations and preview orchestration remain unsupported."
   },
   {
     displayName: "Kubernetes",
-    packageDir: "adapter-kubernetes",
+    packageDir: "kubernetes",
     notes:
       "Jobs, Deployments, Services, and selector-based combined Pod logs are implemented through the official Kubernetes client; follow streaming is rejected, and sandbox/machine wrappers, ingress, and rollout remain explicit future work."
   },
   {
     displayName: "Lambda",
-    packageDir: "adapter-lambda",
+    packageDir: "lambda",
     notes: "Existing Lambda function invocation is implemented as `job.run`; function deployment/env mutation is not faked."
   },
   {
     displayName: "ECS/Fargate",
-    packageDir: "adapter-ecs",
+    packageDir: "ecs",
     notes:
       "RunTask and CreateService are implemented for existing task definitions; task-definition registration, previews, and load balancers are future work."
   },
   {
     displayName: "EC2",
-    packageDir: "adapter-ec2",
+    packageDir: "ec2",
     notes: "`machine.create/status/start/stop/destroy` are implemented through EC2 APIs; job/service wrappers, exec, and snapshot remain explicit future work."
   },
   {
     displayName: "Fly Machines",
-    packageDir: "adapter-fly",
+    packageDir: "fly",
     notes:
       "Fly Machines API supports machine create/status/start/stop/destroy and one-shot job machines; services, logs, volumes, and app networking remain explicit future work."
   },
   {
     displayName: "Azure Container Apps",
-    packageDir: "adapter-azure-container-apps",
+    packageDir: "azure",
     notes:
       "ARM APIs support Container App service create/status/delete and manual job create/start/status/stop; logs, secrets, registries, and generic service rollback remain explicit future work."
   }
 ];
 
 const plannedRows = [
-  "| Mock provider models | mock | varies | varies | varies | varies | varies | varies | varies | varies | varies | varies | `@capsule-sdk/adapter-mock` provides fake E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models for tests/examples only. It returns fake objects and does not call real provider APIs. |",
+  "| Mock provider models | mock | varies | varies | varies | varies | varies | varies | varies | varies | varies | varies | `@capsule-sdk/mock` provides fake E2B, Daytona, Modal, Cloud Run, Vercel, Cloudflare, Neon, Lambda, ECS, Kubernetes, and EC2 capability models for tests/examples only. It returns fake objects and does not call real provider APIs. |",
   "| Cloudflare Sandbox | planned | experimental | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Future sandbox-focused adapter target; not implemented as a real provider adapter in this repo yet. |",
   "| Cloudflare Containers | planned | unsupported | experimental | experimental | experimental | unsupported | experimental | unsupported | unsupported | unsupported | unsupported | Hybrid runtime model still needs a real adapter and provider-specific lifecycle design. |",
   "| Microsandbox | planned | experimental | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | unsupported | Sandbox-focused future adapter target. |"
@@ -167,7 +167,7 @@ export function renderProviderMatrix(adapters) {
 Status legend:
 
 - \`real\`: implemented against a real provider/runtime API in this repo.
-- \`mock\`: modeled by \`@capsule-sdk/adapter-mock\` for tests/examples only.
+- \`mock\`: modeled by \`@capsule-sdk/mock\` for tests/examples only.
 - \`planned\`: documented target with no real adapter yet.
 
 Policy enforcement columns (Network policy, Filesystem policy, Secret mounting) report adapter-declared \`sandbox\` support levels for policy controls. \`unsupported\` means the adapter does not model that policy control, not that the control is unsafe.
@@ -206,7 +206,7 @@ export function renderGapReport(adapters, mockExamples) {
 
   lines.push("", "## Mock-First Example References");
   if (mockExamples.length === 0) {
-    lines.push("No examples import @capsule-sdk/adapter-mock.");
+    lines.push("No examples import @capsule-sdk/mock.");
   } else {
     lines.push(...mockExamples.map((file) => `- ${file}`));
   }
@@ -287,7 +287,7 @@ export function mockExampleReferences(root) {
   }
   return walk(examplesDir)
     .filter((file) => file.endsWith(".ts") || file.endsWith("package.json"))
-    .filter((file) => readFileSync(file, "utf8").includes("@capsule-sdk/adapter-mock"))
+    .filter((file) => readFileSync(file, "utf8").includes("@capsule-sdk/mock"))
     .map((file) => relative(root, file))
     .sort();
 }

@@ -44,14 +44,14 @@ if (options.help) {
 const root = options.root;
 const packagesDir = join(root, "packages");
 const allowedRuntimeDependencies = {
-  "@capsule-sdk/adapter-cloud-run": ["google-auth-library"],
-  "@capsule-sdk/adapter-daytona": ["@daytona/sdk"],
-  "@capsule-sdk/adapter-e2b": ["e2b"],
-  "@capsule-sdk/adapter-ec2": ["@aws-sdk/client-ec2"],
-  "@capsule-sdk/adapter-ecs": ["@aws-sdk/client-ecs"],
-  "@capsule-sdk/adapter-kubernetes": ["@kubernetes/client-node"],
-  "@capsule-sdk/adapter-lambda": ["@aws-sdk/client-lambda"],
-  "@capsule-sdk/adapter-modal": ["modal"]
+  "@capsule-sdk/cloud-run": ["google-auth-library"],
+  "@capsule-sdk/daytona": ["@daytona/sdk"],
+  "@capsule-sdk/e2b": ["e2b"],
+  "@capsule-sdk/ec2": ["@aws-sdk/client-ec2"],
+  "@capsule-sdk/ecs": ["@aws-sdk/client-ecs"],
+  "@capsule-sdk/kubernetes": ["@kubernetes/client-node"],
+  "@capsule-sdk/lambda": ["@aws-sdk/client-lambda"],
+  "@capsule-sdk/modal": ["modal"]
 };
 const allowedLicenseTerms = new Set(["0BSD", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "BlueOak-1.0.0", "ISC", "MIT", "Python-2.0", "Unlicense"]);
 const errors = [];

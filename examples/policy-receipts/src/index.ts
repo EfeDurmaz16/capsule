@@ -1,5 +1,5 @@
 import { Capsule } from "@capsule-sdk/core";
-import { mockE2B } from "@capsule-sdk/adapter-mock";
+import { mockE2B } from "@capsule-sdk/mock";
 
 console.log("Example mode: mock E2B policy and receipt flow. No real provider APIs are called.");
 const capsule = new Capsule({ adapter: mockE2B(), receipts: true, policy: { network: { mode: "none" }, limits: { timeoutMs: 1_000 } } });

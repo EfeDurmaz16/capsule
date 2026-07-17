@@ -201,23 +201,23 @@ describe("live test gates", () => {
 
   test("registers every real adapter live-test gate and excludes mocks", () => {
     expect(liveProviderRegistry.map((entry) => entry.packageName).sort()).toEqual([
-      "@capsule-sdk/adapter-azure-container-apps",
-      "@capsule-sdk/adapter-cloud-run",
-      "@capsule-sdk/adapter-cloudflare",
-      "@capsule-sdk/adapter-daytona",
-      "@capsule-sdk/adapter-docker",
-      "@capsule-sdk/adapter-e2b",
-      "@capsule-sdk/adapter-ec2",
-      "@capsule-sdk/adapter-ecs",
-      "@capsule-sdk/adapter-fly",
-      "@capsule-sdk/adapter-kubernetes",
-      "@capsule-sdk/adapter-lambda",
-      "@capsule-sdk/adapter-modal",
-      "@capsule-sdk/adapter-neon",
-      "@capsule-sdk/adapter-vercel"
+      "@capsule-sdk/azure",
+      "@capsule-sdk/cloud-run",
+      "@capsule-sdk/cloudflare",
+      "@capsule-sdk/daytona",
+      "@capsule-sdk/docker",
+      "@capsule-sdk/e2b",
+      "@capsule-sdk/ec2",
+      "@capsule-sdk/ecs",
+      "@capsule-sdk/fly",
+      "@capsule-sdk/kubernetes",
+      "@capsule-sdk/lambda",
+      "@capsule-sdk/modal",
+      "@capsule-sdk/neon",
+      "@capsule-sdk/vercel"
     ]);
     const packageNames = liveProviderRegistry.map((entry) => String(entry.packageName));
-    expect(packageNames.includes("@capsule-sdk/adapter-mock")).toBe(false);
+    expect(packageNames.includes("@capsule-sdk/mock")).toBe(false);
   });
 
   test("registry entries have deterministic skip reasons", () => {
@@ -252,7 +252,7 @@ describe("live test gates", () => {
       reason: "provider control plane intermittently returns 503",
       lastObservedFailure: "2026-05-30T10:00:00Z",
       owner: "runtime-team",
-      revalidationCommand: "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"
+      revalidationCommand: "CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/fly/src/fly.live.test.ts"
     };
 
     expect(
@@ -272,7 +272,7 @@ describe("live test gates", () => {
       enabled: false,
       quarantine,
       skipReason:
-        "fly live test is quarantined: provider control plane intermittently returns 503. Owner: runtime-team. Last observed failure: 2026-05-30T10:00:00Z. Revalidate with: CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/adapter-fly/src/fly.live.test.ts"
+        "fly live test is quarantined: provider control plane intermittently returns 503. Owner: runtime-team. Last observed failure: 2026-05-30T10:00:00Z. Revalidate with: CAPSULE_LIVE_TEST_REVALIDATE_FLAKY=1 CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/fly/src/fly.live.test.ts"
     });
 
     expect(

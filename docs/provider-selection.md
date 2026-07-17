@@ -66,8 +66,8 @@ Scores are workflow-specific. They are not global provider rankings.
 
 ```ts
 import { providerCompatibilityScore, explainSupportLevel } from "@capsule-sdk/core";
-import { docker } from "@capsule-sdk/adapter-docker";
-import { neon } from "@capsule-sdk/adapter-neon";
+import { docker } from "@capsule-sdk/docker";
+import { neon } from "@capsule-sdk/neon";
 
 const candidates = [
   { name: "Docker", capabilities: docker().capabilities },

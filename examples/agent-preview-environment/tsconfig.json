@@ -5,11 +5,6 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "references": [
-    { "path": "../../packages/core" },
-    { "path": "../../packages/ai" },
-    { "path": "../../packages/adapter-mock" },
-    { "path": "../../packages/preview" }
-  ],
+  "references": [{ "path": "../../packages/core" }, { "path": "../../packages/ai" }, { "path": "../../packages/mock" }, { "path": "../../packages/preview" }],
   "include": ["src"]
 }

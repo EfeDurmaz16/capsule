@@ -9,8 +9,8 @@
   "dependencies": {
     "@capsule-sdk/core": "workspace:*",
     "@capsule-sdk/ai": "workspace:*",
-    "@capsule-sdk/adapter-e2b": "workspace:*",
-    "@capsule-sdk/adapter-mock": "workspace:*"
+    "@capsule-sdk/e2b": "workspace:*",
+    "@capsule-sdk/mock": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.20.6",
