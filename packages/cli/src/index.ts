@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
 import {
   Capsule,
   capabilityDiff,
@@ -766,299 +767,121 @@ const liveTestPlans: LiveTestPlan[] = [
   }
 ];
 
+// Single-value flags: kebab-case CLI flag -> camelCase ParsedArgs field.
+const stringFlagFields: Record<string, keyof ParsedArgs> = {
+  image: "image",
+  adapter: "adapter",
+  left: "leftAdapter",
+  right: "rightAdapter",
+  provider: "provider",
+  recipe: "recipe",
+  capability: "capability",
+  "policy-file": "policyFile",
+  "spec-file": "specFile",
+  "config-file": "configFile",
+  "cleanup-file": "cleanupFile",
+  "out-dir": "outDir",
+  "receipt-file": "receiptFile",
+  id: "id",
+  project: "project",
+  name: "name",
+  parent: "parent",
+  "branch-id": "branchId",
+  database: "database",
+  role: "role",
+  entrypoint: "entrypoint",
+  "compatibility-date": "compatibilityDate",
+  "workers-dev-subdomain": "workersDevSubdomain",
+  "zone-id": "zoneId",
+  "project-id": "projectId",
+  location: "location",
+  "project-name": "projectName",
+  target: "target",
+  namespace: "namespace",
+  context: "context",
+  kubeconfig: "kubeconfig",
+  region: "region",
+  "function-name": "functionName",
+  "subscription-id": "subscriptionId",
+  "resource-group": "resourceGroup",
+  "environment-id": "environmentId",
+  cluster: "cluster",
+  "task-definition": "taskDefinition",
+  "container-name": "containerName",
+  "subnet-id": "subnetId",
+  "image-id": "imageId",
+  "instance-type": "instanceType",
+  "api-url": "apiUrl",
+  "app-name": "appName",
+  "public-key": "publicKey",
+  reason: "reason"
+};
+
+// Repeatable flags that accumulate into an array field.
+const arrayFlagFields: Record<string, "domains" | "routes" | "subnets" | "securityGroups"> = {
+  domain: "domains",
+  route: "routes",
+  subnet: "subnets",
+  "security-group": "securityGroups"
+};
+
+// Boolean presence flags.
+const booleanFlagFields: Record<string, keyof ParsedArgs> = {
+  "hard-delete": "hardDelete",
+  explain: "explain",
+  json: "json",
+  "require-signature": "requireSignature",
+  "allow-unverified-signatures": "allowUnverifiedSignatures",
+  "dry-run": "dryRun",
+  force: "force"
+};
+
+type ParseArgsOptions = NonNullable<NonNullable<Parameters<typeof parseArgs>[0]>["options"]>;
+
+const parseArgsOptions: ParseArgsOptions = { port: { type: "string" } };
+for (const flag of Object.keys(stringFlagFields)) parseArgsOptions[flag] = { type: "string" };
+for (const flag of Object.keys(arrayFlagFields)) parseArgsOptions[flag] = { type: "string", multiple: true };
+for (const flag of Object.keys(booleanFlagFields)) parseArgsOptions[flag] = { type: "boolean" };
+
+// node:util parseArgs in non-strict token mode. Known flags map to their ParsedArgs field;
+// --domain/--route/--subnet/--security-group accumulate; --port coerces to a number; and every
+// unrecognized token (unknown flags, bare positionals, everything after --) falls through into
+// rest in its original order, matching the previous hand-rolled parser.
 export function parse(argv: string[]): ParsedArgs {
   const [command, ...args] = argv;
   const parsed: ParsedArgs = { command, rest: [] };
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === "--image") {
-      parsed.image = args[index + 1];
-      index += 1;
+  const target = parsed as unknown as Record<string, unknown>;
+  const { tokens } = parseArgs({ args, options: parseArgsOptions, strict: false, allowPositionals: true, tokens: true });
+  for (const token of tokens) {
+    if (token.kind === "positional") {
+      parsed.rest.push(token.value);
       continue;
     }
-    if (arg === "--adapter") {
-      parsed.adapter = args[index + 1];
-      index += 1;
+    if (token.kind !== "option") {
       continue;
     }
-    if (arg === "--left") {
-      parsed.leftAdapter = args[index + 1];
-      index += 1;
+    if (token.name === "port") {
+      parsed.port = Number(token.value);
       continue;
     }
-    if (arg === "--right") {
-      parsed.rightAdapter = args[index + 1];
-      index += 1;
+    const arrayField = arrayFlagFields[token.name];
+    if (arrayField) {
+      const values = (target[arrayField] as string[] | undefined) ?? [];
+      values.push(token.value as string);
+      target[arrayField] = values;
       continue;
     }
-    if (arg === "--provider") {
-      parsed.provider = args[index + 1];
-      index += 1;
+    const stringField = stringFlagFields[token.name];
+    if (stringField) {
+      target[stringField] = token.value;
       continue;
     }
-    if (arg === "--recipe") {
-      parsed.recipe = args[index + 1];
-      index += 1;
+    const booleanField = booleanFlagFields[token.name];
+    if (booleanField) {
+      target[booleanField] = true;
       continue;
     }
-    if (arg === "--capability") {
-      parsed.capability = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--policy-file") {
-      parsed.policyFile = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--spec-file") {
-      parsed.specFile = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--config-file") {
-      parsed.configFile = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--cleanup-file") {
-      parsed.cleanupFile = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--domain") {
-      parsed.domains = [...(parsed.domains ?? []), args[index + 1]];
-      index += 1;
-      continue;
-    }
-    if (arg === "--out-dir") {
-      parsed.outDir = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--receipt-file") {
-      parsed.receiptFile = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--id") {
-      parsed.id = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--project") {
-      parsed.project = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--name") {
-      parsed.name = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--parent") {
-      parsed.parent = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--branch-id") {
-      parsed.branchId = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--database") {
-      parsed.database = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--role") {
-      parsed.role = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--entrypoint") {
-      parsed.entrypoint = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--compatibility-date") {
-      parsed.compatibilityDate = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--workers-dev-subdomain") {
-      parsed.workersDevSubdomain = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--zone-id") {
-      parsed.zoneId = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--route") {
-      parsed.routes = [...(parsed.routes ?? []), args[index + 1]];
-      index += 1;
-      continue;
-    }
-    if (arg === "--project-id") {
-      parsed.projectId = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--location") {
-      parsed.location = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--project-name") {
-      parsed.projectName = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--target") {
-      parsed.target = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--namespace") {
-      parsed.namespace = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--context") {
-      parsed.context = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--kubeconfig") {
-      parsed.kubeconfig = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--region") {
-      parsed.region = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--function-name") {
-      parsed.functionName = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--subscription-id") {
-      parsed.subscriptionId = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--resource-group") {
-      parsed.resourceGroup = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--environment-id") {
-      parsed.environmentId = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--cluster") {
-      parsed.cluster = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--task-definition") {
-      parsed.taskDefinition = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--container-name") {
-      parsed.containerName = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--subnet") {
-      parsed.subnets = [...(parsed.subnets ?? []), args[index + 1]];
-      index += 1;
-      continue;
-    }
-    if (arg === "--security-group") {
-      parsed.securityGroups = [...(parsed.securityGroups ?? []), args[index + 1]];
-      index += 1;
-      continue;
-    }
-    if (arg === "--subnet-id") {
-      parsed.subnetId = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--image-id") {
-      parsed.imageId = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--instance-type") {
-      parsed.instanceType = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--api-url") {
-      parsed.apiUrl = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--app-name") {
-      parsed.appName = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--port") {
-      parsed.port = Number(args[index + 1]);
-      index += 1;
-      continue;
-    }
-    if (arg === "--hard-delete") {
-      parsed.hardDelete = true;
-      continue;
-    }
-    if (arg === "--explain") {
-      parsed.explain = true;
-      continue;
-    }
-    if (arg === "--json") {
-      parsed.json = true;
-      continue;
-    }
-    if (arg === "--require-signature") {
-      parsed.requireSignature = true;
-      continue;
-    }
-    if (arg === "--public-key") {
-      parsed.publicKey = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--allow-unverified-signatures") {
-      parsed.allowUnverifiedSignatures = true;
-      continue;
-    }
-    if (arg === "--dry-run") {
-      parsed.dryRun = true;
-      continue;
-    }
-    if (arg === "--force") {
-      parsed.force = true;
-      continue;
-    }
-    if (arg === "--reason") {
-      parsed.reason = args[index + 1];
-      index += 1;
-      continue;
-    }
-    if (arg === "--") {
-      parsed.rest.push(...args.slice(index + 1));
-      break;
-    }
-    parsed.rest.push(arg);
+    parsed.rest.push(args[token.index]);
   }
   return parsed;
 }
@@ -2552,7 +2375,7 @@ export async function writeProjectInitFiles(plan: ProjectInitPlan, options: { fo
   return plan;
 }
 
-const localDockerExampleIds = new Set(["job-docker", "sandbox-docker"]);
+const localDockerExampleIds = new Set(["sandbox-docker"]);
 const noProviderExampleIds = new Set(["provider-presets"]);
 const liveProviderCredentialEnv = [
   "CAPSULE_LIVE_TESTS",
