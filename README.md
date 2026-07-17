@@ -116,6 +116,14 @@ pnpm add @capsule-sdk/core @capsule-sdk/docker
 
 Install only the adapters you use. `@capsule-sdk/mock` is for tests and examples; it never calls real provider APIs. The full release gate is tracked in [release operations](docs/release-rollback.md).
 
+### Verification status
+
+Honest accounting of what has actually been exercised:
+
+- Every adapter passes the shared contract suite plus unit tests against fake clients; nothing in CI talks to a real provider.
+- Docker has a runnable local end-to-end check (`pnpm --filter @capsule-sdk/example-sandbox-docker e2e`) covering sandbox create, exec, files, job run, receipts, and cleanup against a local daemon.
+- The cloud adapters (E2B, Daytona, Modal, Cloud Run, Cloudflare, Vercel, Neon, Kubernetes, Lambda, ECS, EC2, Fly, Azure Container Apps) implement the real provider APIs but have not yet been verified against live accounts. Each has a gated live test (see [live tests](docs/live-tests.md)) and an open tracking issue labeled `needs-verification`; treat those adapters as unverified until their issue closes with live evidence.
+
 ## Package Structure
 
 Capsule is a pnpm monorepo with focused packages:

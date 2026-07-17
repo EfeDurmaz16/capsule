@@ -80,6 +80,12 @@ describe("docker adapter", () => {
       retryable: false
     });
     expect(classifyDockerCliError(1, "denied: requested access to the resource is denied")).toMatchObject({ category: "auth", retryable: false });
+    expect(
+      classifyDockerCliError(1, "error getting credentials - err: exit status 1, out: `The user name or passphrase you entered is not correct.`")
+    ).toMatchObject({
+      category: "auth",
+      retryable: false
+    });
     expect(classifyDockerCliError(1, "some other failure")).toMatchObject({ category: "unknown", retryable: false });
   });
 

@@ -43,7 +43,8 @@ const dockerAuthSignals = [
   "authentication required",
   "access denied",
   "denied: requested access",
-  "docker login"
+  "docker login",
+  "error getting credentials"
 ];
 const dockerImageSignals = [
   "no such image",
