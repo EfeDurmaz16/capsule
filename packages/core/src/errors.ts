@@ -309,6 +309,16 @@ export async function callProvider<T>(fallbackMessage: string, operation: () => 
   }
 }
 
+export function providerErrorStatus(error: unknown): number | undefined {
+  if (!(error instanceof AdapterExecutionError)) return undefined;
+  const cause = error.cause;
+  if (typeof cause !== "object" || cause === null) return undefined;
+  const status = (cause as { status?: unknown }).status;
+  if (typeof status === "number") return status;
+  const classified = (cause as { providerError?: { status?: unknown } }).providerError;
+  return typeof classified?.status === "number" ? classified.status : undefined;
+}
+
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return isRecord(value) ? value : undefined;
 }
