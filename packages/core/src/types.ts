@@ -191,6 +191,8 @@ export interface LogEntry {
   timestamp: string;
   stream: "stdout" | "stderr" | "system";
   message: string;
+  /** Instance the line came from when multiple emit into one stream (e.g. a Kubernetes pod name or Docker container id). Omitted when attribution is not available. */
+  source?: string;
 }
 
 export interface Artifact {
@@ -411,6 +413,8 @@ export interface JobLogsSpec {
   until?: string;
   limit?: number;
   follow?: boolean;
+  /** Opaque cursor from a prior result's nextCursor to fetch the next page. Adapters without a paged log API ignore it. */
+  cursor?: string;
   providerOptions?: ProviderOptions;
 }
 
@@ -418,6 +422,8 @@ export interface JobLogsResult {
   id: string;
   provider: string;
   logs: LogEntry[];
+  /** Opaque cursor to pass back as spec.cursor for the next page. Absent when there are no more pages or the provider does not page logs. */
+  nextCursor?: string;
   receipt?: CapsuleReceipt;
   metadata?: Record<string, unknown>;
 }
@@ -545,6 +551,8 @@ export interface ServiceLogsSpec {
   until?: string;
   limit?: number;
   follow?: boolean;
+  /** Opaque cursor from a prior result's nextCursor to fetch the next page. Adapters without a paged log API ignore it. */
+  cursor?: string;
   providerOptions?: ProviderOptions;
 }
 
@@ -553,6 +561,8 @@ export interface ServiceLogsResult {
   provider: string;
   name?: string;
   logs: LogEntry[];
+  /** Opaque cursor to pass back as spec.cursor for the next page. Absent when there are no more pages or the provider does not page logs. */
+  nextCursor?: string;
   receipt?: CapsuleReceipt;
   metadata?: Record<string, unknown>;
 }
@@ -672,6 +682,8 @@ export interface EdgeLogsSpec {
   until?: string;
   limit?: number;
   follow?: boolean;
+  /** Opaque cursor from a prior result's nextCursor to fetch the next page. Adapters without a paged log API ignore it. */
+  cursor?: string;
   providerOptions?: ProviderOptions;
 }
 
@@ -680,6 +692,8 @@ export interface EdgeLogsResult {
   provider: string;
   name?: string;
   logs: LogEntry[];
+  /** Opaque cursor to pass back as spec.cursor for the next page. Absent when there are no more pages or the provider does not page logs. */
+  nextCursor?: string;
   receipt?: CapsuleReceipt;
   metadata?: Record<string, unknown>;
 }
@@ -842,6 +856,8 @@ export interface PreviewLogsSpec {
   until?: string;
   limit?: number;
   follow?: boolean;
+  /** Opaque cursor from a prior result's nextCursor to fetch the next page. Adapters without a paged log API ignore it. */
+  cursor?: string;
   providerOptions?: ProviderOptions;
 }
 
@@ -849,6 +865,8 @@ export interface PreviewLogsResult {
   id: string;
   provider: string;
   logs: LogEntry[];
+  /** Opaque cursor to pass back as spec.cursor for the next page. Absent when there are no more pages or the provider does not page logs. */
+  nextCursor?: string;
   receipt?: CapsuleReceipt;
   metadata?: Record<string, unknown>;
 }
