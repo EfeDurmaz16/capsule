@@ -51,7 +51,7 @@ Open an issue describing the domain, operations, provider examples, abstraction 
 
 ## Issue Taxonomy
 
-Use labels to make the task graph inspectable. The canonical label taxonomy (type, area, provider, risk, priority, status, and execution labels) lives in [issue labels](issue-labels.md); apply labels from there.
+Use labels to make the task graph inspectable. The canonical label set (area, provider, and the `type:security` and `needs-verification` labels) lives in [issue labels](issue-labels.md); apply labels from there.
 
 Task issues should include a source task ID when possible, success criteria, required verification, and explicit guardrails. Large features should be split by package or domain so each PR can stay reviewable and atomic.
 
