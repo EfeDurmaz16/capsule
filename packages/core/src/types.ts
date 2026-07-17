@@ -332,6 +332,9 @@ export interface ExecSpec {
   timeoutMs?: number;
   idempotencyKey?: string;
   input?: string;
+  // Container paths to collect as artifacts after the command runs. Adapters that support artifact
+  // collection copy these out and return them on ExecResult.artifacts; adapters that do not ignore it.
+  artifactPaths?: string[];
   providerOptions?: ProviderOptions;
 }
 
