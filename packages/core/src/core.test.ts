@@ -424,7 +424,7 @@ describe("capabilities", () => {
   });
 
   test("contract exposes reusable fixtures for adapter author scenarios", () => {
-    expect(adapterContractFixtureKinds).toEqual(["allow", "deny", "unsupported", "partialFailure", "cleanup", "receipt", "liveSkip"]);
+    expect(adapterContractFixtureKinds).toEqual(["allow", "deny", "unsupported", "partialFailure", "cleanup", "receipt", "liveSkip", "logs", "lifecycle"]);
     expect(adapterContractFixtures.allow).toMatchObject({
       kind: "allow",
       capabilityPath: "job.run",
@@ -456,6 +456,17 @@ describe("capabilities", () => {
       kind: "liveSkip",
       skipReasonIncludes: "CAPSULE_LIVE_TESTS=1"
     });
+    expect(adapterContractFixtures.logs).toMatchObject({
+      kind: "logs",
+      capabilityPath: "job.logs",
+      expectedReceiptTypes: ["job.logs"]
+    });
+    expect(adapterContractFixtures.lifecycle).toMatchObject({
+      kind: "lifecycle",
+      capabilityPath: "sandbox.create",
+      expectedReceiptTypes: ["sandbox.create", "sandbox.destroy"]
+    });
+    expect(adapterContractFixtures.lifecycle.cleanup).toMatchObject({ action: "destroy-resource", status: "destroyed" });
   });
 
   test("contract rejects declared preview lifecycle support without implementation", () => {
