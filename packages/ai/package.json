@@ -1,5 +1,5 @@
 {
-  "name": "@capsule/ai",
+  "name": "@capsule-sdk/ai",
   "version": "0.1.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -15,7 +15,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@capsule/core": "workspace:*"
+    "@capsule-sdk/core": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.5.0",
@@ -27,7 +27,7 @@
   "files": [
     "dist"
   ],
-  "description": "Framework-agnostic AI code execution helper built on Capsule sandboxes.",
+  "description": "Capsule code execution tool plus dependency-free tool descriptors for Vercel AI SDK, OpenAI, LangChain, Mastra, and CrewAI.",
   "license": "MIT",
   "repository": {
     "type": "git",

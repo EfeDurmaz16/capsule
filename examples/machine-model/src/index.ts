@@ -1,5 +1,5 @@
-import { Capsule } from "@capsule/core";
-import { mockEC2 } from "@capsule/adapter-mock";
+import { Capsule } from "@capsule-sdk/core";
+import { mockEC2 } from "@capsule-sdk/adapter-mock";
 
 const capsule = new Capsule({ adapter: mockEC2(), receipts: true });
 console.log("Example mode: mock EC2 machine model. No real provider APIs are called.");

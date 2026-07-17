@@ -8,18 +8,18 @@ One or two sentences describing the release outcome and who should care.
 
 ## Core
 
-- `@capsule/core`: Describe policy, receipt, capability, error, telemetry, store contract, or public type changes.
+- `@capsule-sdk/core`: Describe policy, receipt, capability, error, telemetry, store contract, or public type changes.
 
 ## Adapters
 
-- `@capsule/adapter-<provider>`: Describe provider behavior, lifecycle cleanup, idempotency, receipt metadata, policy support, or live-test coverage changes.
+- `@capsule-sdk/adapter-<provider>`: Describe provider behavior, lifecycle cleanup, idempotency, receipt metadata, policy support, or live-test coverage changes.
 
 ## CLI, Presets, Preview, And AI
 
-- `@capsule/cli`: Describe command, JSON output, diagnostics, doctor, capability, or verification changes.
-- `@capsule/presets`: Describe preset behavior, validation, or policy compatibility changes.
-- `@capsule/preview`: Describe orchestration, cleanup plan, resource graph, or receipt changes.
-- `@capsule/ai`: Describe wrapper, framework descriptor, or governed action example changes.
+- `@capsule-sdk/cli`: Describe command, JSON output, diagnostics, doctor, capability, or verification changes.
+- `@capsule-sdk/presets`: Describe preset behavior, validation, or policy compatibility changes.
+- `@capsule-sdk/preview`: Describe orchestration, cleanup plan, resource graph, or receipt changes.
+- `@capsule-sdk/ai`: Describe wrapper, framework descriptor, or governed action example changes.
 
 ## Docs And Examples
 

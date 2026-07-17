@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { Capsule, type CapsuleAdapter, type CapabilityMap } from "@capsule/core";
+import { Capsule, type CapsuleAdapter, type CapabilityMap } from "@capsule-sdk/core";
 import {
   aggregatePreviewStatus,
   cleanupPreviewEnvironment,
@@ -250,7 +250,7 @@ describe("preview orchestration", () => {
     expect(bundle.receipt).toMatchObject({
       type: "preview.create",
       provider: "capsule-preview",
-      adapter: "@capsule/preview",
+      adapter: "@capsule-sdk/preview",
       capabilityPath: "preview.create",
       supportLevel: "emulated",
       resource: { name: "pr-42", status: "ready" },
@@ -438,7 +438,7 @@ describe("preview orchestration", () => {
       expect(previewError.cleanup?.dispositions.map((entry) => entry.disposition)).toEqual(["cleaned"]);
       expect(previewError.cleanup?.receipt).toMatchObject({
         provider: "capsule-preview",
-        adapter: "@capsule/preview",
+        adapter: "@capsule-sdk/preview",
         capabilityPath: "preview.cleanup",
         supportLevel: "emulated",
         resource: { status: "cleaned" },

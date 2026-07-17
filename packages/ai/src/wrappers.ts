@@ -1,4 +1,4 @@
-import type { ExecResult } from "@capsule/core";
+import type { ExecResult } from "@capsule-sdk/core";
 import type { CodeExecutionInput, CodeExecutionTool } from "./tool.js";
 
 export type JsonSchema = Record<string, unknown>;

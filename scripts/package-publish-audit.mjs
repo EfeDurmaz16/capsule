@@ -83,7 +83,7 @@ function auditPackage(packageDir) {
 
   auditedPublicPackages += 1;
 
-  if (!pkg.name?.startsWith("@capsule/")) {
+  if (!pkg.name?.startsWith("@capsule-sdk/")) {
     errors.push(`${pkg.name ?? packageDir}: public package name must use @capsule scope.`);
   }
 

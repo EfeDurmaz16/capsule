@@ -1,5 +1,5 @@
 {
-  "name": "@capsule/example-preview-environment-model",
+  "name": "@capsule-sdk/example-preview-environment-model",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,13 +7,13 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@capsule/adapter-cloud-run": "workspace:*",
-    "@capsule/adapter-mock": "workspace:*",
-    "@capsule/adapter-neon": "workspace:*",
-    "@capsule/adapter-vercel": "workspace:*",
-    "@capsule/core": "workspace:*",
-    "@capsule/preview": "workspace:*",
-    "@capsule/store-jsonl": "workspace:*"
+    "@capsule-sdk/adapter-cloud-run": "workspace:*",
+    "@capsule-sdk/adapter-mock": "workspace:*",
+    "@capsule-sdk/adapter-neon": "workspace:*",
+    "@capsule-sdk/adapter-vercel": "workspace:*",
+    "@capsule-sdk/core": "workspace:*",
+    "@capsule-sdk/preview": "workspace:*",
+    "@capsule-sdk/store-jsonl": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.20.6",

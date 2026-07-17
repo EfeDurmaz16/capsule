@@ -1,4 +1,4 @@
-import type { CapabilityMap, SupportLevel } from "@capsule/core";
+import type { CapabilityMap, SupportLevel } from "@capsule-sdk/core";
 
 const unsupported: SupportLevel = "unsupported";
 

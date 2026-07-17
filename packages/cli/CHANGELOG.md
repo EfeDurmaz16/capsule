@@ -1,4 +1,4 @@
-# @capsule/cli
+# @capsule-sdk/cli
 
 ## 0.1.1
 
@@ -19,19 +19,19 @@
 - Updated dependencies [68b5121]
 - Updated dependencies [d3fe15c]
 - Updated dependencies [0a3331f]
-  - @capsule/adapter-azure-container-apps@0.1.1
-  - @capsule/adapter-cloud-run@0.1.1
-  - @capsule/core@0.1.1
-  - @capsule/adapter-cloudflare@0.1.1
-  - @capsule/adapter-kubernetes@0.1.1
-  - @capsule/adapter-docker@0.1.1
-  - @capsule/adapter-lambda@0.1.1
-  - @capsule/adapter-daytona@0.1.1
-  - @capsule/adapter-e2b@0.1.1
-  - @capsule/adapter-ec2@0.1.1
-  - @capsule/adapter-ecs@0.1.1
-  - @capsule/adapter-fly@0.1.1
-  - @capsule/adapter-modal@0.1.1
-  - @capsule/adapter-neon@0.1.1
-  - @capsule/adapter-vercel@0.1.1
-  - @capsule/store-jsonl@0.1.1
+  - @capsule-sdk/adapter-azure-container-apps@0.1.1
+  - @capsule-sdk/adapter-cloud-run@0.1.1
+  - @capsule-sdk/core@0.1.1
+  - @capsule-sdk/adapter-cloudflare@0.1.1
+  - @capsule-sdk/adapter-kubernetes@0.1.1
+  - @capsule-sdk/adapter-docker@0.1.1
+  - @capsule-sdk/adapter-lambda@0.1.1
+  - @capsule-sdk/adapter-daytona@0.1.1
+  - @capsule-sdk/adapter-e2b@0.1.1
+  - @capsule-sdk/adapter-ec2@0.1.1
+  - @capsule-sdk/adapter-ecs@0.1.1
+  - @capsule-sdk/adapter-fly@0.1.1
+  - @capsule-sdk/adapter-modal@0.1.1
+  - @capsule-sdk/adapter-neon@0.1.1
+  - @capsule-sdk/adapter-vercel@0.1.1
+  - @capsule-sdk/store-jsonl@0.1.1

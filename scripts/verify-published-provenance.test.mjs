@@ -25,11 +25,11 @@ test("dry-run lists public packages without shelling out to npm", () => {
     mkdirSync(fakeBinDir, { recursive: true });
 
     writeJson(join(publicPackageDir, "package.json"), {
-      name: "@capsule/public-package",
+      name: "@capsule-sdk/public-package",
       version: "1.2.3"
     });
     writeJson(join(privatePackageDir, "package.json"), {
-      name: "@capsule/private-package",
+      name: "@capsule-sdk/private-package",
       version: "1.2.3",
       private: true
     });
@@ -44,8 +44,8 @@ test("dry-run lists public packages without shelling out to npm", () => {
     });
 
     assert.match(stdout, /Provenance verification dry-run/);
-    assert.match(stdout, /@capsule\/public-package@1\.2\.3/);
-    assert.doesNotMatch(stdout, /@capsule\/private-package/);
+    assert.match(stdout, /@capsule-sdk\/public-package@1\.2\.3/);
+    assert.doesNotMatch(stdout, /@capsule-sdk\/private-package/);
   } finally {
     rmSync(fixtureRoot, { recursive: true, force: true });
   }
@@ -63,7 +63,7 @@ test("real mode checks published dist provenance metadata with npm view", () => 
     mkdirSync(fakeBinDir, { recursive: true });
 
     writeJson(join(publicPackageDir, "package.json"), {
-      name: "@capsule/public-package",
+      name: "@capsule-sdk/public-package",
       version: "1.2.3"
     });
     writeFileSync(
@@ -92,8 +92,8 @@ test("real mode checks published dist provenance metadata with npm view", () => 
     });
 
     assert.match(stdout, /Published provenance verification passed/);
-    assert.match(stdout, /@capsule\/public-package@1\.2\.3: provenance metadata present/);
-    assert.match(execFileSync("cat", [npmArgsLog], { encoding: "utf8" }), /view @capsule\/public-package@1\.2\.3 dist --json/);
+    assert.match(stdout, /@capsule-sdk\/public-package@1\.2\.3: provenance metadata present/);
+    assert.match(execFileSync("cat", [npmArgsLog], { encoding: "utf8" }), /view @capsule-sdk\/public-package@1\.2\.3 dist --json/);
   } finally {
     rmSync(fixtureRoot, { recursive: true, force: true });
   }

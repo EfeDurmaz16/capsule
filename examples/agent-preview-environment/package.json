@@ -1,5 +1,5 @@
 {
-  "name": "@capsule/example-agent-preview-environment",
+  "name": "@capsule-sdk/example-agent-preview-environment",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,10 +7,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@capsule/adapter-mock": "workspace:*",
-    "@capsule/ai": "workspace:*",
-    "@capsule/core": "workspace:*",
-    "@capsule/preview": "workspace:*"
+    "@capsule-sdk/adapter-mock": "workspace:*",
+    "@capsule-sdk/ai": "workspace:*",
+    "@capsule-sdk/core": "workspace:*",
+    "@capsule-sdk/preview": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.20.6",

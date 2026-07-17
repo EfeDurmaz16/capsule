@@ -16,9 +16,9 @@ Typical flow:
 
 Capsule should let providers and framework maintainers model their preview orchestration honestly. Some providers expose previews natively; others require composition across multiple domains.
 
-`@capsule/preview` is the composition package for the second case. It accepts explicit `Capsule` instances per resource, so an environment can combine a Neon branch, a Cloud Run service, a Cloudflare Worker, and a smoke-test job without pretending they share one provider model.
+`@capsule-sdk/preview` is the composition package for the second case. It accepts explicit `Capsule` instances per resource, so an environment can combine a Neon branch, a Cloud Run service, a Cloudflare Worker, and a smoke-test job without pretending they share one provider model.
 
-Production preview plans should set `requireRealProviders: true`. When that flag is enabled, `@capsule/preview` rejects adapters whose `raw()` escape hatch declares `{ mock: true }`. Demo and documentation flows can opt in to mock composition with `allowMockProviders: true`, but that mode is explicit and should never be treated as provider completion.
+Production preview plans should set `requireRealProviders: true`. When that flag is enabled, `@capsule-sdk/preview` rejects adapters whose `raw()` escape hatch declares `{ mock: true }`. Demo and documentation flows can opt in to mock composition with `allowMockProviders: true`, but that mode is explicit and should never be treated as provider completion.
 
 The package records a resource graph containing service, edge, database, and job resources. Cleanup walks that graph in reverse dependency order and reports partial cleanup failures instead of hiding successfully cleaned resources.
 
@@ -35,7 +35,7 @@ The cleanup result also carries an overall `status` derived from those dispositi
 - `unsupported`: nothing failed, but at least one resource was left behind because its kind has no cleanup action by design (edge, job). This is not a failure.
 - `partial`: at least one disposition is `partial` or `leaked`, meaning a real cleanup failure occurred.
 
-`createPreviewEnvironmentWithCleanup(...)` attempts cleanup when creation fails after earlier resources were provisioned. The cleanup result includes underlying provider receipts plus an orchestration-level `preview.cleanup` receipt from `@capsule/preview`. That receipt summarizes the cleanup status and per-resource dispositions. Provider receipts remain the strongest evidence for what happened at each provider; preview orchestration does not claim provider-native preview support unless an adapter exposes it.
+`createPreviewEnvironmentWithCleanup(...)` attempts cleanup when creation fails after earlier resources were provisioned. The cleanup result includes underlying provider receipts plus an orchestration-level `preview.cleanup` receipt from `@capsule-sdk/preview`. That receipt summarizes the cleanup status and per-resource dispositions. Provider receipts remain the strongest evidence for what happened at each provider; preview orchestration does not claim provider-native preview support unless an adapter exposes it.
 
 ## CLI
 
@@ -69,7 +69,7 @@ Each resource entry has an `adapter`, optional adapter `options`, and a domain s
 
 The cleanup file uses schema `capsule.preview.cleanup.v1`. It stores the preview identity, resource graph, cleanup capability path, adapter name, adapter options, and cleanup spec. It does not serialize `Capsule` instances or provider clients, and database connection strings are not written into the cleanup plan.
 
-`preview destroy` rebuilds the required Capsule instances from the recorded cleanup actions, walks the resource graph in reverse order through `@capsule/preview`, and prints cleanup dispositions plus a summary that counts `cleaned`, `partial`, `failed`, `unsupported`, and `leaked` resources. It exits non-zero only for a real failure (overall status `partial`). A run whose only leftovers are by-design-unsupported kinds (edge, job) reports status `unsupported` and exits 0; the dispositions explain what was left behind and why.
+`preview destroy` rebuilds the required Capsule instances from the recorded cleanup actions, walks the resource graph in reverse order through `@capsule-sdk/preview`, and prints cleanup dispositions plus a summary that counts `cleaned`, `partial`, `failed`, `unsupported`, and `leaked` resources. It exits non-zero only for a real failure (overall status `partial`). A run whose only leftovers are by-design-unsupported kinds (edge, job) reports status `unsupported` and exits 0; the dispositions explain what was left behind and why.
 
 ## Example
 
@@ -86,7 +86,7 @@ The example persists receipts to `.capsule/receipts/preview-environment-model.js
 Run the demo path:
 
 ```bash
-pnpm --filter @capsule/example-preview-environment-model start
+pnpm --filter @capsule-sdk/example-preview-environment-model start
 ```
 
 Run live verification only after choosing the provider resources it will create:
@@ -96,5 +96,5 @@ export CAPSULE_LIVE_TESTS=1
 export NEON_API_KEY=...
 export NEON_PROJECT_ID=...
 export VERCEL_TOKEN=...
-pnpm --filter @capsule/example-preview-environment-model start
+pnpm --filter @capsule-sdk/example-preview-environment-model start
 ```

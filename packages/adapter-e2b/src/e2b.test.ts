@@ -7,7 +7,7 @@ import {
   ProviderAuthError,
   ProviderRateLimitError,
   runAdapterContract
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 import { e2b, e2bCapabilities } from "./e2b-adapter.js";
 
 function failingE2B(error: Error) {

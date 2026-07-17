@@ -1,9 +1,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { Capsule } from "@capsule/core";
-import { mockCloudflare, mockVercel } from "@capsule/adapter-mock";
-import { vercel } from "@capsule/adapter-vercel";
+import { Capsule } from "@capsule-sdk/core";
+import { mockCloudflare, mockVercel } from "@capsule-sdk/adapter-mock";
+import { vercel } from "@capsule-sdk/adapter-vercel";
 
 const liveVercel = process.env.CAPSULE_LIVE_TESTS === "1" && Boolean(process.env.VERCEL_TOKEN);
 const sourceDir = join(tmpdir(), "capsule-edge-example");

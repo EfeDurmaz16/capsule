@@ -12,10 +12,10 @@ Capsule adapters do not make a provider safe by themselves. Isolation, billing, 
 Build the workspace CLI once, then use the planner before running a live provider test. It maps provider names to required env vars, optional env vars, project-scoped aliases, and copy-safe commands without printing secret values:
 
 ```bash
-pnpm --filter @capsule/cli build
-pnpm --filter @capsule/cli exec node dist/index.js live-test plan
-pnpm --filter @capsule/cli exec node dist/index.js live-test plan --provider neon
-pnpm --filter @capsule/cli exec node dist/index.js live-test plan --provider cloudflare
+pnpm --filter @capsule-sdk/cli build
+pnpm --filter @capsule-sdk/cli exec node dist/index.js live-test plan
+pnpm --filter @capsule-sdk/cli exec node dist/index.js live-test plan --provider neon
+pnpm --filter @capsule-sdk/cli exec node dist/index.js live-test plan --provider cloudflare
 ```
 
 ## Docker
@@ -31,13 +31,13 @@ pnpm install
 Run a local Docker job:
 
 ```bash
-pnpm --filter @capsule/example-job-docker start
+pnpm --filter @capsule-sdk/example-job-docker start
 ```
 
 Run a local Docker sandbox:
 
 ```bash
-pnpm --filter @capsule/example-sandbox-docker start
+pnpm --filter @capsule-sdk/example-sandbox-docker start
 ```
 
 Credentials: none.
@@ -60,7 +60,7 @@ export CAPSULE_LIVE_TESTS=1
 Run the agent code execution example against E2B:
 
 ```bash
-pnpm --filter @capsule/example-agent-code-execution start
+pnpm --filter @capsule-sdk/example-agent-code-execution start
 ```
 
 Credentials: `E2B_API_KEY`.
@@ -83,8 +83,8 @@ export CAPSULE_LIVE_TESTS=1
 Use the adapter directly:
 
 ```ts
-import { Capsule } from "@capsule/core";
-import { daytona } from "@capsule/adapter-daytona";
+import { Capsule } from "@capsule-sdk/core";
+import { daytona } from "@capsule-sdk/adapter-daytona";
 
 const capsule = new Capsule({ adapter: daytona({ apiKey: process.env.DAYTONA_API_KEY }), receipts: true });
 const sandbox = await capsule.sandbox.create({ name: "capsule-quickstart" });
@@ -117,8 +117,8 @@ export CAPSULE_LIVE_TESTS=1
 Use the adapter directly:
 
 ```ts
-import { Capsule } from "@capsule/core";
-import { modal } from "@capsule/adapter-modal";
+import { Capsule } from "@capsule-sdk/core";
+import { modal } from "@capsule-sdk/adapter-modal";
 
 const capsule = new Capsule({
   adapter: modal({
@@ -162,7 +162,7 @@ export CAPSULE_LIVE_TESTS=1
 Run:
 
 ```bash
-pnpm --filter @capsule/example-database-branch-model start
+pnpm --filter @capsule-sdk/example-database-branch-model start
 ```
 
 Credentials: `NEON_API_KEY`, `NEON_PROJECT_ID`. `NEON_DATABASE` and `NEON_ROLE` are required only when you want Capsule to retrieve a connection URI.
@@ -170,7 +170,7 @@ Credentials: `NEON_API_KEY`, `NEON_PROJECT_ID`. `NEON_DATABASE` and `NEON_ROLE` 
 Project-scoped alias: `CAPSULE_POSTGRES_PROJECT_ID` can be mapped to `NEON_PROJECT_ID` at command time. The planner includes the safe alias command:
 
 ```bash
-pnpm --filter @capsule/cli exec node dist/index.js live-test plan --provider neon
+pnpm --filter @capsule-sdk/cli exec node dist/index.js live-test plan --provider neon
 ```
 
 Cleanup: delete the created branch with `capsule.database.branch.delete(...)` or in the Neon console. The example creates a branch and does not delete it automatically so you can inspect the receipt and resource.
@@ -193,8 +193,8 @@ export CAPSULE_LIVE_TESTS=1
 Use the adapter directly:
 
 ```ts
-import { Capsule } from "@capsule/core";
-import { cloudflare } from "@capsule/adapter-cloudflare";
+import { Capsule } from "@capsule-sdk/core";
+import { cloudflare } from "@capsule-sdk/adapter-cloudflare";
 
 const capsule = new Capsule({ adapter: cloudflare(), receipts: true });
 const deployment = await capsule.edge.deploy({
@@ -222,7 +222,7 @@ Credentials: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`; `CLOUDFLARE_ZONE_I
 Project-scoped aliases: `CAPSULE_WORKER_API_TOKEN` can be mapped to `CLOUDFLARE_API_TOKEN`, and `CAPSULE_WORKER_ACCOUNT_ID` can be mapped to `CLOUDFLARE_ACCOUNT_ID`. The planner includes the safe alias command:
 
 ```bash
-pnpm --filter @capsule/cli exec node dist/index.js live-test plan --provider cloudflare
+pnpm --filter @capsule-sdk/cli exec node dist/index.js live-test plan --provider cloudflare
 ```
 
 Live verification: the default Cloudflare live test creates only an unreleased Worker version. Add `CAPSULE_CLOUDFLARE_LIVE_DEPLOY=1` when you intentionally want the same live test to call `edge.deploy` and update the named Worker script. Add `CAPSULE_CLOUDFLARE_LIVE_ROLLBACK=1` when you intentionally want it to create a Worker deployment that moves traffic to a freshly uploaded version. Set `CAPSULE_CLOUDFLARE_WORKERS_DEV_SUBDOMAIN` or map local `CAPSULE_WORKER_WORKERS_DEV_SUBDOMAIN` when you want the receipt URL populated.
@@ -249,8 +249,8 @@ export CAPSULE_LIVE_TESTS=1
 Use the adapter directly:
 
 ```ts
-import { Capsule } from "@capsule/core";
-import { cloudRun } from "@capsule/adapter-cloud-run";
+import { Capsule } from "@capsule-sdk/core";
+import { cloudRun } from "@capsule-sdk/adapter-cloud-run";
 
 const capsule = new Capsule({
   adapter: cloudRun({
@@ -289,7 +289,7 @@ export CAPSULE_LIVE_TESTS=1
 Run:
 
 ```bash
-pnpm --filter @capsule/example-edge-model start
+pnpm --filter @capsule-sdk/example-edge-model start
 ```
 
 Credentials: `VERCEL_TOKEN`; optional team/project scoping through `VERCEL_TEAM_ID` and `VERCEL_PROJECT`.
@@ -312,8 +312,8 @@ export CAPSULE_LIVE_TESTS=1
 Use the adapter directly:
 
 ```ts
-import { Capsule } from "@capsule/core";
-import { kubernetes } from "@capsule/adapter-kubernetes";
+import { Capsule } from "@capsule-sdk/core";
+import { kubernetes } from "@capsule-sdk/adapter-kubernetes";
 
 const capsule = new Capsule({ adapter: kubernetes({ namespace: "default" }), receipts: true });
 const job = await capsule.job.run({
@@ -346,8 +346,8 @@ export CAPSULE_LIVE_TESTS=1
 Use the adapter directly:
 
 ```ts
-import { Capsule } from "@capsule/core";
-import { lambda } from "@capsule/adapter-lambda";
+import { Capsule } from "@capsule-sdk/core";
+import { lambda } from "@capsule-sdk/adapter-lambda";
 
 const capsule = new Capsule({ adapter: lambda({ region: process.env.AWS_REGION }), receipts: true });
 const run = await capsule.job.run({
@@ -379,8 +379,8 @@ export CAPSULE_LIVE_TESTS=1
 Use the adapter directly:
 
 ```ts
-import { Capsule } from "@capsule/core";
-import { ecs } from "@capsule/adapter-ecs";
+import { Capsule } from "@capsule-sdk/core";
+import { ecs } from "@capsule-sdk/adapter-ecs";
 
 const capsule = new Capsule({
   adapter: ecs({
@@ -420,8 +420,8 @@ export CAPSULE_LIVE_TESTS=1
 Use the adapter directly:
 
 ```ts
-import { Capsule } from "@capsule/core";
-import { ec2 } from "@capsule/adapter-ec2";
+import { Capsule } from "@capsule-sdk/core";
+import { ec2 } from "@capsule-sdk/adapter-ec2";
 
 const capsule = new Capsule({ adapter: ec2({ region: process.env.AWS_REGION }), receipts: true });
 const machine = await capsule.machine.create({
@@ -453,8 +453,8 @@ export CAPSULE_LIVE_TESTS=1
 Use the adapter directly:
 
 ```ts
-import { Capsule } from "@capsule/core";
-import { fly } from "@capsule/adapter-fly";
+import { Capsule } from "@capsule-sdk/core";
+import { fly } from "@capsule-sdk/adapter-fly";
 
 const capsule = new Capsule({ adapter: fly({ appName: process.env.FLY_APP_NAME }), receipts: true });
 const run = await capsule.job.run({
@@ -489,8 +489,8 @@ export CAPSULE_LIVE_TESTS=1
 Use the adapter directly:
 
 ```ts
-import { Capsule } from "@capsule/core";
-import { azureContainerApps } from "@capsule/adapter-azure-container-apps";
+import { Capsule } from "@capsule-sdk/core";
+import { azureContainerApps } from "@capsule-sdk/adapter-azure-container-apps";
 
 const capsule = new Capsule({
   adapter: azureContainerApps({

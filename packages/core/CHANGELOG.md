@@ -1,4 +1,4 @@
-# @capsule/core
+# @capsule-sdk/core
 
 ## 0.1.1
 

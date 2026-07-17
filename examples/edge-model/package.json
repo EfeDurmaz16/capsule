@@ -1,5 +1,5 @@
 {
-  "name": "@capsule/example-edge-model",
+  "name": "@capsule-sdk/example-edge-model",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,9 +7,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@capsule/core": "workspace:*",
-    "@capsule/adapter-mock": "workspace:*",
-    "@capsule/adapter-vercel": "workspace:*"
+    "@capsule-sdk/core": "workspace:*",
+    "@capsule-sdk/adapter-mock": "workspace:*",
+    "@capsule-sdk/adapter-vercel": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.20.6",

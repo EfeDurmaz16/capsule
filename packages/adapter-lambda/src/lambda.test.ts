@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, ProviderAuthError, ProviderRetryableError, runAdapterContract } from "@capsule/core";
+import { AdapterExecutionError, Capsule, ProviderAuthError, ProviderRetryableError, runAdapterContract } from "@capsule-sdk/core";
 import { lambda, lambdaCapabilities } from "./index.js";
 
 function awsError(name: string, httpStatusCode: number, message = name): Error {

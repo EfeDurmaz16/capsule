@@ -25,10 +25,10 @@ Build the workspace CLI once, then use the planner to see exactly which env vars
 
 ```bash
 pnpm install
-pnpm --filter @capsule/cli build
-pnpm --filter @capsule/cli exec node dist/index.js live-test plan --provider neon
-pnpm --filter @capsule/cli exec node dist/index.js live-test plan --provider vercel
-pnpm --filter @capsule/cli exec node dist/index.js live-test plan --provider cloud-run
+pnpm --filter @capsule-sdk/cli build
+pnpm --filter @capsule-sdk/cli exec node dist/index.js live-test plan --provider neon
+pnpm --filter @capsule-sdk/cli exec node dist/index.js live-test plan --provider vercel
+pnpm --filter @capsule-sdk/cli exec node dist/index.js live-test plan --provider cloud-run
 ```
 
 ## Step 2: Set Neon credentials (database branch)
@@ -73,7 +73,7 @@ The example uses `us-docker.pkg.dev/cloudrun/container/hello` as the default ser
 
 ```bash
 export CAPSULE_LIVE_TESTS=1
-pnpm --filter @capsule/example-preview-environment-model start
+pnpm --filter @capsule-sdk/example-preview-environment-model start
 ```
 
 The program:
@@ -92,7 +92,7 @@ Every action writes a receipt to the JSONL store. The default path is `.capsule/
 Verify the receipt chain with the CLI:
 
 ```bash
-pnpm --filter @capsule/cli exec node dist/index.js receipt verify --receipt-file .capsule/receipts/preview-environment-model.jsonl
+pnpm --filter @capsule-sdk/cli exec node dist/index.js receipt verify --receipt-file .capsule/receipts/preview-environment-model.jsonl
 ```
 
 ## Step 7: Confirm cleanup and reclaim leftovers

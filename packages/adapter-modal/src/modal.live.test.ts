@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { AdapterExecutionError, Capsule, MemoryReceiptStore } from "@capsule/core";
-import { liveResourceMetadata, liveTest, providerLiveTestGate } from "@capsule/test-utils";
+import { AdapterExecutionError, Capsule, MemoryReceiptStore } from "@capsule-sdk/core";
+import { liveResourceMetadata, liveTest, providerLiveTestGate } from "@capsule-sdk/test-utils";
 import { modal } from "./modal-adapter.js";
 
 const modalLiveGate = providerLiveTestGate("modal");

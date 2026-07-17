@@ -1,5 +1,5 @@
 {
-  "name": "@capsule/example-stripe-projects-provisioning",
+  "name": "@capsule-sdk/example-stripe-projects-provisioning",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,8 +7,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@capsule/adapter-mock": "workspace:*",
-    "@capsule/core": "workspace:*"
+    "@capsule-sdk/adapter-mock": "workspace:*",
+    "@capsule-sdk/core": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.20.6",

@@ -14,7 +14,7 @@ function writeJson(path, value) {
 
 function validPackageJson(overrides = {}) {
   return {
-    name: "@capsule/fixture",
+    name: "@capsule-sdk/fixture",
     version: "1.2.3",
     type: "module",
     description: "Capsule fixture package for publish metadata tests.",
@@ -63,17 +63,17 @@ function writeFixtureRoot(mutator = () => {}) {
   writeFileSync(join(packageDir, "dist", "index.d.ts"), "export declare const ok: true;\n");
   writeJson(join(packageDir, "package.json"), validPackageJson());
   writeJson(join(privatePackageDir, "package.json"), {
-    name: "@capsule/test-utils",
+    name: "@capsule-sdk/test-utils",
     version: "1.2.3",
     private: true
   });
   writeJson(join(exampleDir, "package.json"), {
-    name: "@capsule/example-demo",
+    name: "@capsule-sdk/example-demo",
     version: "1.2.3",
     private: true
   });
   writeJson(join(fixtureRoot, ".changeset", "config.json"), {
-    ignore: ["@capsule/test-utils", "@capsule/example-demo"]
+    ignore: ["@capsule-sdk/test-utils", "@capsule-sdk/example-demo"]
   });
 
   mutator({ fixtureRoot, packageDir, privatePackageDir, exampleDir });
@@ -129,7 +129,7 @@ test("dry-run rejects missing metadata, private publish access, and dist test ar
 test("dry-run rejects public examples and private packages missing Changesets ignore", () => {
   const fixtureRoot = writeFixtureRoot(({ fixtureRoot, exampleDir }) => {
     writeJson(join(exampleDir, "package.json"), {
-      name: "@capsule/example-demo",
+      name: "@capsule-sdk/example-demo",
       version: "1.2.3"
     });
     writeJson(join(fixtureRoot, ".changeset", "config.json"), {
@@ -143,8 +143,8 @@ test("dry-run rejects public examples and private packages missing Changesets ig
     });
 
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /@capsule\/example-demo: examples must remain private/);
-    assert.match(result.stderr, /@capsule\/test-utils: private workspace package must be listed in \.changeset\/config\.json ignore/);
+    assert.match(result.stderr, /@capsule-sdk\/example-demo: examples must remain private/);
+    assert.match(result.stderr, /@capsule-sdk\/test-utils: private workspace package must be listed in \.changeset\/config\.json ignore/);
   } finally {
     rmSync(fixtureRoot, { recursive: true, force: true });
   }

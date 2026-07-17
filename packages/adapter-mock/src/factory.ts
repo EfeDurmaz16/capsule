@@ -26,7 +26,7 @@ import {
   type RunJobSpec,
   type Sandbox,
   type SandboxHandle
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 
 interface MockAdapterOptions {
   name: string;

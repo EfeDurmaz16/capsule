@@ -2,8 +2,8 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { Capsule } from "@capsule/core";
-import { liveResourceMetadata, liveTest, liveTestGate } from "@capsule/test-utils";
+import { Capsule } from "@capsule-sdk/core";
+import { liveResourceMetadata, liveTest, liveTestGate } from "@capsule-sdk/test-utils";
 import { cloudflare } from "./index.js";
 
 async function workerFile(message = "capsule live smoke"): Promise<string> {

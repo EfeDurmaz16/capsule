@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { Capsule } from "@capsule/core";
-import { liveTest, liveTestGate } from "@capsule/test-utils";
+import { Capsule } from "@capsule-sdk/core";
+import { liveTest, liveTestGate } from "@capsule-sdk/test-utils";
 import { vercel } from "./index.js";
 
 describe("vercel live smoke", () => {

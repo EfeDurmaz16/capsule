@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { Capsule } from "@capsule/core";
-import { liveTest, providerLiveTestGate } from "@capsule/test-utils";
+import { Capsule } from "@capsule-sdk/core";
+import { liveTest, providerLiveTestGate } from "@capsule-sdk/test-utils";
 import { lambda } from "./index.js";
 
 describe("lambda live smoke", () => {

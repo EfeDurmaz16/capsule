@@ -1,4 +1,4 @@
-# @capsule/store-jsonl
+# @capsule-sdk/store-jsonl
 
 ## 0.1.1
 
@@ -14,4 +14,4 @@
 - Updated dependencies [f8848c0]
 - Updated dependencies [68b5121]
 - Updated dependencies [d3fe15c]
-  - @capsule/core@0.1.1
+  - @capsule-sdk/core@0.1.1

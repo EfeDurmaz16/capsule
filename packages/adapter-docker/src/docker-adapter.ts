@@ -16,8 +16,8 @@ import {
   type RunJobSpec,
   type Sandbox,
   type SandboxHandle
-} from "@capsule/core";
-import { capsuleOperationTags, collectFileArtifacts, logsFromOutput, redactSecrets } from "@capsule/core";
+} from "@capsule-sdk/core";
+import { capsuleOperationTags, collectFileArtifacts, logsFromOutput, redactSecrets } from "@capsule-sdk/core";
 import { dockerAvailable, runDocker, type DockerCommandResult, type RunDockerOptions } from "./docker-cli.js";
 
 type DockerRunner = (args: string[], options?: RunDockerOptions) => Promise<DockerCommandResult>;

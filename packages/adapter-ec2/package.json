@@ -1,5 +1,5 @@
 {
-  "name": "@capsule/adapter-ec2",
+  "name": "@capsule-sdk/adapter-ec2",
   "version": "0.1.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-ec2": "^3.955.0",
-    "@capsule/core": "workspace:*"
+    "@capsule-sdk/core": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.5.0",

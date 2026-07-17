@@ -22,7 +22,7 @@ artifact claims. A missing claimed hash returns `{ valid: false, reason: "missin
 passing, so "no hash" is never mistaken for "trusted".
 
 ```ts
-import { verifyArtifactHash } from "@capsule/core";
+import { verifyArtifactHash } from "@capsule-sdk/core";
 
 const result = verifyArtifactHash(artifact, bytes);
 // { valid: true } | { valid: false, reason: "hash-mismatch", expected, actual } | { valid: false, reason: "missing-hash", actual }
@@ -35,7 +35,7 @@ bundle. The digest is a `sha256` over the canonical (key-sorted, `undefined`-dro
 stable regardless of object key order and changes if any entry is added, removed, or tampered with.
 
 ```ts
-import { createArtifactManifest, verifyArtifactManifest } from "@capsule/core";
+import { createArtifactManifest, verifyArtifactManifest } from "@capsule-sdk/core";
 
 const manifest = createArtifactManifest(artifacts);
 // { schema: "capsule.artifact.manifest.v1", createdAt, entries: [...], digest: { algorithm: "sha256", value } }
@@ -52,7 +52,7 @@ to make digests reproducible in tests.
 returns `Artifact[]` with posix-style relative paths.
 
 ```ts
-import { collectFileArtifacts } from "@capsule/core";
+import { collectFileArtifacts } from "@capsule-sdk/core";
 
 const { artifacts, truncated, truncation } = collectFileArtifacts("./out", { maxFiles: 1000, maxBytes: 64 * 1024 * 1024 });
 ```

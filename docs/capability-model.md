@@ -9,7 +9,7 @@ Capsule capability paths use dot notation, such as `sandbox.exec`, `service.depl
 Callers can evaluate a group of required and optional capability paths before choosing an adapter:
 
 ```ts
-import { evaluateCapabilityRequirements, missingCapabilityRequirements } from "@capsule/core";
+import { evaluateCapabilityRequirements, missingCapabilityRequirements } from "@capsule-sdk/core";
 
 const requirements = [
   "sandbox.create",

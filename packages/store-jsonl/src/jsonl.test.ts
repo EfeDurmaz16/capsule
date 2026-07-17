@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "vitest";
-import { createReceipt } from "@capsule/core";
+import { createReceipt } from "@capsule-sdk/core";
 import { jsonlReceiptStore } from "./index.js";
 
 function receiptAt(offsetMs: number) {

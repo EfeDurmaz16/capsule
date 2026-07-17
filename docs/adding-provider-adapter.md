@@ -2,7 +2,7 @@
 
 Capsule adapters are small, explicit mappings from a provider service to one or more Capsule runtime domains. They are not generic HTTP clients and they are not portability promises.
 
-Use this guide when adding a new package such as `@capsule/adapter-supabase`, `@capsule/adapter-railway`, or `@capsule/adapter-render`.
+Use this guide when adding a new package such as `@capsule-sdk/adapter-supabase`, `@capsule-sdk/adapter-railway`, or `@capsule-sdk/adapter-render`.
 
 ## 1. Classify The Provider Service
 
@@ -21,7 +21,7 @@ The classifier does not claim adapter support. It gives a starting map:
 - capabilities that should not be claimed;
 - provider-specific caveats.
 
-If no classification exists, add one to `@capsule/core` before claiming support in a new adapter. Unknown provider services should remain unclassified rather than guessed.
+If no classification exists, add one to `@capsule-sdk/core` before claiming support in a new adapter. Unknown provider services should remain unclassified rather than guessed.
 
 ## 2. Scaffold The Package
 
@@ -103,7 +103,7 @@ Do not add dashboards, auth, servers, databases, queues, or provider provisionin
 Every adapter should run the shared contract suite:
 
 ```ts
-import { runCapsuleAdapterContract } from "@capsule/core";
+import { runCapsuleAdapterContract } from "@capsule-sdk/core";
 import { railway } from "./index.js";
 
 test("runs the shared adapter contract suite", async () => {

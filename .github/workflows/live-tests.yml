@@ -1,7 +1,7 @@
 name: Live provider tests
 
 # Manually dispatched only. Live tests create real provider resources; the
-# shared gate in @capsule/test-utils additionally requires the CI opt-in env
+# shared gate in @capsule-sdk/test-utils additionally requires the CI opt-in env
 # var and blocks untrusted forks. See docs/live-tests.md.
 on:
   workflow_dispatch:
@@ -99,7 +99,7 @@ jobs:
       - name: Validate
         env:
           PROVIDER: ${{ inputs.provider }}
-        run: pnpm --filter @capsule/cli exec node dist/index.js live-test validate --provider "$PROVIDER"
+        run: pnpm --filter @capsule-sdk/cli exec node dist/index.js live-test validate --provider "$PROVIDER"
 
       - name: Run live test
         env:

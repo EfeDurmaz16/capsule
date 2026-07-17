@@ -18,7 +18,7 @@ import {
   type ServiceDeployment,
   type ServiceStatusResult,
   type ServiceStatusSpec
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 import { AzureContainerAppsClient, type AzureContainerAppsClientOptions } from "./azure-container-apps-client.js";
 
 export interface AzureContainerAppsAdapterOptions extends AzureContainerAppsClientOptions {

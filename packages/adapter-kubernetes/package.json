@@ -1,5 +1,5 @@
 {
-  "name": "@capsule/adapter-kubernetes",
+  "name": "@capsule-sdk/adapter-kubernetes",
   "version": "0.1.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -15,11 +15,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@capsule/core": "workspace:*",
+    "@capsule-sdk/core": "workspace:*",
     "@kubernetes/client-node": "^1.4.0"
   },
   "devDependencies": {
-    "@capsule/test-utils": "workspace:*",
+    "@capsule-sdk/test-utils": "workspace:*",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3"
   },
@@ -29,7 +29,7 @@
   "files": [
     "dist"
   ],
-  "description": "Kubernetes adapter for Capsule jobs, services, and machine-adjacent primitives.",
+  "description": "Kubernetes adapter for Capsule jobs, services, and combined pod log reads.",
   "license": "MIT",
   "repository": {
     "type": "git",

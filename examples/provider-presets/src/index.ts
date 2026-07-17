@@ -1,4 +1,4 @@
-import { flyVercelNeonPreviewPreset } from "@capsule/presets";
+import { flyVercelNeonPreviewPreset } from "@capsule-sdk/presets";
 
 const preset = flyVercelNeonPreviewPreset({
   name: "pr-42",

@@ -1,5 +1,5 @@
 import { GoogleAuth } from "google-auth-library";
-import { AdapterExecutionError, classifyProviderError, providerExecutionError } from "@capsule/core";
+import { AdapterExecutionError, classifyProviderError, providerExecutionError } from "@capsule-sdk/core";
 
 export interface CloudRunClientOptions {
   projectId?: string;

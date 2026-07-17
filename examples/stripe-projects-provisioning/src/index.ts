@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
-import { Capsule, PolicyViolationError, type CapsuleApprovalGrant, type CapsuleReceipt } from "@capsule/core";
-import { mockCloudRun } from "@capsule/adapter-mock";
+import { Capsule, PolicyViolationError, type CapsuleApprovalGrant, type CapsuleReceipt } from "@capsule-sdk/core";
+import { mockCloudRun } from "@capsule-sdk/adapter-mock";
 
 // A Stripe-style payment intent. In a real integration this is fetched from Stripe by id and
 // trusted only after its status is confirmed server-side. Here it is a plain object so the

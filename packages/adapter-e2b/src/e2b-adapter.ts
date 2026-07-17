@@ -17,7 +17,7 @@ import {
   type FileEntry,
   type Sandbox,
   type SandboxHandle
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 
 interface E2BCommandResult {
   exitCode: number;

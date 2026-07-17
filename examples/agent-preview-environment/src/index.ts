@@ -1,8 +1,8 @@
 import { pathToFileURL } from "node:url";
-import { Capsule, type CapsuleReceipt } from "@capsule/core";
-import { createCodeExecutionTool } from "@capsule/ai";
-import { mockE2B, mockNeon, mockVercel, mockCloudRun } from "@capsule/adapter-mock";
-import { createPreviewGraph, cleanupPreviewEnvironment } from "@capsule/preview";
+import { Capsule, type CapsuleReceipt } from "@capsule-sdk/core";
+import { createCodeExecutionTool } from "@capsule-sdk/ai";
+import { mockE2B, mockNeon, mockVercel, mockCloudRun } from "@capsule-sdk/adapter-mock";
+import { createPreviewGraph, cleanupPreviewEnvironment } from "@capsule-sdk/preview";
 
 // End-to-end shape: an agent runs a code-execution check in a Capsule sandbox, and only if that
 // check passes does it provision a preview environment (database branch + web edge + api service)

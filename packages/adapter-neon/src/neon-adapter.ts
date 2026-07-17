@@ -11,7 +11,7 @@ import {
   type DeletedDatabaseBranch,
   type DeleteDatabaseBranchSpec,
   type ResetDatabaseBranchSpec
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 import { NeonClient, type NeonClientOptions } from "./neon-client.js";
 
 export interface NeonAdapterOptions extends NeonClientOptions {

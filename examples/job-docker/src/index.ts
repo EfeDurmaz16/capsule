@@ -1,5 +1,5 @@
-import { Capsule } from "@capsule/core";
-import { docker } from "@capsule/adapter-docker";
+import { Capsule } from "@capsule-sdk/core";
+import { docker } from "@capsule-sdk/adapter-docker";
 
 console.log("Example mode: live local Docker CLI. This calls Docker on this machine, not a cloud provider API.");
 const capsule = new Capsule({ adapter: docker(), receipts: true });

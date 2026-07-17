@@ -32,16 +32,16 @@ importers:
 
   examples/agent-code-execution:
     dependencies:
-      '@capsule/adapter-e2b':
+      '@capsule-sdk/adapter-e2b':
         specifier: workspace:*
         version: link:../../packages/adapter-e2b
-      '@capsule/adapter-mock':
+      '@capsule-sdk/adapter-mock':
         specifier: workspace:*
         version: link:../../packages/adapter-mock
-      '@capsule/ai':
+      '@capsule-sdk/ai':
         specifier: workspace:*
         version: link:../../packages/ai
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -54,16 +54,16 @@ importers:
 
   examples/agent-preview-environment:
     dependencies:
-      '@capsule/adapter-mock':
+      '@capsule-sdk/adapter-mock':
         specifier: workspace:*
         version: link:../../packages/adapter-mock
-      '@capsule/ai':
+      '@capsule-sdk/ai':
         specifier: workspace:*
         version: link:../../packages/ai
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@capsule/preview':
+      '@capsule-sdk/preview':
         specifier: workspace:*
         version: link:../../packages/preview
     devDependencies:
@@ -79,10 +79,10 @@ importers:
 
   examples/capability-check:
     dependencies:
-      '@capsule/adapter-mock':
+      '@capsule-sdk/adapter-mock':
         specifier: workspace:*
         version: link:../../packages/adapter-mock
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -95,13 +95,13 @@ importers:
 
   examples/database-branch-model:
     dependencies:
-      '@capsule/adapter-mock':
+      '@capsule-sdk/adapter-mock':
         specifier: workspace:*
         version: link:../../packages/adapter-mock
-      '@capsule/adapter-neon':
+      '@capsule-sdk/adapter-neon':
         specifier: workspace:*
         version: link:../../packages/adapter-neon
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -114,10 +114,10 @@ importers:
 
   examples/deployment-model:
     dependencies:
-      '@capsule/adapter-mock':
+      '@capsule-sdk/adapter-mock':
         specifier: workspace:*
         version: link:../../packages/adapter-mock
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -130,13 +130,13 @@ importers:
 
   examples/edge-model:
     dependencies:
-      '@capsule/adapter-mock':
+      '@capsule-sdk/adapter-mock':
         specifier: workspace:*
         version: link:../../packages/adapter-mock
-      '@capsule/adapter-vercel':
+      '@capsule-sdk/adapter-vercel':
         specifier: workspace:*
         version: link:../../packages/adapter-vercel
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -149,10 +149,10 @@ importers:
 
   examples/job-docker:
     dependencies:
-      '@capsule/adapter-docker':
+      '@capsule-sdk/adapter-docker':
         specifier: workspace:*
         version: link:../../packages/adapter-docker
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -165,10 +165,10 @@ importers:
 
   examples/machine-model:
     dependencies:
-      '@capsule/adapter-mock':
+      '@capsule-sdk/adapter-mock':
         specifier: workspace:*
         version: link:../../packages/adapter-mock
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -181,10 +181,10 @@ importers:
 
   examples/policy-receipts:
     dependencies:
-      '@capsule/adapter-mock':
+      '@capsule-sdk/adapter-mock':
         specifier: workspace:*
         version: link:../../packages/adapter-mock
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -197,25 +197,25 @@ importers:
 
   examples/preview-environment-model:
     dependencies:
-      '@capsule/adapter-cloud-run':
+      '@capsule-sdk/adapter-cloud-run':
         specifier: workspace:*
         version: link:../../packages/adapter-cloud-run
-      '@capsule/adapter-mock':
+      '@capsule-sdk/adapter-mock':
         specifier: workspace:*
         version: link:../../packages/adapter-mock
-      '@capsule/adapter-neon':
+      '@capsule-sdk/adapter-neon':
         specifier: workspace:*
         version: link:../../packages/adapter-neon
-      '@capsule/adapter-vercel':
+      '@capsule-sdk/adapter-vercel':
         specifier: workspace:*
         version: link:../../packages/adapter-vercel
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@capsule/preview':
+      '@capsule-sdk/preview':
         specifier: workspace:*
         version: link:../../packages/preview
-      '@capsule/store-jsonl':
+      '@capsule-sdk/store-jsonl':
         specifier: workspace:*
         version: link:../../packages/store-jsonl
     devDependencies:
@@ -231,10 +231,10 @@ importers:
 
   examples/provider-presets:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@capsule/presets':
+      '@capsule-sdk/presets':
         specifier: workspace:*
         version: link:../../packages/presets
     devDependencies:
@@ -247,10 +247,10 @@ importers:
 
   examples/sandbox-docker:
     dependencies:
-      '@capsule/adapter-docker':
+      '@capsule-sdk/adapter-docker':
         specifier: workspace:*
         version: link:../../packages/adapter-docker
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -263,10 +263,10 @@ importers:
 
   examples/stripe-projects-provisioning:
     dependencies:
-      '@capsule/adapter-mock':
+      '@capsule-sdk/adapter-mock':
         specifier: workspace:*
         version: link:../../packages/adapter-mock
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
@@ -282,11 +282,11 @@ importers:
 
   packages/adapter-azure-container-apps:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
-      '@capsule/test-utils':
+      '@capsule-sdk/test-utils':
         specifier: workspace:*
         version: link:../test-utils
       tsup:
@@ -301,14 +301,14 @@ importers:
 
   packages/adapter-cloud-run:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
       google-auth-library:
         specifier: ^10.6.2
         version: 10.6.2
     devDependencies:
-      '@capsule/test-utils':
+      '@capsule-sdk/test-utils':
         specifier: workspace:*
         version: link:../test-utils
       tsup:
@@ -320,11 +320,11 @@ importers:
 
   packages/adapter-cloudflare:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
-      '@capsule/test-utils':
+      '@capsule-sdk/test-utils':
         specifier: workspace:*
         version: link:../test-utils
       tsup:
@@ -336,14 +336,14 @@ importers:
 
   packages/adapter-daytona:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
       '@daytona/sdk':
         specifier: ^0.175.0
         version: 0.175.0(ws@8.20.1)
     devDependencies:
-      '@capsule/test-utils':
+      '@capsule-sdk/test-utils':
         specifier: workspace:*
         version: link:../test-utils
       tsup:
@@ -355,11 +355,11 @@ importers:
 
   packages/adapter-docker:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
-      '@capsule/test-utils':
+      '@capsule-sdk/test-utils':
         specifier: workspace:*
         version: link:../test-utils
       tsup:
@@ -371,14 +371,14 @@ importers:
 
   packages/adapter-e2b:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
       e2b:
         specifier: ^2.20.0
         version: 2.20.0
     devDependencies:
-      '@capsule/test-utils':
+      '@capsule-sdk/test-utils':
         specifier: workspace:*
         version: link:../test-utils
       tsup:
@@ -393,7 +393,7 @@ importers:
       '@aws-sdk/client-ec2':
         specifier: ^3.955.0
         version: 3.1045.0
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -409,7 +409,7 @@ importers:
       '@aws-sdk/client-ecs':
         specifier: ^3.955.0
         version: 3.1045.0
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -422,11 +422,11 @@ importers:
 
   packages/adapter-fly:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
-      '@capsule/test-utils':
+      '@capsule-sdk/test-utils':
         specifier: workspace:*
         version: link:../test-utils
       tsup:
@@ -441,14 +441,14 @@ importers:
 
   packages/adapter-kubernetes:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
       '@kubernetes/client-node':
         specifier: ^1.4.0
         version: 1.4.0
     devDependencies:
-      '@capsule/test-utils':
+      '@capsule-sdk/test-utils':
         specifier: workspace:*
         version: link:../test-utils
       tsup:
@@ -463,11 +463,11 @@ importers:
       '@aws-sdk/client-lambda':
         specifier: ^3.955.0
         version: 3.1045.0
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
-      '@capsule/test-utils':
+      '@capsule-sdk/test-utils':
         specifier: workspace:*
         version: link:../test-utils
       tsup:
@@ -479,7 +479,7 @@ importers:
 
   packages/adapter-mock:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -492,14 +492,14 @@ importers:
 
   packages/adapter-modal:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
       modal:
         specifier: ^0.7.4
         version: 0.7.4
     devDependencies:
-      '@capsule/test-utils':
+      '@capsule-sdk/test-utils':
         specifier: workspace:*
         version: link:../test-utils
       tsup:
@@ -511,11 +511,11 @@ importers:
 
   packages/adapter-neon:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
-      '@capsule/test-utils':
+      '@capsule-sdk/test-utils':
         specifier: workspace:*
         version: link:../test-utils
       tsup:
@@ -527,11 +527,11 @@ importers:
 
   packages/adapter-vercel:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
-      '@capsule/test-utils':
+      '@capsule-sdk/test-utils':
         specifier: workspace:*
         version: link:../test-utils
       tsup:
@@ -543,7 +543,7 @@ importers:
 
   packages/ai:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -556,61 +556,61 @@ importers:
 
   packages/cli:
     dependencies:
-      '@capsule/adapter-azure-container-apps':
+      '@capsule-sdk/adapter-azure-container-apps':
         specifier: workspace:*
         version: link:../adapter-azure-container-apps
-      '@capsule/adapter-cloud-run':
+      '@capsule-sdk/adapter-cloud-run':
         specifier: workspace:*
         version: link:../adapter-cloud-run
-      '@capsule/adapter-cloudflare':
+      '@capsule-sdk/adapter-cloudflare':
         specifier: workspace:*
         version: link:../adapter-cloudflare
-      '@capsule/adapter-daytona':
+      '@capsule-sdk/adapter-daytona':
         specifier: workspace:*
         version: link:../adapter-daytona
-      '@capsule/adapter-docker':
+      '@capsule-sdk/adapter-docker':
         specifier: workspace:*
         version: link:../adapter-docker
-      '@capsule/adapter-e2b':
+      '@capsule-sdk/adapter-e2b':
         specifier: workspace:*
         version: link:../adapter-e2b
-      '@capsule/adapter-ec2':
+      '@capsule-sdk/adapter-ec2':
         specifier: workspace:*
         version: link:../adapter-ec2
-      '@capsule/adapter-ecs':
+      '@capsule-sdk/adapter-ecs':
         specifier: workspace:*
         version: link:../adapter-ecs
-      '@capsule/adapter-fly':
+      '@capsule-sdk/adapter-fly':
         specifier: workspace:*
         version: link:../adapter-fly
-      '@capsule/adapter-kubernetes':
+      '@capsule-sdk/adapter-kubernetes':
         specifier: workspace:*
         version: link:../adapter-kubernetes
-      '@capsule/adapter-lambda':
+      '@capsule-sdk/adapter-lambda':
         specifier: workspace:*
         version: link:../adapter-lambda
-      '@capsule/adapter-mock':
+      '@capsule-sdk/adapter-mock':
         specifier: workspace:*
         version: link:../adapter-mock
-      '@capsule/adapter-modal':
+      '@capsule-sdk/adapter-modal':
         specifier: workspace:*
         version: link:../adapter-modal
-      '@capsule/adapter-neon':
+      '@capsule-sdk/adapter-neon':
         specifier: workspace:*
         version: link:../adapter-neon
-      '@capsule/adapter-vercel':
+      '@capsule-sdk/adapter-vercel':
         specifier: workspace:*
         version: link:../adapter-vercel
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
-      '@capsule/presets':
+      '@capsule-sdk/presets':
         specifier: workspace:*
         version: link:../presets
-      '@capsule/preview':
+      '@capsule-sdk/preview':
         specifier: workspace:*
         version: link:../preview
-      '@capsule/store-jsonl':
+      '@capsule-sdk/store-jsonl':
         specifier: workspace:*
         version: link:../store-jsonl
     devDependencies:
@@ -635,7 +635,7 @@ importers:
 
   packages/presets:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -651,7 +651,7 @@ importers:
 
   packages/preview:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -667,7 +667,7 @@ importers:
 
   packages/store-jsonl:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -680,7 +680,7 @@ importers:
 
   packages/store-sqlite:
     dependencies:
-      '@capsule/core':
+      '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:

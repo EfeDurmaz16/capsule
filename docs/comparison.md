@@ -49,7 +49,7 @@ The boundary that does not transfer cleanly is the operation model. Storage can 
 
 Practical implication for Capsule:
 
-- keep `@capsule/core` small and dependency-light;
+- keep `@capsule-sdk/core` small and dependency-light;
 - keep adapters as subpackages;
 - keep `raw()` available for provider-native APIs;
 - add AI helpers as optional framework adapters;

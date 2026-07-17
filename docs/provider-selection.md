@@ -65,9 +65,9 @@ const machineJobRequirements = [
 Scores are workflow-specific. They are not global provider rankings.
 
 ```ts
-import { providerCompatibilityScore, explainSupportLevel } from "@capsule/core";
-import { docker } from "@capsule/adapter-docker";
-import { neon } from "@capsule/adapter-neon";
+import { providerCompatibilityScore, explainSupportLevel } from "@capsule-sdk/core";
+import { docker } from "@capsule-sdk/adapter-docker";
+import { neon } from "@capsule-sdk/adapter-neon";
 
 const candidates = [
   { name: "Docker", capabilities: docker().capabilities },

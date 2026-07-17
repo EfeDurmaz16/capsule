@@ -13,20 +13,20 @@ function listedPackages(nodeVersion) {
   return stdout
     .trim()
     .split(/\r?\n/)
-    .filter((line) => line.startsWith("@capsule/"));
+    .filter((line) => line.startsWith("@capsule-sdk/"));
 }
 
 test("engine-aware package pack smoke excludes Node 24-only packages on Node 22", () => {
   const packages = listedPackages("22.0.0");
 
-  assert.ok(packages.includes("@capsule/core"));
-  assert.ok(packages.includes("@capsule/cli"));
-  assert.ok(!packages.includes("@capsule/store-sqlite"));
+  assert.ok(packages.includes("@capsule-sdk/core"));
+  assert.ok(packages.includes("@capsule-sdk/cli"));
+  assert.ok(!packages.includes("@capsule-sdk/store-sqlite"));
 });
 
 test("engine-aware package pack smoke includes every public package on Node 24", () => {
   const packages = listedPackages("24.0.0");
 
-  assert.ok(packages.includes("@capsule/store-sqlite"));
+  assert.ok(packages.includes("@capsule-sdk/store-sqlite"));
   assert.equal(packages.length, 22);
 });

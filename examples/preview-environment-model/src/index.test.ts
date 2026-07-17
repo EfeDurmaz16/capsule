@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { buildRuntimeConfig, summarizeReceipt } from "./index.js";
-import type { CapsuleReceipt } from "@capsule/core";
+import type { CapsuleReceipt } from "@capsule-sdk/core";
 
 describe("preview environment example runtime config", () => {
   test("uses demo-only mocks when live verification is not enabled", () => {

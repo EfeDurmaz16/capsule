@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { AdapterExecutionError, Capsule, ProviderRetryableError, UnsupportedCapabilityError, runAdapterContract, verifyReceipt } from "@capsule/core";
+import { AdapterExecutionError, Capsule, ProviderRetryableError, UnsupportedCapabilityError, runAdapterContract, verifyReceipt } from "@capsule-sdk/core";
 import {
   createMockAdapter,
   mockCloudRun,

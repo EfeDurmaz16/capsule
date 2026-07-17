@@ -1,4 +1,4 @@
-import type { CapsuleReceipt } from "@capsule/core";
+import type { CapsuleReceipt } from "@capsule-sdk/core";
 
 type JsonFixture = Record<string, unknown>;
 

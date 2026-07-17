@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import type { Capsule, CapsuleReceipt, CreateSandboxSpec, ExecResult, ExecSpec, Sandbox } from "@capsule/core";
+import type { Capsule, CapsuleReceipt, CreateSandboxSpec, ExecResult, ExecSpec, Sandbox } from "@capsule-sdk/core";
 import { createCodeExecutionTool } from "./tool.js";
 
 function okResult(overrides: Partial<ExecResult> = {}): ExecResult {

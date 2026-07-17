@@ -1,4 +1,4 @@
-# @capsule/adapter-cloudflare
+# @capsule-sdk/adapter-cloudflare
 
 ## 0.1.1
 
@@ -15,4 +15,4 @@
 - Updated dependencies [f8848c0]
 - Updated dependencies [68b5121]
 - Updated dependencies [d3fe15c]
-  - @capsule/core@0.1.1
+  - @capsule-sdk/core@0.1.1

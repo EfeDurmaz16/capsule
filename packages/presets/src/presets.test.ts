@@ -8,7 +8,7 @@ import {
   nodeSandboxPreset,
   previewDatabaseBranchPreset,
   previewEnvironmentPreset
-} from "@capsule/core";
+} from "@capsule-sdk/core";
 import { describe, expect, test } from "vitest";
 import {
   cloudflareNeonPreviewPreset,
@@ -22,7 +22,7 @@ import {
   vercelWebPreset
 } from "./index.js";
 
-describe("@capsule/presets", () => {
+describe("@capsule-sdk/presets", () => {
   test("creates provider-specific presets without executing providers", () => {
     const fly = flyMachinePreset({ name: "api", image: "registry.example/api:latest", region: "iad" });
     const vercel = vercelWebPreset({ name: "web", sourcePath: "dist/index.js", project: "capsule-web" });
@@ -452,8 +452,8 @@ describe("presetCatalog", () => {
     expect(ids).toContain("cost-limited-preview");
     expect(ids).toContain("cloudflare-neon-preview");
     expect(ids).toContain("vercel-neon-preview");
-    expect(presetCatalog.some((entry) => entry.package === "@capsule/core")).toBe(true);
-    expect(presetCatalog.some((entry) => entry.package === "@capsule/presets")).toBe(true);
+    expect(presetCatalog.some((entry) => entry.package === "@capsule-sdk/core")).toBe(true);
+    expect(presetCatalog.some((entry) => entry.package === "@capsule-sdk/presets")).toBe(true);
   });
 
   test("catalog capabilityPaths stay in sync with the non-composed factories", () => {

@@ -1,4 +1,4 @@
-import type { CapabilityPath } from "@capsule/core";
+import type { CapabilityPath } from "@capsule-sdk/core";
 
 type CapabilityQueryPath<TPath extends CapabilityPath> = TPath;
 

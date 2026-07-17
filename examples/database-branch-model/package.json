@@ -1,5 +1,5 @@
 {
-  "name": "@capsule/example-database-branch-model",
+  "name": "@capsule-sdk/example-database-branch-model",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,9 +7,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@capsule/core": "workspace:*",
-    "@capsule/adapter-mock": "workspace:*",
-    "@capsule/adapter-neon": "workspace:*"
+    "@capsule-sdk/core": "workspace:*",
+    "@capsule-sdk/adapter-mock": "workspace:*",
+    "@capsule-sdk/adapter-neon": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.20.6",

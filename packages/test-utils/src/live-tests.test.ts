@@ -201,23 +201,23 @@ describe("live test gates", () => {
 
   test("registers every real adapter live-test gate and excludes mocks", () => {
     expect(liveProviderRegistry.map((entry) => entry.packageName).sort()).toEqual([
-      "@capsule/adapter-azure-container-apps",
-      "@capsule/adapter-cloud-run",
-      "@capsule/adapter-cloudflare",
-      "@capsule/adapter-daytona",
-      "@capsule/adapter-docker",
-      "@capsule/adapter-e2b",
-      "@capsule/adapter-ec2",
-      "@capsule/adapter-ecs",
-      "@capsule/adapter-fly",
-      "@capsule/adapter-kubernetes",
-      "@capsule/adapter-lambda",
-      "@capsule/adapter-modal",
-      "@capsule/adapter-neon",
-      "@capsule/adapter-vercel"
+      "@capsule-sdk/adapter-azure-container-apps",
+      "@capsule-sdk/adapter-cloud-run",
+      "@capsule-sdk/adapter-cloudflare",
+      "@capsule-sdk/adapter-daytona",
+      "@capsule-sdk/adapter-docker",
+      "@capsule-sdk/adapter-e2b",
+      "@capsule-sdk/adapter-ec2",
+      "@capsule-sdk/adapter-ecs",
+      "@capsule-sdk/adapter-fly",
+      "@capsule-sdk/adapter-kubernetes",
+      "@capsule-sdk/adapter-lambda",
+      "@capsule-sdk/adapter-modal",
+      "@capsule-sdk/adapter-neon",
+      "@capsule-sdk/adapter-vercel"
     ]);
     const packageNames = liveProviderRegistry.map((entry) => String(entry.packageName));
-    expect(packageNames.includes("@capsule/adapter-mock")).toBe(false);
+    expect(packageNames.includes("@capsule-sdk/adapter-mock")).toBe(false);
   });
 
   test("registry entries have deterministic skip reasons", () => {
