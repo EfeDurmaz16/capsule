@@ -65,6 +65,7 @@ interface ContextOptions extends PolicyInput {
   receiptScopes?: ReceiptScope | readonly ReceiptScope[];
   idempotencyKey?: string;
   idempotencyScope?: string;
+  receiptCounter?: { count: number };
 }
 
 interface ContextRuntime {
@@ -661,10 +662,10 @@ export class Capsule {
           resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider })
         };
         const policy = this.evaluateOperationPolicy("sandbox.exec", policyInput);
-        const receiptStart = runtime.receipts.length;
-        return this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxExecReceiptScope }, async () => {
+        const emitted = { count: 0 };
+        return this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxExecReceiptScope, receiptCounter: emitted }, async () => {
           const result = await sandbox.exec({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) });
-          if ((this.options.receipts ?? false) && runtime.receipts.length === receiptStart) {
+          if ((this.options.receipts ?? false) && emitted.count === 0) {
             const receipt = runtime.context.createReceipt({
               type: "sandbox.exec",
               capabilityPath: "sandbox.exec",
@@ -689,10 +690,10 @@ export class Capsule {
         const startedAt = new Date();
         const policyInput = { approval, resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider, path }) };
         const policy = this.evaluateOperationPolicy("sandbox.fileWrite", policyInput);
-        const receiptStart = runtime.receipts.length;
-        await this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxFileWriteReceiptScope }, async () => {
+        const emitted = { count: 0 };
+        await this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxFileWriteReceiptScope, receiptCounter: emitted }, async () => {
           await sandbox.writeFile(path, data);
-          if ((this.options.receipts ?? false) && runtime.receipts.length === receiptStart) {
+          if ((this.options.receipts ?? false) && emitted.count === 0) {
             runtime.context.createReceipt({
               type: "sandbox.file.write",
               capabilityPath: "sandbox.fileWrite",
@@ -709,10 +710,10 @@ export class Capsule {
         const startedAt = new Date();
         const policyInput = { approval, resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider, path }) };
         const policy = this.evaluateOperationPolicy("sandbox.fileRead", policyInput);
-        const receiptStart = runtime.receipts.length;
-        return this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxFileReadReceiptScope }, async () => {
+        const emitted = { count: 0 };
+        return this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxFileReadReceiptScope, receiptCounter: emitted }, async () => {
           const data = await sandbox.readFile(path);
-          if ((this.options.receipts ?? false) && runtime.receipts.length === receiptStart) {
+          if ((this.options.receipts ?? false) && emitted.count === 0) {
             runtime.context.createReceipt({
               type: "sandbox.file.read",
               capabilityPath: "sandbox.fileRead",
@@ -730,10 +731,10 @@ export class Capsule {
         const startedAt = new Date();
         const policyInput = { approval, resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider, path }) };
         const policy = this.evaluateOperationPolicy("sandbox.fileList", policyInput);
-        const receiptStart = runtime.receipts.length;
-        return this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxFileListReceiptScope }, async () => {
+        const emitted = { count: 0 };
+        return this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxFileListReceiptScope, receiptCounter: emitted }, async () => {
           const entries = await sandbox.listFiles(path);
-          if ((this.options.receipts ?? false) && runtime.receipts.length === receiptStart) {
+          if ((this.options.receipts ?? false) && emitted.count === 0) {
             runtime.context.createReceipt({
               type: "sandbox.file.list",
               capabilityPath: "sandbox.fileList",
@@ -751,10 +752,10 @@ export class Capsule {
         const startedAt = new Date();
         const policyInput = { approval, resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider }) };
         const policy = this.evaluateOperationPolicy("sandbox.destroy", policyInput);
-        const receiptStart = runtime.receipts.length;
-        await this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxDestroyReceiptScope }, async () => {
+        const emitted = { count: 0 };
+        await this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxDestroyReceiptScope, receiptCounter: emitted }, async () => {
           await sandbox.destroy();
-          if ((this.options.receipts ?? false) && runtime.receipts.length === receiptStart) {
+          if ((this.options.receipts ?? false) && emitted.count === 0) {
             runtime.context.createReceipt({
               type: "sandbox.destroy",
               capabilityPath: "sandbox.destroy",
@@ -842,6 +843,9 @@ export class Capsule {
           this.options.receiptSigner
         );
         runtime.receipts.push(receipt);
+        if (options.receiptCounter) {
+          options.receiptCounter.count += 1;
+        }
         void this.persistReceipt(receipt, runtime.pendingWrites);
         return receipt;
       }
