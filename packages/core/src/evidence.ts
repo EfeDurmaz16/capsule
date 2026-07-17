@@ -1,4 +1,5 @@
 import { sha256 } from "./artifacts.js";
+import { canonicalJson } from "./canonical.js";
 import type { Artifact, CapsulePolicy, CapsuleReceipt, LogEntry, ProviderOptions, SupportLevel } from "./types.js";
 
 const evidenceBundleSchema = "capsule.evidence.bundle.v1" as const;
@@ -112,21 +113,4 @@ function normalizeBundleTimestamp(value: Date | string | undefined): string {
     return value.toISOString();
   }
   return value ?? new Date().toISOString();
-}
-
-function canonicalJson(value: unknown): string {
-  if (value === undefined) {
-    return "null";
-  }
-  if (value === null || typeof value !== "object") {
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
-  }
-  return `{${Object.entries(value)
-    .filter((entry) => entry[1] !== undefined)
-    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-    .map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`)
-    .join(",")}}`;
 }
