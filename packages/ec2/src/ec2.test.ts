@@ -182,4 +182,22 @@ describe("ec2 adapter", () => {
     await none.machine.create({ name: "env", image: "ami-x", size: "t3.micro", env: {} });
     expect(userDataSent[2]).toBeUndefined();
   });
+  it("rejects a spec.region that differs from the adapter region before any request", async () => {
+    let sends = 0;
+    const client = {
+      send: async () => {
+        sends += 1;
+        return { Instances: [{ InstanceId: "i-region", State: { Name: "pending" } }] };
+      }
+    };
+    const pinned = new Capsule({ adapter: ec2({ region: "us-east-1", client }), receipts: true });
+    await expect(pinned.machine.create({ name: "r", image: "ami-x", size: "t3.micro", region: "eu-west-1" })).rejects.toBeInstanceOf(AdapterExecutionError);
+    const unpinned = new Capsule({ adapter: ec2({ client }), receipts: true });
+    await expect(unpinned.machine.create({ name: "r", image: "ami-x", size: "t3.micro", region: "eu-west-1" })).rejects.toThrow(/does not match the adapter region/);
+    expect(sends).toBe(0);
+
+    const matching = await pinned.machine.create({ name: "r", image: "ami-x", size: "t3.micro", region: "us-east-1" });
+    expect(matching.receipt?.metadata).toMatchObject({ region: "us-east-1" });
+    expect(sends).toBe(1);
+  });
 });

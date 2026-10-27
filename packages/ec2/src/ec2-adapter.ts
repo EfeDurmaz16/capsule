@@ -235,6 +235,13 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env });
         validateEnv(spec.env);
+        if (spec.region !== undefined && spec.region !== options.region) {
+          // The SDK client is bound to the adapter region; a different spec.region can be neither honored
+          // nor recorded truthfully, so refuse before any request (GAP-12).
+          throw new AdapterExecutionError(
+            `EC2 machine.create spec.region ${JSON.stringify(spec.region)} does not match the adapter region ${JSON.stringify(options.region ?? null)}. Create an ec2 adapter for that region instead.`
+          );
+        }
         const imageId = spec.image ?? options.imageId;
         const instanceType = spec.size ?? options.instanceType;
         if (!imageId) {
@@ -277,7 +284,7 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
                 ]
               },
               resource: { id, name: spec.name, status: state },
-              metadata: { region: spec.region ?? options.region, instanceType, subnetId: options.subnetId, securityGroupIds: options.securityGroupIds }
+              metadata: { region: options.region, instanceType, subnetId: options.subnetId, securityGroupIds: options.securityGroupIds }
             })
           : undefined;
         return { id, provider, name: spec.name, status: state, receipt };
