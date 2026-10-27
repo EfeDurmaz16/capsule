@@ -174,4 +174,34 @@ describe("M1 audit regressions: preview", () => {
     expect(first.receipts.at(-1)?.metadata?.operationId).toBe("pr-7@abc123");
     expect(first.cleanupPlan.actions[0]?.idempotencyKey).not.toBe(second.cleanupPlan.actions[0]?.idempotencyKey);
   });
+
+  it("PERF-08: cleanup joins scale linearly on a large graph with colliding native ids", async () => {
+    const size = 500;
+    const calls: DeleteCall[] = [];
+    const graph = await createPreviewGraph({
+      name: "large",
+      databases: Array.from({ length: size }, (_, index) => ({
+        capsule: fakeDatabase("same-provider", `project-${index}`, calls),
+        spec: { project: `project-${index}`, name: `db-${index}` }
+      }))
+    });
+    expect(new Set(graph.cleanupPlan.actions.map((action) => action.actionId)).size).toBe(size);
+    expect(graph.receipts.at(-1)?.metadata?.resources).toHaveLength(size);
+
+    let elementReads = 0;
+    const countedActions = new Proxy(graph.cleanupPlan.actions, {
+      get(target, property, receiver) {
+        if (typeof property === "string" && /^\d+$/.test(property)) elementReads += 1;
+        return Reflect.get(target, property, receiver);
+      }
+    });
+    const cleanup = await cleanupPreviewEnvironment(graph.preview, graph.resources, {
+      cleanupPlan: { ...graph.cleanupPlan, actions: countedActions }
+    });
+    expect(cleanup.status).toBe("cleaned");
+    expect(calls).toHaveLength(size);
+    expect(calls.every((call) => call.owner === call.project)).toBe(true);
+    // Indexed joins read each plan action a constant number of times; a per-resource search reads O(n^2).
+    expect(elementReads).toBeLessThanOrEqual(4 * size);
+  });
 });
