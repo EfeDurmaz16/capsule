@@ -148,7 +148,13 @@ function tags(labels?: Record<string, string>, idempotencyKey?: string, capabili
   return entries.length > 0 ? entries.map(([key, value]) => ({ key, value })) : undefined;
 }
 
-function statusFromTask(task?: Task): JobRunStatus {
+/**
+ * Completion rule for a STOPPED task (GAP-13): the job is the configured `containerName`, the container
+ * Capsule overrides with the requested command. Its exit code alone decides success. Other containers
+ * (sidecars, helpers) do not change the outcome; their raw status, exit codes and reasons stay in
+ * metadata. A main container that is missing or has no exit code did not complete, so the job failed.
+ */
+function statusFromTask(task: Task | undefined, mainContainer: string): JobRunStatus {
   switch (task?.lastStatus) {
     case "PROVISIONING":
     case "PENDING":
@@ -161,9 +167,7 @@ function statusFromTask(task?: Task): JobRunStatus {
       return "running";
     case "STOPPED":
       if (task.stopCode === "UserInitiated" || task.stoppedReason?.toLowerCase().includes("stopped by user")) return "cancelled";
-      if (task.containers?.some((container) => container.exitCode !== undefined && container.exitCode !== 0)) return "failed";
-      if (task.containers?.some((container) => container.exitCode === 0)) return "succeeded";
-      return "failed";
+      return task.containers?.find((container) => container.name === mainContainer)?.exitCode === 0 ? "succeeded" : "failed";
     default:
       return task ? "running" : "failed";
   }
@@ -179,6 +183,12 @@ function taskMetadata(task: Task | undefined, extra: Record<string, unknown> = {
     stoppedReason: task?.stoppedReason,
     startedAt: task?.startedAt?.toISOString(),
     stoppedAt: task?.stoppedAt?.toISOString(),
+    containers: task?.containers?.map((container) => ({
+      name: container.name,
+      lastStatus: container.lastStatus,
+      exitCode: container.exitCode,
+      reason: container.reason
+    })),
     ...extra
   };
 }
@@ -345,7 +355,7 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
         const response = await getClient().send(new DescribeTasksCommand({ cluster: options.cluster, tasks: [spec.id] }));
         const task = response.tasks?.[0];
         const failure = response.failures?.[0];
-        const status = statusFromTask(task);
+        const status = statusFromTask(task, options.containerName);
         const id = task?.taskArn ?? failure?.arn ?? spec.id;
         const receipt = context.receipts
           ? context.createReceipt({
@@ -353,7 +363,7 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
               capabilityPath: "job.status",
               startedAt,
               resource: { id, name: id, status },
-              metadata: taskMetadata(task, { cluster: options.cluster, failures: response.failures })
+              metadata: taskMetadata(task, { cluster: options.cluster, completionContainer: options.containerName, failures: response.failures })
             })
           : undefined;
         return {
@@ -361,14 +371,14 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
           provider,
           status,
           receipt,
-          metadata: taskMetadata(task, { cluster: options.cluster, failures: response.failures })
+          metadata: taskMetadata(task, { cluster: options.cluster, completionContainer: options.containerName, failures: response.failures })
         };
       },
       cancel: async (spec: CancelJobSpec, context: AdapterContext): Promise<CancelJobResult> => {
         const startedAt = new Date();
         const response = await getClient().send(new StopTaskCommand({ cluster: options.cluster, task: spec.id, reason: spec.reason }));
         const task = response.task;
-        const status = statusFromTask(task) === "cancelled" ? "cancelled" : "cancelling";
+        const status = statusFromTask(task, options.containerName) === "cancelled" ? "cancelled" : "cancelling";
         const id = task?.taskArn ?? spec.id;
         const receipt = context.receipts
           ? context.createReceipt({

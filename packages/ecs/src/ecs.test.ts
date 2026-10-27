@@ -390,4 +390,35 @@ describe("ecs adapter", () => {
       { name: "DeleteServiceCommand", input: { cluster: "cluster-a", service: "api", force: true } }
     ]);
   });
+  it("decides stopped task completion from the configured main container only", async () => {
+    const statusFor = async (stopCode: string, containers: Array<{ name: string; exitCode?: number; reason?: string; lastStatus?: string }>) => {
+      const capsule = new Capsule({
+        adapter: ecs({
+          cluster: "cluster-a",
+          taskDefinition: "task-def:1",
+          containerName: "main",
+          client: { send: async () => ({ tasks: [{ taskArn: "arn:task/9", lastStatus: "STOPPED", stopCode, containers }] }) }
+        })
+      });
+      return capsule.job.status({ id: "arn:task/9" });
+    };
+    // A non-essential helper failing does not fail a main container that completed.
+    expect((await statusFor("EssentialContainerExited", [{ name: "helper", exitCode: 1 }, { name: "main", exitCode: 0 }])).status).toBe("succeeded");
+    // A main container that never produced an exit code is not rescued by a helper that exited 0.
+    const neverRan = await statusFor("TaskFailedToStart", [
+      { name: "helper", exitCode: 0, lastStatus: "STOPPED" },
+      { name: "main", reason: "CannotPullContainerError", lastStatus: "STOPPED" }
+    ]);
+    expect(neverRan.status).toBe("failed");
+    expect(neverRan.metadata).toMatchObject({
+      stopCode: "TaskFailedToStart",
+      completionContainer: "main",
+      containers: [
+        { name: "helper", exitCode: 0, lastStatus: "STOPPED" },
+        { name: "main", reason: "CannotPullContainerError", lastStatus: "STOPPED" }
+      ]
+    });
+    expect((await statusFor("EssentialContainerExited", [{ name: "main", exitCode: 2 }, { name: "helper", exitCode: 0 }])).status).toBe("failed");
+    expect((await statusFor("EssentialContainerExited", [{ name: "helper", exitCode: 0 }])).status).toBe("failed");
+  });
 });
