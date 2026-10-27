@@ -5,7 +5,7 @@ Capsule can run as a provider worker for [Fabric](https://github.com/EfeDurmaz16
 - Specification: Fabric `docs/bridge-protocol.md` (bridge protocol v1).
 - Decision record: Fabric `docs/adr/0021-capsule-provider-bridge.md`, adopting drafts P09 (scoped provider identity and truthful outcomes) and P10 (Capsule worker protocol) as Proposed.
 
-Status: proposed, 2026-10-27. No worker is implemented or released yet.
+Status: proposed, 2026-10-27. The worker is implemented in [`@capsule-sdk/bridge-worker`](../packages/bridge-worker) and passes every shared fixture; it is not released yet.
 
 ## What Capsule owns
 
@@ -27,3 +27,27 @@ The worker keeps no durable job state. A worker restart is transport loss, never
 ## Fixtures
 
 `protocol/bridge/v1` in this repository is a byte-identical copy of Fabric's `protocol/bridge/v1`: framed byte cases, message cases, scenarios for the deterministic fixture provider, and the v1 capability profiles for the fixture provider and local Docker. `scripts/bridge-fixtures.test.mjs` checks every file against `manifest.sha256` and pins the manifest's own sha256; Fabric pins the same digest. Do not edit these files here. Change them in Fabric first, then copy the directory and update the pin in both repositories in linked pull requests. Prettier ignores the directory so its bytes stay exact.
+
+## The worker
+
+`@capsule-sdk/bridge-worker` ships the `capsule-bridge-worker` bin. One process serves one capability profile:
+
+```sh
+pnpm build
+node packages/bridge-worker/dist/bin.js --profile fixture --config worker.json
+node packages/bridge-worker/dist/bin.js --profile docker --config worker.json --receipts receipts.jsonl
+```
+
+Installed from npm the same command is `capsule-bridge-worker --profile <fixture|docker> --config <file>`. The config holds the scope the worker is bound to (`binding`), the worker's policy (`images`, `secrets.allowed`) and the approval grants it can resolve by ref (`approvals`); a scenario's `provider_state` is a valid fixture config. For Docker, `binding` may be omitted and the engine scope is read once from `docker context show`.
+
+How the worker applies the protocol:
+
+- Checks run in a fixed order and stop at the first failure, all before any provider call: frame, JSON, message schema, action in profile, locator scope, idempotency, owner, policy (images, secrets), fresh approval. Then the request goes through the Capsule facade, which checks policy and the grant again before the adapter runs. Idempotency is checked before policy, because the shared scenario `duplicate_idempotency_key` expects a conflict for a changed request that policy would also refuse; the order in the specification text lists idempotency last.
+- An existing resource is reached with `Capsule.sandbox.attach`, which changes nothing and carries no create grant, so exec and destroy are governed per operation.
+- A grant resolved from an approval ref is scoped to exactly that action, and to that resource when the grant names one. The ref never reaches receipts or logs.
+- Secret values are read only for names the worker's own policy allows, at the execution boundary. Docker reads them from the worker's environment; nothing else does.
+- The fixture profile runs on a virtual clock: each observation advances 1000 ms, so deadlines and observation counts are exact on any host. Docker uses the wall clock with 250 ms between observations.
+- The Docker profile creates with `--pull never`, labels each container `fabric.operation`, `fabric.job`, `fabric.attempt` and `fabric.generation`, refuses a container without this job's label, and finds an earlier create of the same operation by label after a worker restart instead of creating another.
+- Losing stdin is a shutdown with a 0 ms drain and SIGTERM one with 5 s; open requests are answered pending or unknown, nothing is cancelled at the provider, and the process exits 0. A framing error or a refused hello exits 2.
+
+Evidence: `packages/bridge-worker/src/*.test.ts` run all 15 scenarios, 46 cases and 15 frames and check that every refusal left the fixture provider's effect log empty; the pack smoke runs the packed bin outside the repository; `pnpm bridge:docker-smoke` proves the Docker profile on a local engine; `benchmarks/after/bridge` holds spawn and round-trip measurements with raw data.
