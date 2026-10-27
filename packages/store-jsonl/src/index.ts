@@ -88,12 +88,7 @@ export class JsonlReceiptStore implements ReceiptStore {
     const lines = await JsonlLineReader.open(this.options.path, this.maxLineBytes(options));
     if (!lines) return receipts;
     try {
-      while (await lines.fill()) {
-        for (let line = lines.next(); line !== undefined; line = lines.next()) {
-          const receipt = lines.parse(line);
-          if (receipt !== undefined) receipts.push(receipt);
-        }
-      }
+      while (await lines.fill()) lines.drainInto(receipts);
       const last = lines.finish();
       const receipt = last === undefined ? undefined : lines.parse(last);
       if (receipt !== undefined) receipts.push(receipt);
@@ -205,6 +200,42 @@ class JsonlLineReader {
     return line;
   }
 
+  /**
+   * Parses every complete line of the current chunk into `receipts`: next and parse in one loop over
+   * local variables, which a first call runs noticeably faster than a method call per line.
+   */
+  drainInto(receipts: CapsuleReceipt[]): void {
+    if (this.pending !== "") {
+      const first = this.next();
+      if (first === undefined) return;
+      const receipt = this.parse(first);
+      if (receipt !== undefined) receipts.push(receipt);
+    }
+    const text = this.text;
+    const maxLineBytes = this.maxLineBytes;
+    let position = this.position;
+    let lineNumber = this.lineNumber;
+    try {
+      for (let end = text.indexOf("\n", position); end !== -1; end = text.indexOf("\n", position)) {
+        const line = text.slice(position, end);
+        position = end + 1;
+        if (line.length * 3 > maxLineBytes && (line.length > maxLineBytes || Buffer.byteLength(line, "utf8") > maxLineBytes)) {
+          throw this.tooLong(lineNumber + 1);
+        }
+        lineNumber += 1;
+        if (line.trim() === "") continue;
+        try {
+          receipts.push(JSON.parse(line) as CapsuleReceipt);
+        } catch (error) {
+          throw new Error(`Invalid JSONL receipt at ${this.path}:${lineNumber}.`, { cause: error });
+        }
+      }
+    } finally {
+      this.position = position;
+      this.lineNumber = lineNumber;
+    }
+  }
+
   /** The last line when the file does not end with a line break. Call once fill returned false. */
   finish(): string | undefined {
     const line = this.pending + this.decoder.end();
@@ -237,8 +268,8 @@ class JsonlLineReader {
     }
   }
 
-  private tooLong(): Error {
-    return new Error(`JSONL receipt at ${this.path}:${this.lineNumber + 1} is longer than maxLineBytes (${this.maxLineBytes} bytes).`);
+  private tooLong(lineNumber = this.lineNumber + 1): Error {
+    return new Error(`JSONL receipt at ${this.path}:${lineNumber} is longer than maxLineBytes (${this.maxLineBytes} bytes).`);
   }
 }
 
