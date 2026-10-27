@@ -181,6 +181,24 @@ export interface CapsuleApprovalGrant {
   metadata?: Record<string, string>;
 }
 
+/**
+ * Request for a fresh cleanup approval (CD-APPROVAL). Cleanup code asks a resolver for a grant scoped to
+ * the cleanup action instead of reusing the grant that authorized creation.
+ */
+export interface CleanupApprovalRequest {
+  /** Capability path of the cleanup action, for example "service.delete" or "sandbox.destroy". */
+  capabilityPath: string;
+  /** Resource the cleanup targets, in approval-scope form. */
+  resource: CapsuleApprovalResourceScope;
+  reason?: string;
+}
+
+/**
+ * Supplies a fresh grant for one cleanup action. Returning undefined means no approval; the cleanup is
+ * then denied under an approval-required policy and reported as residual, never silently authorized.
+ */
+export type CleanupApprovalResolver = (request: CleanupApprovalRequest) => CapsuleApprovalGrant | undefined | Promise<CapsuleApprovalGrant | undefined>;
+
 export interface CapsuleApprovalResourceScope {
   type?: CapsuleDomain | string;
   id?: string;
@@ -344,11 +362,28 @@ export interface ExecSpec {
   // collection copy these out and return them on ExecResult.artifacts; adapters that do not ignore it.
   artifactPaths?: string[];
   /**
+   * Fresh approval for this exec only. When present it replaces the grant captured at sandbox.create
+   * for this operation and is validated against sandbox.exec and this sandbox. The captured create grant
+   * remains a compatibility fallback and is validated the same way. Capsule does not forward it to the
+   * adapter.
+   */
+  approval?: CapsuleApprovalGrant;
+  /**
    * Output capture bounds. maxBytes applies to stdout and stderr separately; policy.limits.maxStdoutBytes
    * and maxStderrBytes act as ceilings. Adapters that adopt bounds report truncation on ExecResult.
    */
   bounds?: CaptureBounds;
   providerOptions?: ProviderOptions;
+}
+
+/** Options for Sandbox.destroy. */
+export interface SandboxDestroyOptions {
+  /**
+   * Fresh approval for this destroy. When present it replaces the grant captured at sandbox.create and
+   * is validated against sandbox.destroy and this sandbox. A create-only grant never authorizes destroy.
+   */
+  approval?: CapsuleApprovalGrant;
+  reason?: string;
 }
 
 export interface FileEntry {
@@ -364,7 +399,7 @@ export interface Sandbox {
   writeFile(path: string, data: string | Uint8Array): Promise<void>;
   readFile(path: string): Promise<Uint8Array>;
   listFiles(path: string): Promise<FileEntry[]>;
-  destroy(): Promise<void>;
+  destroy(options?: SandboxDestroyOptions): Promise<void>;
 }
 
 export interface RunJobSpec {

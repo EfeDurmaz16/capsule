@@ -45,7 +45,7 @@ import type {
   VersionEdgeSpec
 } from "./types.js";
 import type { ReceiptSigner } from "./receipts.js";
-import type { ExecSpec, Sandbox } from "./types.js";
+import type { ExecSpec, Sandbox, SandboxDestroyOptions } from "./types.js";
 
 export interface CapsuleOptions {
   adapter: CapsuleAdapter;
@@ -657,14 +657,16 @@ export class Capsule {
         const policyInput = {
           env: spec.env,
           timeoutMs: spec.timeoutMs,
-          approval,
+          // A fresh per-exec grant replaces the captured create grant for this operation only.
+          approval: spec.approval ?? approval,
           idempotencyKey: spec.idempotencyKey,
           resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider })
         };
         const policy = this.evaluateOperationPolicy("sandbox.exec", policyInput);
         const emitted = { count: 0 };
+        const { approval: _freshApproval, ...adapterSpec } = spec;
         return this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxExecReceiptScope, receiptCounter: emitted }, async () => {
-          const result = await sandbox.exec({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) });
+          const result = await sandbox.exec({ ...adapterSpec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) });
           if ((this.options.receipts ?? false) && emitted.count === 0) {
             const receipt = runtime.context.createReceipt({
               type: "sandbox.exec",
@@ -747,10 +749,14 @@ export class Capsule {
           return entries;
         });
       },
-      destroy: async () => {
+      destroy: async (options?: SandboxDestroyOptions) => {
         this.require("sandbox.destroy");
         const startedAt = new Date();
-        const policyInput = { approval, resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider }) };
+        // A fresh destroy grant replaces the captured create grant; both are validated for sandbox.destroy.
+        const policyInput = {
+          approval: options?.approval ?? approval,
+          resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider })
+        };
         const policy = this.evaluateOperationPolicy("sandbox.destroy", policyInput);
         const emitted = { count: 0 };
         await this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxDestroyReceiptScope, receiptCounter: emitted }, async () => {

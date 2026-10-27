@@ -1,5 +1,5 @@
 // Shared M1 contract seams: machine transition statuses, CD-DELETE lifecycle errors and bounded
-// observation and CD-BOUNDS capture budgets.
+// observation, CD-BOUNDS capture budgets and CD-APPROVAL fresh per-operation approval.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CapsuleAdapter } from "./adapters.js";
 import {
@@ -17,12 +17,13 @@ import {
   CleanupFailureError,
   PartialEffectsError,
   PendingOperationError,
+  PolicyViolationError,
   UnknownOutcomeError,
   partialEffectsOf,
   type PartialEffects
 } from "./errors.js";
 import { isTransitionalMachineStatus, machineStatuses, observeUntilTerminal, resourceLocator, type MachineStatus } from "./lifecycle.js";
-import type { Machine, MachineStatusResult } from "./types.js";
+import type { CapsuleApprovalGrant, ExecResult, ExecSpec, Machine, MachineStatusResult } from "./types.js";
 
 const locator = resourceLocator({ provider: "fake", kind: "service", nativeId: "svc-1", scope: { project: "p1" } });
 
@@ -309,5 +310,87 @@ describe("capture bounds", () => {
       })
     ).rejects.toThrow("boom");
     expect(started).toEqual([1, 2]);
+  });
+});
+
+describe("fresh per-operation sandbox approval", () => {
+  const seen: { exec: ExecSpec[]; destroyed: number } = { exec: [], destroyed: 0 };
+  const adapter: CapsuleAdapter = {
+    name: "fake",
+    provider: "fake",
+    capabilities: { sandbox: { create: "native", exec: "native", fileRead: "native", fileWrite: "native", fileList: "native", destroy: "native" } },
+    sandbox: {
+      create: async () => ({
+        handle: { id: "box", provider: "fake", createdAt: new Date(0).toISOString() },
+        exec: async (spec): Promise<ExecResult> => {
+          seen.exec.push(spec);
+          return { exitCode: 0, stdout: "", stderr: "", logs: [], artifacts: [] };
+        },
+        writeFile: async () => {},
+        readFile: async () => new Uint8Array(),
+        listFiles: async () => [],
+        destroy: async () => {
+          seen.destroyed += 1;
+        }
+      })
+    }
+  };
+  const policy = { approvals: { required: true, reason: "change ticket" } };
+  const grant = (capabilities: string[], extra: Partial<CapsuleApprovalGrant> = {}): CapsuleApprovalGrant => ({
+    approved: true,
+    id: `grant-${capabilities.join("+")}`,
+    capabilities,
+    resources: [{ type: "sandbox" }],
+    ...extra
+  });
+
+  afterEach(() => {
+    seen.exec = [];
+    seen.destroyed = 0;
+  });
+
+  it("a create-only grant never authorizes exec or destroy, and fresh scoped grants do", async () => {
+    const capsule = new Capsule({ adapter, policy });
+    const sandbox = await capsule.sandbox.create({ approval: grant(["sandbox.create"]) });
+    await expect(sandbox.exec({ command: "true" })).rejects.toBeInstanceOf(PolicyViolationError);
+    await expect(sandbox.destroy()).rejects.toBeInstanceOf(PolicyViolationError);
+    expect(seen.exec).toHaveLength(0);
+    expect(seen.destroyed).toBe(0);
+
+    await sandbox.exec({ command: "true", approval: grant(["sandbox.exec"]) });
+    expect(seen.exec).toHaveLength(1);
+    await sandbox.destroy({ approval: grant(["sandbox.destroy"]) });
+    expect(seen.destroyed).toBe(1);
+  });
+
+  it("a fresh grant is scoped to its own action and resource", async () => {
+    const capsule = new Capsule({ adapter, policy });
+    const sandbox = await capsule.sandbox.create({ approval: grant(["sandbox.create"]) });
+    await expect(sandbox.destroy({ approval: grant(["sandbox.exec"]) })).rejects.toBeInstanceOf(PolicyViolationError);
+    await expect(
+      sandbox.exec({ command: "true", approval: { ...grant(["sandbox.exec"]), resources: [{ type: "sandbox", id: "other-box" }] } })
+    ).rejects.toBeInstanceOf(PolicyViolationError);
+    expect(seen.exec).toHaveLength(0);
+    expect(seen.destroyed).toBe(0);
+  });
+
+  it("an expired fresh grant denies even when the captured grant would allow", async () => {
+    const capsule = new Capsule({ adapter, policy });
+    const sandbox = await capsule.sandbox.create({ approval: grant(["sandbox.create", "sandbox.exec", "sandbox.destroy"]) });
+    await expect(sandbox.exec({ command: "true", approval: grant(["sandbox.exec"], { expiresAt: "2000-01-01T00:00:00.000Z" }) })).rejects.toBeInstanceOf(
+      PolicyViolationError
+    );
+    expect(seen.exec).toHaveLength(0);
+  });
+
+  it("keeps the captured create grant as a validated compatibility fallback and does not forward approval to the adapter", async () => {
+    const capsule = new Capsule({ adapter, policy });
+    const sandbox = await capsule.sandbox.create({ approval: grant(["sandbox.create", "sandbox.exec", "sandbox.destroy"]) });
+    await sandbox.exec({ command: "true" });
+    await sandbox.exec({ command: "true", approval: grant(["sandbox.exec"]) });
+    await sandbox.destroy();
+    expect(seen.exec).toHaveLength(2);
+    expect(seen.exec.every((spec) => !("approval" in spec))).toBe(true);
+    expect(seen.destroyed).toBe(1);
   });
 });
