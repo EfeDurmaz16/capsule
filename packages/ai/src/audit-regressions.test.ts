@@ -202,4 +202,20 @@ describe("GAP-20: the strict Responses tool schema follows the official strict-m
     expect(() => toOpenAIStrictJsonSchema({ type: "object", properties: { a: { allOf: [] } } })).toThrow("does not support allOf");
     expect(() => toOpenAIStrictJsonSchema({ type: "object", additionalProperties: true, properties: {} })).toThrow("additionalProperties: false");
   });
+
+  it("throws on an open or map object without properties instead of closing it to an empty object", () => {
+    // A map such as env: { [name]: string } has no strict-mode form. Rewriting it to a closed object with
+    // no properties let the model send only {}, silently dropping every entry.
+    const map = { type: "object", properties: { env: { type: "object", additionalProperties: { type: "string" } } }, required: ["env"] };
+    expect(() => toOpenAIStrictJsonSchema(map)).toThrow("additionalProperties: false (at #/properties/env)");
+    expect(() => toOpenAIStrictJsonSchema({ type: "object", additionalProperties: true })).toThrow("additionalProperties: false (at #)");
+    expect(() => toOpenAIStrictJsonSchema({ type: ["object", "null"], additionalProperties: {} })).toThrow("additionalProperties: false (at #)");
+    expect(toOpenAIStrictJsonSchema({ type: "object" })).toEqual({ type: "object", additionalProperties: false, required: [], properties: {} });
+    expect(toOpenAIStrictJsonSchema({ type: "object", additionalProperties: false })).toEqual({
+      type: "object",
+      additionalProperties: false,
+      required: [],
+      properties: {}
+    });
+  });
 });

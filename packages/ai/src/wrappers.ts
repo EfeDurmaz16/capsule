@@ -113,7 +113,9 @@ const unsupportedStrictKeywords = ["allOf", "not", "if", "then", "else", "depend
  * Normalizes a JSON Schema to the OpenAI strict function-calling subset: every object lists all of its
  * properties in `required` and sets `additionalProperties: false`, properties that were optional become
  * nullable, and `oneOf` becomes `anyOf`. `oneOf` to `anyOf` keeps the accepted values only when the
- * branches are disjoint, as they are in Capsule's schemas. Keywords strict mode does not support throw.
+ * branches are disjoint, as they are in Capsule's schemas. Keywords strict mode does not support throw, and
+ * so does any schema whose `additionalProperties` is not `false` or absent, such as a map, because strict
+ * mode cannot express it and closing it would silently drop every entry.
  */
 export function toOpenAIStrictJsonSchema(schema: JsonSchema): JsonSchema {
   return normalizeStrict(schema, "#");
@@ -122,6 +124,11 @@ export function toOpenAIStrictJsonSchema(schema: JsonSchema): JsonSchema {
 function normalizeStrict(schema: JsonSchema, at: string): JsonSchema {
   for (const keyword of unsupportedStrictKeywords) {
     if (keyword in schema) throw new Error(`OpenAI strict mode does not support ${keyword} (at ${at}).`);
+  }
+  // Checked on every node, not only objects with properties: an open or map object without properties was
+  // otherwise closed below to an object that accepts only {}.
+  if (schema.additionalProperties !== undefined && schema.additionalProperties !== false) {
+    throw new Error(`OpenAI strict mode requires additionalProperties: false (at ${at}).`);
   }
   const out: JsonSchema = {};
   for (const [key, value] of Object.entries(schema)) {
@@ -136,9 +143,6 @@ function normalizeStrict(schema: JsonSchema, at: string): JsonSchema {
     }
   }
   if (isSchema(schema.properties)) {
-    if (schema.additionalProperties !== undefined && schema.additionalProperties !== false) {
-      throw new Error(`OpenAI strict mode requires additionalProperties: false (at ${at}).`);
-    }
     const required = new Set(Array.isArray(schema.required) ? (schema.required as string[]) : []);
     const properties: JsonSchema = {};
     for (const [name, child] of Object.entries(schema.properties)) {
