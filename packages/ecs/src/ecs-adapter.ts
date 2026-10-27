@@ -183,7 +183,11 @@ function tags(labels?: Record<string, string>, idempotencyKey?: string, capabili
  * token. This is provider retry deduplication within the ECS token window, not exactly-once execution.
  */
 function ecsRunTaskClientToken(idempotencyKey: string | undefined, options: Pick<ECSAdapterOptions, "region" | "cluster">): string | undefined {
-  return capsuleOperationTag({ idempotencyKey, capabilityPath: "job.run", idempotencyScope: `ecs:job.run:${options.region ?? "sdk-default-region"}:${options.cluster}` });
+  return capsuleOperationTag({
+    idempotencyKey,
+    capabilityPath: "job.run",
+    idempotencyScope: `ecs:job.run:${options.region ?? "sdk-default-region"}:${options.cluster}`
+  });
 }
 
 /**
@@ -583,7 +587,9 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
                     "ECS CreateService is native for an existing task definition.",
                     "Capsule does not create load balancers, target groups, service discovery, or task definitions in this adapter.",
                     ...(spec.idempotencyKey
-                      ? ["service.deploy idempotencyKey is a correlation tag only; ECS service names are unique per cluster, and no native clientToken is sent."]
+                      ? [
+                          "service.deploy idempotencyKey is a correlation tag only; ECS service names are unique per cluster, and no native clientToken is sent."
+                        ]
                       : [])
                   ]
                 },

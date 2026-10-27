@@ -193,7 +193,9 @@ describe("ec2 adapter", () => {
     const pinned = new Capsule({ adapter: ec2({ region: "us-east-1", client }), receipts: true });
     await expect(pinned.machine.create({ name: "r", image: "ami-x", size: "t3.micro", region: "eu-west-1" })).rejects.toBeInstanceOf(AdapterExecutionError);
     const unpinned = new Capsule({ adapter: ec2({ client }), receipts: true });
-    await expect(unpinned.machine.create({ name: "r", image: "ami-x", size: "t3.micro", region: "eu-west-1" })).rejects.toThrow(/does not match the adapter region/);
+    await expect(unpinned.machine.create({ name: "r", image: "ami-x", size: "t3.micro", region: "eu-west-1" })).rejects.toThrow(
+      /does not match the adapter region/
+    );
     expect(sends).toBe(0);
 
     const matching = await pinned.machine.create({ name: "r", image: "ami-x", size: "t3.micro", region: "us-east-1" });
@@ -249,13 +251,17 @@ describe("ec2 adapter", () => {
     };
     const first = await createWith("us-east-1", "machine-7");
     expect((await createWith("us-east-1", "machine-7")).token).toBe(first.token);
-    expect(first.token).toBe(capsuleOperationTag({ idempotencyKey: "machine-7", capabilityPath: "machine.create", idempotencyScope: "ec2:machine.create:us-east-1" }));
+    expect(first.token).toBe(
+      capsuleOperationTag({ idempotencyKey: "machine-7", capabilityPath: "machine.create", idempotencyScope: "ec2:machine.create:us-east-1" })
+    );
     expect(first.token).toMatch(/^[0-9a-f]{32}$/);
     expect(first.token).not.toContain("machine-7");
     expect((await createWith("eu-west-1", "machine-7")).token).not.toBe(first.token);
     expect((await createWith("us-east-1", "machine-8")).token).not.toBe(first.token);
     expect((await createWith("us-east-1")).token).toBeUndefined();
-    expect(first.machine.receipt?.policy.notes?.some((note) => note.includes("RunInstances ClientToken") && note.includes("not an exactly-once guarantee"))).toBe(true);
+    expect(
+      first.machine.receipt?.policy.notes?.some((note) => note.includes("RunInstances ClientToken") && note.includes("not an exactly-once guarantee"))
+    ).toBe(true);
   });
 
   it("surfaces IdempotentParameterMismatch for a reused ClientToken as a provider error", async () => {

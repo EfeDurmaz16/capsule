@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, capsuleOperationTag, CleanupFailureError, PendingOperationError, ProviderRetryableError, ProviderValidationError, runAdapterContract } from "@capsule-sdk/core";
+import {
+  AdapterExecutionError,
+  Capsule,
+  capsuleOperationTag,
+  CleanupFailureError,
+  PendingOperationError,
+  ProviderRetryableError,
+  ProviderValidationError,
+  runAdapterContract
+} from "@capsule-sdk/core";
 import { ecs, ecsCapabilities } from "./index.js";
 
 function awsError(name: string, httpStatusCode: number, message = name): Error {
@@ -411,7 +420,14 @@ describe("ecs adapter", () => {
       return capsule.job.status({ id: "arn:task/9" });
     };
     // A non-essential helper failing does not fail a main container that completed.
-    expect((await statusFor("EssentialContainerExited", [{ name: "helper", exitCode: 1 }, { name: "main", exitCode: 0 }])).status).toBe("succeeded");
+    expect(
+      (
+        await statusFor("EssentialContainerExited", [
+          { name: "helper", exitCode: 1 },
+          { name: "main", exitCode: 0 }
+        ])
+      ).status
+    ).toBe("succeeded");
     // A main container that never produced an exit code is not rescued by a helper that exited 0.
     const neverRan = await statusFor("TaskFailedToStart", [
       { name: "helper", exitCode: 0, lastStatus: "STOPPED" },
@@ -426,7 +442,14 @@ describe("ecs adapter", () => {
         { name: "main", reason: "CannotPullContainerError", lastStatus: "STOPPED" }
       ]
     });
-    expect((await statusFor("EssentialContainerExited", [{ name: "main", exitCode: 2 }, { name: "helper", exitCode: 0 }])).status).toBe("failed");
+    expect(
+      (
+        await statusFor("EssentialContainerExited", [
+          { name: "main", exitCode: 2 },
+          { name: "helper", exitCode: 0 }
+        ])
+      ).status
+    ).toBe("failed");
     expect((await statusFor("EssentialContainerExited", [{ name: "helper", exitCode: 0 }])).status).toBe("failed");
   });
   it("observes a DRAINING deletion until ECS reports the service INACTIVE, MISSING or not found", async () => {
@@ -452,7 +475,10 @@ describe("ecs adapter", () => {
 
     const inactive = await scenario(() => ({ services: [{ serviceArn: "arn:service/api", serviceName: "api", status: "INACTIVE" }] }));
     expect(inactive.describes).toBe(3);
-    expect(inactive.deleted).toMatchObject({ status: "deleted", metadata: { deletion: { acknowledgedStatus: "DRAINING", observedTerminal: "INACTIVE", observations: 3 } } });
+    expect(inactive.deleted).toMatchObject({
+      status: "deleted",
+      metadata: { deletion: { acknowledgedStatus: "DRAINING", observedTerminal: "INACTIVE", observations: 3 } }
+    });
     expect(inactive.deleted.receipt?.resource).toMatchObject({ status: "deleted" });
 
     const missing = await scenario(() => ({ services: [], failures: [{ arn: "arn:service/api", reason: "MISSING" }] }));
@@ -483,12 +509,20 @@ describe("ecs adapter", () => {
     const receipts: unknown[] = [];
     const client = {
       send: async (command: any) => {
-        if (command.constructor.name === "DescribeServicesCommand") return { services: [{ serviceArn: "arn:aws:ecs:us-east-1:1:service/c/api", status: "DRAINING", runningCount: 2 }] };
+        if (command.constructor.name === "DescribeServicesCommand")
+          return { services: [{ serviceArn: "arn:aws:ecs:us-east-1:1:service/c/api", status: "DRAINING", runningCount: 2 }] };
         return { service: { serviceArn: "arn:aws:ecs:us-east-1:1:service/c/api", status: "DRAINING", runningCount: 2 } };
       }
     };
     const capsule = new Capsule({
-      adapter: ecs({ region: "us-east-1", cluster: "c", taskDefinition: "api:3", containerName: "main", deleteObservation: { deadlineMs: 30, intervalMs: 5 }, client }),
+      adapter: ecs({
+        region: "us-east-1",
+        cluster: "c",
+        taskDefinition: "api:3",
+        containerName: "main",
+        deleteObservation: { deadlineMs: 30, intervalMs: 5 },
+        client
+      }),
       receipts: true,
       receiptStore: { write: (receipt: unknown) => void receipts.push(receipt) } as never
     });
@@ -512,7 +546,8 @@ describe("ecs adapter", () => {
       send: async (command: any) => {
         const name = command.constructor.name;
         sent.push({ name, input: command.input });
-        if (name === "UpdateServiceCommand") return { service: { serviceArn: "arn:service/api", status: "ACTIVE", desiredCount: 0, runningCount: 1, pendingCount: 0 } };
+        if (name === "UpdateServiceCommand")
+          return { service: { serviceArn: "arn:service/api", status: "ACTIVE", desiredCount: 0, runningCount: 1, pendingCount: 0 } };
         if (name === "DeleteServiceCommand") {
           deleted = true;
           return { service: { serviceArn: "arn:service/api", status: "DRAINING", runningCount: 0 } };
@@ -541,7 +576,8 @@ describe("ecs adapter", () => {
     const client = {
       send: async (command: any) => {
         sent.push(command.constructor.name);
-        if (command.constructor.name === "DescribeServicesCommand") return { services: [{ serviceArn: "arn:service/api", status: "ACTIVE", runningCount: 1, pendingCount: 0 }] };
+        if (command.constructor.name === "DescribeServicesCommand")
+          return { services: [{ serviceArn: "arn:service/api", status: "ACTIVE", runningCount: 1, pendingCount: 0 }] };
         return { service: { serviceArn: "arn:service/api", status: "ACTIVE", desiredCount: 0, runningCount: 1, pendingCount: 0 } };
       }
     };
