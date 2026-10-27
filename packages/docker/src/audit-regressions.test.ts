@@ -38,7 +38,7 @@ describe("M1 audit regressions: docker", () => {
     expect(store.receipts.some((receipt) => receipt.type === "sandbox.destroy" && receipt.resource?.status === "deleted")).toBe(false);
   });
 
-  it.fails("SB-02: listFiles treats dollar and backtick paths as literals", async () => {
+  it("SB-02: listFiles treats dollar and backtick paths as literals", async () => {
     const dir = mkdtempSync(join(tmpdir(), "capsule-sb02-"));
     const marker = join(dir, "marker");
     const fake = fakeDocker((args) => {
@@ -58,6 +58,23 @@ describe("M1 audit regressions: docker", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("SB-02: listFiles passes the literal path as one argv element and parses NUL-separated entries", async () => {
+    const tricky = "/workspace/it's \"$HOME\" `id`\nnext";
+    const fake = fakeDocker((args) => {
+      if (args[0] !== "exec") return undefined;
+      return { ...ok, stdout: ["a\tb\nc", `${tricky}/a\tb\nc`, "f", "3", "sub", `${tricky}/sub`, "d", "4096", ""].join("\0") };
+    });
+    const box = await new Capsule({ adapter: fake.adapter }).sandbox.create({});
+    const entries = await box.listFiles(tricky);
+    expect(fake.calls.at(-1)).toEqual(["exec", "audit-container", "find", tricky, "-maxdepth", "1", "-mindepth", "1", "-printf", "%f\\0%p\\0%y\\0%s\\0"]);
+    expect(entries).toEqual([
+      { name: "a\tb\nc", path: `${tricky}/a\tb\nc`, type: "file", sizeBytes: 3 },
+      { name: "sub", path: `${tricky}/sub`, type: "directory", sizeBytes: 4096 }
+    ]);
+    await box.listFiles("-delete");
+    expect(fake.calls.at(-1)?.[3]).toBe("./-delete");
   });
 
   it.fails("SB-04: a receipt signer failure after allocation attempts container removal and keeps the original error", async () => {

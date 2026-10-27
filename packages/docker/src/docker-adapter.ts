@@ -246,6 +246,28 @@ async function collectSandboxArtifacts(runner: DockerRunner, containerId: string
   }
 }
 
+// Builds the argv for listing one directory level. A path that find would parse as an expression
+// (leading "-", "(" or "!") is anchored with "./" so it can only ever be a starting point.
+export function dockerListFilesCommand(path: string): string[] {
+  const startingPoint = /^[-(!]/.test(path) ? `./${path}` : path;
+  return ["find", startingPoint, "-maxdepth", "1", "-mindepth", "1", "-printf", "%f\\0%p\\0%y\\0%s\\0"];
+}
+
+function parseDockerListFiles(stdout: string): FileEntry[] {
+  const fields = stdout.split("\0");
+  const entries: FileEntry[] = [];
+  for (let index = 0; index + 3 < fields.length; index += 4) {
+    const [name = "", entryPath = "", kind = "", size = ""] = fields.slice(index, index + 4);
+    entries.push({
+      name,
+      path: entryPath,
+      type: kind === "f" ? "file" : kind === "d" ? "directory" : "unknown",
+      sizeBytes: Number(size) || undefined
+    });
+  }
+  return entries;
+}
+
 async function ensureDocker(checkAvailable: () => Promise<boolean>): Promise<void> {
   if (!(await checkAvailable())) {
     throw providerExecutionError("Docker CLI is not available or the Docker daemon is not reachable.", { category: "retryable", retryable: true });
@@ -325,23 +347,13 @@ class DockerSandbox implements Sandbox {
   }
 
   async listFiles(path: string): Promise<FileEntry[]> {
-    const command = `find ${JSON.stringify(path)} -maxdepth 1 -mindepth 1 -printf '%f\\t%p\\t%y\\t%s\\n'`;
-    const result = await this.runner(["exec", this.handle.id, "sh", "-lc", command]);
+    // The path travels as one argv element to find, never through a shell, so quotes, $(), backticks
+    // and newlines stay literal. Fields are NUL-separated because file names may contain tabs or newlines.
+    const result = await this.runner(["exec", this.handle.id, ...dockerListFilesCommand(path)]);
     if (result.exitCode !== 0) {
       throw dockerCliError(`docker exec list failed: ${result.stderr}`, result);
     }
-    return result.stdout
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => {
-        const [name = "", entryPath = "", kind = "unknown", size = ""] = line.split("\t");
-        return {
-          name,
-          path: entryPath,
-          type: kind === "f" ? "file" : kind === "d" ? "directory" : "unknown",
-          sizeBytes: Number(size) || undefined
-        };
-      });
+    return parseDockerListFiles(result.stdout);
   }
 
   async destroy(): Promise<void> {
