@@ -68,3 +68,11 @@ Docker and Fabric:
 - `docker-smoke-node22.json`: `pnpm bridge:docker-smoke` on OrbStack with `debian:bookworm-slim`, never pulled; all 11 checks pass.
 - `context-route-probe.json`: a read-only observe of a container id that exists on no engine. With `--engine desktop-linux`, a context whose daemon is down, the worker now answers `unknown`/`observation_failed`; before, the command went to the CLI's current context (orbstack) and answered `completed` with `destroyed`. With `--engine orbstack` it answers `completed`.
 - `fabric-interop.log`: Fabric `44d677a` `crates/fabric-bridge/tests/capsule_worker.rs` against the worker at `ca38f75`, 7 of 7 pass, the Docker profile on the local engine included. `fabric-interop-repeats.txt`: of six full runs, five pass and one failed `shutdown_reports_unresolved` step 5 with 4 observations where the fixture has 2. On the fixture's virtual clock each observation sleep is one event loop turn, so when `observe` and `shutdown` arrive in two pipe reads instead of one, the observe has already advanced before the drain starts. Capsule's own scenario run sends both in one chunk. `fabric-interop-before-seed-fix.log` is the run that showed the first observe owner check refusing the sandbox Fabric seeds for its restart test, which `8b1501f` fixed.
+
+## After merging M1
+
+`6f5a8d0` merges the moved `m1/correctness-perf-ci` (`aeefbb2`) into this branch, so the stacked PR can merge and run CI. `merge-m1/` holds what was run on the merge:
+
+- `gates.txt`: every CI gate on Node 22 and the Node compatibility gates on Node 24 pass, including `bench:bounds` with M1's perf-11, perf-12 and perf-14 workloads.
+- `docker-smoke-node22.json`: `pnpm bridge:docker-smoke` on OrbStack with `debian:bookworm-slim`, never pulled; all 11 checks pass with M1's Docker changes in.
+- `fabric-interop.log`: Fabric `0b6b3a3` `crates/fabric-bridge/tests/capsule_worker.rs` against this worker, 8 of 8 pass, the Docker profile included. Fabric `0b6b3a3` sends consecutive scenario frames in one write, as Capsule's runner does; that removed the `shutdown_reports_unresolved` flake described above (100 of 100 runs pass, against 39 of 40 before).

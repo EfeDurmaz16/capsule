@@ -1,0 +1,33 @@
+# Capsule gates after merging m1/correctness-perf-ci
+
+commit: 6f5a8d070cea4d4d64d2e1cf84e4930492edeb64 (merge of 884e568 and origin/m1/correctness-perf-ci aeefbb2)
+host: darwin 25.6.0 arm64, Apple M5 Pro, 18 cpus, load average 13 to 17 from other work
+pnpm: 10.32.1
+gates: the commands of .github/workflows/ci.yml, run locally
+
+## Node 22.23.2
+PASS  pnpm install --frozen-lockfile
+PASS  pnpm capsule:gap:check
+PASS  pnpm format:check
+PASS  pnpm typecheck
+PASS  pnpm build
+PASS  pnpm test                              vitest: 82 files passed, 11 skipped; 1068 tests passed, 20 skipped. node --test: 62 of 62 pass
+PASS  pnpm release:audit                     pack smoke passed for 23 packages, packed capsule-bridge-worker round trip, refusal before effect and oversize hello
+PASS  pnpm docs:api:check                    docs/api-reference.md is current
+PASS  pnpm test:package-exports              3 of 3
+PASS  pnpm release:pack-smoke:compatible     22 packages
+PASS  pnpm bench:bounds                      perf-01, 02, 03, 04, 05, 10, 11, 12 and 14 meet every deterministic bound
+
+## Node 24.19.0
+PASS  pnpm test                              vitest: 82 files passed, 11 skipped; 1068 tests passed, 20 skipped. node --test passes
+PASS  pnpm test:package-exports
+PASS  pnpm release:pack-smoke:compatible     23 packages
+
+## Docker profile on the local engine
+PASS  pnpm bridge:docker-smoke               OrbStack, Docker 29.4.0, debian:bookworm-slim already present, never pulled; all 11 checks true (docker-smoke-node22.json)
+
+## Fabric's client against this worker
+PASS  Fabric 0b6b3a3, cargo test -p fabric-bridge --test capsule_worker -- --ignored
+      8 of 8 pass with CAPSULE_BRIDGE_DOCKER_IMAGE=debian:bookworm-slim, the Docker profile test included (fabric-interop.log)
+      every_shared_scenario_over_the_workers_stdio repeated: 100 of 100 pass with Fabric's one-write replay,
+      against 39 of 40 with the replay before 0b6b3a3 (one failure at shutdown_reports_unresolved step 5, 4 observations against 2)
