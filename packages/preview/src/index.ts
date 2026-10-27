@@ -752,10 +752,19 @@ function bindCleanupPlan(
   }
 
   const bindings = new Map<PreviewResourceRecord, PreviewCleanupPlanAction | undefined>();
-  for (const resource of resources) {
+  for (const [index, resource] of resources.entries()) {
     const cleanup = resource.cleanup;
     if (!cleanup) continue;
-    if (resource.ref !== undefined) {
+    if (resource.ref === undefined) {
+      // createPreviewCleanupPlan gives a ref-less record the positional ref "resource-<index>". When the
+      // plan carries that action and it matches this record's identity, it is this record's own action;
+      // only otherwise fall back to the legacy identity search below.
+      const positional = actionsByRef.get(resourceRefOf(resource, index));
+      if (positional && actionMatchesResource(positional, resource, cleanup)) {
+        bindings.set(resource, positional);
+        continue;
+      }
+    } else {
       const action = actionsByRef.get(resource.ref);
       if (action) {
         if (!actionMatchesResource(action, resource, cleanup)) {
@@ -1073,6 +1082,8 @@ export async function cleanupPreviewEnvironment(
   options: CleanupPreviewEnvironmentOptions = {}
 ): Promise<PreviewCleanupResult> {
   const startedAt = options.startedAt ?? new Date();
+  // A plan generated here from these same records gives every record its own action (by ref, or by
+  // position for ref-less records), so binding it can never be ambiguous.
   const cleanupPlan = options.cleanupPlan ?? createPreviewCleanupPlan(preview, resources, { createdAt: startedAt });
   // Bind every resource to its own plan action (or none) before the first delete, so a foreign or
   // ambiguous plan fails without effects instead of routing one resource's spec to another Capsule.

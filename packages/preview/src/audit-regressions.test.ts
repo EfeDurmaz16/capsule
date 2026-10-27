@@ -359,4 +359,44 @@ describe("M1 audit regressions: preview", () => {
     });
     expect(graph.receipts.at(-1)?.metadata?.ttl).toMatchObject({ requestedMs: 60_000, enforcement: "record-only" });
   });
+
+  function namespacedService(namespace: string, deletes: string[], provider = "kubernetes") {
+    return new Capsule({
+      adapter: {
+        name: `kubernetes-${namespace}`,
+        provider,
+        capabilities: { service: { deploy: "native", delete: "native" } } as never,
+        service: {
+          deploy: async (spec) => ({ id: spec.name, provider, name: spec.name, status: "ready" }),
+          delete: async (spec) => {
+            deletes.push(`${namespace}/${spec.id}`);
+            return { id: spec.id, provider, name: spec.id, status: "deleted" };
+          }
+        }
+      },
+      policy: { approvals: { required: true, reason: "delete needs approval" } }
+    });
+  }
+
+  it("COMP-01: cleanup without a plan deletes ref-less same-id records through their own Capsule", async () => {
+    const deletes: string[] = [];
+    const graph = await createPreviewGraph({
+      name: "same-id",
+      services: [
+        { capsule: namespacedService("ns-a", deletes), spec: { name: "web", image: "img", approval: { approved: true, id: "deploy" } } },
+        { capsule: namespacedService("ns-b", deletes), spec: { name: "web", image: "img", approval: { approved: true, id: "deploy" } } }
+      ]
+    });
+    const refless = graph.resources.map(({ ref: _ref, ...resource }) => resource);
+    const approval = () => ({ approved: true, id: "fresh-delete" });
+    const cleanup = await cleanupPreviewEnvironment(graph.preview, refless, { approval });
+    expect(cleanup.status).toBe("cleaned");
+    expect(deletes.sort()).toEqual(["ns-a/web", "ns-b/web"]);
+
+    deletes.length = 0;
+    const plan = (await import("./index.js")).createPreviewCleanupPlan(graph.preview, refless);
+    const withPlan = await cleanupPreviewEnvironment(graph.preview, refless, { cleanupPlan: plan, approval });
+    expect(withPlan.status).toBe("cleaned");
+    expect(deletes.sort()).toEqual(["ns-a/web", "ns-b/web"]);
+  });
 });
