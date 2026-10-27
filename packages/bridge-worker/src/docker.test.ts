@@ -33,6 +33,8 @@ class FakeEngine {
   current = "fake-engine";
   /** Makes `docker rm` come back the way runDocker reports its own timeout. */
   rmTimesOut = false;
+  /** Subcommands that fail as an unreachable engine does. */
+  readonly down = new Set<string>();
   /** Milliseconds each docker subcommand takes before it answers, by subcommand. */
   delays: Partial<Record<string, number>> = {};
   /** While set, docker exec runs until it settles: a long command. */
@@ -49,6 +51,9 @@ class FakeEngine {
     this.routed.push(route);
     const delay = this.delays[args[0]!];
     if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+    if (this.down.has(args[0]!)) {
+      return { exitCode: 1, stdout: "", stderr: "failed to connect to the docker API at unix:///fake.sock; check if the daemon is running" };
+    }
     const ok = (stdout = ""): DockerCommandResult => ({ exitCode: 0, stdout, stderr: "" });
     const fail = (stderr: string, exitCode = 1): DockerCommandResult => ({ exitCode, stdout: "", stderr });
     const find = (ref: string) => [...this.containers.values()].find((container) => container.id === ref || container.name === ref);
@@ -469,6 +474,16 @@ describe("docker profile on a fake engine", () => {
     expect(await connection.nextWithin(2_000)).toMatchObject({ type: "error", error: { code: "provider_failed", reason: "provider_refused", effect: "none" } });
     expect(Date.now() - started).toBeLessThan(350);
     await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(engine.calls.some((call) => call[0] === "create")).toBe(false);
+  });
+
+  test("a create whose dedupe lookup cannot reach the engine is refused before any effect, not unknown", async () => {
+    const engine = new FakeEngine();
+    const connection = connect(engine);
+    await handshake(connection);
+    engine.down.add("ps");
+    connection.send(create(1));
+    expect(await connection.next()).toMatchObject({ type: "error", error: { code: "provider_failed", reason: "provider_refused", effect: "none" } });
     expect(engine.calls.some((call) => call[0] === "create")).toBe(false);
   });
 

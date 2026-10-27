@@ -581,6 +581,11 @@ async function dispatchChecked(
     if (error instanceof DrainInterrupt || error instanceof DeadlineInterrupt) {
       return interrupted(runtime, request, phase, error, best);
     }
+    if (phase === "checks" && !(error instanceof Refusal) && !(error instanceof AdapterExecutionError)) {
+      // A read before the effect failed, for example an engine that cannot be reached: nothing was sent.
+      context.diagnostic(`check failed before dispatch: ${error instanceof Error ? error.message : String(error)}`);
+      return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("provider_failed", "provider_refused"));
+    }
     return outcomeAnswer(runtime, error, driver, binding, best, context.diagnostic);
   }
 }
