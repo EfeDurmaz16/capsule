@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } f
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { Capsule, CleanupFailureError, MemoryReceiptStore, PartialEffectsError, partialEffectsOf } from "@capsule-sdk/core";
+import { Capsule, CleanupFailureError, MemoryReceiptStore, PartialEffectsError, partialEffectsOf, sha256 } from "@capsule-sdk/core";
 import type { DockerCommandResult, RunDockerOptions } from "./docker-cli.js";
 import { docker } from "./index.js";
 
@@ -138,7 +138,7 @@ describe("M1 audit regressions: docker", () => {
     expect(effects.cleanup.residual?.[0]?.nativeId).toBe("audit-container");
   });
 
-  it.fails("SB-07: artifacts with equal basenames from different directories are both preserved or rejected before copying", async () => {
+  it("SB-07: artifacts with equal basenames from different directories are both preserved or rejected before copying", async () => {
     let copies = 0;
     const fake = fakeDocker((args) => {
       if (args[0] !== "cp") return undefined;
@@ -163,6 +163,30 @@ describe("M1 audit regressions: docker", () => {
     expect(artifacts).toHaveLength(2);
     expect(new Set(artifacts.map((artifact) => artifact.path)).size).toBe(2);
     expect(new Set(artifacts.map((artifact) => artifact.sha256)).size).toBe(2);
+  });
+
+  it("SB-07: distinct container paths keep their relative layout and content", async () => {
+    const fake = fakeDocker((args) => {
+      if (args[0] !== "cp") return undefined;
+      const source = args[1]!.slice(args[1]!.indexOf(":") + 1);
+      writeFileSync(join(args[2]!, basename(source)), `content of ${source}`);
+      return undefined;
+    });
+    const box = await new Capsule({ adapter: fake.adapter }).sandbox.create({});
+    const result = await box.exec({ command: "true", artifactPaths: ["/workspace/a/out.txt", "/workspace/b/c/out.txt"] });
+    expect(result.artifacts.map((artifact) => [artifact.path, artifact.sha256]).sort()).toEqual(
+      [
+        ["a/out.txt", sha256("content of /workspace/a/out.txt")],
+        ["b/c/out.txt", sha256("content of /workspace/b/c/out.txt")]
+      ].sort()
+    );
+  });
+
+  it("SB-07: a duplicate artifact path is rejected before the command or any copy runs", async () => {
+    const fake = fakeDocker();
+    const box = await new Capsule({ adapter: fake.adapter }).sandbox.create({});
+    await expect(box.exec({ command: "true", artifactPaths: ["/a/out.txt", "/a/../a/out.txt"] })).rejects.toThrow("requested more than once");
+    expect(fake.calls.some((args) => args[0] === "cp" || args[0] === "exec")).toBe(false);
   });
 
   it.fails("SB-08: exec input implies an interactive docker exec so stdin reaches the process", async () => {

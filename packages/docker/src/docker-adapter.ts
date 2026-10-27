@@ -1,6 +1,6 @@
-import { mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, posix } from "node:path";
 import {
   AdapterExecutionError,
   CleanupFailureError,
@@ -240,19 +240,56 @@ export function dockerSandboxCreateArgs(input: DockerSandboxCreateArgsInput): st
 // Copy the requested container paths into a throwaway temp dir with `docker cp`, then hash them with
 // the shared filesystem collector. Only works while the container is alive, so this is used for
 // sandbox.exec (long-lived container) and not for job.run (which uses `docker run --rm`).
-async function collectSandboxArtifacts(runner: DockerRunner, containerId: string, paths: string[]): Promise<Artifact[]> {
+// Each path keeps its location relative to the deepest directory shared by all requested paths, so
+// /a/out.txt and /b/out.txt land at a/out.txt and b/out.txt instead of overwriting each other, while a
+// single path or paths in one directory keep the plain basename layout.
+async function collectSandboxArtifacts(runner: DockerRunner, containerId: string, placements: ArtifactPlacement[]): Promise<Artifact[]> {
   const dir = await mkdtemp(join(tmpdir(), "capsule-docker-artifacts-"));
   try {
-    for (const path of paths) {
-      const copied = await runner(["cp", `${containerId}:${path}`, dir]);
+    for (const placement of placements) {
+      const target = join(dir, placement.targetDir);
+      await mkdir(target, { recursive: true });
+      const copied = await runner(["cp", `${containerId}:${placement.path}`, target]);
       if (copied.exitCode !== 0) {
-        throw dockerCliError(`docker cp artifact failed for ${path}: ${copied.stderr}`, copied);
+        throw dockerCliError(`docker cp artifact failed for ${placement.path}: ${copied.stderr}`, copied);
       }
     }
     return collectFileArtifacts(dir).artifacts;
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+interface ArtifactPlacement {
+  path: string;
+  targetDir: string;
+}
+
+// Plans every copy before any effect. Container paths resolve against "/" (docker cp treats relative
+// container paths as relative to the root). Two requests for the same container path are rejected.
+export function artifactPlacements(paths: string[]): ArtifactPlacement[] {
+  const resolved = paths.map((path) => ({ path, absolute: posix.resolve("/", path) }));
+  const seen = new Set<string>();
+  for (const entry of resolved) {
+    if (entry.absolute === "/") {
+      throw new AdapterExecutionError("Docker artifact path must name a file or directory below the container root.");
+    }
+    if (seen.has(entry.absolute)) {
+      throw new AdapterExecutionError(`Docker artifact path is requested more than once: ${entry.absolute}`);
+    }
+    seen.add(entry.absolute);
+  }
+  const parents = resolved.map((entry) => posix.dirname(entry.absolute));
+  const root = parents.reduce((common, parent) => commonDirectory(common, parent));
+  return resolved.map((entry) => ({ path: entry.path, targetDir: posix.relative(root, posix.dirname(entry.absolute)) }));
+}
+
+function commonDirectory(left: string, right: string): string {
+  const a = left.split("/").filter(Boolean);
+  const b = right.split("/").filter(Boolean);
+  let shared = 0;
+  while (shared < a.length && shared < b.length && a[shared] === b[shared]) shared += 1;
+  return `/${a.slice(0, shared).join("/")}`;
 }
 
 // Builds the argv for listing one directory level. A path that find would parse as an expression
@@ -336,13 +373,15 @@ class DockerSandbox implements Sandbox {
     const startedAt = new Date();
     const policy = this.context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
     const command = normalizeCommand(spec.command);
+    // Plan artifact copies before running the command so an invalid request has no effects.
+    const placements = spec.artifactPaths?.length ? artifactPlacements(spec.artifactPaths) : undefined;
     const result = await this.runner(["exec", ...(spec.cwd ? ["--workdir", spec.cwd] : []), ...envArgs(spec.env), this.handle.id, ...command], {
       timeoutMs: spec.timeoutMs,
       input: spec.input
     });
     const stdout = redactSecrets(result.stdout, spec.env, this.context.policy);
     const stderr = redactSecrets(result.stderr, spec.env, this.context.policy);
-    const artifacts = spec.artifactPaths?.length ? await collectSandboxArtifacts(this.runner, this.handle.id, spec.artifactPaths) : [];
+    const artifacts = placements ? await collectSandboxArtifacts(this.runner, this.handle.id, placements) : [];
     const receipt = this.context.receipts
       ? this.context.createReceipt({
           type: "sandbox.exec",
