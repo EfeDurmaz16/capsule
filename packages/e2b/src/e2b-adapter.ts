@@ -99,13 +99,15 @@ export const e2bCapabilities: CapabilityMap = {
     destroy: "native",
     snapshot: "unsupported",
     restore: "unsupported",
-    exposePort: "experimental",
+    // Declarations describe what Capsule can invoke today, not provider potential: CreateSandboxSpec
+    // exposedPorts, streaming output and ExecSpec.artifactPaths are not wired to the E2B SDK.
+    exposePort: "unsupported",
     mountWorkspace: "unsupported",
     networkPolicy: "native",
     filesystemPolicy: "emulated",
     secretMounting: "emulated",
-    streamingLogs: "experimental",
-    artifacts: "emulated"
+    streamingLogs: "unsupported",
+    artifacts: "unsupported"
   },
   job: {
     run: "unsupported",

@@ -107,6 +107,12 @@ describe("e2b adapter", () => {
     expect(e2bCapabilities.job?.run).toBe("unsupported");
   });
 
+  it("declares no capability that has no invocable Capsule surface", () => {
+    expect(e2bCapabilities.sandbox?.artifacts).toBe("unsupported");
+    expect(e2bCapabilities.sandbox?.streamingLogs).toBe("unsupported");
+    expect(e2bCapabilities.sandbox?.exposePort).toBe("unsupported");
+  });
+
   it("creates a sandbox and maps file and exec operations", async () => {
     const store = new MemoryReceiptStore();
     const capsule = new Capsule({

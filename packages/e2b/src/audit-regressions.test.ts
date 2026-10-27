@@ -39,7 +39,7 @@ describe("M1 audit regressions: e2b", () => {
     expect(fake.state.killed).toBe(0);
   });
 
-  it.fails("SB-10a: sandbox.artifacts is not claimed unless artifactPaths are actually collected", async () => {
+  it("SB-10a: sandbox.artifacts is not claimed unless artifactPaths are actually collected", async () => {
     const fake = fakeSandbox(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
     const capsule = new Capsule({ adapter: fake.adapter });
     if (!capsule.supports("sandbox.artifacts")) return;
