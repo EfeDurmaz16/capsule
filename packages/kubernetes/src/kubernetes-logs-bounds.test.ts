@@ -216,3 +216,16 @@ describe("kubernetes log ordering and redaction cost (PERF-05 A/B against 7d3a28
     expect(logs.every((entry) => entry.message.endsWith("token=[REDACTED]"))).toBe(true);
   });
 });
+
+describe("kubernetes log deadline longer than a timer can wait", () => {
+  it("does not expire after 1 ms when bounds.deadlineMs is 2^31 ms or more", async () => {
+    // Node fires a setTimeout longer than 2^31 - 1 ms after 1 ms; the deadline must wait instead.
+    const capsule = podsCapsule(3, async ({ name }) => {
+      await delay(20);
+      return `2026-10-25T10:00:00.00000000${name.slice(-1)}Z ${name}\n`;
+    });
+    const result = await capsule.service.logs({ id: "svc", bounds: { deadlineMs: 2 ** 31 } });
+    expect(result.logs.map((entry) => entry.message)).toEqual(["pod-00", "pod-01", "pod-02"]);
+    expect(result.truncation?.truncated).toBe(false);
+  });
+});

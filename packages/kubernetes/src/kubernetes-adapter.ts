@@ -624,6 +624,8 @@ let lastSecondMillis = Number.NaN;
 // object so that ordering thousands of lines allocates nothing per line).
 let utcNanos = 0;
 
+const maxTimerDelayMs = 2_147_483_647;
+
 const utcDigitPositions = [0, 1, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17, 18];
 
 const digitAt = (value: string, index: number): boolean => {
@@ -842,56 +844,62 @@ async function collectPodLogs(
       limitBytes: bounds.maxBytes,
       timestamps: true
     });
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const expired = new Promise<undefined>((resolve) => {
-      timer = setTimeout(() => resolve(undefined), remainingMs);
-    });
     // A read that outlives the deadline is abandoned, not cancelled: the injected API has no abort hook.
     read.catch(() => undefined);
-    return await Promise.race([read, expired]).finally(() => clearTimeout(timer));
+    return await Promise.race([read, deadlineReached]);
   };
-  await mapWithConcurrency(targets, bounds.concurrency, async ({ podName, container }, target) => {
-    if (cap === 0) return;
-    // Kubelet seeks to the start of the tail and then counts limitBytes forward, so a tail larger than
-    // maxBytes comes back as its OLDEST part. When that happens, read again with a shorter tail (the
-    // number of complete lines that fitted, halving after a few attempts) until the newest lines fit.
-    // Every read stays bounded by maxBytes and the attempt count is logarithmic in the tail length.
-    let tailLines = cap;
-    let body: string | undefined;
-    for (let attempt = 0; ; attempt += 1) {
-      const text = await readTail(podName, container, tailLines);
-      if (text === undefined) {
-        deadlineHit = true;
-        return;
-      }
-      if (Buffer.byteLength(text, "utf8") < bounds.maxBytes) {
-        body = text;
-        break;
-      }
-      // limitBytes stopped the stream; the last line may be cut mid-way, so drop it.
-      sourceAtByteCap = true;
-      const lastNewline = text.lastIndexOf("\n");
-      const complete = lastNewline === -1 ? "" : text.slice(0, lastNewline + 1);
-      const completeLines = complete === "" ? 0 : complete.split("\n").length - 1;
-      if (tailLines <= 1) {
-        // Even the newest single line does not fit in maxBytes; keep only what arrived complete.
-        body = complete;
-        break;
-      }
-      const shorter = attempt < 3 && completeLines > 0 ? Math.min(completeLines, tailLines - 1) : Math.floor(tailLines / 2);
-      tailLines = Math.max(1, completeLines > 0 ? Math.min(shorter, completeLines) : shorter);
-    }
-    const raw = parseKubernetesLog(body, "stdout", fallbackTimestamp, podName);
-    const entries = filterUntil(raw, input.until);
-    // The tail was full, so older lines exist that were not read. With `until`, those older lines may be
-    // exactly the ones the caller asked for, so a window that filters down below the cap is incomplete
-    // whatever the caller's limit was.
-    const fullTail = raw.length >= tailLines;
-    if (fullTail) sourceAtTailCap = true;
-    if (fullTail && input.until !== undefined && entries.length < cap) untilWindowShort = true;
-    candidates += entries.length;
-    newest.add(entries.map((entry, line) => orderedLog(entry, target, line)));
+  // One deadline timer for every read instead of one per read (PERF-05). Node caps timer delays at
+  // 2^31 - 1 ms and fires a longer one after 1 ms, so a longer deadline waits for the largest delay.
+  let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+  const deadlineReached = new Promise<undefined>((resolve) => {
+    deadlineTimer = setTimeout(() => resolve(undefined), Math.min(Math.max(0, deadlineAt - Date.now()), maxTimerDelayMs));
   });
+  try {
+    await mapWithConcurrency(targets, bounds.concurrency, async ({ podName, container }, target) => {
+      if (cap === 0) return;
+      // Kubelet seeks to the start of the tail and then counts limitBytes forward, so a tail larger than
+      // maxBytes comes back as its OLDEST part. When that happens, read again with a shorter tail (the
+      // number of complete lines that fitted, halving after a few attempts) until the newest lines fit.
+      // Every read stays bounded by maxBytes and the attempt count is logarithmic in the tail length.
+      let tailLines = cap;
+      let body: string | undefined;
+      for (let attempt = 0; ; attempt += 1) {
+        const text = await readTail(podName, container, tailLines);
+        if (text === undefined) {
+          deadlineHit = true;
+          return;
+        }
+        if (Buffer.byteLength(text, "utf8") < bounds.maxBytes) {
+          body = text;
+          break;
+        }
+        // limitBytes stopped the stream; the last line may be cut mid-way, so drop it.
+        sourceAtByteCap = true;
+        const lastNewline = text.lastIndexOf("\n");
+        const complete = lastNewline === -1 ? "" : text.slice(0, lastNewline + 1);
+        const completeLines = complete === "" ? 0 : complete.split("\n").length - 1;
+        if (tailLines <= 1) {
+          // Even the newest single line does not fit in maxBytes; keep only what arrived complete.
+          body = complete;
+          break;
+        }
+        const shorter = attempt < 3 && completeLines > 0 ? Math.min(completeLines, tailLines - 1) : Math.floor(tailLines / 2);
+        tailLines = Math.max(1, completeLines > 0 ? Math.min(shorter, completeLines) : shorter);
+      }
+      const raw = parseKubernetesLog(body, "stdout", fallbackTimestamp, podName);
+      const entries = filterUntil(raw, input.until);
+      // The tail was full, so older lines exist that were not read. With `until`, those older lines may be
+      // exactly the ones the caller asked for, so a window that filters down below the cap is incomplete
+      // whatever the caller's limit was.
+      const fullTail = raw.length >= tailLines;
+      if (fullTail) sourceAtTailCap = true;
+      if (fullTail && input.until !== undefined && entries.length < cap) untilWindowShort = true;
+      candidates += entries.length;
+      newest.add(entries.map((entry, line) => orderedLog(entry, target, line)));
+    });
+  } finally {
+    clearTimeout(deadlineTimer);
+  }
   const kept = newest.result();
 
   const redactionValues = literalEnvValues(pods);
