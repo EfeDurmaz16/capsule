@@ -1,0 +1,147 @@
+{
+  "meta": {
+    "label": "after-1f6518e",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "1f6518eaacf0f08e52bacc4091fd4d12d97e070f",
+    "packagesTree": "aa00350a9351fe2abc740f5ea97ad0191e2b0274",
+    "dirty": false,
+    "date": "2026-10-27T20:24:59.520Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56",
+      "execArgv": [
+        "--expose-gc"
+      ]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": null,
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workload": {
+    "id": "perf-11-jsonl-read",
+    "perfIds": [
+      "PERF-11"
+    ],
+    "manifestIds": [
+      "EV-01"
+    ]
+  },
+  "case": "read-50k",
+  "description": "50k receipts, valid file.",
+  "params": {
+    "receipts": 50000
+  },
+  "runs": [
+    {
+      "rep": 0,
+      "childWallMs": 196.0077919999967,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": "5025c1febed240cd14b09c5fdb0e5d6656c114cdb0dda12702179b6a91717221",
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 59.286041,
+        "peakRssGrowthBytes": 45662208,
+        "heapUsedWhileHeldBytes": 38566344
+      },
+      "caseDurationMs": 159.350584,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5229736,
+          "rss": 48136192,
+          "external": 2102441,
+          "arrayBuffers": 25152
+        },
+        "endMemory": {
+          "heapUsed": 46992576,
+          "rss": 130613248,
+          "external": 3192884,
+          "arrayBuffers": 1065816
+        },
+        "maxRssBytes": 130613248
+      }
+    },
+    {
+      "rep": 1,
+      "childWallMs": 201.57991700000275,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": "4adb6ec51de6c4c8538bb767c65f9921a6ed041bba445a2ee5a5c895dbc2294e",
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 60.64433299999999,
+        "peakRssGrowthBytes": 45613056,
+        "heapUsedWhileHeldBytes": 38566344
+      },
+      "caseDurationMs": 163.517584,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5230784,
+          "rss": 48152576,
+          "external": 2102441,
+          "arrayBuffers": 25152
+        },
+        "endMemory": {
+          "heapUsed": 46992496,
+          "rss": 130662400,
+          "external": 3192884,
+          "arrayBuffers": 1065816
+        },
+        "maxRssBytes": 130662400
+      }
+    },
+    {
+      "rep": 2,
+      "childWallMs": 195.52720899999986,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": "bb3843b12fcc0f4840282916d032cb73bab75d57f2303a7115c0c348fe35986d",
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 57.88883299999999,
+        "peakRssGrowthBytes": 45760512,
+        "heapUsedWhileHeldBytes": 38570568
+      },
+      "caseDurationMs": 157.79220899999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5229728,
+          "rss": 48218112,
+          "external": 2102441,
+          "arrayBuffers": 25152
+        },
+        "endMemory": {
+          "heapUsed": 46996728,
+          "rss": 130613248,
+          "external": 3192884,
+          "arrayBuffers": 1065816
+        },
+        "maxRssBytes": 130613248
+      }
+    }
+  ]
+}

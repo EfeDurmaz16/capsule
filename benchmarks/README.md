@@ -32,6 +32,20 @@ Each repetition runs in a fresh `node --expose-gc` process, one at a time, so pe
 
 `run-gates.mjs` records every repository gate (the CI commands) to a text file, for example `baseline/gates-7d3a28a.txt`.
 
+## Interleaved A/B against the anchor
+
+`ab.mjs` runs the same workloads against two builds in one session and is the evidence for any speed or memory claim: the pre-campaign anchor (A, `7d3a28a`) and a candidate (B). For each pair and each case it runs A, then B, each in a fresh process, so a change in host load hits both sides. Per metric it reports the median of the per-pair ratios B/A with a 95% bootstrap interval (10000 resamples of pairs, fixed seed) next to the A and B medians. A verdict of better or worse needs the whole interval on one side of 1 and is given only for cost metrics (time, memory, bytes read, process spawns, statement preparations, SDK clients, leaks) and throughput; other counts are "changed" or "same".
+
+```sh
+anchor=$(mktemp -d) && git archive 7d3a28a | tar -x -C "$anchor" && (cd "$anchor" && pnpm install --frozen-lockfile && pnpm build)
+candidate=$(mktemp -d) && git archive HEAD | tar -x -C "$candidate" && (cd "$candidate" && pnpm install --frozen-lockfile && pnpm build)
+node benchmarks/ab.mjs --label <name> --pairs 15 \
+  --anchor-packages "$anchor/packages" --anchor-commit 7d3a28a \
+  --candidate-packages "$candidate/packages" --candidate-commit HEAD
+```
+
+Results land in `ab/<label>/`: `report.md` (headline table), `summary.json` (every metric) and `raw/` (every run of both sides). Workload cases marked `requiresEnv` run only when that variable is set; for example `CAPSULE_BENCH_REAL_DOCKER_IMAGE=<local image>` adds the perf-14 cases against a real local Docker Engine (never pulls, `--network none`).
+
 ## Workloads
 
 | Workload                      | Manifest                  | What it measures                                                                                                                                                                                            |
@@ -43,6 +57,8 @@ Each repetition runs in a fresh `node --expose-gc` process, one at a time, so pe
 | `perf-05-kubernetes-logs`     | PERF-05, SVC-01, SVC-09   | 40 pods x 3 containers: max outstanding requests, elapsed, global order, newest-limit selection, redaction                                                                                                  |
 | `perf-09-cli-cold-start`      | PERF-09                   | CLI cold start wall time and peak RSS; stdout digest as output parity                                                                                                                                       |
 | `perf-10-docker-output`       | PERF-10                   | Docker exec output capture at 10/100 MiB (1000 MiB with `--large`): returned size and peak RSS                                                                                                              |
-| `perf-11-jsonl-read`          | PERF-11                   | JSONL `readAll` over 50k receipts: peak RSS, elapsed, corruption line location                                                                                                                              |
+| `perf-11-jsonl-read`          | PERF-11                   | JSONL `readAll` and `iterate` over 50k receipts: peak RSS, elapsed, corruption line location; `capsule receipt verify` wall time, CLI peak RSS and report digest                                            |
+| `perf-12-sqlite-store`        | PERF-12                   | SQLite store writes and reads on a file and on `:memory:`: statement preparations and their time, execution time, synchronous commit cost (file minus memory), ordering and replacement parity              |
+| `perf-14-docker-artifacts`    | PERF-14, SB-07, IO-01     | Docker sandbox artifacts for 1, 10 and 100 paths: `docker cp` spawns, bytes, elapsed and SB-07 layout parity, without and with a modelled 25 ms CLI round trip                                              |
 
 Behavioral fields (for example `bSettlesBeforeA`, `bodyCancelled`, `matchesGlobalNewestSet`) are observations, not assertions: the baseline run records current defects as data. Elapsed-time numbers are not CI gates until calibrated; resource counts and bounds are the deterministic signals.

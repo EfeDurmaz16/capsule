@@ -114,7 +114,35 @@ export const benchmarkBounds = [
     metric: "stdoutLengthReturned",
     max: 16 * MiB,
     why: "captured output is capped at the default 16 MiB budget"
-  }
+  },
+  // PERF-11
+  { workload: "perf-11-jsonl-read", case: "iterate-50k", metric: "outcome", equals: "resolved", why: "the incremental reader reads the whole store" },
+  {
+    workload: "perf-11-jsonl-read",
+    case: "corrupt-line-25000",
+    metric: "errorNamesCorruptLine",
+    equals: true,
+    why: "a corrupt line is reported with its line number"
+  },
+  // PERF-12
+  ...["file-2000-writes", "memory-2000-writes"].flatMap((name) => [
+    { workload: "perf-12-sqlite-store", case: name, metric: "writePrepareCalls", max: 1, why: "the insert statement is prepared once per store" },
+    { workload: "perf-12-sqlite-store", case: name, metric: "orderMatchesExpected", equals: true, why: "reads keep startedAt, id order and one row per id" },
+    {
+      workload: "perf-12-sqlite-store",
+      case: name,
+      metric: "closedError",
+      equals: "SQLite receipt store is closed.",
+      why: "a closed store rejects writes"
+    }
+  ]),
+  // PERF-14 / SB-07
+  ...[1, 10, 100].flatMap((paths) =>
+    [`paths-${paths}`, `paths-${paths}-latency-25ms`].flatMap((name) => [
+      { workload: "perf-14-docker-artifacts", case: name, metric: "dockerCpSpawns", max: paths, why: "one docker cp per requested path, no more" },
+      { workload: "perf-14-docker-artifacts", case: name, metric: "layoutMatchesExpected", equals: true, why: "the SB-07 layout, selection and hashes hold" }
+    ])
+  )
 ];
 
 function caseMetric(summary, bound) {
