@@ -35,7 +35,8 @@ function idleBody() {
 describe("cloudflare client HTTP bounds", () => {
   it("keeps status, Retry-After and retry category for an HTML 503 without echoing the page", async () => {
     const client = new CloudflareClient({
-      apiToken: "fake", accountId: "acct",
+      apiToken: "fake",
+      accountId: "acct",
       fetch: async () => new Response("<html>maintenance secret-ish</html>", { status: 503, headers: { "content-type": "text/html", "retry-after": "5" } })
     });
     const error = await client.listWorkerDeployments("worker").catch((caught: unknown) => caught);
@@ -50,7 +51,8 @@ describe("cloudflare client HTTP bounds", () => {
 
   it("keeps the JSON error message for a JSON error body", async () => {
     const client = new CloudflareClient({
-      apiToken: "fake", accountId: "acct",
+      apiToken: "fake",
+      accountId: "acct",
       fetch: async () => new Response(JSON.stringify({ success: false, errors: [{ code: 10007, message: "worker not found" }] }), { status: 404 })
     });
     await expect(client.listWorkerDeployments("worker")).rejects.toThrow("worker not found");
@@ -65,7 +67,12 @@ describe("cloudflare client HTTP bounds", () => {
 
   it("rejects an oversized successful body after reading at most the budget and cancels the rest", async () => {
     const { body, state } = endlessBody();
-    const client = new CloudflareClient({ apiToken: "fake", accountId: "acct", maxResponseBytes: 4096, fetch: async () => new Response(body, { status: 200 }) });
+    const client = new CloudflareClient({
+      apiToken: "fake",
+      accountId: "acct",
+      maxResponseBytes: 4096,
+      fetch: async () => new Response(body, { status: 200 })
+    });
     const error = await client.listWorkerDeployments("worker").catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(CaptureLimitError);
     expect((error as CaptureLimitError).truncation).toMatchObject({ truncated: true, reason: "bytes", limit: 4096 });
@@ -76,7 +83,8 @@ describe("cloudflare client HTTP bounds", () => {
   it("rejects before reading when content-length already exceeds the budget", async () => {
     const { body, state } = endlessBody();
     const client = new CloudflareClient({
-      apiToken: "fake", accountId: "acct",
+      apiToken: "fake",
+      accountId: "acct",
       maxResponseBytes: 10,
       fetch: async () => new Response(body, { status: 200, headers: { "content-length": "1000000" } })
     });
@@ -96,7 +104,8 @@ describe("cloudflare client HTTP bounds", () => {
   it("reports a mutation whose response never arrives as an unknown outcome, not a retryable error", async () => {
     let signal: AbortSignal | undefined;
     const client = new CloudflareClient({
-      apiToken: "fake", accountId: "acct",
+      apiToken: "fake",
+      accountId: "acct",
       requestTimeoutMs: 50,
       fetch: (async (_url: string | URL | Request, init?: RequestInit) => {
         signal = init?.signal ?? undefined;

@@ -5,7 +5,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { Capsule, ProviderRetryableError } from "@capsule-sdk/core";
+import { Capsule, CleanupFailureError, PartialEffectsError, ProviderRetryableError, ProviderValidationError, partialEffectsOf } from "@capsule-sdk/core";
 import { CloudflareClient, cloudflare } from "./index.js";
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
@@ -72,7 +72,13 @@ describe("M1 audit regressions: cloudflare", () => {
             result: {
               deployments: [
                 { id: "d_current", versions: [{ version_id: "v_current", percentage: 100 }] },
-                { id: "d_prev", versions: [{ version_id: "v_a", percentage: 10 }, { version_id: "v_b", percentage: 90 }] }
+                {
+                  id: "d_prev",
+                  versions: [
+                    { version_id: "v_a", percentage: 10 },
+                    { version_id: "v_b", percentage: 90 }
+                  ]
+                }
               ]
             }
           });
@@ -102,7 +108,13 @@ describe("M1 audit regressions: cloudflare", () => {
                 result: {
                   deployments: [
                     { id: "d_current", versions: [{ version_id: "v_current", percentage: 100 }] },
-                    { id: "d_prev", versions: [{ version_id: "v_prev", percentage: 100 }, { version_id: "v_zero", percentage: 0 }] }
+                    {
+                      id: "d_prev",
+                      versions: [
+                        { version_id: "v_prev", percentage: 100 },
+                        { version_id: "v_zero", percentage: 0 }
+                      ]
+                    }
                   ]
                 }
               })
@@ -112,7 +124,7 @@ describe("M1 audit regressions: cloudflare", () => {
     expect((await capsule.edge.rollback({ deploymentId: "d_current", providerOptions: { scriptName: "audit" } })).targetVersionId).toBe("v_prev");
   });
 
-  it.fails("EDGE-06a: a route failure after upload carries Worker/route identities and the cleanup failure", async () => {
+  it("EDGE-06a: a route failure after upload carries Worker/route identities and the cleanup failure", async () => {
     const dir = await mkdtemp(join(tmpdir(), "capsule-edge06-"));
     try {
       const source = join(dir, "worker.js");
@@ -141,6 +153,65 @@ describe("M1 audit regressions: cloudflare", () => {
       expect(text).toContain("cleanup failed");
       expect(text).toContain("route_audit");
       expect(text).toContain("worker_audit");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("EDGE-06a: the partial-effects record separates the primary error, the residual Worker and the cleanup outcome", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "capsule-edge06-"));
+    try {
+      const source = join(dir, "worker.js");
+      await writeFile(source, "export default { fetch() { return new Response('ok'); } }");
+      const run = async (deleteOk: boolean) => {
+        const deletes: string[] = [];
+        const capsule = new Capsule({
+          adapter: cloudflare({
+            apiToken: "fake",
+            accountId: "acct_audit",
+            zoneId: "zone_audit",
+            fetch: async (url, init) => {
+              if (init?.method === "PUT") return json({ success: true, result: { id: "script_audit" } });
+              if (init?.method === "DELETE") {
+                deletes.push(String(url));
+                return deleteOk
+                  ? json({ success: true, result: { id: "route_audit" } })
+                  : json({ success: false, errors: [{ message: "cleanup failed" }] }, 500);
+              }
+              if (JSON.parse(String(init?.body)).pattern === "ok.example/*") {
+                return json({ success: true, result: { id: "route_audit", pattern: "ok.example/*", script: "worker_audit" } });
+              }
+              return json({ success: false, errors: [{ message: "route create failed" }] }, 400);
+            }
+          })
+        });
+        const error = await capsule.edge
+          .deploy({ name: "worker_audit", source: { path: source }, routes: ["ok.example/*", "bad.example/*"] })
+          .catch((caught: unknown) => caught);
+        return { error, deletes };
+      };
+
+      const failed = await run(false);
+      expect(failed.error).toBeInstanceOf(CleanupFailureError);
+      expect((failed.error as CleanupFailureError).cause).toBeInstanceOf(ProviderValidationError);
+      const failedEffects = partialEffectsOf(failed.error);
+      expect(failedEffects).toMatchObject({
+        operation: "edge.deploy",
+        outcome: "failed",
+        resources: [
+          { provider: "cloudflare", kind: "worker", nativeId: "worker_audit", scope: { account: "acct_audit" } },
+          { kind: "route", nativeId: "route_audit", scope: { zone: "zone_audit", pattern: "ok.example/*" } }
+        ],
+        cleanup: { status: "failed", residual: [{ kind: "worker" }, { kind: "route", nativeId: "route_audit" }] }
+      });
+      expect((failedEffects?.primaryError as Error).message).toBe("route create failed");
+
+      const cleaned = await run(true);
+      expect(cleaned.error).toBeInstanceOf(PartialEffectsError);
+      expect((cleaned.error as PartialEffectsError).cause).toBeInstanceOf(ProviderValidationError);
+      expect(partialEffectsOf(cleaned.error)?.cleanup).toMatchObject({ status: "succeeded", residual: [{ kind: "worker", nativeId: "worker_audit" }] });
+      expect(cleaned.deletes).toHaveLength(1);
+      expect(cleaned.deletes.every((url) => url.includes("/workers/routes/"))).toBe(true);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
