@@ -1,3 +1,5 @@
+import type { MachineStatus } from "./lifecycle.js";
+
 export type SupportLevel = "native" | "emulated" | "unsupported" | "experimental";
 
 export type CapsuleDomain = "sandbox" | "job" | "service" | "function" | "edge" | "database" | "machine" | "preview" | "resource";
@@ -938,7 +940,11 @@ export interface Machine {
   id: string;
   provider: string;
   name: string;
-  status: "creating" | "running" | "stopped" | "failed" | "deleted";
+  /**
+   * Normalized status. Transitional values (creating, starting, stopping, destroying) are reported as
+   * observed instead of being collapsed into a stable or failed state. The native state stays in metadata.
+   */
+  status: MachineStatus;
   receipt?: CapsuleReceipt;
 }
 

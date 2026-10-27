@@ -8,6 +8,7 @@ export * from "./contract.js";
 export * from "./errors.js";
 export * from "./evidence.js";
 export * from "./idempotency.js";
+export * from "./lifecycle.js";
 export * from "./logs.js";
 export * from "./policy.js";
 export * from "./presets.js";

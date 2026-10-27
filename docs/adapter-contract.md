@@ -109,6 +109,18 @@ Every adapter now surfaces the same typed categories, so all fifteen adapters cl
 
 Do not classify workload failures as provider failures. For example, a sandbox command exit code or Lambda `FunctionError` is execution state, not a provider transport/control-plane error.
 
+## Pending, Unknown and Partial Outcomes
+
+Never report a terminal state the provider has not confirmed. A deleted, stopped or completed result requires an observed terminal state, not an accepted request (for example HTTP 202, an operation with `done: false`, or a scale-down acknowledgement while tasks still run).
+
+- Where a public result type already has transitional values (for example `MachineLifecycleResult`, `DestroyPreviewResult`, Neon `creating`/`resetting`), return the truthful transitional status.
+- Where the public promise is terminal-only (for example `DeletedService`), observe the accepted action with `observeUntilTerminal(observe, { operation, resource, deadlineMs })`. When the bounded deadline expires it throws `PendingOperationError` with the safe locator and last native state. The deadline is a client budget and is separate from any provider-side wait parameter.
+- When Capsule cannot tell whether the provider applied an action (for example the transport failed after the request was sent), throw `UnknownOutcomeError`. Do not retry a create or mutate automatically.
+- Build locators with `resourceLocator({ provider, kind, nativeId, scope })`. It strips URL credentials, query strings and control characters so the locator is safe in errors and receipts.
+- When an operation leaves resources behind, attach a `PartialEffects` record: primary outcome, locators, primary error or completed result, and the cleanup outcome. Throw `CleanupFailureError(message, cleanup, cause, effects)` when cleanup failed, otherwise `PartialEffectsError`. Callers read either with `partialEffectsOf(error)`.
+
+`Machine["status"]` is `MachineStatus`: `creating`, `starting`, `running`, `stopping`, `stopped`, `destroying`, `failed` or `deleted`. Map provider transitions to the matching transitional value and keep the native state in metadata. Do not map an unrecognized native state to `failed`.
+
 ## Minimal Contract Test Template
 
 Use the core contract helpers first. They verify that declared public capabilities match implemented public methods, unsupported capabilities throw `UnsupportedCapabilityError`, and supported mutating capabilities fail closed under an approval-required policy before adapter code runs.
