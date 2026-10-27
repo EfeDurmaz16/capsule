@@ -43,6 +43,7 @@ Installed from npm the same command is `capsule-bridge-worker --profile <fixture
 How the worker applies the protocol:
 
 - Checks run in a fixed order and stop at the first failure, all before any provider call: frame, JSON, message schema, action in profile, locator scope, idempotency, owner, policy (images, secrets), fresh approval. Then the request goes through the Capsule facade, which checks policy and the grant again before the adapter runs. Idempotency is checked before policy, because the shared scenario `duplicate_idempotency_key` expects a conflict for a changed request that policy would also refuse; the specification lists the same order.
+- The idempotency table holds up to 4096 keys and at most 16 Mi characters of exec output across its answers. Past that the oldest answers are dropped and only their key and digest stay, so a repeat of such a key is refused as `idempotency_conflict` and never runs again. Fabric never repeats a key, so this costs it nothing.
 - An existing resource is reached with `Capsule.sandbox.attach`, which changes nothing and carries no create grant, so exec and destroy are governed per operation.
 - A grant resolved from an approval ref is scoped to exactly that action, and to that resource when the grant names one. The ref never reaches receipts or logs.
 - Secret values are read only for names the worker's own policy allows, at the execution boundary. Docker reads them from the worker's environment; nothing else does.

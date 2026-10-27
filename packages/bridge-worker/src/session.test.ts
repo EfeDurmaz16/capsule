@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { IdempotencyTable, type Answer } from "./dispatch.js";
 import type { BridgeDriver } from "./driver.js";
 import { fixtureDriver } from "./fixture.js";
 import { fixtureWorld, readFixture, TestConnection, type ScenarioState } from "./harness.test.support.js";
@@ -313,5 +314,62 @@ describe("observe", () => {
     const answer = await connection.next();
     expect(answer).toMatchObject({ type: "error", error: { code: "denied", reason: "owner_mismatch", effect: "none" } });
     expect(answer.error).not.toHaveProperty("state");
+  });
+});
+
+describe("idempotency memory", () => {
+  const big = (n: number, chars: number): Answer => ({
+    type: "result",
+    request_id: `r-${n}`,
+    operation_id: "01K8W3A00000000000000000P2",
+    state: "completed",
+    resource: { provider: "fixture", scope: { account: "acct-a", project: "proj-1" }, kind: "sandbox", native_id: "fx-key-create-1" },
+    output: {
+      exit_code: 0,
+      stdout: { text: "x".repeat(chars), captured_bytes: chars, truncated: false, lossy: false },
+      stderr: { text: "", captured_bytes: 0, truncated: false, lossy: false }
+    },
+    replayed: false,
+    receipts: []
+  });
+
+  test("held answers stay within the output budget; older ones keep only their key and digest", () => {
+    const table = new IdempotencyTable(4096, 4 << 20);
+    for (let n = 0; n < 100; n += 1) {
+      table.begin(`key-${n}`, "ab".repeat(32));
+      table.finish(`key-${n}`, big(n, 1 << 20));
+    }
+    expect(table.heldChars).toBeLessThanOrEqual(4 << 20);
+    expect(table.get("key-99")?.answer).toBeDefined();
+    expect(table.get("key-0")).toMatchObject({ digest: "ab".repeat(32) });
+    expect(table.get("key-0")?.answer).toBeUndefined();
+  });
+
+  test("a repeat of a key whose answer was dropped is refused as a conflict and never runs again", async () => {
+    const { world, connection } = await started();
+    const payload = "y".repeat(1_000_000);
+    for (let n = 1; n <= 20; n += 1) {
+      connection.send(exec(n, { params: { ...(execRequest.params as object), argv: ["echo", payload], max_output_bytes: 1 << 20 } }));
+      expect(await connection.next()).toMatchObject({ type: "result", state: "completed" });
+    }
+    connection.send(
+      exec(21, {
+        operation: { id: "01K8W3A0000000000000000E01", key: "key-exec-1", digest: "ab".repeat(32) },
+        params: { ...(execRequest.params as object), argv: ["echo", payload], max_output_bytes: 1 << 20 }
+      })
+    );
+    expect(await connection.next()).toMatchObject({
+      type: "error",
+      request_id: "r-21",
+      error: { code: "invalid", reason: "idempotency_conflict", effect: "none" }
+    });
+    connection.send(
+      exec(22, {
+        operation: { id: "01K8W3A0000000000000000E20", key: "key-exec-20", digest: "ab".repeat(32) },
+        params: { ...(execRequest.params as object), argv: ["echo", payload], max_output_bytes: 1 << 20 }
+      })
+    );
+    expect(await connection.next()).toMatchObject({ type: "result", request_id: "r-22", replayed: true });
+    expect(world.provider.effects).toHaveLength(20);
   });
 });

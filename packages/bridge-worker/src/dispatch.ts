@@ -69,21 +69,45 @@ export type Answer = Result | ErrorMessage;
 
 interface StoredAnswer {
   digest: string;
+  /** Undefined while the first request is in flight, and after the answer was dropped for memory. */
   answer?: Answer;
+  answered: boolean;
 }
 
-/** Answers per operation key, per connection and bounded. The table does not survive the worker. */
+/** Characters of output text an answer holds, plus a fixed allowance for the rest of it. */
+function heldSize(answer: Answer): number {
+  if (answer.type !== "result" || !("stdout" in answer.output)) return 256;
+  return 256 + answer.output.stdout.text.length + answer.output.stderr.text.length;
+}
+
+/**
+ * Answers per operation key, per connection and bounded twice: by key count, and by the output text
+ * the held answers carry, since one exec answer can hold two streams of max_output_bytes each. Past
+ * the text budget the oldest answers are dropped but their key and digest stay, so a repeat is
+ * refused as a conflict and never runs the action again. The table does not survive the worker.
+ */
 export class IdempotencyTable {
   private readonly entries = new Map<string, StoredAnswer>();
+  /** Keys whose answer is held, oldest first, with the size counted for each. */
+  private readonly held = new Map<string, number>();
+  private heldTotal = 0;
 
-  constructor(private readonly capacity = 4096) {}
+  constructor(
+    private readonly capacity = 4096,
+    private readonly textBudget = 16 << 20
+  ) {}
+
+  /** Output text characters the held answers carry; at most the budget. */
+  get heldChars(): number {
+    return this.heldTotal;
+  }
 
   get(key: string): StoredAnswer | undefined {
     return this.entries.get(key);
   }
 
   begin(key: string, digest: string): void {
-    this.entries.set(key, { digest });
+    this.entries.set(key, { digest, answered: false });
   }
 
   abandon(key: string): void {
@@ -94,14 +118,30 @@ export class IdempotencyTable {
     const entry = this.entries.get(key);
     if (!entry) return;
     entry.answer = answer;
+    entry.answered = true;
+    const size = heldSize(answer);
+    this.held.set(key, size);
+    this.heldTotal += size;
+    for (const [oldest, oldestSize] of this.held) {
+      if (this.heldTotal <= this.textBudget) break;
+      this.release(oldest, oldestSize);
+      delete this.entries.get(oldest)!.answer;
+    }
     if (this.entries.size <= this.capacity) return;
     // Evict the oldest answered key. Map iteration is insertion order, so this is usually the first entry.
     for (const [oldest, value] of this.entries) {
-      if (value.answer !== undefined) {
+      if (value.answered) {
         this.entries.delete(oldest);
+        const size = this.held.get(oldest);
+        if (size !== undefined) this.release(oldest, size);
         return;
       }
     }
+  }
+
+  private release(key: string, size: number): void {
+    this.held.delete(key);
+    this.heldTotal -= size;
   }
 }
 
@@ -384,6 +424,8 @@ export async function dispatchRequest(context: DispatchContext, runtime: Operati
   const key = request.operation.key;
   const prior = idempotency.get(key);
   if (prior) {
+    // A first request still in flight, or one whose answer was dropped for memory, has no answer to
+    // replay; either way the action never runs a second time.
     if (prior.answer === undefined || prior.digest !== request.operation.digest) {
       return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("invalid", "idempotency_conflict"));
     }
