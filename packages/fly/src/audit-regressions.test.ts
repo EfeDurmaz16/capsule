@@ -69,7 +69,7 @@ describe("M1 audit regressions: fly", () => {
     expect(await capsule.machine.stop({ id: "m_audit" })).toMatchObject({ id: "m_audit", status: "stopping" });
   });
 
-  it.fails("EDGE-05c: an HTML 503 keeps the HTTP status and retry category instead of a SyntaxError", async () => {
+  it("EDGE-05c: an HTML 503 keeps the HTTP status and retry category instead of a SyntaxError", async () => {
     const client = new FlyClient({
       apiToken: "fake",
       fetch: async () => new Response("<html>maintenance</html>", { status: 503, headers: { "content-type": "text/html", "retry-after": "5" } })
