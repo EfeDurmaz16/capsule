@@ -8,7 +8,7 @@ import { NeonClient, neon } from "./index.js";
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
 
 describe("M1 audit regressions: neon", () => {
-  it.fails("EDGE-04: an init branch with running operations is creating/resetting, not ready, and matches its receipt", async () => {
+  it("EDGE-04: an init branch with running operations is creating/resetting, not ready, and matches its receipt", async () => {
     const capsule = new Capsule({
       adapter: neon({
         apiKey: "fake",
@@ -24,6 +24,24 @@ describe("M1 audit regressions: neon", () => {
     const reset = await capsule.database.branch.reset({ project: "p_audit", branchId: "br_audit", sourceBranchId: "br_source" });
     expect(branch.status).toBe("creating");
     expect(reset.status).toBe("resetting");
+    expect(branch.receipt?.resource?.status).toBe("creating");
+    expect(branch.receipt?.metadata).toMatchObject({ currentState: "init", pendingState: "ready", operationIds: ["op_audit"], pendingOperationIds: ["op_audit"] });
+    expect(reset.receipt?.resource?.status).toBe("resetting");
+    expect(reset.metadata).toMatchObject({ currentState: "init", pendingState: "ready", pendingOperationIds: ["op_audit"] });
+  });
+
+  it("EDGE-04: a failed state or failed operation stays failed; a settled ready branch is ready", async () => {
+    const reply = (body: unknown) => new Capsule({ adapter: neon({ apiKey: "fake", fetch: async () => json(body) }), receipts: true });
+    const failedOp = reply({ branch: { id: "br", name: "b", current_state: "init" }, operations: [{ id: "op1", status: "error" }] });
+    const failedOpBranch = await failedOp.database.branch.create({ project: "p", name: "b" });
+    expect(failedOpBranch.status).toBe("failed");
+    expect(failedOpBranch.receipt?.metadata).toMatchObject({ failedOperationIds: ["op1"] });
+    const failedState = reply({ branch: { id: "br", name: "b", current_state: "failed" } });
+    expect((await failedState.database.branch.reset({ project: "p", branchId: "br", sourceBranchId: "src" })).status).toBe("failed");
+    const settled = reply({ branch: { id: "br", name: "b", current_state: "ready" }, operations: [{ id: "op1", status: "finished" }] });
+    expect((await settled.database.branch.create({ project: "p", name: "b" })).status).toBe("ready");
+    const missingState = reply({ branch: { id: "br", name: "b" } });
+    expect((await missingState.database.branch.create({ project: "p", name: "b" })).status).toBe("creating");
   });
 
   it("EDGE-05d: an HTML 503 keeps the HTTP status and retry category instead of a SyntaxError", async () => {
