@@ -24,7 +24,8 @@ const gates = [
   ["release-audit", "pnpm release:audit"],
   ["api-reference-current", "pnpm docs:api:check"],
   ["package-exports", "pnpm test:package-exports"],
-  ["pack-smoke-compatible", "pnpm release:pack-smoke:compatible"]
+  ["pack-smoke-compatible", "pnpm release:pack-smoke:compatible"],
+  ["benchmark-bounds", "pnpm bench:bounds"]
 ];
 
 function git(args) {
@@ -41,7 +42,7 @@ lines.push(
 );
 lines.push(`node: ${process.version}`);
 lines.push(`pnpm: ${spawnSync("pnpm", ["-v"], { cwd: root, encoding: "utf8" }).stdout.trim()}`);
-lines.push(`gates: same commands as .github/workflows/ci.yml verify + package-exports jobs, run locally in order`);
+lines.push(`gates: same commands as the .github/workflows/ci.yml jobs (verify, Node compatibility, benchmark bounds), run locally in order`);
 lines.push("");
 
 const summary = [];
