@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { CaptureBudget, CaptureLimitError, type CaptureTruncation, type ResolvedCaptureBounds } from "@capsule-sdk/core";
 
 export interface DockerCommandResult {
   exitCode: number;
@@ -9,19 +10,83 @@ export interface DockerCommandResult {
    * client does not stop the container or exec'd process in the daemon; callers must reconcile.
    */
   timedOut?: boolean;
+  /** Present when outputBounds were applied: per stream, whether and why output was truncated. */
+  truncation?: { stdout: CaptureTruncation; stderr: CaptureTruncation };
+}
+
+export interface DockerOutputBounds {
+  stdout: ResolvedCaptureBounds;
+  stderr: ResolvedCaptureBounds;
 }
 
 export interface RunDockerOptions {
   timeoutMs?: number;
   input?: string;
+  /**
+   * Per-stream capture bounds, enforced while the output arrives. Bytes past the cap are read and
+   * discarded so the process never blocks on a full pipe, and the result carries `truncation`.
+   */
+  outputBounds?: DockerOutputBounds;
+}
+
+class StreamCapture {
+  private readonly decoder = new TextDecoder();
+  private text = "";
+  private readonly budget?: CaptureBudget;
+  limitError?: CaptureLimitError;
+
+  constructor(bounds?: ResolvedCaptureBounds) {
+    this.budget = bounds ? new CaptureBudget(bounds) : undefined;
+  }
+
+  push(chunk: Buffer): void {
+    if (!this.budget) {
+      this.text += this.decoder.decode(chunk, { stream: true });
+      return;
+    }
+    if (this.budget.exhausted) return;
+    try {
+      this.text += this.decoder.decode(this.budget.takeBytes(chunk), { stream: true });
+    } catch (error) {
+      if (!(error instanceof CaptureLimitError)) throw error;
+      this.limitError = error;
+    }
+  }
+
+  finish(): string {
+    this.text += this.decoder.decode();
+    return this.text;
+  }
+
+  truncation(): CaptureTruncation | undefined {
+    return this.budget?.truncation();
+  }
 }
 
 export function runDocker(args: string[], options: RunDockerOptions = {}): Promise<DockerCommandResult> {
   return new Promise((resolve, reject) => {
     const child = spawn("docker", args, { stdio: ["pipe", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
+    const stdout = new StreamCapture(options.outputBounds?.stdout);
+    const stderr = new StreamCapture(options.outputBounds?.stderr);
     let settled = false;
+
+    const finish = (exitCode: number, extra: Partial<DockerCommandResult> = {}): void => {
+      const stdoutText = stdout.finish();
+      const stderrText = stderr.finish();
+      const limitError = stdout.limitError ?? stderr.limitError;
+      if (limitError) {
+        reject(limitError);
+        return;
+      }
+      const truncation = options.outputBounds ? { truncation: { stdout: stdout.truncation()!, stderr: stderr.truncation()! } } : {};
+      resolve({
+        exitCode,
+        stdout: stdoutText,
+        stderr: extra.stderr === undefined ? stderrText : stderrText ? `${stderrText}\n${extra.stderr}` : extra.stderr,
+        ...(extra.timedOut ? { timedOut: true } : {}),
+        ...truncation
+      });
+    };
 
     const timer =
       options.timeoutMs === undefined
@@ -32,22 +97,11 @@ export function runDocker(args: string[], options: RunDockerOptions = {}): Promi
             }
             settled = true;
             child.kill("SIGKILL");
-            resolve({
-              exitCode: 124,
-              timedOut: true,
-              stdout,
-              stderr: stderr ? `${stderr}\nCommand timed out after ${options.timeoutMs}ms` : `Command timed out after ${options.timeoutMs}ms`
-            });
+            finish(124, { timedOut: true, stderr: `Command timed out after ${options.timeoutMs}ms` });
           }, options.timeoutMs);
 
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk;
-    });
+    child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
+    child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
     child.on("error", (error) => {
       if (timer) {
         clearTimeout(timer);
@@ -63,7 +117,7 @@ export function runDocker(args: string[], options: RunDockerOptions = {}): Promi
       }
       if (!settled) {
         settled = true;
-        resolve({ exitCode: exitCode ?? 1, stdout, stderr });
+        finish(exitCode ?? 1);
       }
     });
 

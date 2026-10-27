@@ -11,6 +11,8 @@ import {
   resourceLocator,
   type AdapterContext,
   type Artifact,
+  type CaptureBounds,
+  type CaptureTruncation,
   type CapsuleAdapter,
   type CapabilityMap,
   type CreateSandboxSpec,
@@ -24,8 +26,8 @@ import {
   type Sandbox,
   type SandboxHandle
 } from "@capsule-sdk/core";
-import { capsuleOperationTags, collectFileArtifacts, logsFromOutput, redactSecrets } from "@capsule-sdk/core";
-import { dockerAvailable, runDocker, type DockerCommandResult, type RunDockerOptions } from "./docker-cli.js";
+import { capsuleOperationTags, collectFileArtifacts, logsFromOutput, redactSecrets, resolveExecOutputBounds } from "@capsule-sdk/core";
+import { dockerAvailable, runDocker, type DockerCommandResult, type DockerOutputBounds, type RunDockerOptions } from "./docker-cli.js";
 
 type DockerRunner = (args: string[], options?: RunDockerOptions) => Promise<DockerCommandResult>;
 
@@ -358,6 +360,47 @@ async function rollbackCreatedContainer(runner: DockerRunner, locator: ResourceL
   });
 }
 
+// Output bounds for docker exec and job.run (CD-BOUNDS). maxBytes defaults to 16 MiB per stream with
+// policy.limits.maxStdoutBytes/maxStderrBytes as ceilings. A capture deadline applies only when the
+// caller sets bounds.deadlineMs: the command timeout is timeoutMs, and a default capture deadline would
+// silently drop output of long, legitimate commands.
+function dockerOutputBounds(bounds: CaptureBounds | undefined, policy: AdapterContext["policy"]): DockerOutputBounds {
+  const resolved = resolveExecOutputBounds(bounds, policy);
+  if (bounds?.deadlineMs !== undefined) return resolved;
+  return {
+    stdout: { ...resolved.stdout, deadlineMs: Number.MAX_SAFE_INTEGER },
+    stderr: { ...resolved.stderr, deadlineMs: Number.MAX_SAFE_INTEGER }
+  };
+}
+
+function truncationMetadata(truncation: DockerCommandResult["truncation"]): { metadata?: Record<string, unknown> } {
+  if (!truncation || (!truncation.stdout.truncated && !truncation.stderr.truncated)) return {};
+  return { metadata: { outputTruncation: truncation } };
+}
+
+// Redacts captured output. When a stream was cut at the byte cap, the cut can fall inside a secret,
+// leaving a prefix that whole-value redaction cannot match, so a trailing secret prefix is redacted too.
+function redactCapturedOutput(
+  text: string,
+  truncation: CaptureTruncation | undefined,
+  env: Record<string, string> | undefined,
+  policy: AdapterContext["policy"]
+): string {
+  let output = redactSecrets(text, env, policy);
+  if (!truncation?.truncated || !policy.secrets?.redactFromLogs || !env) return output;
+  for (const key of policy.secrets.allowed ?? []) {
+    const secret = env[key];
+    if (!secret) continue;
+    for (let length = Math.min(secret.length - 1, output.length); length > 0; length -= 1) {
+      if (output.endsWith(secret.slice(0, length))) {
+        output = `${output.slice(0, output.length - length)}[REDACTED]`;
+        break;
+      }
+    }
+  }
+  return output;
+}
+
 const dockerRunLabelKey = "capsule_docker_run";
 
 interface ReapedJob {
@@ -436,13 +479,15 @@ class DockerSandbox implements Sandbox {
     const command = normalizeCommand(spec.command);
     // Plan artifact copies before running the command so an invalid request has no effects.
     const placements = spec.artifactPaths?.length ? artifactPlacements(spec.artifactPaths) : undefined;
+    const outputBounds = dockerOutputBounds(spec.bounds, this.context.policy);
     // docker exec only attaches the process stdin with -i. With input the CLI writes it and then
     // closes its stdin, so the process sees EOF (immediately for empty input). Without input stdin is
     // not attached, as before.
     const interactive = spec.input !== undefined ? ["-i"] : [];
     const result = await this.runner(["exec", ...interactive, ...(spec.cwd ? ["--workdir", spec.cwd] : []), ...envArgs(spec.env), this.handle.id, ...command], {
       timeoutMs: spec.timeoutMs,
-      input: spec.input
+      input: spec.input,
+      outputBounds
     });
     if (result.timedOut) {
       // Killing the docker exec client does not stop the process inside the container, so a timeout
@@ -460,8 +505,8 @@ class DockerSandbox implements Sandbox {
         )
       );
     }
-    const stdout = redactSecrets(result.stdout, spec.env, this.context.policy);
-    const stderr = redactSecrets(result.stderr, spec.env, this.context.policy);
+    const stdout = redactCapturedOutput(result.stdout, result.truncation?.stdout, spec.env, this.context.policy);
+    const stderr = redactCapturedOutput(result.stderr, result.truncation?.stderr, spec.env, this.context.policy);
     const artifacts = placements ? await collectSandboxArtifacts(this.runner, this.handle.id, placements) : [];
     const receipt = this.context.receipts
       ? this.context.createReceipt({
@@ -475,7 +520,8 @@ class DockerSandbox implements Sandbox {
           stderr,
           artifacts,
           policy: { ...policy, notes: [...policy.notes, ...policyNotes(this.context)] },
-          resource: { id: this.handle.id, status: "running" }
+          resource: { id: this.handle.id, status: "running" },
+          ...truncationMetadata(result.truncation)
         })
       : undefined;
     return {
@@ -484,7 +530,8 @@ class DockerSandbox implements Sandbox {
       stderr,
       logs: logsFromOutput(stdout, stderr, this.handle.id),
       artifacts,
-      receipt
+      receipt,
+      ...(result.truncation ? { truncation: result.truncation } : {})
     };
   }
 
@@ -642,11 +689,11 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
             spec.image,
             ...command
           ],
-          { timeoutMs: spec.timeoutMs }
+          { timeoutMs: spec.timeoutMs, outputBounds: dockerOutputBounds(undefined, context.policy) }
         );
         const reaped = result.timedOut ? await reapTimedOutJob(runner, runLabel, result, spec.env, context) : undefined;
-        const stdout = redactSecrets(result.stdout, spec.env, context.policy);
-        const stderr = redactSecrets(reaped ? `${result.stderr}\n${reaped.note}` : result.stderr, spec.env, context.policy);
+        const stdout = redactCapturedOutput(result.stdout, result.truncation?.stdout, spec.env, context.policy);
+        const stderr = redactCapturedOutput(reaped ? `${result.stderr}\n${reaped.note}` : result.stderr, result.truncation?.stderr, spec.env, context.policy);
         const receipt = context.receipts
           ? context.createReceipt({
               type: "job.run",
@@ -659,7 +706,11 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
               stderr,
               policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
               resource: { id: spec.name, name: spec.name, status: result.exitCode === 0 ? "succeeded" : "failed" },
-              metadata: { runLabel, ...(reaped ? { timedOut: true, termination: reaped.termination, containers: reaped.containers } : {}) }
+              metadata: {
+                runLabel,
+                ...(reaped ? { timedOut: true, termination: reaped.termination, containers: reaped.containers } : {}),
+                ...truncationMetadata(result.truncation).metadata
+              }
             })
           : undefined;
         return {
@@ -672,7 +723,8 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
             stderr,
             logs: logsFromOutput(stdout, stderr),
             artifacts: [],
-            receipt
+            receipt,
+            ...(result.truncation ? { truncation: result.truncation } : {})
           },
           receipt
         };

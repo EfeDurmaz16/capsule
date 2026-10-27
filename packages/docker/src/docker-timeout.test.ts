@@ -1,4 +1,4 @@
-// GAP-01: a runDocker timeout only kills the local docker CLI. These tests pin what the adapter does
+// GAP-01 and PERF-10 adapter behavior. A runDocker timeout only kills the local docker CLI. These tests pin what the adapter does
 // afterwards with a deterministic fake daemon (an injected runner); no Docker daemon is used.
 import { describe, expect, it } from "vitest";
 import { Capsule, CleanupFailureError, MemoryReceiptStore, UnknownOutcomeError, partialEffectsOf } from "@capsule-sdk/core";
@@ -102,5 +102,55 @@ describe("GAP-01: docker timeouts", () => {
     expect(error).toBeInstanceOf(UnknownOutcomeError);
     expect((error as UnknownOutcomeError).resource).toMatchObject({ kind: "sandbox", nativeId: "maybe-created" });
     expect(fake.calls.some((args) => args[0] === "rm" || args[0] === "start")).toBe(false);
+  });
+});
+
+describe("PERF-10: docker output bounds", () => {
+  it("passes resolved per-stream bounds with policy ceilings to the runner and surfaces truncation", async () => {
+    const seen: Array<RunDockerOptions | undefined> = [];
+    const truncation = {
+      stdout: { truncated: true, reason: "bytes" as const, capturedBytes: 9, limit: 9 },
+      stderr: { truncated: false, capturedBytes: 0 }
+    };
+    const fake = fakeDaemon((args, options) => {
+      if (args[0] !== "exec") return undefined;
+      seen.push(options);
+      return { exitCode: 0, stdout: "token=sec", stderr: "", truncation };
+    });
+    const store = new MemoryReceiptStore();
+    const capsule = new Capsule({
+      adapter: fake.adapter,
+      receipts: true,
+      receiptStore: store,
+      policy: { limits: { maxStderrBytes: 100 }, secrets: { allowed: ["SECRET"], redactFromLogs: true } }
+    });
+    const box = await capsule.sandbox.create({});
+    const result = await box.exec({ command: "print", env: { SECRET: "secretvalue" }, bounds: { maxBytes: 9 } });
+
+    expect(seen[0]?.outputBounds?.stdout.maxBytes).toBe(9);
+    expect(seen[0]?.outputBounds?.stderr.maxBytes).toBe(9);
+    expect(seen[0]?.outputBounds?.stdout.deadlineMs).toBe(Number.MAX_SAFE_INTEGER);
+    expect(result.truncation).toEqual(truncation);
+    // The cap cut the secret after "sec"; the trailing prefix is redacted too.
+    expect(result.stdout).toBe("token=[REDACTED]");
+    expect(store.receipts.find((receipt) => receipt.type === "sandbox.exec")?.metadata).toMatchObject({ outputTruncation: truncation });
+  });
+
+  it("applies the documented 16 MiB default and policy ceilings to job.run", async () => {
+    const seen: Array<RunDockerOptions | undefined> = [];
+    const fake = fakeDaemon((args, options) => {
+      if (args[0] === "run") seen.push(options);
+      return undefined;
+    });
+    await new Capsule({ adapter: fake.adapter, policy: { limits: { maxStdoutBytes: 1000 } } }).job.run({ image: "node:22" });
+    expect(seen[0]?.outputBounds?.stdout.maxBytes).toBe(1000);
+    expect(seen[0]?.outputBounds?.stderr.maxBytes).toBe(16 * 1024 * 1024);
+  });
+
+  it("rejects invalid bounds before running the command", async () => {
+    const fake = fakeDaemon(() => undefined);
+    const box = await new Capsule({ adapter: fake.adapter }).sandbox.create({});
+    await expect(box.exec({ command: "true", bounds: { maxBytes: 0 } })).rejects.toBeInstanceOf(RangeError);
+    expect(fake.calls.some((args) => args[0] === "exec")).toBe(false);
   });
 });
