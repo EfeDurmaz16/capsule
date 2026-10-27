@@ -1,33 +1,33 @@
 # Capsule gate record
-commit: 6f036c74fcca1019985fc19a824c402b93eb5e13
-date: 2026-10-27T19:45:38.516Z
+commit: 77bd490f8a0ee815ee8651aa5eeef8f1b8b06de9
+date: 2026-10-27T19:51:07.091Z
 host: darwin 25.6.0 arm64, cpus=18 (Apple M5 Pro), mem=48GiB
 node: v24.19.0
 pnpm: 10.32.1
 gates: same commands as the .github/workflows/ci.yml jobs (verify, Node compatibility, benchmark bounds), run locally in order
 
 ## summary
-PASS           install                  0.8s  $ pnpm install --frozen-lockfile
-PASS           provider-matrix-check    0.7s  $ pnpm capsule:gap:check
-PASS           format                   3.2s  $ pnpm format:check
-PASS           typecheck                4.2s  $ pnpm typecheck
-PASS           test                     6.4s  $ pnpm test  [Test Files  80 passed | 11 skipped (91) | Tests  998 passed | 25 skipped (1023) | Duration  3.32s (transform 6.89s, setup 0ms, import 16.53s, tests 16.21s, environment 7ms) | ℹ tests 62 | ℹ pass 62 | ℹ fail 0 | ℹ skipped 0 | ℹ todo 0]
-PASS           build                    15.3s  $ pnpm build
-PASS           release-audit            20.8s  $ pnpm release:audit
-PASS           api-reference-current    2.5s  $ pnpm docs:api:check
-PASS           package-exports          3.0s  $ pnpm test:package-exports  [Test Files  1 passed (1) | Tests  3 passed (3) | Duration  2.30s (transform 16ms, setup 0ms, import 23ms, tests 2.18s, environment 0ms)]
-PASS           pack-smoke-compatible    14.3s  $ pnpm release:pack-smoke:compatible
-PASS           benchmark-bounds         9.5s  $ pnpm bench:bounds
+PASS           install                  0.6s  $ pnpm install --frozen-lockfile
+PASS           provider-matrix-check    0.6s  $ pnpm capsule:gap:check
+PASS           format                   2.7s  $ pnpm format:check
+PASS           typecheck                3.2s  $ pnpm typecheck
+PASS           test                     5.3s  $ pnpm test  [Test Files  80 passed | 11 skipped (91) | Tests  999 passed | 25 skipped (1024) | Duration  2.71s (transform 5.14s, setup 0ms, import 12.88s, tests 14.66s, environment 5ms) | ℹ tests 62 | ℹ pass 62 | ℹ fail 0 | ℹ skipped 0 | ℹ todo 0]
+PASS           build                    11.8s  $ pnpm build
+PASS           release-audit            13.2s  $ pnpm release:audit
+PASS           api-reference-current    2.1s  $ pnpm docs:api:check
+PASS           package-exports          2.4s  $ pnpm test:package-exports  [Test Files  1 passed (1) | Tests  3 passed (3) | Duration  1.78s (transform 13ms, setup 0ms, import 19ms, tests 1.68s, environment 0ms)]
+PASS           pack-smoke-compatible    10.9s  $ pnpm release:pack-smoke:compatible
+PASS           benchmark-bounds         9.2s  $ pnpm bench:bounds
 
-## install: PASS in 0.8s
+## install: PASS in 0.6s
 $ pnpm install --frozen-lockfile
   Scope: all 33 workspace projects
   Lockfile is up to date, resolution step is skipped
   Already up to date
   
-  Done in 408ms using pnpm v10.32.1
+  Done in 303ms using pnpm v10.32.1
 
-## provider-matrix-check: PASS in 0.7s
+## provider-matrix-check: PASS in 0.6s
 $ pnpm capsule:gap:check
   | @capsule-sdk/kubernetes | 12 | 0 | 2 | 26 |
   | @capsule-sdk/lambda | 1 | 1 | 0 | 35 |
@@ -55,7 +55,7 @@ $ pnpm capsule:gap:check
   - Move examples to env-gated real adapters while preserving mock mode for credential-free docs.
   - Add live tests behind CAPSULE_LIVE_TESTS=1 and provider-specific credentials.
 
-## format: PASS in 3.2s
+## format: PASS in 2.7s
 $ pnpm format:check
   
   > capsule@0.1.0 format:check /private/tmp/capsule-wt/m3
@@ -64,32 +64,32 @@ $ pnpm format:check
   Checking formatting...
   All matched files use Prettier code style!
 
-## typecheck: PASS in 4.2s
+## typecheck: PASS in 3.2s
 $ pnpm typecheck
   
   > capsule@0.1.0 typecheck /private/tmp/capsule-wt/m3
   > tsc -p tsconfig.typecheck.json --noEmit
 
-## test: PASS in 6.4s
+## test: PASS in 5.3s
 $ pnpm test
-counts: Test Files  80 passed | 11 skipped (91) | Tests  998 passed | 25 skipped (1023) | Duration  3.32s (transform 6.89s, setup 0ms, import 16.53s, tests 16.21s, environment 7ms) | ℹ tests 62 | ℹ pass 62 | ℹ fail 0 | ℹ skipped 0 | ℹ todo 0
-  ✔ live test matrix blocks billable providers without cost acknowledgement (0.0935ms)
-  ✔ live test matrix blocks billable providers when max resource count is too low (0.096625ms)
-  ✔ live test matrix reports quarantined flaky providers with revalidation metadata (0.213ms)
-  ✔ live test matrix lets explicitly revalidated flaky providers become ready (0.1045ms)
-  ✔ live test matrix dry-run command emits JSON and exits without credentials (42.542917ms)
-  ✔ engine-aware package pack smoke excludes Node 24-only packages on Node 22 (50.06475ms)
-  ✔ engine-aware package pack smoke includes every public package on Node 24 (47.049958ms)
-  ✔ CI-06: packed contents allow package metadata and dist output only (1.432917ms)
-  ✔ dry-run passes for publishable package metadata (46.019875ms)
-  ✔ dry-run rejects missing metadata, private publish access, and dist test artifacts (52.606542ms)
-  ✔ dry-run rejects public examples and private packages missing Changesets ignore (51.157875ms)
-  ✔ dry-run lists public packages without shelling out to npm (43.674167ms)
-  ✔ real mode checks published dist provenance metadata with npm view (324.881333ms)
-  ✔ REL-01: registry signatures alone are not provenance (0.271459ms)
-  ✔ REL-01: malformed attestation metadata is rejected (0.285292ms)
-  ✔ REL-01: SLSA provenance attestation metadata passes as presence only, in object or single-element array form (0.282542ms)
-  ✔ REL-01: real mode fails a signature-only package with a named reason (306.336833ms)
+counts: Test Files  80 passed | 11 skipped (91) | Tests  999 passed | 25 skipped (1024) | Duration  2.71s (transform 5.14s, setup 0ms, import 12.88s, tests 14.66s, environment 5ms) | ℹ tests 62 | ℹ pass 62 | ℹ fail 0 | ℹ skipped 0 | ℹ todo 0
+  ✔ live test matrix blocks billable providers without cost acknowledgement (0.124583ms)
+  ✔ live test matrix blocks billable providers when max resource count is too low (0.100666ms)
+  ✔ live test matrix reports quarantined flaky providers with revalidation metadata (0.243083ms)
+  ✔ live test matrix lets explicitly revalidated flaky providers become ready (0.190333ms)
+  ✔ live test matrix dry-run command emits JSON and exits without credentials (36.5845ms)
+  ✔ engine-aware package pack smoke excludes Node 24-only packages on Node 22 (45.25475ms)
+  ✔ engine-aware package pack smoke includes every public package on Node 24 (39.426041ms)
+  ✔ CI-06: packed contents allow package metadata and dist output only (0.9905ms)
+  ✔ dry-run passes for publishable package metadata (39.13625ms)
+  ✔ dry-run rejects missing metadata, private publish access, and dist test artifacts (36.671625ms)
+  ✔ dry-run rejects public examples and private packages missing Changesets ignore (33.097458ms)
+  ✔ dry-run lists public packages without shelling out to npm (36.784042ms)
+  ✔ real mode checks published dist provenance metadata with npm view (322.589084ms)
+  ✔ REL-01: registry signatures alone are not provenance (0.260709ms)
+  ✔ REL-01: malformed attestation metadata is rejected (0.324875ms)
+  ✔ REL-01: SLSA provenance attestation metadata passes as presence only, in object or single-element array form (0.105958ms)
+  ✔ REL-01: real mode fails a signature-only package with a named reason (275.845625ms)
   ℹ tests 62
   ℹ suites 2
   ℹ pass 62
@@ -97,11 +97,11 @@ counts: Test Files  80 passed | 11 skipped (91) | Tests  998 passed | 25 skipped
   ℹ cancelled 0
   ℹ skipped 0
   ℹ todo 0
-  ℹ duration_ms 2136.897625
+  ℹ duration_ms 1775.80675
 
-## build: PASS in 15.3s
+## build: PASS in 11.8s
 $ pnpm build
-  packages/store-jsonl build: Done
+  packages/preview build: Done
   packages/vercel build: Done
   packages/bridge-worker build$ tsup src/index.ts src/bin.ts --format esm && tsc -p tsconfig.json --emitDeclarationOnly
   packages/cli build$ tsup src/index.ts --format esm && tsc -p tsconfig.json --emitDeclarationOnly
@@ -112,22 +112,22 @@ $ pnpm build
   packages/bridge-worker build: ESM Build start
   packages/bridge-worker build: ESM dist/bin.js            2.13 KB
   packages/bridge-worker build: ESM dist/index.js          11.64 KB
-  packages/bridge-worker build: ESM dist/chunk-CD5C6N44.js 76.13 KB
-  packages/bridge-worker build: ESM ⚡️ Build success in 24ms
+  packages/bridge-worker build: ESM dist/chunk-5353GLGG.js 76.80 KB
+  packages/bridge-worker build: ESM ⚡️ Build success in 15ms
   packages/cli build: CLI Building entry: src/index.ts
   packages/cli build: CLI Using tsconfig: tsconfig.json
   packages/cli build: CLI tsup v8.5.1
   packages/cli build: CLI Target: es2022
   packages/cli build: ESM Build start
   packages/cli build: ESM dist/index.js 110.12 KB
-  packages/cli build: ESM ⚡️ Build success in 18ms
+  packages/cli build: ESM ⚡️ Build success in 16ms
   packages/bridge-worker build: Done
   packages/cli build: Done
   
   > capsule@0.1.0 prune:build /private/tmp/capsule-wt/m3
   > node scripts/prune-package-artifacts.mjs
 
-## release-audit: PASS in 20.8s
+## release-audit: PASS in 13.2s
 $ pnpm release:audit
   + @capsule-sdk/cli 0.1.1
   + @capsule-sdk/cloud-run 0.1.1
@@ -150,12 +150,12 @@ $ pnpm release:audit
   + @capsule-sdk/store-sqlite 0.1.0
   + @capsule-sdk/vercel 0.1.1
   
-  Done in 8.8s using pnpm v10.32.1
+  Done in 4.2s using pnpm v10.32.1
   Imported 23 Capsule packages from packed artifacts.
   Packed capsule-bridge-worker passed the fixture round trip, a refusal before effect and an oversize hello.
-  Package pack smoke passed for 23 packages in capsule-pack-smoke-6ZvlQ6.
+  Package pack smoke passed for 23 packages in capsule-pack-smoke-jNwzxC.
 
-## api-reference-current: PASS in 2.5s
+## api-reference-current: PASS in 2.1s
 $ pnpm docs:api:check
   
   > capsule@0.1.0 docs:api:check /private/tmp/capsule-wt/m3
@@ -163,9 +163,9 @@ $ pnpm docs:api:check
   
   docs/api-reference.md is current.
 
-## package-exports: PASS in 3.0s
+## package-exports: PASS in 2.4s
 $ pnpm test:package-exports
-counts: Test Files  1 passed (1) | Tests  3 passed (3) | Duration  2.30s (transform 16ms, setup 0ms, import 23ms, tests 2.18s, environment 0ms)
+counts: Test Files  1 passed (1) | Tests  3 passed (3) | Duration  1.78s (transform 13ms, setup 0ms, import 19ms, tests 1.68s, environment 0ms)
   
   > capsule@0.1.0 test:package-exports /private/tmp/capsule-wt/m3
   > vitest run packages/core/src/package-exports.test.ts
@@ -176,10 +176,10 @@ counts: Test Files  1 passed (1) | Tests  3 passed (3) | Duration  2.30s (transf
   
    Test Files  1 passed (1)
         Tests  3 passed (3)
-     Start at  22:46:33
-     Duration  2.30s (transform 16ms, setup 0ms, import 23ms, tests 2.18s, environment 0ms)
+     Start at  22:51:47
+     Duration  1.78s (transform 13ms, setup 0ms, import 19ms, tests 1.68s, environment 0ms)
 
-## pack-smoke-compatible: PASS in 14.3s
+## pack-smoke-compatible: PASS in 10.9s
 $ pnpm release:pack-smoke:compatible
   + @capsule-sdk/cli 0.1.1
   + @capsule-sdk/cloud-run 0.1.1
@@ -202,12 +202,12 @@ $ pnpm release:pack-smoke:compatible
   + @capsule-sdk/store-sqlite 0.1.0
   + @capsule-sdk/vercel 0.1.1
   
-  Done in 5.9s using pnpm v10.32.1
+  Done in 3.8s using pnpm v10.32.1
   Imported 23 Capsule packages from packed artifacts.
   Packed capsule-bridge-worker passed the fixture round trip, a refusal before effect and an oversize hello.
-  Package pack smoke passed for 23 packages in capsule-pack-smoke-ht1bVu.
+  Package pack smoke passed for 23 packages in capsule-pack-smoke-EIG78d.
 
-## benchmark-bounds: PASS in 9.5s
+## benchmark-bounds: PASS in 9.2s
 $ pnpm bench:bounds
     ]
   }
