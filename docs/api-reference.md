@@ -14,9 +14,11 @@ This is a lightweight reference for maintainers and adapter authors. It lists pa
 
 Exports:
 - `CodeExecutionCleanupFailure` (interface)
+- `CodeExecutionCleanupReport` (interface)
 - `CodeExecutionFile` (interface)
 - `CodeExecutionInput` (interface)
 - `codeExecutionInputJsonSchema` (const)
+- `CodeExecutionResult` (interface)
 - `CodeExecutionTool` (interface)
 - `CodeExecutionToolOptions` (interface)
 - `createCodeExecutionTool` (function)
@@ -187,6 +189,7 @@ Exports:
 - `ClassifyProviderServiceInput` (interface)
 - `ClassifyProviderServiceResult` (interface)
 - `classifySdkError` (function)
+- `CleanupApprovalContext` (interface)
 - `CleanupApprovalRequest` (interface)
 - `CleanupApprovalResolver` (type)
 - `CleanupFailureError` (class)
@@ -657,6 +660,7 @@ Exports:
 - `PreviewPlan` (interface)
 - `PreviewPlannedResource` (interface)
 - `PreviewPlannedResourceSpec` (type)
+- `PreviewResidualEffect` (interface)
 - `PreviewResourceGroup` (interface)
 - `PreviewResourceKind` (type)
 - `PreviewResourceRecord` (interface)
