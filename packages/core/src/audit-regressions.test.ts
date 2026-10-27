@@ -5,6 +5,7 @@ import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { inspect } from "node:util";
 import { setFlagsFromString } from "node:v8";
 import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
@@ -202,7 +203,7 @@ describe("M1 audit regressions: core", () => {
     }
   });
 
-  it.fails("POL-02: redactError also redacts an already materialized stack", () => {
+  it("POL-02: redactError also redacts an already materialized stack", () => {
     const error = new Error("Bearer FAKE-not-a-real-token-value");
     void error.stack;
     redactError(error, undefined);
@@ -210,7 +211,27 @@ describe("M1 audit regressions: core", () => {
     expect(error.stack).not.toContain("FAKE-not-a-real-token-value");
   });
 
-  it.fails("POL-02: a public operation error never leaks a credential through error.stack", async () => {
+  it("POL-02: stack redaction covers nested causes and env secrets while keeping class, identity and frames", () => {
+    class SyntheticProviderError extends Error {}
+    const inner = new Error("inner Bearer FAKE-inner-not-a-real-token");
+    void inner.stack;
+    const outer = new SyntheticProviderError("outer leaked synthetic-env-secret-value", { cause: inner });
+    void outer.stack;
+    (inner as { cause?: unknown }).cause = outer;
+    const env = { API_KEY: "synthetic-env-secret-value" };
+    const result = redactError(outer, env, { secrets: { allowed: ["API_KEY"], redactFromLogs: true } });
+    expect(result).toBe(outer);
+    expect(outer).toBeInstanceOf(SyntheticProviderError);
+    const inspected = inspect(outer, { depth: 5 });
+    expect(inspected).not.toContain("synthetic-env-secret-value");
+    expect(inspected).not.toContain("FAKE-inner-not-a-real-token");
+    expect(outer.stack).not.toContain("synthetic-env-secret-value");
+    expect(inner.stack).not.toContain("FAKE-inner-not-a-real-token");
+    expect(outer.stack).toMatch(/^Error: outer leaked/);
+    expect(outer.stack).toContain("audit-regressions.test.ts");
+  });
+
+  it("POL-02: a public operation error never leaks a credential through error.stack", async () => {
     const capsule = new Capsule({
       adapter: {
         name: "audit-fake",

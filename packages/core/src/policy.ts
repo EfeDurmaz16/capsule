@@ -538,14 +538,27 @@ export function isSensitiveKey(key: string, policy: CapsulePolicy = {}): boolean
 }
 
 export function redactError(error: unknown, env: Record<string, string> | undefined, policy: CapsulePolicy = {}): unknown {
+  return redactErrorValue(error, env, policy, new WeakSet());
+}
+
+function redactErrorValue(error: unknown, env: Record<string, string> | undefined, policy: CapsulePolicy, seen: WeakSet<Error>): unknown {
   if (error instanceof Error) {
+    if (seen.has(error)) {
+      return error;
+    }
+    seen.add(error);
     const message = redactSensitiveText(error.message, env, policy);
     if (message !== error.message) {
       Object.defineProperty(error, "message", { value: message, configurable: true });
     }
+    // V8 materializes `stack` once, with the message as its first line. A stack read before
+    // redaction keeps the original message, so redact the stack string as well. Redaction only
+    // replaces secret-shaped text, so the class name and frames stay useful.
+    redactErrorStack(error, env, policy);
     const cause = (error as { cause?: unknown }).cause;
     if (cause !== undefined) {
-      Object.defineProperty(error, "cause", { value: redactUnknownValue("cause", cause, env, policy), configurable: true });
+      const redactedCause = cause instanceof Error ? redactErrorValue(cause, env, policy, seen) : redactUnknownValue("cause", cause, env, policy);
+      Object.defineProperty(error, "cause", { value: redactedCause, configurable: true });
     }
     return error;
   }
@@ -553,6 +566,30 @@ export function redactError(error: unknown, env: Record<string, string> | undefi
     return redactSensitiveText(error, env, policy);
   }
   return redactUnknownValue("error", error, env, policy);
+}
+
+function redactErrorStack(error: Error, env: Record<string, string> | undefined, policy: CapsulePolicy): void {
+  let stack: unknown;
+  try {
+    stack = error.stack;
+  } catch {
+    return;
+  }
+  if (typeof stack !== "string") {
+    return;
+  }
+  const redacted = redactSensitiveText(stack, env, policy);
+  if (redacted === stack) {
+    return;
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(error, "stack");
+  if (descriptor && !descriptor.configurable) {
+    if (descriptor.writable) {
+      error.stack = redacted;
+    }
+    return;
+  }
+  Object.defineProperty(error, "stack", { value: redacted, writable: true, configurable: true, enumerable: descriptor?.enumerable ?? false });
 }
 
 function redactTokenLikeText(value: string, policy: CapsulePolicy): string {
