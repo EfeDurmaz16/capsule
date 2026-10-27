@@ -126,6 +126,13 @@ export interface KubernetesAdapterOptions {
   operationDeadlineMs?: number;
   /** Delay between deletion observations in milliseconds. Default 1000. */
   operationPollIntervalMs?: number;
+  /**
+   * Reread the kubeconfig and rebuild API clients for every operation, as earlier versions did. By
+   * default the kubeconfig is parsed once per adapter on first use and the clients are reused; the
+   * client library still applies authentication (including exec-plugin token refresh) per request.
+   * Enable this when the kubeconfig file or its current context can change during the adapter's life.
+   */
+  reloadKubeconfigPerOperation?: boolean;
 }
 
 const provider = "kubernetes";
@@ -890,13 +897,19 @@ function classifyKubernetesErrors<T extends object>(client: T): T {
 
 export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapter {
   const namespace = options.namespace ?? "default";
+  // Lazily built once per adapter. A failed kubeconfig load is not cached, so the next operation
+  // retries it. Injected clients are wrapped but never replaced.
+  let cachedClients: KubernetesClients | undefined;
   const getClients = (): KubernetesClients => {
+    if (cachedClients) return cachedClients;
     const clients = options.clients ?? defaultClients(options);
-    return {
+    const classified = {
       batch: classifyKubernetesErrors(clients.batch),
       apps: classifyKubernetesErrors(clients.apps),
       core: classifyKubernetesErrors(clients.core)
     };
+    if (!options.reloadKubeconfigPerOperation) cachedClients = classified;
+    return classified;
   };
   const operationDeadlineMs = options.operationDeadlineMs ?? 120_000;
   const operationPollIntervalMs = options.operationPollIntervalMs ?? 1_000;
