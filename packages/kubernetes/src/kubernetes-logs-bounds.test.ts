@@ -229,3 +229,30 @@ describe("kubernetes log deadline longer than a timer can wait", () => {
     expect(result.truncation?.truncated).toBe(false);
   });
 });
+
+describe("kubernetes log line parsing without match arrays (PERF-05)", () => {
+  it("splits timestamp and message exactly as the capturing pattern did", async () => {
+    const lines = [
+      "2026-10-25T10:00:00.000000001Z plain message",
+      "2026-10-25T10:00:00.000000002Z\ttab separated",
+      "2026-10-25T10:00:00.000000003Z no-break space",
+      "2026-10-25T10:00:00.000000004Z line separator as the gap",
+      "2026-10-25T10:00:00.000000005Z message with   inside",
+      "2026-10-25T10:00:00.000000006Z message with \r inside",
+      "2026-10-25T10:00:00.000000007Z",
+      "2026-10-25T not-a-time message",
+      "2026-1-25T10:00:00Z short month",
+      "no timestamp at all",
+      "2026-10-25T10:00:00.000000008Z  two spaces"
+    ];
+    const capsule = podsCapsule(1, async () => lines.join("\n"));
+    const { logs } = await capsule.service.logs({ id: "svc" });
+    const reference = lines.map((line) => {
+      const match = /^(\d{4}-\d{2}-\d{2}T\S+)\s(.*)$/.exec(line);
+      return match && !Number.isNaN(Date.parse(match[1]!.replace(/(\.\d{3})\d+(Z|[+-]\d{2}:\d{2})$/, "$1$2"))) ? match[2]! : line;
+    });
+    expect([...logs.map((entry) => entry.message)].sort()).toEqual([...reference].sort());
+    const timestamped = logs.filter((entry) => entry.timestamp.startsWith("2026-10-25T10:00:00.00000000"));
+    expect(timestamped.map((entry) => entry.message)).toEqual(["plain message", "tab separated", "no-break space", "line separator as the gap", " two spaces"]);
+  });
+});

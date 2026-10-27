@@ -593,14 +593,28 @@ function parseTimestamp(value: string): number {
   return Date.parse(normalized);
 }
 
+// /^(\d{4}-\d{2}-\d{2}T\S+)\s(.*)$/ without the capture groups: test() and search() return a boolean
+// and an index, so a line costs no match array (PERF-05). The prefix has no whitespace, so the first
+// whitespace in a matching line ends the timestamp, exactly where the capturing form split it.
+const timestampedLine = /^\d{4}-\d{2}-\d{2}T\S+\s.*$/;
+const whitespace = /\s/;
+
 function parseKubernetesLog(text: string, stream: LogEntry["stream"], fallbackTimestamp: string, source?: string): LogEntry[] {
   const entries: LogEntry[] = [];
-  for (const line of text.split(/\r?\n/)) {
+  const lines = text.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!;
     if (!line) continue;
-    const match = /^(\d{4}-\d{2}-\d{2}T\S+)\s(.*)$/.exec(line);
-    const timestamped = match !== null && !Number.isNaN(parseTimestamp(match[1]!));
-    const timestamp = timestamped ? match[1]! : fallbackTimestamp;
-    const message = timestamped ? match[2]! : line;
+    let timestamp = fallbackTimestamp;
+    let message = line;
+    if (timestampedLine.test(line)) {
+      const end = line.search(whitespace);
+      const candidate = line.slice(0, end);
+      if (!Number.isNaN(parseTimestamp(candidate))) {
+        timestamp = candidate;
+        message = line.slice(end + 1);
+      }
+    }
     entries.push(source ? { timestamp, stream, message, source } : { timestamp, stream, message });
   }
   return entries;
@@ -725,17 +739,21 @@ function redactLiteralEnvValues(logs: LogEntry[], values: Set<string>, context: 
   // Longest first so a value that contains another value is replaced whole.
   const secrets = [...values].sort((left, right) => right.length - left.length);
   if (secrets.length === 0) return logs;
-  return logs.map((entry) => {
+  // The entries were parsed by this collection and nothing else holds them yet, so the redacted message
+  // replaces the original in place instead of in a copy of every entry.
+  for (let entryIndex = 0; entryIndex < logs.length; entryIndex += 1) {
+    const entry = logs[entryIndex]!;
     let message = entry.message;
     // Same replacements in the same order as splitting and joining on every value (a literal
-    // replaceAll); a value that does not occur in the message as it stands is skipped. An index loop:
+    // replaceAll); a value that does not occur in the message as it stands is skipped. Index loops:
     // this runs entries x values times, mostly before the code is optimized, where for...of allocates.
     for (let index = 0; index < secrets.length; index += 1) {
       const secret = secrets[index]!;
       if (message.includes(secret)) message = message.replaceAll(secret, "[REDACTED]");
     }
-    return message === entry.message ? entry : { ...entry, message };
-  });
+    entry.message = message;
+  }
+  return logs;
 }
 
 function validateLogLimit(limit: number | undefined): void {
