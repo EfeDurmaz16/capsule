@@ -14,6 +14,8 @@ import {
   asProviderError,
   capsuleOperationTags,
   logsFromOutput,
+  observeUntilTerminal,
+  resourceLocator,
   type AdapterContext,
   AdapterExecutionError,
   CleanupFailureError,
@@ -28,6 +30,7 @@ import {
   type JobStatusSpec,
   type JobRun,
   type JobRunStatus,
+  type ResourceLocator,
   type RunJobSpec,
   type ServiceDeployment,
   type ServiceStatus,
@@ -38,8 +41,21 @@ import {
 interface ECSClientLike {
   send(
     command:
-      RunTaskCommand | CreateServiceCommand | DescribeTasksCommand | StopTaskCommand | DescribeServicesCommand | UpdateServiceCommand | DeleteServiceCommand
+      RunTaskCommand | CreateServiceCommand | DescribeTasksCommand | StopTaskCommand | DescribeServicesCommand | UpdateServiceCommand | DeleteServiceCommand,
+    options?: { abortSignal?: AbortSignal }
   ): Promise<any>;
+}
+
+/**
+ * Client-side bound for observing an ECS service deletion. ECS accepts DeleteService while the service
+ * is still DRAINING its tasks; service.delete resolves only once DescribeServices reports INACTIVE (or
+ * the service is gone) and otherwise throws PendingOperationError when the deadline expires.
+ */
+export interface ECSDeleteObservationOptions {
+  /** Total observation budget in milliseconds. Defaults to 600000 (10 minutes). */
+  deadlineMs?: number;
+  /** Delay between DescribeServices observations in milliseconds. Defaults to 5000. */
+  intervalMs?: number;
 }
 
 export interface ECSAdapterOptions {
@@ -51,14 +67,22 @@ export interface ECSAdapterOptions {
   securityGroups?: string[];
   assignPublicIp?: "ENABLED" | "DISABLED";
   launchType?: "FARGATE" | "EC2" | "EXTERNAL";
+  /** Bounds for observing service.delete until ECS reports the service INACTIVE. */
+  deleteObservation?: ECSDeleteObservationOptions;
   client?: ECSClientLike;
 }
 
 interface ECSServiceCleanupMetadata {
   action: "delete-created-service";
   service: string;
-  status: "deleted" | "failed";
+  /**
+   * deleted: DeleteService reported INACTIVE. pending: ECS accepted the deletion but the service is
+   * still draining (not observed further on this failure path). failed: the DeleteService request failed.
+   */
+  status: "deleted" | "pending" | "failed";
   cluster: string;
+  /** Service status from the DeleteService response, for example DRAINING. */
+  providerStatus?: string;
   error?: string;
 }
 
@@ -66,6 +90,8 @@ type CleanupAwareError = Error & { cleanup?: ECSServiceCleanupMetadata };
 
 const provider = "ecs";
 const adapter = "ecs";
+const defaultDeleteObservationDeadlineMs = 600_000;
+const defaultDeleteObservationIntervalMs = 5_000;
 
 export const ecsCapabilities: CapabilityMap = {
   sandbox: {
@@ -261,11 +287,15 @@ async function cleanupCreatedServiceAfterDeployFailure(
   const cleanup: ECSServiceCleanupMetadata = {
     action: "delete-created-service",
     service: serviceId,
-    status: "deleted",
+    status: "pending",
     cluster
   };
   try {
-    await client.send(new DeleteServiceCommand({ cluster, service: serviceId, force: true }));
+    const deleted = await client.send(new DeleteServiceCommand({ cluster, service: serviceId, force: true }));
+    const providerStatus: string | undefined = deleted?.service?.status;
+    if (providerStatus !== undefined) cleanup.providerStatus = providerStatus;
+    // An accepted DeleteService is not a completed deletion: DRAINING tasks may still run.
+    cleanup.status = providerStatus === "INACTIVE" ? "deleted" : "pending";
   } catch (cleanupError) {
     cleanup.status = "failed";
     cleanup.error = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
@@ -278,6 +308,58 @@ async function cleanupCreatedServiceAfterDeployFailure(
     throw deployError;
   }
   throw new AdapterExecutionError("ECS service deploy failed after service creation.", { deployError, cleanup });
+}
+
+function hasErrorName(error: unknown, name: string): boolean {
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && typeof current === "object" && current !== null; depth += 1) {
+    if ((current as { name?: unknown }).name === name) return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
+interface ObservedServiceDeletion {
+  /** INACTIVE from DescribeServices, MISSING from its failures, or not-found from ServiceNotFoundException. */
+  terminal: "INACTIVE" | "MISSING" | "not-found";
+  service?: Service;
+  observations: number;
+}
+
+/**
+ * Observes DescribeServices until the service is INACTIVE or no longer known to ECS (CD-DELETE). Throws
+ * PendingOperationError with the last native status when the deadline expires.
+ */
+async function observeServiceDeletion(
+  client: ECSClientLike,
+  options: ECSAdapterOptions,
+  serviceId: string,
+  locator: ResourceLocator
+): Promise<ObservedServiceDeletion> {
+  return observeUntilTerminal<ObservedServiceDeletion>(
+    async ({ attempt, signal }) => {
+      let response: { services?: Service[]; failures?: Array<{ arn?: string; reason?: string }> };
+      try {
+        response = await client.send(new DescribeServicesCommand({ cluster: options.cluster, services: [serviceId] }), { abortSignal: signal });
+      } catch (error) {
+        // ECS may purge INACTIVE services; DescribeServices then reports ServiceNotFoundException.
+        if (hasErrorName(error, "ServiceNotFoundException")) return { done: true, value: { terminal: "not-found", observations: attempt } };
+        throw error;
+      }
+      const service = response.services?.[0];
+      if (service?.status === "INACTIVE") return { done: true, value: { terminal: "INACTIVE", service, observations: attempt } };
+      if (!service && response.failures?.some((failure) => failure.reason === "MISSING")) {
+        return { done: true, value: { terminal: "MISSING", observations: attempt } };
+      }
+      return { done: false, state: service?.status ?? "unknown" };
+    },
+    {
+      operation: "service.delete",
+      resource: locator,
+      deadlineMs: options.deleteObservation?.deadlineMs ?? defaultDeleteObservationDeadlineMs,
+      intervalMs: options.deleteObservation?.intervalMs ?? defaultDeleteObservationIntervalMs
+    }
+  );
 }
 
 export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
@@ -479,9 +561,27 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
         const client = getClient();
         const scale = await client.send(new UpdateServiceCommand({ cluster: options.cluster, service: spec.id, desiredCount: 0 }));
         const response = await client.send(new DeleteServiceCommand({ cluster: options.cluster, service: spec.id, force: spec.force }));
-        const service = response.service ?? scale.service;
+        const acknowledged: Service | undefined = response.service;
+        const acknowledgedId = acknowledged?.serviceArn ?? scale.service?.serviceArn ?? spec.id;
+        // DeleteService only starts deletion; DRAINING is not deleted (AWS-04). Resolve once ECS reports the
+        // service INACTIVE or gone, otherwise throw PendingOperationError from the bounded observation.
+        const observed: ObservedServiceDeletion =
+          acknowledged?.status === "INACTIVE"
+            ? { terminal: "INACTIVE", service: acknowledged, observations: 0 }
+            : await observeServiceDeletion(
+                client,
+                options,
+                acknowledgedId,
+                resourceLocator({ provider, kind: "service", nativeId: acknowledgedId, scope: { cluster: options.cluster, region: options.region } })
+              );
+        const service = observed.service ?? acknowledged ?? scale.service;
         const id = service?.serviceArn ?? spec.id;
         const name = service?.serviceName ?? spec.id;
+        const deletion = {
+          acknowledgedStatus: acknowledged?.status,
+          observedTerminal: observed.terminal,
+          observations: observed.observations
+        };
         const receipt = context.receipts
           ? context.createReceipt({
               type: "service.delete",
@@ -490,7 +590,10 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
               policy: {
                 decision: "allowed",
                 applied: context.policy,
-                notes: ["ECS service deletion first scales desiredCount to zero, then calls DeleteService."]
+                notes: [
+                  "ECS service deletion first scales desiredCount to zero, then calls DeleteService.",
+                  "The service is reported deleted only after DescribeServices shows it INACTIVE or no longer present."
+                ]
               },
               resource: { id, name, status: "deleted" },
               metadata: serviceMetadata(service, {
@@ -498,7 +601,8 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
                 reason: spec.reason,
                 semantics: "scale-to-zero-then-delete-service",
                 scaleServiceArn: scale.service?.serviceArn,
-                force: spec.force
+                force: spec.force,
+                deletion
               })
             })
           : undefined;
@@ -513,7 +617,8 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
             reason: spec.reason,
             semantics: "scale-to-zero-then-delete-service",
             scaleServiceArn: scale.service?.serviceArn,
-            force: spec.force
+            force: spec.force,
+            deletion
           })
         };
       }
