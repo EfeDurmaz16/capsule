@@ -150,3 +150,15 @@ describe("jsonlReceiptStore", () => {
     }
   });
 });
+
+describe("deferred M1 items (visible skips with reason and dependency)", () => {
+  // PERF-11 deferred: an incremental receipt iterator with a bounded line size and a compatible readAll
+  // wrapper is an additive API that needs review. The M1 harness (perf-11-jsonl-read) records readAll
+  // memory and time before and after M1 with this package unchanged. Dependency: additive API review for
+  // the iterator, then a before/after run of perf-11 showing bounded reader memory with the same verify
+  // semantics and corruption line locations.
+  test.skip("PERF-11 (deferred): an incremental reader keeps memory bounded with readAll semantics unchanged", () => {
+    // Intended assertion: iterating 50k receipts holds at most one bounded line in memory, reports the same
+    // corrupt line number as readAll, and closes the file on early exit.
+  });
+});

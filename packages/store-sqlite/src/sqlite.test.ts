@@ -124,3 +124,14 @@ describe("sqliteReceiptStore", () => {
     }
   });
 });
+
+describe("deferred M1 items (visible skips with reason and dependency)", () => {
+  // PERF-12 deferred: the manifest reuses prepared statements only if a benchmark shows prepare cost
+  // matters separately from the synchronous commit. The M1 harness has no SQLite workload, so there is no
+  // such measurement. Dependency: a store-sqlite workload separating prepare from commit cost, then reuse
+  // that preserves insert/read ordering, INSERT OR REPLACE semantics and closed-store errors.
+  test.skip("PERF-12 (deferred): reused prepared statements keep ordering, replacement and closed-store errors", () => {
+    // Intended assertion once implemented: the same sequence of writes and reads returns identical rows and
+    // errors with statement reuse as without it.
+  });
+});

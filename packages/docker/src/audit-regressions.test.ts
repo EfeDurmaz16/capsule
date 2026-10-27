@@ -222,3 +222,15 @@ describe("M1 audit regressions: docker", () => {
     expect(capsule.supportLevel("sandbox.artifacts")).toBe("emulated");
   });
 });
+
+describe("deferred M1 items (visible skips with reason and dependency)", () => {
+  // PERF-14 deferred: batching artifact copies (one tar stream from the common root) is an optional
+  // optimization only if profiling supports it. The M1 benchmark harness has no 1/10/100-path docker cp
+  // workload, so there is no measurement to justify it. Dependency: a spawn-count/bytes/time profile at
+  // 1/10/100 paths, with SB-07 (fixed) defining the layout any batch must reproduce. N sequential docker cp
+  // calls are unchanged.
+  it.skip("PERF-14 (deferred): batched artifact transfer keeps the SB-07 layout, hashes and selection", () => {
+    // Intended assertion once implemented: spawn count is constant in the number of paths while the copied
+    // layout, inventory and sha256 hashes equal the per-path docker cp result.
+  });
+});

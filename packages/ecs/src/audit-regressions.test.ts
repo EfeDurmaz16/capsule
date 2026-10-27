@@ -42,3 +42,15 @@ describe("M1 audit regressions: ecs", () => {
     expect(rejection).toMatchObject({ operation: "service.delete", state: "DRAINING", resource: { provider: "ecs", kind: "service", nativeId: "arn:audit" } });
   });
 });
+
+describe("deferred M1 items (visible skips with reason and dependency)", () => {
+  // GAP-14 deferred: a circuit-breaker rollback and a user's superseding redeploy both appear as a PRIMARY
+  // IN_PROGRESS deployment next to an ACTIVE FAILED one, and the documented DescribeServices fields do not
+  // tell them apart. Dependency: recorded DescribeServices responses from a real circuit-breaker rollback and
+  // from a superseding deploy after a FAILED rollout (an opt-in live ECS run, outside M1). Until then the
+  // current rule (any FAILED deployment reports failed) stays.
+  it.skip("GAP-14 (deferred): a superseding PRIMARY deployment is not reported failed because of an older FAILED deployment", () => {
+    // Intended assertion once provider-recorded fixtures exist: service.status reports the PRIMARY rollout's
+    // state when a newer deploy superseded a FAILED one, and failed for a circuit-breaker rollback.
+  });
+});

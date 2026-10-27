@@ -82,3 +82,15 @@ describe("M1 audit regressions: ai tool", () => {
     expect((partialEffectsOf(completed)?.result as ExecResult).stdout).toBe("completed-output");
   });
 });
+
+describe("deferred M1 items (visible skips with reason and dependency)", () => {
+  // GAP-20 deferred: createOpenAIResponsesFunctionTool sets strict: true on a schema with optional
+  // properties outside `required` and a `oneOf`. Whether the Responses API rejects it is a pending candidate:
+  // the current official OpenAI strict function-calling rules were not reverified in M1. Dependency: reverify
+  // the official docs, then isolate a strict-normalized schema (nullable optionals listed in required,
+  // anyOf instead of oneOf) in packages/ai with offline tests. No external model call is needed.
+  it.skip("GAP-20 (deferred): the strict Responses tool schema follows the official strict-mode rules", () => {
+    // Intended assertion: every property is listed in `required`, optional ones are nullable, and no `oneOf`
+    // appears in the strict schema, while the generic schema stays unchanged.
+  });
+});
