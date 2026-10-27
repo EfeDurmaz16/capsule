@@ -11,6 +11,7 @@ import {
   resourceLocator,
   type AdapterContext,
   type Artifact,
+  type AttachSandboxSpec,
   type CaptureBounds,
   type CaptureTruncation,
   type CapsuleAdapter,
@@ -33,6 +34,12 @@ type DockerRunner = (args: string[], options?: RunDockerOptions) => Promise<Dock
 
 export interface DockerAdapterOptions {
   defaultImage?: string;
+  /**
+   * Image pull policy for sandbox.create, passed as `docker create --pull`. Omitted keeps the Docker
+   * default (pull a missing image). "never" fails the create when the image is not present locally,
+   * so no registry is contacted.
+   */
+  pull?: "always" | "missing" | "never";
   // Seams for tests and custom hosts: override the docker CLI runner and the daemon reachability probe.
   runner?: DockerRunner;
   checkAvailable?: () => Promise<boolean>;
@@ -101,6 +108,7 @@ interface DockerSandboxCreateArgsInput {
   labels?: Record<string, string>;
   networkNone?: boolean;
   exposedPorts?: CreateSandboxSpec["exposedPorts"];
+  pull?: DockerAdapterOptions["pull"];
 }
 
 const provider = "docker";
@@ -230,6 +238,7 @@ export function dockerSandboxCreateArgs(input: DockerSandboxCreateArgsInput): st
     input.name,
     "--workdir",
     input.workdir,
+    ...(input.pull ? ["--pull", input.pull] : []),
     ...(input.networkNone ? ["--network", "none"] : []),
     ...publishPortArgs(input.exposedPorts),
     ...labelArgs(input.labels),
@@ -648,7 +657,8 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
             env: spec.env,
             labels: { ...(spec.labels ?? {}), ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "sandbox.create" }) ?? {}) },
             networkNone: context.policy.network?.mode === "none",
-            exposedPorts: spec.exposedPorts
+            exposedPorts: spec.exposedPorts,
+            pull: options.pull
           }),
           { timeoutMs: spec.timeoutMs }
         );
@@ -693,6 +703,16 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
         } catch (error) {
           return await rollbackCreatedContainer(runner, locator, error);
         }
+      },
+      attach: async (spec: AttachSandboxSpec, context: AdapterContext): Promise<Sandbox> => {
+        await ensureDocker(checkAvailable);
+        // A read only: confirm the container exists and learn when it was created. It changes nothing.
+        const inspected = await runner(["inspect", "--type", "container", "--format", "{{.Created}}", spec.id], { timeoutMs: 20_000 });
+        if (inspected.exitCode !== 0) {
+          throw dockerCliError(`docker inspect failed while attaching: ${inspected.stderr}`, inspected);
+        }
+        const handle: SandboxHandle = { id: spec.id, provider, createdAt: inspected.stdout.trim(), metadata: { attached: true } };
+        return new DockerSandbox(handle, context, runner);
       }
     },
     job: {
