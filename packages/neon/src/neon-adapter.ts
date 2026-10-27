@@ -1,6 +1,11 @@
 import {
   type AdapterContext,
   AdapterExecutionError,
+  CleanupFailureError,
+  PartialEffectsError,
+  UnknownOutcomeError,
+  resourceLocator,
+  type PartialEffects,
   type CapsuleAdapter,
   type CapabilityMap,
   providerErrorStatus,
@@ -169,6 +174,38 @@ async function getConnectionString(client: NeonClient, project: string, branchId
   return response.uri ?? response.connection_uri;
 }
 
+/**
+ * Deletes a branch created by this call after a later step failed (EDGE-06b). A successful or already
+ * absent delete lets the caller rethrow the primary error unchanged. A failed or unresolved delete throws
+ * a structured error that keeps the primary error, the created branch locator and the cleanup outcome.
+ */
+async function cleanupCreatedBranch(client: NeonClient, project: string, branchId: string, primaryError: unknown): Promise<void> {
+  const branch = resourceLocator({ provider, kind: "branch", nativeId: branchId, scope: { project } });
+  try {
+    await client.request<unknown>({
+      method: "DELETE",
+      path: `/projects/${encodeURIComponent(project)}/branches/${encodeURIComponent(branchId)}`,
+      query: { hard_delete: true }
+    });
+    return;
+  } catch (cleanupError) {
+    if (providerErrorStatus(cleanupError) === 404) return;
+    const unresolved = cleanupError instanceof UnknownOutcomeError;
+    const effects: PartialEffects = {
+      operation: "database.branchCreate",
+      outcome: "failed",
+      resources: [branch],
+      primaryError,
+      cleanup: { status: unresolved ? "unknown" : "failed", resources: [branch], residual: [branch], error: cleanupError }
+    };
+    const detail = `Neon branch ${branchId} in project ${project} was created, connection URI retrieval failed, and deleting the branch ${
+      unresolved ? "did not confirm" : "failed"
+    }; the branch may still exist.`;
+    if (unresolved) throw new PartialEffectsError(detail, effects);
+    throw new CleanupFailureError(detail, { project, branchId, error: cleanupError }, primaryError, effects);
+  }
+}
+
 export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
   const getClient = () => new NeonClient(options);
   return {
@@ -190,13 +227,7 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
           try {
             connectionString = await getConnectionString(client, spec.project, response.branch.id, options);
           } catch (error) {
-            await client
-              .request<unknown>({
-                method: "DELETE",
-                path: `/projects/${encodeURIComponent(spec.project)}/branches/${encodeURIComponent(response.branch.id)}`,
-                query: { hard_delete: true }
-              })
-              .catch(() => undefined);
+            await cleanupCreatedBranch(client, spec.project, response.branch.id, error);
             throw error;
           }
           const progress = branchProgress(response);

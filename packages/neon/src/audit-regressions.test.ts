@@ -2,7 +2,7 @@
 // manifest and is marked it.fails while the defect is present on the baseline (7d3a28a). The owner who
 // fixes an ID flips its it.fails to it in the same commit. fetch is an injected fake; no Neon API.
 import { describe, expect, it } from "vitest";
-import { Capsule, ProviderRetryableError } from "@capsule-sdk/core";
+import { Capsule, CleanupFailureError, PartialEffectsError, ProviderRetryableError, partialEffectsOf } from "@capsule-sdk/core";
 import { NeonClient, neon } from "./index.js";
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
@@ -42,6 +42,54 @@ describe("M1 audit regressions: neon", () => {
     expect((await settled.database.branch.create({ project: "p", name: "b" })).status).toBe("ready");
     const missingState = reply({ branch: { id: "br", name: "b" } });
     expect((await missingState.database.branch.create({ project: "p", name: "b" })).status).toBe("creating");
+  });
+
+  it("EDGE-06b: a failed URI retrieval plus failed branch cleanup keeps the branch ID, primary error and cleanup outcome", async () => {
+    const capsule = new Capsule({
+      adapter: neon({
+        apiKey: "fake",
+        databaseName: "db",
+        roleName: "owner",
+        fetch: async (url, init) => {
+          if (String(url).includes("/connection_uri")) return json({ message: "uri failed" }, 500);
+          if (init?.method === "DELETE") return json({ message: "delete failed" }, 500);
+          return json({ branch: { id: "br_created", name: "audit", current_state: "ready" } }, 201);
+        }
+      })
+    });
+    const error = await capsule.database.branch.create({ project: "p_audit", name: "audit" }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(CleanupFailureError);
+    expect((error as Error).message).toContain("br_created");
+    expect((error as CleanupFailureError).cause).toBeInstanceOf(ProviderRetryableError);
+    expect(((error as CleanupFailureError).cause as Error).message).toBe("uri failed");
+    const effects = partialEffectsOf(error);
+    expect(effects).toMatchObject({
+      operation: "database.branchCreate",
+      outcome: "failed",
+      resources: [{ provider: "neon", kind: "branch", nativeId: "br_created", scope: { project: "p_audit" } }],
+      cleanup: { status: "failed", residual: [{ nativeId: "br_created" }] }
+    });
+    expect((effects?.cleanup.error as Error).message).toBe("delete failed");
+    expect((effects?.primaryError as Error).message).toBe("uri failed");
+  });
+
+  it("EDGE-06b: an unconfirmed branch cleanup is reported as unknown, not as cleaned up", async () => {
+    const capsule = new Capsule({
+      adapter: neon({
+        apiKey: "fake",
+        databaseName: "db",
+        roleName: "owner",
+        requestTimeoutMs: 50,
+        fetch: (async (url: string | URL | Request, init?: RequestInit) => {
+          if (String(url).includes("/connection_uri")) return json({ message: "uri failed" }, 500);
+          if (init?.method === "DELETE") return await new Promise<Response>(() => undefined);
+          return json({ branch: { id: "br_created", name: "audit", current_state: "ready" } }, 201);
+        }) as typeof fetch
+      })
+    });
+    const error = await capsule.database.branch.create({ project: "p_audit", name: "audit" }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(PartialEffectsError);
+    expect(partialEffectsOf(error)?.cleanup).toMatchObject({ status: "unknown", residual: [{ nativeId: "br_created" }] });
   });
 
   it("EDGE-05d: an HTML 503 keeps the HTTP status and retry category instead of a SyntaxError", async () => {
