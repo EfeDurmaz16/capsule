@@ -1,6 +1,10 @@
 #!/bin/sh
 # Local fake `docker` executable for the synthetic benchmark harness. It never contacts a daemon.
 # exec writes CAPSULE_BENCH_DOCKER_STDOUT_BYTES bytes of 100-byte lines to stdout and a marker to stderr.
+# cp CONTAINER:PATH DEST copies CAPSULE_BENCH_DOCKER_ROOT/PATH into the existing directory DEST, after an
+# optional modelled CLI round trip of CAPSULE_BENCH_DOCKER_CP_LATENCY_S seconds. Every call appends its
+# command name to CAPSULE_BENCH_DOCKER_LOG when set, so workloads can count process spawns.
+if [ -n "$CAPSULE_BENCH_DOCKER_LOG" ]; then printf '%s\n' "$1" >> "$CAPSULE_BENCH_DOCKER_LOG"; fi
 case "$1" in
   version) printf 'bench-fake-docker\n' ;;
   create) printf 'bench-fake-container\n' ;;
@@ -9,6 +13,15 @@ case "$1" in
     bytes="${CAPSULE_BENCH_DOCKER_STDOUT_BYTES:-0}"
     yes "$(printf '%099d' 0)" | head -c "$bytes"
     printf 'synthetic-stderr-marker\n' >&2
+    ;;
+  cp)
+    if [ -n "$CAPSULE_BENCH_DOCKER_CP_LATENCY_S" ]; then sleep "$CAPSULE_BENCH_DOCKER_CP_LATENCY_S"; fi
+    source="${2#*:}"
+    if [ ! -e "$CAPSULE_BENCH_DOCKER_ROOT$source" ]; then
+      printf 'Error response from daemon: Could not find the file %s in container\n' "$source" >&2
+      exit 1
+    fi
+    cp -R "$CAPSULE_BENCH_DOCKER_ROOT$source" "$3/"
     ;;
   *)
     printf 'unexpected fake docker command: %s\n' "$1" >&2
