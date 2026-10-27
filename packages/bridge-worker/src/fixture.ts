@@ -192,15 +192,24 @@ function capture(
   return { text: kept.toString("utf8"), truncation: { truncated: true, capturedBytes: kept.byteLength, reason: "bytes", limit: maxBytes } };
 }
 
-/** The fixture's receipt store: keeps receipts in memory and refuses the scripted ones. */
+/**
+ * The fixture's receipt store: keeps the most recent receipts in memory, counts all of them, and
+ * refuses the scripted ones. Bounded, so a long-lived fixture worker does not grow without limit.
+ */
 export class FixtureReceiptStore implements ReceiptStore {
   readonly receipts: CapsuleReceipt[] = [];
+  written = 0;
 
-  constructor(private readonly refuses: (receipt: CapsuleReceipt) => boolean) {}
+  constructor(
+    private readonly refuses: (receipt: CapsuleReceipt) => boolean,
+    private readonly keep = 256
+  ) {}
 
   write(receipt: CapsuleReceipt): void {
     if (this.refuses(receipt)) throw new Error("receipt store refused the write");
+    this.written += 1;
     this.receipts.push(receipt);
+    if (this.receipts.length > this.keep) this.receipts.shift();
   }
 }
 

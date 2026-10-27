@@ -94,10 +94,13 @@ export class IdempotencyTable {
     const entry = this.entries.get(key);
     if (!entry) return;
     entry.answer = answer;
-    while (this.entries.size > this.capacity) {
-      const oldest = [...this.entries].find(([, value]) => value.answer !== undefined);
-      if (!oldest) break;
-      this.entries.delete(oldest[0]);
+    if (this.entries.size <= this.capacity) return;
+    // Evict the oldest answered key. Map iteration is insertion order, so this is usually the first entry.
+    for (const [oldest, value] of this.entries) {
+      if (value.answer !== undefined) {
+        this.entries.delete(oldest);
+        return;
+      }
     }
   }
 }
