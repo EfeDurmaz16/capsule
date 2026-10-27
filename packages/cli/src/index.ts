@@ -2616,6 +2616,7 @@ Commands:
   capsule edge --adapter vercel --name my-deployment --project-name my-project --entrypoint index.js ./index.js
   capsule neon branch-create --project <project_id> --name pr-42 --database neondb --role neondb_owner --receipt-file .capsule/receipts.jsonl
   capsule neon branch-delete --project <project_id> --branch-id br_xxx --hard-delete
+  (neon commands always use the neon adapter; a different --adapter or config adapter is rejected.)
 
 Receipt signatures:
   --public-key <path-or-value>     Verify ed25519 receipt signatures against this public key (PEM path or inline PEM).
@@ -2808,6 +2809,25 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   return new Capsule({ adapter: docker(), receipts: true, receiptStore });
 }
 
+const neonCommandAdapters = new Set(["neon", "mock-neon"]);
+
+// Dedicated `capsule neon ...` commands bind to Neon. Precedence: an explicit --adapter flag wins over
+// capsule.config.json, and whichever one is present must name a Neon adapter (neon or mock-neon); a
+// contradictory selection is rejected rather than silently rerouted. With no selection, Neon is used.
+function selectNeonCommandAdapter(parsed: ParsedArgs): ParsedArgs {
+  if (parsed.adapter === undefined) {
+    return { ...parsed, adapter: "neon" };
+  }
+  if (neonCommandAdapters.has(parsed.adapter)) {
+    return parsed;
+  }
+  const source = adapterSelectionSourceLabels[parsed.adapterSource ?? "flag"];
+  const shown = parsed.adapter.length > 64 ? `${parsed.adapter.slice(0, 64)}...` : parsed.adapter;
+  throw new Error(
+    `neon commands require the neon adapter, but ${source} selects ${JSON.stringify(shown)}. Pass --adapter neon (or mock-neon), or remove the conflicting selection.`
+  );
+}
+
 function requireCapability(capsule: Capsule, adapter: string | undefined, path: CapabilityPath): void {
   if (!capsule.supports(path)) {
     const adapterName = adapter ?? capsule.adapterName();
@@ -2831,7 +2851,7 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "neon": {
-      const capsule = createCapsule(parsed);
+      const capsule = createCapsule(selectNeonCommandAdapter(parsed));
       const action = parsed.rest[0];
       const project = parsed.project;
       if (!project) {
