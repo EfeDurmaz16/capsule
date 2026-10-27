@@ -161,3 +161,31 @@ test("DOC-08: the documented typecheck command is the one package.json runs", ()
   assert.ok(decisions.includes(`\`${typecheck}\``), "technical-decisions.md must name the actual typecheck command");
   assert.doesNotMatch(decisions, /`tsc -b`/);
 });
+
+test("DOC-09: every visibly skipped deferred item is documented with its test file", async () => {
+  const { readdirSync, existsSync } = await import("node:fs");
+  const roadmap = read("docs/roadmap.md");
+  const deferred = [];
+  for (const dir of readdirSync(join(root, "packages"))) {
+    const src = join(root, "packages", dir, "src");
+    if (!existsSync(src)) continue;
+    for (const file of readdirSync(src).filter((name) => name.endsWith(".test.ts"))) {
+      const path = `packages/${dir}/src/${file}`;
+      for (const match of read(path).matchAll(/(?:it|test)\.skip\("([A-Z]+-\d+) \(deferred\)/g)) deferred.push({ id: match[1], path });
+    }
+  }
+  assert.ok(deferred.length > 0);
+  for (const { id, path } of deferred) {
+    const row = roadmap.split("\n").find((line) => new RegExp(`^\\|\\s*${id}\\s*\\|`).test(line));
+    assert.ok(row, `${id} is skipped in ${path} but not listed in docs/roadmap.md`);
+    assert.ok(row.includes(path), `${id} row must name ${path}`);
+  }
+});
+
+test("DOC-09: the receipt type union and the committed JSON Schema enum agree", () => {
+  const types = read("packages/core/src/types.ts");
+  const union = /export interface CapsuleReceipt \{[\s\S]*?\n  type:\n([\s\S]*?);\n/.exec(types)?.[1];
+  const fromTypes = [...union.matchAll(/\| "([a-z.]+)"/g)].map((match) => match[1]).sort();
+  const fromSchema = [...JSON.parse(read("schemas/capsule-receipt.schema.json")).properties.type.enum].sort();
+  assert.deepEqual(fromTypes, fromSchema);
+});

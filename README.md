@@ -120,7 +120,7 @@ Install only the adapters you use. `@capsule-sdk/mock` is for tests and examples
 
 Honest accounting of what has actually been exercised:
 
-- Every adapter passes the shared contract suite plus unit tests against fake clients; nothing in CI talks to a real provider.
+- Every adapter passes the shared guard-only contract checks (capability declarations and fail-closed unsupported paths) plus unit tests against fake clients and the installed SDK exception classes; nothing in CI talks to a real provider, and no provider emulator is used.
 - Docker has a runnable local end-to-end check (`pnpm --filter @capsule-sdk/example-sandbox-docker e2e`) covering sandbox create, exec, files, job run, receipts, and cleanup against a local daemon.
 - The cloud adapters (E2B, Daytona, Modal, Cloud Run, Cloudflare, Vercel, Neon, Kubernetes, Lambda, ECS, EC2, Fly, Azure Container Apps) implement the real provider APIs but have not yet been verified against live accounts. Each has a gated live test (see [live tests](docs/live-tests.md)) and an open tracking issue labeled `needs-verification`; treat those adapters as unverified until their issue closes with live evidence.
 
@@ -316,6 +316,7 @@ The selected policy (`--policy-file`, or `policyFile` from the config) is enforc
 - Capsule is not a sandbox by itself; isolation comes from the provider. Local Docker is not safe for hostile untrusted code by default.
 - Policy enforcement depends on adapter and provider support; unsupported enforcement is reported, not silently assumed.
 - Receipts are not signed attestations yet unless you configure a signer.
+- Gaps found in the M1 audit and left open (GAP-14, GAP-20, PERF-11, PERF-12, PERF-14) and the evidence class of each test layer are listed in the [roadmap](docs/roadmap.md#known-gaps-carried-forward).
 - Hosted persistence, auth, dashboards, queues, and server APIs are intentionally outside core.
 
 ## Docs
