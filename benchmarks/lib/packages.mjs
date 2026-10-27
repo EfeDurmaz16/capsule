@@ -2,9 +2,13 @@
 // harness measures the same artifacts that are packed and published.
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const packagesRoot = new URL("../../packages/", import.meta.url);
+// CAPSULE_BENCH_PACKAGES_ROOT points the same workloads at another build of packages/ (for example the
+// pre-campaign anchor in benchmarks/ab.mjs). Unset, the harness measures this checkout's packages.
+const packagesRoot = process.env.CAPSULE_BENCH_PACKAGES_ROOT
+  ? pathToFileURL(`${process.env.CAPSULE_BENCH_PACKAGES_ROOT.replace(/\/+$/, "")}/`)
+  : new URL("../../packages/", import.meta.url);
 
 export function packageDir(name) {
   return fileURLToPath(new URL(`${name}/`, packagesRoot));
