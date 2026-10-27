@@ -51,7 +51,7 @@ jobs:
         run: pnpm docs:api:check
 
   package-exports:
-    name: Package exports on Node ${{ matrix.node }}
+    name: Node ${{ matrix.node }} compatibility and package exports
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -79,6 +79,11 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      # verify runs the unit suite on Node 24; this keeps the declared Node 22 floor tested too.
+      - name: Unit tests on the Node 22 floor
+        if: ${{ matrix.node == '22' }}
+        run: pnpm test
 
       - name: Package export map test
         run: pnpm test:package-exports
