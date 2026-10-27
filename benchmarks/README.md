@@ -28,6 +28,8 @@ Each repetition runs in a fresh `node --expose-gc` process, one at a time, so pe
 
 `after/` holds the M1 after run (`after/raw/<label>/`, `after/results-<label>.txt`), same-session baseline and after controls (`after/control/`) and `after/comparison.md`, the before/after table split into constructor counts, complexity and resource counts, behavioral observations and host-dependent timings.
 
+`check-bounds.mjs <summary.json>` checks a summary against deterministic bounds only: retained receipts, bytes read, SDK client constructions, cancelled bodies, byte and concurrency caps, redaction and ordering observations. It prints a machine-readable JSON verdict and exits 1 on any failed bound. A workload missing from the summary is `not-run`, never a pass, and fails when listed in `--require`. Wall time and RSS are never gated because no threshold has been calibrated across hosts. `pnpm bench:bounds` runs the six bounded workloads once (about 10 s locally) and checks them; CI runs it in the `Benchmark bounds` job. `scripts/benchmark-bounds.test.mjs` proves the archived after run passes and the archived clean-main baseline fails the bounds it broke.
+
 `run-gates.mjs` records every repository gate (the CI commands) to a text file, for example `baseline/gates-7d3a28a.txt`.
 
 ## Workloads

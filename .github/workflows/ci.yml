@@ -85,3 +85,32 @@ jobs:
 
       - name: Engine-compatible pack smoke
         run: pnpm release:pack-smoke:compatible
+
+  # Deterministic benchmark bounds (resource counts, byte and concurrency caps, behavior), not
+  # timings. Wall time and RSS are printed in the job log but never gate the build.
+  benchmark-bounds:
+    name: Benchmark bounds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b0f76dfb45f55f8421693e4803ac7bb65143bd34 # v6
+        with:
+          version: 10.32.1
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Run bounded workloads and check deterministic bounds
+        run: pnpm bench:bounds

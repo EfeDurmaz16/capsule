@@ -26,6 +26,7 @@
     "docs:api:check": "node scripts/generate-api-reference.mjs --check",
     "capsule:gap": "node scripts/capsule-gap-report.mjs",
     "capsule:gap:check": "node scripts/capsule-gap-report.mjs --check",
+    "bench:bounds": "node benchmarks/run.mjs --label ci-bounds --reps 1 --only perf-01-core-receipts,perf-02-artifact-collection,perf-03-aws-client-reuse,perf-04-vercel-log-streams,perf-05-kubernetes-logs,perf-10-docker-output && node benchmarks/check-bounds.mjs benchmarks/raw/ci-bounds/summary.json --require perf-01-core-receipts,perf-02-artifact-collection,perf-03-aws-client-reuse,perf-04-vercel-log-streams,perf-05-kubernetes-logs,perf-10-docker-output",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
