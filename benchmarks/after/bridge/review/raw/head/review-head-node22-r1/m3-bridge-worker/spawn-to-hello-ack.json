@@ -1,0 +1,156 @@
+{
+  "meta": {
+    "label": "review-head-node22-r1",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "8b1501fa7a655594aef9b5e9f7a996891a30e03c",
+    "packagesTree": "fdea34f379ebde790e1a04d7ef9d48d33c348461",
+    "dirty": false,
+    "date": "2026-10-27T21:37:54.836Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56",
+      "execArgv": ["--expose-gc"]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": "m3-bridge-worker",
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workload": {
+    "id": "m3-bridge-worker",
+    "perfIds": [],
+    "manifestIds": ["M3-BRIDGE"]
+  },
+  "case": "spawn-to-hello-ack",
+  "description": "Fresh worker process per sample: time from spawn to a decoded hello_ack, and the worker's peak RSS.",
+  "params": {
+    "samples": 20
+  },
+  "runs": [
+    {
+      "rep": 0,
+      "childWallMs": 1596.994208,
+      "ok": true,
+      "metrics": {
+        "spawnToHelloAckMs": {
+          "p50": 57.726708,
+          "p95": 79.82041700000002,
+          "min": 49.92141599999991,
+          "max": 120.24812500000007,
+          "n": 20
+        },
+        "workerMaxRssBytes": {
+          "p50": 49889280,
+          "p95": 50036736,
+          "min": 49676288,
+          "max": 50069504,
+          "n": 20
+        },
+        "samples": 20
+      },
+      "caseDurationMs": 1534.320958,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5212920,
+          "rss": 46841856,
+          "external": 2105561,
+          "arrayBuffers": 31005
+        },
+        "endMemory": {
+          "heapUsed": 5863960,
+          "rss": 54525952,
+          "external": 2185941,
+          "arrayBuffers": 63654
+        },
+        "maxRssBytes": 54525952
+      }
+    },
+    {
+      "rep": 1,
+      "childWallMs": 1749.351042,
+      "ok": true,
+      "metrics": {
+        "spawnToHelloAckMs": {
+          "p50": 59.99787499999991,
+          "p95": 115.95641699999999,
+          "min": 52.54583300000013,
+          "max": 171.31837499999983,
+          "n": 20
+        },
+        "workerMaxRssBytes": {
+          "p50": 49954816,
+          "p95": 50151424,
+          "min": 49643520,
+          "max": 50151424,
+          "n": 20
+        },
+        "samples": 20
+      },
+      "caseDurationMs": 1688.446,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5212920,
+          "rss": 46678016,
+          "external": 2105561,
+          "arrayBuffers": 31005
+        },
+        "endMemory": {
+          "heapUsed": 5917584,
+          "rss": 54378496,
+          "external": 2186143,
+          "arrayBuffers": 63856
+        },
+        "maxRssBytes": 54378496
+      }
+    },
+    {
+      "rep": 2,
+      "childWallMs": 1430.5336250000005,
+      "ok": true,
+      "metrics": {
+        "spawnToHelloAckMs": {
+          "p50": 54.39983300000017,
+          "p95": 59.773709,
+          "min": 49.24254199999996,
+          "max": 65.718875,
+          "n": 20
+        },
+        "workerMaxRssBytes": {
+          "p50": 49938432,
+          "p95": 50085888,
+          "min": 49627136,
+          "max": 50151424,
+          "n": 20
+        },
+        "samples": 20
+      },
+      "caseDurationMs": 1369.58575,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5212920,
+          "rss": 46563328,
+          "external": 2105561,
+          "arrayBuffers": 31005
+        },
+        "endMemory": {
+          "heapUsed": 5864152,
+          "rss": 54312960,
+          "external": 2185941,
+          "arrayBuffers": 63654
+        },
+        "maxRssBytes": 54312960
+      }
+    }
+  ]
+}

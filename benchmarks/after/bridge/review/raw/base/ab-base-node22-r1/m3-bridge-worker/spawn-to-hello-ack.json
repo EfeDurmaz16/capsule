@@ -1,0 +1,156 @@
+{
+  "meta": {
+    "label": "ab-base-node22-r1",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "",
+    "packagesTree": "",
+    "dirty": false,
+    "date": "2026-10-27T21:37:46.076Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56",
+      "execArgv": ["--expose-gc"]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": "m3-bridge-worker",
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workload": {
+    "id": "m3-bridge-worker",
+    "perfIds": [],
+    "manifestIds": ["M3-BRIDGE"]
+  },
+  "case": "spawn-to-hello-ack",
+  "description": "Fresh worker process per sample: time from spawn to a decoded hello_ack, and the worker's peak RSS.",
+  "params": {
+    "samples": 20
+  },
+  "runs": [
+    {
+      "rep": 0,
+      "childWallMs": 2011.3269169999999,
+      "ok": true,
+      "metrics": {
+        "spawnToHelloAckMs": {
+          "p50": 68.82020799999987,
+          "p95": 111.29070899999999,
+          "min": 53.690667000000076,
+          "max": 136.99879199999998,
+          "n": 20
+        },
+        "workerMaxRssBytes": {
+          "p50": 54542336,
+          "p95": 54853632,
+          "min": 54214656,
+          "max": 54886400,
+          "n": 20
+        },
+        "samples": 20
+      },
+      "caseDurationMs": 1930.673583,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5227720,
+          "rss": 46252032,
+          "external": 2105561,
+          "arrayBuffers": 31005
+        },
+        "endMemory": {
+          "heapUsed": 5886528,
+          "rss": 49102848,
+          "external": 2185941,
+          "arrayBuffers": 63654
+        },
+        "maxRssBytes": 53870592
+      }
+    },
+    {
+      "rep": 1,
+      "childWallMs": 2046.9133750000005,
+      "ok": true,
+      "metrics": {
+        "spawnToHelloAckMs": {
+          "p50": 72.68383400000005,
+          "p95": 113.91408299999989,
+          "min": 56.90054099999999,
+          "max": 160.669084,
+          "n": 20
+        },
+        "workerMaxRssBytes": {
+          "p50": 54460416,
+          "p95": 54657024,
+          "min": 54247424,
+          "max": 54738944,
+          "n": 20
+        },
+        "samples": 20
+      },
+      "caseDurationMs": 1964.062959,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5227720,
+          "rss": 46743552,
+          "external": 2105561,
+          "arrayBuffers": 31005
+        },
+        "endMemory": {
+          "heapUsed": 5906944,
+          "rss": 50577408,
+          "external": 2187122,
+          "arrayBuffers": 64835
+        },
+        "maxRssBytes": 54263808
+      }
+    },
+    {
+      "rep": 2,
+      "childWallMs": 1951.0516669999997,
+      "ok": true,
+      "metrics": {
+        "spawnToHelloAckMs": {
+          "p50": 65.30425000000014,
+          "p95": 182.76429099999996,
+          "min": 53.08487500000001,
+          "max": 220.74091700000008,
+          "n": 20
+        },
+        "workerMaxRssBytes": {
+          "p50": 54493184,
+          "p95": 54689792,
+          "min": 54198272,
+          "max": 54771712,
+          "n": 20
+        },
+        "samples": 20
+      },
+      "caseDurationMs": 1888.443334,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5227720,
+          "rss": 46645248,
+          "external": 2105561,
+          "arrayBuffers": 31005
+        },
+        "endMemory": {
+          "heapUsed": 5892304,
+          "rss": 49250304,
+          "external": 2186143,
+          "arrayBuffers": 63856
+        },
+        "maxRssBytes": 54116352
+      }
+    }
+  ]
+}

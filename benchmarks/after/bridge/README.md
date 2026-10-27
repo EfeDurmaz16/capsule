@@ -46,3 +46,25 @@ Fabric's `crates/fabric-bridge` (Fabric commit `61285cc`, `crates/fabric-bridge/
 | docker destroy round trip                                | 231 ms              | 221 ms                 |
 
 Against Fabric's Rust test double the same spawn is about 1.6 to 1.9 ms and a create round trip 0.05 to 0.15 ms (Fabric `docs/evidence/m3-interop`), so Node startup and the worker's own work are what this worker adds. The journal round trip is the same 8 ms with either worker: it is Fabric's fsync.
+
+## After the review fixes
+
+Eight review findings were fixed in commits `6d25ae7` to `8b1501f`. `review/` holds what was measured on that code. The host was busier than for the runs above, with a load average of 19 to 32 from other builds, so absolute times are higher and noisier.
+
+Hot paths, in a same-session A/B against the branch before the fixes (`d18b2d0`, built from a scratch export, which is why its raw `summary.json` files carry an empty commit):
+
+- `ab-node22.txt` (3 alternating rounds) and `ab-node24.txt` (6 rounds): spawn and round trips through `benchmarks/run.mjs --only m3-bridge-worker`. Head over base, by median of rounds: 0.25 to 1.00 on Node 22 and 0.42 to 1.42 on Node 24. The largest, Node 24 refusal p50 at 0.057 ms against 0.040 ms, comes from the rounds under the highest load; in rounds 3 to 5 the two are within 0.005 ms. Every repetition is under `raw/base` and `raw/head`.
+- `inproc-node22-node24.jsonl`, from `inproc-bench.mjs`: the session's own cost per request in process, 20000 requests after 2000 warm-up, 5 alternating rounds. Head over base, by median: exec 0.82 on Node 22 and 1.22 on Node 24, refusal 0.93 and 1.13.
+
+Nothing measured is more than 1.5x slower.
+
+Idempotency memory, `retention.mjs`: one connection runs execs whose stdout is 1,000,001 characters (`retention-node22.jsonl`).
+
+- With `--max-old-space-size=300` the worker before the fix died after 154 execs ("Reached heap limit", SIGABRT). After it, all 800 complete.
+- Uncapped, RSS after 800 execs was 739 MiB before and 361 MiB after. macOS RSS leaves out compressed pages, so the capped run is the sharper test.
+
+Docker and Fabric:
+
+- `docker-smoke-node22.json`: `pnpm bridge:docker-smoke` on OrbStack with `debian:bookworm-slim`, never pulled; all 11 checks pass.
+- `context-route-probe.json`: a read-only observe of a container id that exists on no engine. With `--engine desktop-linux`, a context whose daemon is down, the worker now answers `unknown`/`observation_failed`; before, the command went to the CLI's current context (orbstack) and answered `completed` with `destroyed`. With `--engine orbstack` it answers `completed`.
+- `fabric-interop.log`: Fabric `d4855fd` `crates/fabric-bridge/tests/capsule_worker.rs` against this worker, 7 of 7 pass, the Docker profile on the local engine included. `fabric-interop-before-seed-fix.log` is the run that showed the first observe owner check refusing the sandbox Fabric seeds for its restart test, which `8b1501f` fixed.
