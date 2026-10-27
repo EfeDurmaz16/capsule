@@ -46,10 +46,14 @@ describe.skipIf(process.platform === "win32")("runDocker", () => {
   it("an abort kills the local CLI at once and rejects with the abort reason", async () => {
     fakeDocker('echo $$ > "$0.pid"; exec sleep 30');
     const controller = new AbortController();
-    const started = Date.now();
     const running = runDocker(["exec", "c", "sleep", "30"], { timeoutMs: 60_000, signal: controller.signal });
-    for (let tries = 0; tries < 200 && !existsSync(join(binDir, "docker.pid")); tries += 1) await new Promise((resolve) => setTimeout(resolve, 10));
-    const pid = Number(readFileSync(join(binDir, "docker.pid"), "utf8"));
+    // The shell creates the file before it writes the pid, so wait for a whole number, not the file.
+    const pidFile = join(binDir, "docker.pid");
+    const readPid = () => (existsSync(pidFile) ? Number.parseInt(readFileSync(pidFile, "utf8"), 10) : Number.NaN);
+    for (let tries = 0; tries < 500 && !(readPid() > 0); tries += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+    const pid = readPid();
+    expect(pid).toBeGreaterThan(0);
+    const aborted = Date.now();
     controller.abort();
     await expect(running).rejects.toMatchObject({ name: "AbortError" });
     // The rejection comes as the kill is sent; give the process a moment to be reaped.
@@ -61,10 +65,10 @@ describe.skipIf(process.platform === "win32")("runDocker", () => {
         return false;
       }
     };
-    for (let tries = 0; tries < 200 && alive(); tries += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+    for (let tries = 0; tries < 500 && alive(); tries += 1) await new Promise((resolve) => setTimeout(resolve, 10));
     expect(alive()).toBe(false);
-    expect(Date.now() - started).toBeLessThan(4_000);
-    rmSync(join(binDir, "docker.pid"), { force: true });
+    expect(Date.now() - aborted).toBeLessThan(4_000);
+    rmSync(pidFile, { force: true });
   });
 
   it("GAP-01: a command that exits 124 by itself is not a timeout", async () => {
