@@ -64,7 +64,7 @@ describe("M1 audit regressions: cloud-run", () => {
     expect(outcome.state === "resolved" && outcome.value.id === "projects/p/locations/l/jobs/j").toBe(false);
   });
 
-  it.fails("SVC-02: a command healthcheck is rejected before any API request and never replaces the entrypoint", async () => {
+  it("SVC-02: a command healthcheck is rejected before any API request and never replaces the entrypoint", async () => {
     let requests = 0;
     const capsule = new Capsule({
       adapter: cloudRun({
@@ -107,5 +107,28 @@ describe("M1 audit regressions: cloud-run", () => {
     );
     expect(outcome).toBe("rejected");
     expect(urls.some((url) => url.includes(":run"))).toBe(false);
+  });
+
+  it("SVC-02: a command healthcheck never replaces the entrypoint on update, and path probes still work", async () => {
+    const bodies: unknown[] = [];
+    const capsule = new Capsule({
+      adapter: cloudRun({
+        projectId: "p",
+        location: "l",
+        accessToken: "fake",
+        waitForOperations: false,
+        fetch: async (_url, init) => {
+          bodies.push(JSON.parse(String(init?.body ?? "{}")));
+          return json({ name: "op", done: false });
+        }
+      })
+    });
+    await expect(capsule.service.update({ id: "app", image: "i", healthcheck: { command: "curl localhost" } })).rejects.toThrow(/healthcheck.command/);
+    expect(bodies).toEqual([]);
+    await capsule.service.deploy({ name: "app", image: "i", ports: [{ port: 8080 }], healthcheck: { path: "/healthz" } });
+    const container = (bodies[0] as { template: { containers: Array<Record<string, unknown>> } }).template.containers[0]!;
+    expect(container.command).toBeUndefined();
+    expect(container.args).toBeUndefined();
+    expect(container.startupProbe).toEqual({ httpGet: { path: "/healthz" } });
   });
 });

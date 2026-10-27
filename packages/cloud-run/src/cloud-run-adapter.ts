@@ -156,10 +156,21 @@ function jobBody(spec: RunJobSpec) {
   };
 }
 
+// Cloud Run probes are HTTP, TCP or gRPC; there is no exec probe. A command healthcheck must never be
+// written into Container.command, which is the image ENTRYPOINT and would replace the real server.
+function rejectCommandHealthcheck(spec: { healthcheck?: { command?: string[] | string } }, operation: string): void {
+  if (spec.healthcheck?.command !== undefined) {
+    throw new AdapterExecutionError(
+      `Cloud Run ${operation} supports only healthcheck.path (HTTP startup probe); healthcheck.command is not supported because Cloud Run has no exec probe.`
+    );
+  }
+}
+
 function serviceBody(spec: DeployServiceSpec) {
   if (!spec.image) {
     throw new AdapterExecutionError("Cloud Run service.deploy requires spec.image. Source deploy is not implemented.");
   }
+  rejectCommandHealthcheck(spec, "service.deploy");
   return {
     labels: labelsWithOperationTag(spec.labels, spec.idempotencyKey, "service.deploy"),
     template: {
@@ -169,7 +180,7 @@ function serviceBody(spec: DeployServiceSpec) {
       },
       containers: [
         {
-          ...container(spec.image, spec.healthcheck?.command, spec.env, resources(spec.resources)),
+          ...container(spec.image, undefined, spec.env, resources(spec.resources)),
           ports: spec.ports?.[0] ? [{ containerPort: spec.ports[0].port, name: spec.ports[0].protocol === "tcp" ? "tcp1" : "http1" }] : undefined,
           startupProbe: spec.healthcheck?.path ? { httpGet: { path: spec.healthcheck.path } } : undefined
         }
@@ -182,6 +193,7 @@ function serviceUpdateBody(name: string, spec: UpdateServiceSpec): { body: Recor
   if (spec.source) {
     throw new AdapterExecutionError("Cloud Run service.update from source is not implemented. Provide an image for revision updates.");
   }
+  rejectCommandHealthcheck(spec, "service.update");
   const limits = resources(spec.resources);
   const hasContainerUpdate = Boolean(spec.image ?? spec.env ?? spec.resources ?? spec.ports ?? spec.healthcheck);
   if (hasContainerUpdate && !spec.image) {
@@ -206,7 +218,6 @@ function serviceUpdateBody(name: string, spec: UpdateServiceSpec): { body: Recor
             containers: [
               {
                 ...(spec.image ? { image: spec.image } : {}),
-                ...normalizeCommand(spec.healthcheck?.command),
                 ...(spec.env ? { env: env(spec.env) } : {}),
                 ...(limits ? { resources: { limits } } : {}),
                 ...(spec.ports?.[0] ? { ports: [{ containerPort: spec.ports[0].port, name: spec.ports[0].protocol === "tcp" ? "tcp1" : "http1" }] } : {}),
