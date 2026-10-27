@@ -78,6 +78,8 @@ export class FixtureProvider {
         account: typeof entry.account === "string" ? entry.account : binding.account,
         project: entry.project,
         ...(typeof entry.owner_job === "string" ? { owner_job: entry.owner_job } : {}),
+        // The creating operation's label, as a real provider would keep it across a worker restart.
+        ...(typeof entry.operation === "string" ? { operation: entry.operation } : {}),
         status
       });
     }

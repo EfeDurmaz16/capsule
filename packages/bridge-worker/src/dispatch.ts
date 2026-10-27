@@ -662,19 +662,22 @@ export async function dispatchObserve(context: DispatchContext, runtime: Operati
   }
   const resource = observe.resource;
   try {
-    // Who made the resource is settled before anything about it is reported. The worker's labels name
-    // the creating operation and its job. A create is answered only for the operation the resource is
-    // labelled with. A destroy's own id is on no label, but a destroy is only ever sent for a resource
-    // that some job made, so one without a job label was never the target of this operation.
+    // Who made the resource is settled before anything about it is reported. The worker labels what
+    // it creates with the creating operation and its job. A resource no job made was never the target
+    // of any operation. A create is answered only when the resource's operation label is the observing
+    // operation; a fixture seed may lack that label, and is then judged by its job label alone. A
+    // destroy's own id is on no label, so a destroy observe can only check that some job made it.
     const state = await guarded(runtime, driver.read(resource.native_id));
-    if (observe.action === "sandbox.create") {
+    if (observe.action === "sandbox.create" && !state.exists) {
       // A create that never happened has nothing to observe: report it as a definite not found.
-      if (!state.exists) return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("provider_failed", "not_found"));
-      if (state.owner?.operation !== observe.operation_id) {
-        return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("denied", "owner_mismatch", "the resource was not created by this operation"));
-      }
-    } else if (state.exists && state.owner?.job === undefined) {
-      return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("denied", "owner_mismatch", "the resource was not created by any job"));
+      return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("provider_failed", "not_found"));
+    }
+    const operation = state.owner?.operation;
+    if (
+      state.exists &&
+      (state.owner?.job === undefined || (observe.action === "sandbox.create" && operation !== undefined && operation !== observe.operation_id))
+    ) {
+      return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("denied", "owner_mismatch", "the resource was not created by this operation"));
     }
     await observeUntilTerminal({
       timer: runtime.timer,

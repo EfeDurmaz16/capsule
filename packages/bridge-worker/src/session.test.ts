@@ -308,6 +308,21 @@ describe("observe", () => {
     expect(world.provider.effects).toHaveLength(1);
   });
 
+  test("an observe of a create refuses a seeded sandbox labelled with another operation, and answers its own", async () => {
+    const seeded = {
+      native_id: "fx-other-job",
+      project: "proj-1",
+      owner_job: "01K8W3A00000000000000000J2",
+      operation: "01K8W3A00000000000000000Q2",
+      status: "ready"
+    };
+    const { connection } = await started({ sandboxes: [seeded] });
+    connection.send(observe("r-10", "01K8W3A00000000000000000Q1", "sandbox.create", "fx-other-job"));
+    expect(await connection.next()).toMatchObject({ type: "error", error: { code: "denied", reason: "owner_mismatch", effect: "none" } });
+    connection.send(observe("r-11", "01K8W3A00000000000000000Q2", "sandbox.create", "fx-other-job"));
+    expect(await connection.next()).toMatchObject({ type: "result", state: "completed" });
+  });
+
   test("an observe of a destroy refuses a resource no Fabric job made, without reporting its state", async () => {
     const { connection } = await started({ sandboxes: [{ native_id: "fx-foreign", project: "proj-1", status: "ready" }] });
     connection.send(observe("r-10", "01K8W3A00000000000000000P3", "sandbox.destroy", "fx-foreign"));
