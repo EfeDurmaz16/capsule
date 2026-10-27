@@ -275,22 +275,50 @@ function deploymentBody(name: string, namespace: string, spec: DeployServiceSpec
   };
 }
 
+interface ServicePortSpec {
+  port: number;
+  protocol: "http" | "tcp";
+  public?: boolean;
+}
+
+// Kubernetes requires a name on every port of a multi-port Service, unique within the Service and a
+// valid IANA service name (lowercase alphanumerics and dashes, at most 15 characters). Ports are
+// validated before any API call so an invalid spec never leaves a Deployment behind.
+function servicePorts(spec: DeployServiceSpec): Array<ServicePortSpec & { name: string }> {
+  const ports: ServicePortSpec[] = spec.ports?.length
+    ? spec.ports.map((port) => ({ port: port.port, protocol: port.protocol ?? "http", public: port.public }))
+    : [{ port: 80, protocol: "http" }];
+  const seen = new Set<number>();
+  return ports.map((port) => {
+    if (!Number.isInteger(port.port) || port.port < 1 || port.port > 65535) {
+      throw new AdapterExecutionError(`Kubernetes service.deploy port ${String(port.port)} must be an integer between 1 and 65535.`);
+    }
+    if (seen.has(port.port)) {
+      throw new AdapterExecutionError(`Kubernetes service.deploy port ${port.port} is listed more than once.`);
+    }
+    seen.add(port.port);
+    return { ...port, name: `${port.protocol}-${port.port}` };
+  });
+}
+
 function serviceBody(name: string, namespace: string, spec: DeployServiceSpec) {
   const matchLabels = labels(name, {
     ...(spec.labels ?? {}),
     ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "service.deploy" }) ?? {})
   });
+  const ports = servicePorts(spec);
   return {
     apiVersion: "v1",
     kind: "Service",
     metadata: { name, namespace, labels: matchLabels },
     spec: {
       selector: matchLabels,
-      type: spec.ports?.some((port) => port.public) ? "LoadBalancer" : "ClusterIP",
-      ports: (spec.ports?.length ? spec.ports : [{ port: 80, protocol: "http" as const }]).map((port) => ({
+      type: ports.some((port) => port.public) ? "LoadBalancer" : "ClusterIP",
+      ports: ports.map((port) => ({
+        name: port.name,
         port: port.port,
         targetPort: port.port,
-        protocol: (port.protocol ?? "http") === "tcp" ? "TCP" : "TCP"
+        protocol: "TCP"
       }))
     }
   };
@@ -931,12 +959,15 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env });
         const name = normalizeName(spec.name);
+        // Build and validate both manifests before the first API call.
+        const deploymentManifest = deploymentBody(name, namespace, spec);
+        const serviceManifest = serviceBody(name, namespace, spec);
         const clients = getClients();
-        const deployment = await clients.apps.createNamespacedDeployment({ namespace, body: deploymentBody(name, namespace, spec) });
+        const deployment = await clients.apps.createNamespacedDeployment({ namespace, body: deploymentManifest });
         const deploymentName = deployment.metadata?.name ?? name;
         let service: KubernetesObject;
         try {
-          service = await clients.core.createNamespacedService({ namespace, body: serviceBody(name, namespace, spec) });
+          service = await clients.core.createNamespacedService({ namespace, body: serviceManifest });
         } catch (error) {
           await deleteDeploymentForeground(clients.apps, namespace, deploymentName).catch(() => undefined);
           throw error;

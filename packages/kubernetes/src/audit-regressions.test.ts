@@ -91,7 +91,7 @@ describe("M1 audit regressions: kubernetes", () => {
     expect(serviceCalls).toBe(2);
   });
 
-  it.fails("SVC-08: every multi-port Service entry has a unique valid name", async () => {
+  it("SVC-08: every multi-port Service entry has a unique valid name", async () => {
     let body: { spec: { ports: Array<{ name?: string }> } } | undefined;
     const capsule = new Capsule({
       adapter: kubernetes({
@@ -111,5 +111,26 @@ describe("M1 audit regressions: kubernetes", () => {
     const names = body!.spec.ports.map((port) => port.name);
     expect(names.every((name) => typeof name === "string" && /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/.test(name) && name.length <= 15)).toBe(true);
     expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("SVC-08: duplicate or invalid ports fail before the Deployment is created", async () => {
+    let deployments = 0;
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        clients: {
+          batch: {} as never,
+          apps: {
+            createNamespacedDeployment: async () => {
+              deployments += 1;
+              return {};
+            }
+          } as never,
+          core: { createNamespacedService: async () => ({}) } as never
+        }
+      })
+    });
+    await expect(capsule.service.deploy({ name: "app", image: "i", ports: [{ port: 8080 }, { port: 8080, protocol: "tcp" }] })).rejects.toThrow(/more than once/);
+    await expect(capsule.service.deploy({ name: "app", image: "i", ports: [{ port: 70000 }] })).rejects.toThrow(/between 1 and 65535/);
+    expect(deployments).toBe(0);
   });
 });
