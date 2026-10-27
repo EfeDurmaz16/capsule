@@ -172,7 +172,11 @@ function classifiedClient(client: LambdaClientLike): LambdaClientLike {
 }
 
 export function lambda(options: LambdaAdapterOptions = {}): CapsuleAdapter {
-  const getClient = () => classifiedClient(options.client ?? defaultClient(options));
+  // One classified client per adapter, created on first use (AWS-05). An injected client stays
+  // caller-owned; the default SDK client is built lazily so constructing the adapter resolves no
+  // credentials, and reusing it keeps the SDK keep-alive connection pool and credential cache warm.
+  let cachedClient: LambdaClientLike | undefined;
+  const getClient = (): LambdaClientLike => (cachedClient ??= classifiedClient(options.client ?? defaultClient(options)));
   return {
     name: adapter,
     provider,

@@ -69,7 +69,7 @@ describe("M1 audit regressions: ec2", () => {
     expect(await statusFor("shutting-down")).toBe("destroying");
   });
 
-  it.fails("AWS-05: N operations on one adapter construct one owned SDK client", async () => {
+  it("AWS-05: N operations on one adapter construct one owned SDK client", async () => {
     const originalSend = EC2Client.prototype.send;
     const clients = new Set<unknown>();
     EC2Client.prototype.send = async function (this: unknown) {
