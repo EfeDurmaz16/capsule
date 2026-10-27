@@ -6,7 +6,7 @@ import { Capsule } from "@capsule-sdk/core";
 import { lambda } from "./index.js";
 
 describe("M1 audit regressions: lambda", () => {
-  it.fails("AWS-03: job.run rejects the DryRun invocation type before any provider request", async () => {
+  it("AWS-03: job.run rejects the DryRun invocation type before any provider request", async () => {
     let sends = 0;
     const capsule = new Capsule({
       adapter: lambda({
