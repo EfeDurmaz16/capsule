@@ -26,7 +26,7 @@ describe("M1 audit regressions: neon", () => {
     expect(reset.status).toBe("resetting");
   });
 
-  it.fails("EDGE-05d: an HTML 503 keeps the HTTP status and retry category instead of a SyntaxError", async () => {
+  it("EDGE-05d: an HTML 503 keeps the HTTP status and retry category instead of a SyntaxError", async () => {
     const client = new NeonClient({
       apiKey: "fake",
       fetch: async () => new Response("<html>maintenance</html>", { status: 503, headers: { "content-type": "text/html", "retry-after": "5" } })
