@@ -449,7 +449,10 @@ async function fetchLogs(
 }
 
 export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
-  const getClient = () => new CloudRunClient(options);
+  // One client per adapter, built on first use, so the Google auth client and its token cache are
+  // reused across operations. A constructor failure (missing projectId or location) is not cached.
+  let client: CloudRunClient | undefined;
+  const getClient = (): CloudRunClient => (client ??= new CloudRunClient(options));
   return {
     name: adapter,
     provider,
