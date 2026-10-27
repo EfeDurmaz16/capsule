@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { inspect } from "node:util";
 import { setFlagsFromString } from "node:v8";
 import { runInNewContext } from "node:vm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CapsuleAdapter } from "./adapters.js";
 import { collectFileArtifacts } from "./artifact-collector.js";
 import { sha256 } from "./artifacts.js";
@@ -410,6 +410,55 @@ describe("M1 audit regressions: core", () => {
       fs.readSync = original.readSync;
       syncBuiltinESMExports();
       fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("GAP-05: a captured create grant that expires after create is replaced by a fresh exec and destroy grant, never reused", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      const destroyed: number[] = [];
+      const adapterApprovals: unknown[] = [];
+      const adapter = sandboxAdapter(async () => okResult());
+      const create = adapter.sandbox!.create;
+      adapter.sandbox!.create = async (spec, context) => {
+        const box = await create(spec, context);
+        return {
+          ...box,
+          exec: async (execSpec) => {
+            adapterApprovals.push(context.evaluatePolicy().applied);
+            return box.exec(execSpec);
+          },
+          destroy: async () => {
+            destroyed.push(1);
+          }
+        };
+      };
+      const capsule = new Capsule({ adapter, policy: { approvals: { required: true, reason: "ticket" } } });
+      const all = ["sandbox.create", "sandbox.exec", "sandbox.destroy"];
+      const box = await capsule.sandbox.create({
+        approval: { approved: true, id: "create", capabilities: all, expiresAt: "2026-01-01T00:10:00.000Z" }
+      });
+      await box.exec({ command: ["before-expiry"] });
+      vi.setSystemTime(new Date("2026-01-01T01:00:00.000Z"));
+      await expect(box.exec({ command: ["after-expiry"] })).rejects.toThrow(/expired/i);
+      await expect(box.destroy()).rejects.toThrow(/expired/i);
+      expect(destroyed).toHaveLength(0);
+      const fresh = (capability: string) => ({
+        approved: true as const,
+        id: `fresh-${capability}`,
+        capabilities: [capability],
+        resources: [{ type: "sandbox", id: "audit-box" }],
+        expiresAt: "2026-01-01T02:00:00.000Z"
+      });
+      await expect(box.exec({ command: ["fresh"], approval: fresh("sandbox.exec") })).resolves.toMatchObject({ exitCode: 0 });
+      expect(adapterApprovals).toHaveLength(2);
+      await expect(box.destroy({ approval: fresh("sandbox.exec") })).rejects.toThrow();
+      expect(destroyed).toHaveLength(0);
+      await box.destroy({ approval: fresh("sandbox.destroy") });
+      expect(destroyed).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
     }
   });
 });

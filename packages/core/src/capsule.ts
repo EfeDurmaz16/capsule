@@ -828,7 +828,9 @@ export class Capsule {
       supportLevel: (path: string) => supportLevel(adapter.capabilities, path as CapabilityPath),
       evaluatePolicy: (input = {}) => {
         const options = this.contextOptions.getStore() ?? runtime.defaultOptions;
-        const capabilityPath = input.capabilityPath ?? options.capabilityPath;
+        // Sandbox sub-operations carry their capability through the receipt scope, so adapter-side checks
+        // validate a capability-scoped (fresh or captured) grant against the operation actually running.
+        const capabilityPath = input.capabilityPath ?? options.capabilityPath ?? defaultCapabilityPath(options.receiptScopes);
         return evaluatePolicy(this.options.policy, {
           ...input,
           approval: input.approval ?? options.approval,
