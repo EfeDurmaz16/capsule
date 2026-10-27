@@ -2,6 +2,9 @@
   "name": "@capsule-sdk/bridge-worker",
   "version": "0.0.0",
   "type": "module",
+  "bin": {
+    "capsule-bridge-worker": "./dist/bin.js"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -11,7 +14,7 @@
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm && tsc -p tsconfig.json --emitDeclarationOnly",
+    "build": "tsup src/index.ts src/bin.ts --format esm && tsc -p tsconfig.json --emitDeclarationOnly",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

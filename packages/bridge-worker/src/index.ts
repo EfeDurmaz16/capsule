@@ -31,5 +31,6 @@ export {
 export { checkWorkerMessage, type OutboundContext, type OutboundViolation } from "./outbound.js";
 export { actionCapability, dockerProfile, fixtureProfile, profiles } from "./profiles.js";
 export { WorkerSession, type SessionIO, type SessionOptions } from "./session.js";
+export { buildDriver, runStdioWorker, type StdioWorkerOptions } from "./stdio.js";
 export { correlation, HelloRefusal, parseCancel, parseHello, parseLocator, parseObserve, parseRequest, parseShutdown, Refusal } from "./validate.js";
 export * from "./wire.js";
