@@ -502,7 +502,10 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
           }
           const runLocator = resourceLocator({ ...jobLocator, scope: { ...jobLocator.scope }, nativeOperationId: run.name });
           if (operation.done) {
-            throw new UnknownOutcomeError("Cloud Run job.run operation finished without reporting its Execution.", { operation: "job.run", resource: runLocator });
+            throw new UnknownOutcomeError("Cloud Run job.run operation finished without reporting its Execution.", {
+              operation: "job.run",
+              resource: runLocator
+            });
           }
           throw new PendingOperationError(
             `Cloud Run job.run for ${jobName} was accepted but has not reported its Execution yet; observe operation ${run.name}.`,

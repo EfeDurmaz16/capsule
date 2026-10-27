@@ -138,7 +138,8 @@ describe("M1 audit regressions: cloud-run", () => {
         projectId: "p",
         location: "l",
         accessToken: "fake",
-        fetch: async () => json({ name: "projects/p/locations/l/operations/cancel", done: false, metadata: { name: execution, completionStatus: "EXECUTION_RUNNING" } })
+        fetch: async () =>
+          json({ name: "projects/p/locations/l/operations/cancel", done: false, metadata: { name: execution, completionStatus: "EXECUTION_RUNNING" } })
       })
     });
     const cancelled = await capsule.job.cancel({ id: execution });
@@ -169,7 +170,9 @@ describe("M1 audit regressions: cloud-run", () => {
       const { capsule } = deleteCapsule([], { waitForOperations: false });
       const error = await capsule.service.delete({ id: "s" }).catch((caught: unknown) => caught);
       expect(error).toBeInstanceOf(PendingOperationError);
-      expect(error).toMatchObject({ resource: { kind: "service", nativeId: "projects/p/locations/l/services/s", nativeOperationId: "projects/p/locations/l/operations/delete" } });
+      expect(error).toMatchObject({
+        resource: { kind: "service", nativeId: "projects/p/locations/l/services/s", nativeOperationId: "projects/p/locations/l/operations/delete" }
+      });
     });
 
     it("keeps waiting across best-effort waits that return early and stops at the client deadline", async () => {

@@ -212,7 +212,9 @@ function kubernetesName(value: string, operation: string, options: { rfc1035?: b
     throw new AdapterExecutionError(`Kubernetes ${operation} name ${JSON.stringify(value)} does not contain a valid Kubernetes name.`);
   }
   if (options.rfc1035 && !/^[a-z]/.test(name)) {
-    throw new AdapterExecutionError(`Kubernetes ${operation} name ${JSON.stringify(value)} must start with a letter because Service names are RFC 1035 labels.`);
+    throw new AdapterExecutionError(
+      `Kubernetes ${operation} name ${JSON.stringify(value)} must start with a letter because Service names are RFC 1035 labels.`
+    );
   }
   return name;
 }
@@ -963,7 +965,9 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
     // existence unknown.
     const serviceRejected = status !== undefined && status >= 400 && status < 500;
     const service = locate("service", serviceName);
-    const attempt = await requestForegroundDelete("deployment", () => requireAppsMethod(apps, "deleteNamespacedDeployment").call(apps, deleteRequest(namespace, deploymentName)));
+    const attempt = await requestForegroundDelete("deployment", () =>
+      requireAppsMethod(apps, "deleteNamespacedDeployment").call(apps, deleteRequest(namespace, deploymentName))
+    );
     const cleanup: CleanupOutcome =
       attempt.state === "failed"
         ? { status: "failed", resources: [deployment], residual: [deployment], error: attempt.error }
@@ -1218,7 +1222,11 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
           );
         }
         if (accepted.length > 0) {
-          await observeAbsence(clients, name, accepted.map((attempt) => attempt.kind));
+          await observeAbsence(
+            clients,
+            name,
+            accepted.map((attempt) => attempt.kind)
+          );
         }
         const deployment = attempts[0]!.response;
         const service = attempts[1]!.response;
@@ -1292,7 +1300,16 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
               metadata: kubernetesReceiptMetadata("v1", { ...result.metadata, serviceName: name, uid: service.metadata?.uid })
             })
           : undefined;
-        return { id: name, provider, name, logs: result.logs, truncation: result.truncation, nextCursor: result.nextCursor, metadata: result.metadata, receipt };
+        return {
+          id: name,
+          provider,
+          name,
+          logs: result.logs,
+          truncation: result.truncation,
+          nextCursor: result.nextCursor,
+          metadata: result.metadata,
+          receipt
+        };
       }
     }
   };

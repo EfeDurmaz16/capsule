@@ -430,7 +430,8 @@ export class CloudRunClient {
 }
 
 const resourceSegment = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-const fullResourceName = /^projects\/([^/?#]+)\/locations\/([^/?#]+)\/(jobs|services)\/([A-Za-z0-9][A-Za-z0-9._-]*)(?:\/executions\/([A-Za-z0-9][A-Za-z0-9._-]*))?$/;
+const fullResourceName =
+  /^projects\/([^/?#]+)\/locations\/([^/?#]+)\/(jobs|services)\/([A-Za-z0-9][A-Za-z0-9._-]*)(?:\/executions\/([A-Za-z0-9][A-Za-z0-9._-]*))?$/;
 
 // Extra client time beyond the server-side wait, so the HTTP request outlives the wait it asked for.
 const waitGraceMs = 15_000;

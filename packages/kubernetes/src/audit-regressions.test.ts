@@ -238,7 +238,9 @@ describe("M1 audit regressions: kubernetes", () => {
         }
       })
     });
-    await expect(capsule.service.deploy({ name: "app", image: "i", ports: [{ port: 8080 }, { port: 8080, protocol: "tcp" }] })).rejects.toThrow(/more than once/);
+    await expect(capsule.service.deploy({ name: "app", image: "i", ports: [{ port: 8080 }, { port: 8080, protocol: "tcp" }] })).rejects.toThrow(
+      /more than once/
+    );
     await expect(capsule.service.deploy({ name: "app", image: "i", ports: [{ port: 70000 }] })).rejects.toThrow(/between 1 and 65535/);
     expect(deployments).toBe(0);
   });

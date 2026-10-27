@@ -43,7 +43,10 @@ describe("M1 audit regressions: azure", () => {
     });
     const error = await capsule.service.delete({ id: "app" }).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(PendingOperationError);
-    expect(error).toMatchObject({ state: "InProgress", resource: { kind: "containerApp", nativeId: "app", scope: { subscriptionId: "s", resourceGroupName: "r" } } });
+    expect(error).toMatchObject({
+      state: "InProgress",
+      resource: { kind: "containerApp", nativeId: "app", scope: { subscriptionId: "s", resourceGroupName: "r" } }
+    });
   });
 
   it("SVC-05a: a 202 delete that ends Failed is a failure, and one without polling headers is confirmed by a 404", async () => {
@@ -117,7 +120,9 @@ describe("M1 audit regressions: azure", () => {
     }
 
     it("reports a cleanup that is still pending as pending, not deleted", async () => {
-      const capsule = startFailure(() => new Response(null, { status: 202, headers: { "azure-asyncoperation": "https://management.azure.com/operationStatuses/c" } }));
+      const capsule = startFailure(
+        () => new Response(null, { status: 202, headers: { "azure-asyncoperation": "https://management.azure.com/operationStatuses/c" } })
+      );
       const error = await capsule.job.run({ image: "i" }).catch((caught: unknown) => caught);
       expect(error).toBeInstanceOf(PartialEffectsError);
       expect((error as { cleanup?: { status?: string } }).cleanup?.status).toBe("pending");
@@ -184,7 +189,9 @@ describe("M1 audit regressions: azure", () => {
     it("rejects partial ids and names with path characters instead of trimming them", async () => {
       const { capsule, urls } = scopeCapsule();
       await expect(capsule.service.status({ id: "/containerApps/app" })).rejects.toThrow(/must be a resource name or a full ARM resource id/);
-      await expect(capsule.service.status({ id: "/subscriptions/s/resourceGroups/r/providers/Microsoft.App/jobs/app" })).rejects.toThrow(/not a valid ARM container app id/);
+      await expect(capsule.service.status({ id: "/subscriptions/s/resourceGroups/r/providers/Microsoft.App/jobs/app" })).rejects.toThrow(
+        /not a valid ARM container app id/
+      );
       await expect(capsule.job.status({ id: "a/b", providerOptions: { jobName: "j" } })).rejects.toThrow(/must be a resource name/);
       expect(urls).toEqual([]);
     });

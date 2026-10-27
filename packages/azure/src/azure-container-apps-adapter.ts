@@ -217,7 +217,8 @@ function jobStatus(resource: AzureResource): JobRun["status"] {
   }
 }
 
-const armResourceId = /^\/subscriptions\/([^/?#]+)\/resourceGroups\/([^/?#]+)\/providers\/Microsoft\.App\/(containerApps|jobs)\/([^/?#]+)(?:\/executions\/([^/?#]+))?\/?$/i;
+const armResourceId =
+  /^\/subscriptions\/([^/?#]+)\/resourceGroups\/([^/?#]+)\/providers\/Microsoft\.App\/(containerApps|jobs)\/([^/?#]+)(?:\/executions\/([^/?#]+))?\/?$/i;
 
 function plainName(value: string, what: string): string {
   if (!value || /[/?#\u0000-\u001f\u007f]/.test(value)) {
@@ -235,17 +236,24 @@ function scopedArmResource(
   kind: "containerApps" | "jobs" | "executions"
 ): { name: string; executionName?: string } {
   if (!id.startsWith("/subscriptions/")) {
-    if (kind === "executions") throw new AdapterExecutionError("Azure Container Apps execution ids must be full ARM ids unless providerOptions.jobName is set.");
+    if (kind === "executions")
+      throw new AdapterExecutionError("Azure Container Apps execution ids must be full ARM ids unless providerOptions.jobName is set.");
     return { name: plainName(id, kind === "jobs" ? "job" : "container app") };
   }
   const match = armResourceId.exec(id);
   const collection = match?.[3]?.toLowerCase();
-  const shapeOk = match && (kind === "executions" ? collection === "jobs" && match[5] !== undefined : collection === kind.toLowerCase() && match[5] === undefined);
+  const shapeOk =
+    match && (kind === "executions" ? collection === "jobs" && match[5] !== undefined : collection === kind.toLowerCase() && match[5] === undefined);
   if (!match || !shapeOk) {
-    throw new AdapterExecutionError(`Azure Container Apps id ${JSON.stringify(id)} is not a valid ARM ${kind === "containerApps" ? "container app" : kind.slice(0, -1)} id.`);
+    throw new AdapterExecutionError(
+      `Azure Container Apps id ${JSON.stringify(id)} is not a valid ARM ${kind === "containerApps" ? "container app" : kind.slice(0, -1)} id.`
+    );
   }
   const [, subscription, resourceGroup, , name, executionName] = match;
-  if (decodeURIComponent(subscription!).toLowerCase() !== client.subscriptionId.toLowerCase() || decodeURIComponent(resourceGroup!).toLowerCase() !== client.resourceGroupName.toLowerCase()) {
+  if (
+    decodeURIComponent(subscription!).toLowerCase() !== client.subscriptionId.toLowerCase() ||
+    decodeURIComponent(resourceGroup!).toLowerCase() !== client.resourceGroupName.toLowerCase()
+  ) {
     throw new AdapterExecutionError(
       `Azure Container Apps resource ${id} is outside the configured subscription ${client.subscriptionId} and resource group ${client.resourceGroupName}; use an adapter configured for that scope.`
     );

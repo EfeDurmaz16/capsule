@@ -51,7 +51,13 @@ describe("cloud-run HTTP handling (GAP-09)", () => {
 
   it("rejects an oversized success body instead of buffering it", async () => {
     const counter = { pulls: 0 };
-    const client = new CloudRunClient({ projectId: "p", location: "l", accessToken: "fake", maxResponseBytes: 4096, fetch: async () => endlessBody(counter, 200) });
+    const client = new CloudRunClient({
+      projectId: "p",
+      location: "l",
+      accessToken: "fake",
+      maxResponseBytes: 4096,
+      fetch: async () => endlessBody(counter, 200)
+    });
     await expect(client.getExecution(execution)).rejects.toThrow(/exceeded 4096 bytes/);
     expect(counter.pulls).toBeLessThan(20);
   });

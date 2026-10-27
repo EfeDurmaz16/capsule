@@ -85,9 +85,7 @@ describe("kubernetes bounded log capture (PERF-05)", () => {
   });
 
   it("stops waiting at the client deadline and returns what arrived, marked as deadline truncation", async () => {
-    const capsule = podsCapsule(2, ({ name }) =>
-      name === "pod-00" ? new Promise<string>(() => undefined) : Promise.resolve("2026-10-25T10:00:00Z fast\n")
-    );
+    const capsule = podsCapsule(2, ({ name }) => (name === "pod-00" ? new Promise<string>(() => undefined) : Promise.resolve("2026-10-25T10:00:00Z fast\n")));
     const started = Date.now();
     const result = await capsule.service.logs({ id: "svc", bounds: { deadlineMs: 50 } });
     expect(Date.now() - started).toBeLessThan(1000);
