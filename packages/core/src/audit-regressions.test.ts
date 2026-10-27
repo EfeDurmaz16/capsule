@@ -161,7 +161,7 @@ describe("M1 audit regressions: core", () => {
     expect(refs.filter((ref) => ref.deref() !== undefined).length).toBeLessThan(10);
   });
 
-  it.fails("POL-01: merging an allowlist into a present secrets block without allowed never widens the deny-all", () => {
+  it("POL-01: merging an allowlist into a present secrets block without allowed never widens the deny-all", () => {
     const base: CapsulePolicy = { secrets: { redactFromLogs: true } };
     const decide = (policy: CapsulePolicy) => {
       try {
@@ -174,6 +174,32 @@ describe("M1 audit regressions: core", () => {
     expect(decide(base)).toBe("denied");
     expect(decide(mergePolicy(base, { secrets: { allowed: ["TOKEN"] } }))).toBe("denied");
     expect(decide(mergePolicy({ secrets: { allowed: ["TOKEN"] } }, base))).toBe("denied");
+  });
+
+  it("POL-01: merged secrets policy accepts exactly the env keys both sides accept, in both orders", () => {
+    const sides: Array<[string, CapsulePolicy]> = [
+      ["absent block", {}],
+      ["block without allowed", { secrets: { redactFromLogs: true } }],
+      ["explicit empty allowed", { secrets: { allowed: [] } }],
+      ["allowed TOKEN", { secrets: { allowed: ["TOKEN"] } }],
+      ["allowed TOKEN and OTHER", { secrets: { allowed: ["TOKEN", "OTHER"] } }]
+    ];
+    const accepts = (policy: CapsulePolicy, key: string) => {
+      try {
+        evaluatePolicy(policy, { env: { [key]: "synthetic-value" } });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    for (const [, left] of sides) {
+      for (const [, right] of sides) {
+        for (const key of ["TOKEN", "OTHER", "UNLISTED"]) {
+          const expected = accepts(left, key) && accepts(right, key);
+          expect(accepts(mergePolicy(left, right), key)).toBe(expected);
+        }
+      }
+    }
   });
 
   it.fails("POL-02: redactError also redacts an already materialized stack", () => {

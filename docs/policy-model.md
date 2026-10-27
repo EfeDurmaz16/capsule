@@ -6,7 +6,7 @@ Core can validate env and secret keys, merge timeout limits, enforce approval re
 
 Network policy can be `none`, `allowlist`, or `all`. Docker can apply `none` with `--network none`, which removes container network access through Docker's own network mode for that container. It is still local Docker, not a complete hostile-code sandbox. Docker allowlists are not natively enforced by the adapter, so allowlist requests are recorded as unsupported/best-effort notes.
 
-Filesystem policy may be native in some sandbox providers and emulated in local adapters. Secrets policy denies env keys not listed in `policy.secrets.allowed` when that policy exists. `policy.secrets.redactFromLogs` redacts configured env secret values from Capsule-observed output and errors. Credential-shaped values (`Bearer` tokens, `sk_live_`/`pk_live_` style keys, GitHub and Slack token prefixes, JWTs) are always redacted from Capsule-observed logs, receipt metadata, and provider options, on every profile. `policy.secrets.redactionProfile: "strict"` additionally redacts any long token-like string (48+ url-safe characters), which can also catch non-secret values such as hashes; `redactKeys` adds project-specific key names to the receipt redaction set.
+Filesystem policy may be native in some sandbox providers and emulated in local adapters. Secrets policy denies env keys not listed in `policy.secrets.allowed` when that policy exists; a `secrets` block that omits `allowed` (or sets it to `[]`) denies every env key, and no `secrets` block means env keys are not checked. `policy.secrets.redactFromLogs` redacts configured env secret values from Capsule-observed output and errors. Credential-shaped values (`Bearer` tokens, `sk_live_`/`pk_live_` style keys, GitHub and Slack token prefixes, JWTs) are always redacted from Capsule-observed logs, receipt metadata, and provider options, on every profile. `policy.secrets.redactionProfile: "strict"` additionally redacts any long token-like string (48+ url-safe characters), which can also catch non-secret values such as hashes; `redactKeys` adds project-specific key names to the receipt redaction set.
 
 Limit policy includes timeout, output size, memory, and CPU. Timeout is straightforward for local process management; memory and CPU depend on provider support.
 
@@ -30,7 +30,7 @@ The `enforcement` mode, `trace`, `cost`, `ttl`, and `network` diagnostics travel
 
 - `network.mode`: the stricter mode wins (`none` > `allowlist` > `all`); an undeclared side is treated as unrestricted.
 - `network.allowedHosts`: intersected when both sides declare an allowlist; otherwise the declared list is kept.
-- `secrets.allowed`: intersected when both declare it; otherwise the declared list is kept.
+- `secrets.allowed`: when both sides declare a `secrets` block, their effective allowlists are intersected. A `secrets` block that omits `allowed` already denies every env key, so it counts as an empty allowlist and the merged policy stays deny-all in either merge order. When only one side declares a `secrets` block, that block is kept unchanged.
 - `secrets.redactFromLogs`: OR toward safety.
 - `secrets.redactionProfile`: `strict` wins over `standard`.
 - `secrets.redactKeys`: union.

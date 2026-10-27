@@ -362,7 +362,8 @@ export function mergeTimeout(policy: CapsulePolicy = {}, requested?: number): nu
  * Per-field rules:
  * - network.mode: the stricter mode wins (none > allowlist > all); an undeclared side is treated as unrestricted.
  * - network.allowedHosts: intersected when both sides declare an allowlist; otherwise the declared list is kept.
- * - secrets.allowed: intersected when both sides declare it; otherwise the declared list is kept.
+ * - secrets.allowed: when both sides declare a secrets block, their effective allowlists are intersected. A block that
+ *   omits `allowed` denies every env key, so it counts as an empty allowlist and the merge stays deny-all.
  * - secrets.redactFromLogs: OR toward safety (either side asking to redact wins).
  * - secrets.redactionProfile: strict wins over standard.
  * - secrets.redactKeys: union.
@@ -445,7 +446,9 @@ function mergeSecrets(base: CapsulePolicy["secrets"], override: CapsulePolicy["s
   if (!override) {
     return base;
   }
-  const allowed = base.allowed && override.allowed ? intersect(base.allowed, override.allowed) : (base.allowed ?? override.allowed);
+  // A present secrets block without `allowed` denies every env key (see evaluatePolicy), so its
+  // effective allowlist is []. Intersect effective allowlists so a merge never widens either side.
+  const allowed = base.allowed || override.allowed ? intersect(base.allowed ?? [], override.allowed ?? []) : undefined;
   const redactFromLogs = Boolean(base.redactFromLogs) || Boolean(override.redactFromLogs);
   const redactionProfile: "standard" | "strict" | undefined =
     base.redactionProfile === "strict" || override.redactionProfile === "strict" ? "strict" : (base.redactionProfile ?? override.redactionProfile);
