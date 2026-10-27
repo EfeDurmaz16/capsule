@@ -81,6 +81,7 @@ const packedSizeBudgetBytes = {
   "@capsule-sdk/neon": 9 * kib,
   "@capsule-sdk/vercel": 13 * kib,
   "@capsule-sdk/ai": 6 * kib,
+  "@capsule-sdk/bridge-worker": 40 * kib,
   "@capsule-sdk/cli": 32 * kib,
   "@capsule-sdk/core": 60 * kib,
   "@capsule-sdk/presets": 7 * kib,
