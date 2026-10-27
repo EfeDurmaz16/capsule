@@ -143,6 +143,7 @@ Exports:
 - `assertAdapterFailureScenarios` (function)
 - `assertPolicyDenialGuards` (function)
 - `assertUnsupportedCapabilityGuards` (function)
+- `AttachSandboxSpec` (interface)
 - `BoundedObservationOptions` (interface)
 - `callProvider` (function)
 - `CancelJobResult` (interface)

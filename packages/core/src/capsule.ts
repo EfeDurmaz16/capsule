@@ -7,6 +7,7 @@ import { capsuleOperationTag } from "./idempotency.js";
 import type { AdapterContext, CapsuleAdapter } from "./adapters.js";
 import type { ReceiptPersistenceMode, ReceiptStore } from "./stores.js";
 import type {
+  AttachSandboxSpec,
   CapabilityMap,
   CapsuleReceipt,
   CancelJobSpec,
@@ -152,6 +153,26 @@ export class Capsule {
         // The create operation is finished: later sandbox operations own their own write lists.
         runtime.defaultOptions = { ...runtime.defaultOptions, pendingWrites: undefined };
         return this.wrapSandbox(sandbox, runtime, spec.approval);
+      },
+      /**
+       * Wraps an existing sandbox so its operations are governed like those of a created one. It makes
+       * no provider call that changes state, evaluates no policy and writes no receipt; each later
+       * operation does. There is no captured create grant: exec and destroy need their own approval
+       * where policy requires one.
+       */
+      attach: async (spec: AttachSandboxSpec) => {
+        if (!this.options.adapter.sandbox?.attach) {
+          throw new UnsupportedCapabilityError("sandbox.attach");
+        }
+        const runtime = this.contextRuntime({});
+        let sandbox: Sandbox;
+        try {
+          sandbox = await this.options.adapter.sandbox.attach(spec, runtime.context);
+        } catch (error) {
+          throw redactError(error, undefined, this.options.policy);
+        }
+        runtime.defaultOptions = { ...runtime.defaultOptions, pendingWrites: undefined };
+        return this.wrapSandbox(sandbox, runtime, undefined);
       }
     };
 
