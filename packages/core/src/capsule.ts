@@ -74,6 +74,21 @@ interface ContextOptions extends PolicyInput {
   pendingWrites?: Promise<void>[];
 }
 
+/**
+ * One frame of the operation context: the Capsule that runs it, its options, and the frame it runs
+ * inside. All Capsule instances share one AsyncLocalStorage and each instance reads the innermost frame
+ * it owns, which is what a storage per instance gave. A storage per instance is never released on
+ * Node 22 (async_hooks), and every live one is visited on every new async resource, so a process that
+ * creates many Capsule instances slowed down linearly with their count.
+ */
+interface OperationFrame {
+  owner: Capsule;
+  options: ContextOptions;
+  parent: OperationFrame | undefined;
+}
+
+const operationContext = new AsyncLocalStorage<OperationFrame>();
+
 interface ContextRuntime {
   context: AdapterContext;
   defaultOptions: ContextOptions;
@@ -112,8 +127,6 @@ function assertReceiptScope(input: { type: CapsuleReceipt["type"]; capabilityPat
 }
 
 export class Capsule {
-  private readonly contextOptions = new AsyncLocalStorage<ContextOptions>();
-
   readonly sandbox;
   readonly job;
   readonly service;
@@ -141,7 +154,7 @@ export class Capsule {
         await this.preflightReceiptPersistence();
         let sandbox: Sandbox;
         try {
-          sandbox = await this.contextOptions.run(runtime.defaultOptions, () =>
+          sandbox = await this.runInContext(runtime.defaultOptions, () =>
             this.options.adapter.sandbox!.create({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, runtime.context)
           );
         } catch (error) {
@@ -622,12 +635,24 @@ export class Capsule {
     return this.options.policy ?? {};
   }
 
+  private runInContext<T>(options: ContextOptions, fn: () => T): T {
+    return operationContext.run({ owner: this, options, parent: operationContext.getStore() }, fn);
+  }
+
+  /** The options of the innermost operation this instance is running, if any. */
+  private currentContext(): ContextOptions | undefined {
+    for (let frame = operationContext.getStore(); frame; frame = frame.parent) {
+      if (frame.owner === this) return frame.options;
+    }
+    return undefined;
+  }
+
   private async withContext<T>(operation: (context: AdapterContext) => Promise<T>, options: ContextOptions = {}): Promise<T> {
     const runtime = this.contextRuntime(options);
     await this.preflightReceiptPersistence();
     let result: T;
     try {
-      result = await this.contextOptions.run(runtime.defaultOptions, () => operation(runtime.context));
+      result = await this.runInContext(runtime.defaultOptions, () => operation(runtime.context));
     } catch (error) {
       throw redactError(error, options.env, this.options.policy);
     }
@@ -669,7 +694,7 @@ export class Capsule {
     const pendingWrites: Promise<void>[] = [];
     let result: T;
     try {
-      result = await this.contextOptions.run({ ...options, pendingWrites }, operation);
+      result = await this.runInContext({ ...options, pendingWrites }, operation);
     } catch (error) {
       throw redactError(error, options.env, this.options.policy);
     }
@@ -854,7 +879,7 @@ export class Capsule {
       policy: this.options.policy ?? {},
       supportLevel: (path: string) => supportLevel(adapter.capabilities, path as CapabilityPath),
       evaluatePolicy: (input = {}) => {
-        const options = this.contextOptions.getStore() ?? runtime.defaultOptions;
+        const options = this.currentContext() ?? runtime.defaultOptions;
         // Sandbox sub-operations carry their capability through the receipt scope, so adapter-side checks
         // validate a capability-scoped (fresh or captured) grant against the operation actually running.
         const capabilityPath = input.capabilityPath ?? options.capabilityPath ?? defaultCapabilityPath(options.receiptScopes);
@@ -869,7 +894,7 @@ export class Capsule {
         });
       },
       createReceipt: (input) => {
-        const options = this.contextOptions.getStore() ?? runtime.defaultOptions;
+        const options = this.currentContext() ?? runtime.defaultOptions;
         assertReceiptScope(input, options.receiptScopes);
         const receipt = createReceipt(
           {
