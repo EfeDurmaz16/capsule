@@ -653,10 +653,13 @@ const liveTestPlans: LiveTestPlan[] = [
     provider: "cloud-run",
     testPath: "packages/cloud-run/src/cloud-run.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_RUN_LOCATION", "GOOGLE_OAUTH_ACCESS_TOKEN", "CAPSULE_CLOUD_RUN_SERVICE_ID"],
-    optionalEnv: [],
+    optionalEnv: ["CAPSULE_CLOUD_RUN_JOB_IMAGE"],
     costRisk: "read-only",
     safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/cloud-run/src/cloud-run.live.test.ts"],
-    notes: ["Reads an existing Cloud Run service status; no resource is created."]
+    notes: [
+      "Reads an existing Cloud Run service status; no resource is created.",
+      "An optional billable job test runs only with CAPSULE_CLOUD_RUN_JOB_IMAGE, CAPSULE_LIVE_TEST_COST_ACK=1 and CAPSULE_LIVE_TEST_MAX_RESOURCES; its Job resource persists, TTL-labeled for the cleanup sweep. The live workflow does not map this variable."
+    ]
   },
   {
     provider: "cloudflare",
@@ -668,7 +671,7 @@ const liveTestPlans: LiveTestPlan[] = [
       "CAPSULE_CLOUDFLARE_WORKER_NAME",
       "CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION"
     ],
-    optionalEnv: ["CLOUDFLARE_COMPATIBILITY_DATE"],
+    optionalEnv: ["CLOUDFLARE_COMPATIBILITY_DATE", "CAPSULE_CLOUDFLARE_LIVE_DEPLOY", "CAPSULE_CLOUDFLARE_LIVE_ROLLBACK"],
     costRisk: "billable",
     costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
     aliases: {
@@ -678,7 +681,10 @@ const liveTestPlans: LiveTestPlan[] = [
     safeCommands: [
       'CLOUDFLARE_API_TOKEN="${CLOUDFLARE_API_TOKEN:-$CAPSULE_WORKER_API_TOKEN}" CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-$CAPSULE_WORKER_ACCOUNT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/cloudflare/src/cloudflare.live.test.ts'
     ],
-    notes: ["Creates an unreleased Worker version. Project-scoped Worker aliases can satisfy the Cloudflare token and account env vars."]
+    notes: [
+      "Creates an unreleased Worker version. Project-scoped Worker aliases can satisfy the Cloudflare token and account env vars.",
+      "Optional deploy and rollback tests update the named Worker and run only with CAPSULE_CLOUDFLARE_LIVE_DEPLOY or CAPSULE_CLOUDFLARE_LIVE_ROLLBACK set; the live workflow does not map either flag."
+    ]
   },
   {
     provider: "vercel",
