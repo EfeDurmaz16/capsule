@@ -1,0 +1,174 @@
+{
+  "meta": {
+    "label": "after-85506c1",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "85506c1b5a77ae4e3092cdf17b792201373492d4",
+    "packagesTree": "deea6cd305e943c057dec39258545a4e6052eaec",
+    "dirty": false,
+    "date": "2026-10-27T14:08:44.812Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56",
+      "execArgv": [
+        "--expose-gc"
+      ]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": null,
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workload": {
+    "id": "perf-10-docker-output",
+    "perfIds": [
+      "PERF-10"
+    ],
+    "manifestIds": [
+      "CD-BOUNDS"
+    ]
+  },
+  "case": "stdout-10MiB",
+  "description": "10 MiB of 100-byte lines on stdout.",
+  "params": {
+    "stdoutBytes": 10485760
+  },
+  "runs": [
+    {
+      "rep": 0,
+      "childWallMs": 221.53591700000106,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 150.73112500000002,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 94814208,
+        "peakRssGrowthBytes": 43155456,
+        "heapUsedDeltaBytes": 28120808
+      },
+      "caseDurationMs": 189.148042,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4789808,
+          "rss": 44892160,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33650888,
+          "rss": 94846976,
+          "external": 2210961,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 94846976
+      }
+    },
+    {
+      "rep": 1,
+      "childWallMs": 212.83774999999878,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 152.135958,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 95928320,
+        "peakRssGrowthBytes": 44122112,
+        "heapUsedDeltaBytes": 28408568
+      },
+      "caseDurationMs": 180.59533299999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4789808,
+          "rss": 44974080,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33940184,
+          "rss": 96124928,
+          "external": 2210961,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 96124928
+      }
+    },
+    {
+      "rep": 2,
+      "childWallMs": 203.20150000000285,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 145.256125,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 95698944,
+        "peakRssGrowthBytes": 43892736,
+        "heapUsedDeltaBytes": 28555000
+      },
+      "caseDurationMs": 170.987958,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4789808,
+          "rss": 44974080,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34085600,
+          "rss": 95862784,
+          "external": 2210961,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 95862784
+      }
+    }
+  ]
+}

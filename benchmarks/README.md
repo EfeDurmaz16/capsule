@@ -26,6 +26,8 @@ Each repetition runs in a fresh `node --expose-gc` process, one at a time, so pe
 - `raw/<label>/summary.json`: per-metric median, p95, min and max for numbers; first value plus a consistency flag for behavioral observations.
 - `results/<label>.txt`: headline table.
 
+`after/` holds the M1 after run (`after/raw/<label>/`, `after/results-<label>.txt`), same-session baseline and after controls (`after/control/`) and `after/comparison.md`, the before/after table split into constructor counts, complexity and resource counts, behavioral observations and host-dependent timings.
+
 `run-gates.mjs` records every repository gate (the CI commands) to a text file, for example `baseline/gates-7d3a28a.txt`.
 
 ## Workloads

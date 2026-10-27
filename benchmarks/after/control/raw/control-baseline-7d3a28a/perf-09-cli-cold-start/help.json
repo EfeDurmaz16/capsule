@@ -1,0 +1,162 @@
+{
+  "meta": {
+    "label": "control-baseline-7d3a28a",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+    "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346",
+    "dirty": false,
+    "date": "2026-10-27T14:12:04.586Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56",
+      "execArgv": [
+        "--expose-gc"
+      ]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": null,
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workload": {
+    "id": "perf-09-cli-cold-start",
+    "perfIds": [
+      "PERF-09"
+    ],
+    "manifestIds": [
+      "CLI-02"
+    ]
+  },
+  "case": "help",
+  "description": "capsule --help with empty HOME and no credentials, 10 fresh processes per repetition.",
+  "params": {
+    "args": [
+      "--help"
+    ],
+    "samples": 10
+  },
+  "runs": [
+    {
+      "rep": 0,
+      "childWallMs": 4476.367958999996,
+      "ok": true,
+      "metrics": {
+        "command": "capsule --help",
+        "exitCode": 0,
+        "stdoutBytes": 7565,
+        "stdoutDigest": "a265d4ba0baf8908d441e4ac311c903b3697c5381cab38d84324121d0931f697",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 400.28108299999985,
+          "p95": 803.2640419999999,
+          "min": 394.5501250000002
+        },
+        "maxRssBytes": {
+          "p50": 220839936,
+          "max": 223625216
+        }
+      },
+      "caseDurationMs": 4430.771416,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5188992,
+          "rss": 46055424,
+          "external": 2091211,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 5163672,
+          "rss": 52019200,
+          "external": 2215339,
+          "arrayBuffers": 93052
+        },
+        "maxRssBytes": 52019200
+      }
+    },
+    {
+      "rep": 1,
+      "childWallMs": 4164.064041999998,
+      "ok": true,
+      "metrics": {
+        "command": "capsule --help",
+        "exitCode": 0,
+        "stdoutBytes": 7565,
+        "stdoutDigest": "a265d4ba0baf8908d441e4ac311c903b3697c5381cab38d84324121d0931f697",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 404.0902080000001,
+          "p95": 466.0746250000002,
+          "min": 397.92683300000004
+        },
+        "maxRssBytes": {
+          "p50": 220610560,
+          "max": 226689024
+        }
+      },
+      "caseDurationMs": 4133.658165999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5188992,
+          "rss": 46071808,
+          "external": 2091211,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 5135656,
+          "rss": 52101120,
+          "external": 2215339,
+          "arrayBuffers": 93052
+        },
+        "maxRssBytes": 52117504
+      }
+    },
+    {
+      "rep": 2,
+      "childWallMs": 4142.672749999998,
+      "ok": true,
+      "metrics": {
+        "command": "capsule --help",
+        "exitCode": 0,
+        "stdoutBytes": 7565,
+        "stdoutDigest": "a265d4ba0baf8908d441e4ac311c903b3697c5381cab38d84324121d0931f697",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 404.30899999999974,
+          "p95": 455.6657919999999,
+          "min": 393.8657909999997
+        },
+        "maxRssBytes": {
+          "p50": 220774400,
+          "max": 223232000
+        }
+      },
+      "caseDurationMs": 4113.0711249999995,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5188992,
+          "rss": 46055424,
+          "external": 2091211,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 5160696,
+          "rss": 51953664,
+          "external": 2215339,
+          "arrayBuffers": 93052
+        },
+        "maxRssBytes": 51953664
+      }
+    }
+  ]
+}
