@@ -380,6 +380,22 @@ function truncationMetadata(truncation: DockerCommandResult["truncation"]): { me
 
 // Redacts captured output. When a stream was cut at the byte cap, the cut can fall inside a secret,
 // leaving a prefix that whole-value redaction cannot match, so a trailing secret prefix is redacted too.
+// Redacts captured stderr and keeps any note the runner appended after it (the timeout note) outside
+// the captured part, so a secret prefix cut by the byte cap is still found at the end of the capture.
+function redactCapturedStderr(
+  result: DockerCommandResult,
+  env: Record<string, string> | undefined,
+  policy: AdapterContext["policy"],
+  extraNote?: string
+): string {
+  const note = result.timeoutNote;
+  const split = note !== undefined && result.stderr.endsWith(note);
+  const captured = split ? result.stderr.slice(0, result.stderr.length - note.length).replace(/\n$/, "") : result.stderr;
+  const notes = [...(split ? [note] : []), ...(extraNote === undefined ? [] : [extraNote])];
+  const redacted = redactCapturedOutput(captured, result.truncation?.stderr, env, policy);
+  return [redacted, ...notes.map((entry) => redactSecrets(entry, env, policy))].filter((part, index) => index > 0 || part.length > 0).join("\n");
+}
+
 function redactCapturedOutput(
   text: string,
   truncation: CaptureTruncation | undefined,
@@ -424,7 +440,7 @@ async function reapTimedOutJob(
   const primaryError = providerExecutionError(
     "Docker job timed out; the docker CLI was killed.",
     { category: "retryable", retryable: true },
-    { exitCode: timedOut.exitCode, stderr: redactSecrets(timedOut.stderr, env, context.policy) }
+    { exitCode: timedOut.exitCode, stderr: redactCapturedStderr(timedOut, env, context.policy) }
   );
   const fail = (cleanupError: unknown, residual: ResourceLocator[]): never => {
     throw new CleanupFailureError(
@@ -509,7 +525,10 @@ class DockerSandbox implements Sandbox {
           { category: "retryable", retryable: true },
           {
             exitCode: result.exitCode,
-            stderr: redactSecrets(result.stderr, spec.env, this.context.policy)
+            stdout: redactCapturedOutput(result.stdout, result.truncation?.stdout, spec.env, this.context.policy),
+            stderr: redactCapturedStderr(result, spec.env, this.context.policy),
+            ...(result.truncation ? { truncation: result.truncation } : {}),
+            ...(result.captureLimit ? { captureLimit: result.captureLimit.message } : {})
           }
         )
       );
@@ -702,7 +721,7 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
         );
         const reaped = result.timedOut ? await reapTimedOutJob(runner, runLabel, result, spec.env, context) : undefined;
         const stdout = redactCapturedOutput(result.stdout, result.truncation?.stdout, spec.env, context.policy);
-        const stderr = redactCapturedOutput(reaped ? `${result.stderr}\n${reaped.note}` : result.stderr, result.truncation?.stderr, spec.env, context.policy);
+        const stderr = redactCapturedStderr(result, spec.env, context.policy, reaped?.note);
         const receipt = context.receipts
           ? context.createReceipt({
               type: "job.run",

@@ -4,8 +4,9 @@ import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { CaptureLimitError, defaultCaptureBounds } from "@capsule-sdk/core";
+import { Capsule, CaptureLimitError, defaultCaptureBounds, UnknownOutcomeError } from "@capsule-sdk/core";
 import { runDocker } from "./docker-cli.js";
+import { docker } from "./index.js";
 
 let binDir: string;
 let originalPath: string | undefined;
@@ -76,5 +77,54 @@ describe.skipIf(process.platform === "win32")("runDocker", () => {
     await expect(runDocker(["exec", "c", "x"], { timeoutMs: 5_000, outputBounds: { stdout: bounds, stderr: bounds } })).rejects.toBeInstanceOf(
       CaptureLimitError
     );
+  });
+  it("PERF-10: a timeout wins over a capture-limit error, so the caller learns the process may still run", async () => {
+    fakeDocker("printf 'abcdef'; sleep 5");
+    const bounds = { ...defaultCaptureBounds, maxBytes: 2, overflow: "error" as const, deadlineMs: Number.MAX_SAFE_INTEGER };
+    const result = await runDocker(["exec", "c", "x"], { timeoutMs: 300, outputBounds: { stdout: bounds, stderr: bounds } });
+    expect(result).toMatchObject({ exitCode: 124, timedOut: true, timeoutNote: "Command timed out after 300ms" });
+    expect(result.captureLimit).toBeInstanceOf(CaptureLimitError);
+    expect(result.truncation?.stdout).toMatchObject({ truncated: true, reason: "bytes", limit: 2 });
+
+    // Through the adapter the same run is an unknown outcome, not a capture-limit error.
+    const adapter = docker({
+      checkAvailable: async () => true,
+      runner: (args, options) => (args[0] === "exec" ? runDocker(args, options) : Promise.resolve({ exitCode: 0, stdout: args[0] === "create" ? "box-1\n" : "", stderr: "" }))
+    });
+    const box = await new Capsule({ adapter }).sandbox.create({});
+    const error = await box.exec({ command: "x", timeoutMs: 300, bounds: { maxBytes: 2, overflow: "error" } }).then(
+      () => undefined,
+      (caught: unknown) => caught
+    );
+    expect(error).toBeInstanceOf(UnknownOutcomeError);
+  });
+
+  it("PERF-10: a secret cut by the stderr cap is redacted even when the timeout note follows it", async () => {
+    // run and exec print the secret and hang; ps (used to reap the timed-out job) finds no container.
+    fakeDocker(`case "$1" in run|exec) printf 'xxxxxxxxxxSUPERSECRETVALUE' >&2; sleep 5 ;; *) ;; esac`);
+    const policy = { limits: { maxStderrBytes: 15 }, secrets: { allowed: ["TOKEN"], redactFromLogs: true } };
+    const env = { TOKEN: "SUPERSECRETVALUE" };
+    const run = await new Capsule({ adapter: docker({ checkAvailable: async () => true }), receipts: true, policy }).job.run({
+      image: "img",
+      command: "x",
+      env,
+      timeoutMs: 300
+    });
+    const stderr = run.result?.stderr ?? "";
+    expect(stderr).not.toContain("SUPER");
+    expect(stderr.startsWith("xxxxxxxxxx[REDACTED]\nCommand timed out after 300ms")).toBe(true);
+    expect(JSON.stringify(run.receipt)).not.toContain("SUPER");
+
+    const adapter = docker({
+      checkAvailable: async () => true,
+      runner: (args, options) => (args[0] === "exec" ? runDocker(args, options) : Promise.resolve({ exitCode: 0, stdout: args[0] === "create" ? "box-1\n" : "", stderr: "" }))
+    });
+    const box = await new Capsule({ adapter, policy }).sandbox.create({});
+    const error = (await box.exec({ command: "x", env, timeoutMs: 300 }).catch((caught: unknown) => caught)) as UnknownOutcomeError;
+    expect(error).toBeInstanceOf(UnknownOutcomeError);
+    const cause = error.cause as { cause?: { stderr?: string } } & { stderr?: string };
+    const serialized = JSON.stringify({ cause, inner: (cause as { cause?: unknown }).cause });
+    expect(serialized).toContain("[REDACTED]");
+    expect(serialized).not.toContain("SUPER");
   });
 });
