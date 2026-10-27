@@ -90,6 +90,12 @@ describe("daytona adapter", () => {
     expect(daytonaCapabilities.sandbox?.exec).toBe("native");
   });
 
+  it("declares no capability that has no invocable Capsule surface", () => {
+    expect(daytonaCapabilities.sandbox?.artifacts).toBe("unsupported");
+    expect(daytonaCapabilities.sandbox?.snapshot).toBe("unsupported");
+    expect(daytonaCapabilities.sandbox?.exposePort).toBe("unsupported");
+  });
+
   it("creates a sandbox and maps exec/files/destroy", async () => {
     const createdWith: any[] = [];
     const { sandbox } = fakeDaytonaSandbox();

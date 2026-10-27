@@ -30,7 +30,7 @@ describe("M1 audit regressions: daytona", () => {
     expect(relative[0]?.path).toBe("build/out.txt");
   });
 
-  it.fails("SB-10b: sandbox.artifacts is not claimed unless artifactPaths are actually collected", async () => {
+  it("SB-10b: sandbox.artifacts is not claimed unless artifactPaths are actually collected", async () => {
     const capsule = new Capsule({ adapter: fakeWorkspace() });
     if (!capsule.supports("sandbox.artifacts")) return;
     const box = await capsule.sandbox.create({});

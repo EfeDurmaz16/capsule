@@ -86,15 +86,17 @@ export const daytonaCapabilities: CapabilityMap = {
     upload: "native",
     download: "native",
     destroy: "native",
-    snapshot: "experimental",
+    // Declarations describe what Capsule can invoke today, not provider potential: there is no Capsule
+    // snapshot API, CreateSandboxSpec exposedPorts is not mapped and ExecSpec.artifactPaths is not collected.
+    snapshot: "unsupported",
     restore: "unsupported",
-    exposePort: "experimental",
+    exposePort: "unsupported",
     mountWorkspace: "unsupported",
     networkPolicy: "native",
     filesystemPolicy: "emulated",
     secretMounting: "emulated",
     streamingLogs: "unsupported",
-    artifacts: "emulated"
+    artifacts: "unsupported"
   },
   job: {
     run: "unsupported",
