@@ -214,13 +214,13 @@ describe("runtime log reader lock", () => {
     const client = new VercelClient({
       token: "test-token",
       fetch: async () => {
-        const response = new Response(`${line({ id: "a", message: "one" })}${line({ id: "b", message: "two" })}`, { status: 200 });
+        const response = new Response(`${line({ rowId: "a", message: "one" })}${line({ rowId: "b", message: "two" })}`, { status: 200 });
         responses.push(response);
         return response;
       }
     });
     const read = await client.readRuntimeLogs({ projectId: "prj", deploymentId: "dpl" });
-    expect(read.logs.map((log) => log.id)).toEqual(["a", "b"]);
+    expect(read.logs.map((log) => log.rowId)).toEqual(["a", "b"]);
     expect(responses[0]?.body?.locked).toBe(true);
   });
 });
