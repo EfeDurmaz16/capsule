@@ -68,6 +68,16 @@ Untrusted fork pull requests are always blocked even when the opt-in env var or 
 
 Do not run live tests from `pull_request_target`, forked pull requests, or any workflow that exposes provider secrets to untrusted code. Prefer manual `workflow_dispatch` jobs or trusted-branch jobs that set `CAPSULE_LIVE_TEST_CI_OPT_IN=1` and scoped provider credentials.
 
+## Zero executed tests is not live evidence
+
+A gated live test that cannot run is skipped, and Vitest exits 0 when every test in a file skipped. A green `vitest run` therefore cannot tell "the provider was exercised" from "nothing ran". The `Live provider tests` workflow runs only the suite planned for the selected provider, writes a Vitest JSON report, and then runs:
+
+```bash
+node scripts/live-test-evidence.mjs --provider <provider> --report <vitest-json-report>
+```
+
+The check fails unless the selected suite ran, at least one live test executed and passed, and none failed. Its JSON output says `"evidence": "executed"`, `"none"` (zero executed, suite missing, foreign files) or `"failed"`. Only `executed` is live evidence, and only for that provider, run and account. The ordinary offline `pnpm test` suite still skips paid live suites legitimately; its pass says nothing about live providers.
+
 ## Flaky Test Quarantine
 
 Known-flaky live tests can be marked with quarantine metadata: reason, owner, last observed failure, and a revalidation command. A quarantined test stays disabled even when the provider credentials, live-test flag, cost acknowledgement, and max resource count are all configured.
