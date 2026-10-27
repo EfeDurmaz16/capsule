@@ -250,18 +250,69 @@ export function dockerSandboxCreateArgs(input: DockerSandboxCreateArgsInput): st
 async function collectSandboxArtifacts(runner: DockerRunner, containerId: string, placements: ArtifactPlacement[]): Promise<Artifact[]> {
   const dir = await mkdtemp(join(tmpdir(), "capsule-docker-artifacts-"));
   try {
-    for (const placement of placements) {
-      const target = join(dir, placement.targetDir);
-      await mkdir(target, { recursive: true });
-      const copied = await runner(["cp", `${containerId}:${placement.path}`, target]);
-      if (copied.exitCode !== 0) {
-        throw dockerCliError(`docker cp artifact failed for ${placement.path}: ${copied.stderr}`, copied);
+    if (hasNestedPlacement(placements)) {
+      // A path inside another requested path copies into a tree an earlier copy creates, so the order of
+      // copies matters: keep them strictly sequential.
+      for (const placement of placements) {
+        const target = join(dir, placement.targetDir);
+        await mkdir(target, { recursive: true });
+        await copyArtifact(runner, containerId, placement, target);
       }
+    } else {
+      // Disjoint paths land in disjoint subtrees, so the copies can overlap (PERF-14). It is still one
+      // `docker cp` per path with the same arguments; only the waiting overlaps.
+      for (const placement of placements) await mkdir(join(dir, placement.targetDir), { recursive: true });
+      await copyConcurrently(runner, containerId, dir, placements);
     }
     return collectFileArtifacts(dir).artifacts;
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+/** Most `docker cp` processes run at once for one exec's artifacts. */
+export const dockerArtifactCopyConcurrency = 4;
+
+async function copyArtifact(runner: DockerRunner, containerId: string, placement: ArtifactPlacement, target: string): Promise<void> {
+  const copied = await runner(["cp", `${containerId}:${placement.path}`, target]);
+  if (copied.exitCode !== 0) {
+    throw dockerCliError(`docker cp artifact failed for ${placement.path}: ${copied.stderr}`, copied);
+  }
+}
+
+// Starts copies in request order, at most dockerArtifactCopyConcurrency at a time. After a failure no
+// further copy starts; the ones already running finish before the temp dir is removed, and the error of
+// the earliest failed path is thrown, the same error the sequential loop raised.
+async function copyConcurrently(runner: DockerRunner, containerId: string, dir: string, placements: ArtifactPlacement[]): Promise<void> {
+  const failures: Array<{ index: number; error: unknown }> = [];
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (failures.length === 0 && next < placements.length) {
+      const index = next;
+      next += 1;
+      const placement = placements[index]!;
+      try {
+        await copyArtifact(runner, containerId, placement, join(dir, placement.targetDir));
+      } catch (error) {
+        failures.push({ index, error });
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(dockerArtifactCopyConcurrency, placements.length) }, () => worker()));
+  if (failures.length > 0) {
+    throw failures.reduce((earliest, failure) => (failure.index < earliest.index ? failure : earliest)).error;
+  }
+}
+
+// True when one requested path is below another requested path (duplicates are already rejected).
+function hasNestedPlacement(placements: ArtifactPlacement[]): boolean {
+  const paths = new Set(placements.map((placement) => posix.resolve("/", placement.path)));
+  for (const path of paths) {
+    for (let parent = posix.dirname(path); parent !== "/"; parent = posix.dirname(parent)) {
+      if (paths.has(parent)) return true;
+    }
+  }
+  return false;
 }
 
 interface ArtifactPlacement {

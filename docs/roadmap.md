@@ -69,15 +69,9 @@ Vercel AI SDK, OpenAI Agents, LangChain, Claude tools, Mastra, CrewAI, CI system
 
 Provider-maintained adapters with explicit capability maps, changelog tracking, and compatibility tests.
 
-## Known Gaps Carried Forward
+## Known Limits
 
-These items were found in the M1 correctness audit and deliberately left open. Each has a visible skipped test named after its id, so the gap stays in the test output until it is fixed.
-
-| Id      | Current behavior                                                  | What it waits for                                                                                                                                                              |
-| ------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| PERF-14 | Docker sandbox artifact collection runs one `docker cp` per path. | A spawn-count, bytes and time profile for 1, 10 and 100 paths; any batch must keep the current artifact layout. Skipped test: `packages/docker/src/audit-regressions.test.ts`. |
-
-Other limits that stay visible:
+The deferred items of the M1 correctness audit (GAP-14, GAP-20, PERF-11, PERF-12, PERF-14) are closed; each has a regression test named after its id. These limits stay visible:
 
 - Sandbox file operations have no per-call approval override yet; fresh approval covers exec and destroy (see [policy model](policy-model.md)).
 - Preview resources and cleanup plans live in process memory; a crash before cleanup loses them.

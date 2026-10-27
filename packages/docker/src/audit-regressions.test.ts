@@ -223,14 +223,79 @@ describe("M1 audit regressions: docker", () => {
   });
 });
 
-describe("deferred M1 items (visible skips with reason and dependency)", () => {
-  // PERF-14 deferred: batching artifact copies (one tar stream from the common root) is an optional
-  // optimization only if profiling supports it. The M1 benchmark harness has no 1/10/100-path docker cp
-  // workload, so there is no measurement to justify it. Dependency: a spawn-count/bytes/time profile at
-  // 1/10/100 paths, with SB-07 (fixed) defining the layout any batch must reproduce. N sequential docker cp
-  // calls are unchanged.
-  it.skip("PERF-14 (deferred): batched artifact transfer keeps the SB-07 layout, hashes and selection", () => {
-    // Intended assertion once implemented: spawn count is constant in the number of paths while the copied
-    // layout, inventory and sha256 hashes equal the per-path docker cp result.
+// PERF-14: a 1/10/100-path profile (benchmarks/workloads/perf-14-docker-artifacts.mjs) showed collection
+// time is one docker CLI round trip per path. A single tar stream would need tar inside the container, run
+// as the container user and extract a container-controlled archive on the host, so it cannot reproduce
+// `docker cp` exactly; disjoint paths are instead copied with up to 4 `docker cp` at a time, still one
+// call per path with the same arguments.
+function timedDocker(options: { delayMs?: number; failFor?: string[] } = {}) {
+  const copies: Array<{ path: string; target: string; startedAt: number; endedAt?: number }> = [];
+  let inFlight = 0;
+  let maxInFlight = 0;
+  const adapter = docker({
+    checkAvailable: async () => true,
+    runner: async (args) => {
+      if (args[0] === "create") return { ...ok, stdout: "audit-container\n" };
+      if (args[0] !== "cp") return ok;
+      const source = args[1]!.slice(args[1]!.indexOf(":") + 1);
+      const copy: { path: string; target: string; startedAt: number; endedAt?: number } = { path: source, target: args[2]!, startedAt: performance.now() };
+      copies.push(copy);
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, options.delayMs ?? 5));
+      inFlight -= 1;
+      copy.endedAt = performance.now();
+      if (options.failFor?.includes(source)) return { exitCode: 1, stdout: "", stderr: `no such path ${source}` };
+      // Behaves like docker cp into an existing directory: the source's basename lands inside it. A source
+      // without a file extension stands for a directory.
+      if (source.endsWith(".txt")) writeFileSync(join(args[2]!, basename(source)), `content of ${source}`);
+      else mkdirSync(join(args[2]!, basename(source)), { recursive: true });
+      return ok;
+    }
+  });
+  return { adapter, copies, maxInFlight: () => maxInFlight };
+}
+
+describe("PERF-14: docker cp of several artifact paths", () => {
+  it("copies disjoint paths up to 4 at a time with the same calls, layout and hashes as one at a time", async () => {
+    const fake = timedDocker({ delayMs: 20 });
+    const box = await new Capsule({ adapter: fake.adapter }).sandbox.create({});
+    const paths = Array.from({ length: 10 }, (_, index) => `/work/d${index}/out.txt`);
+    const result = await box.exec({ command: "true", artifactPaths: paths });
+    expect(fake.maxInFlight()).toBe(4);
+    expect(fake.copies.map((copy) => copy.path)).toEqual(paths);
+    expect(result.artifacts.map((artifact) => [artifact.path, artifact.sha256]).sort()).toEqual(
+      paths.map((path, index) => [`d${index}/out.txt`, sha256(`content of ${path}`)]).sort()
+    );
+  });
+
+  it("keeps nested paths strictly sequential in request order", async () => {
+    const fake = timedDocker({ delayMs: 5 });
+    const box = await new Capsule({ adapter: fake.adapter }).sandbox.create({});
+    await box.exec({ command: "true", artifactPaths: ["/a/x.txt", "/a", "/a-b/y.txt", "/a/sub/z.txt"] });
+    expect(fake.maxInFlight()).toBe(1);
+    expect(fake.copies.map((copy) => copy.path)).toEqual(["/a/x.txt", "/a", "/a-b/y.txt", "/a/sub/z.txt"]);
+  });
+
+  it("reports the earliest failed path, starts no copy after a failure and lets running copies finish first", async () => {
+    const fake = timedDocker({ delayMs: 15, failFor: ["/work/d1/out.txt", "/work/d3/out.txt"] });
+    const box = await new Capsule({ adapter: fake.adapter }).sandbox.create({});
+    const paths = Array.from({ length: 12 }, (_, index) => `/work/d${index}/out.txt`);
+    let rejectedAt = 0;
+    const error = await box.exec({ command: "true", artifactPaths: paths }).then(
+      () => undefined,
+      (caught: Error) => {
+        rejectedAt = performance.now();
+        return caught;
+      }
+    );
+    expect(error?.message).toContain("docker cp artifact failed for /work/d1/out.txt");
+    // Copies start in request order; none starts after the first failure is seen, and every started copy
+    // has finished before exec rejects (and the temp dir is removed).
+    const failedAt = fake.copies.find((copy) => copy.path === "/work/d1/out.txt")!.endedAt!;
+    expect(fake.copies.map((copy) => copy.path)).toEqual(paths.slice(0, fake.copies.length));
+    expect(fake.copies.length).toBeLessThan(paths.length);
+    expect(fake.copies.every((copy) => copy.startedAt <= failedAt)).toBe(true);
+    expect(fake.copies.every((copy) => copy.endedAt !== undefined && copy.endedAt <= rejectedAt)).toBe(true);
   });
 });
