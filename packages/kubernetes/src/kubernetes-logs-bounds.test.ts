@@ -149,3 +149,70 @@ describe("kubernetes bounded log capture (PERF-05)", () => {
     expect(reads.length).toBeLessThanOrEqual(20);
   });
 });
+
+describe("kubernetes log ordering and redaction cost (PERF-05 A/B against 7d3a28a)", () => {
+  // Reference instant for an RFC3339 timestamp in nanoseconds, written independently of the adapter.
+  function referenceNanos(timestamp: string): bigint | undefined {
+    const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$/.exec(timestamp);
+    if (!match) {
+      // Other forms Date.parse accepts compare at millisecond precision.
+      const millis = Date.parse(timestamp);
+      return Number.isNaN(millis) ? undefined : BigInt(millis) * 1_000_000n;
+    }
+    const millis = Date.parse(`${match[1]}${match[3]}`);
+    return Number.isNaN(millis) ? undefined : BigInt(millis) * 1_000_000n + BigInt((match[2] ?? "").padEnd(9, "0"));
+  }
+
+  it("orders every timestamp form by its instant: fraction lengths 0 to 9, Z and offsets, longer fractions", async () => {
+    const stamps = [
+      "2026-10-25T10:00:00Z",
+      "2026-10-25T10:00:00.5Z",
+      "2026-10-25T10:00:00.45Z",
+      "2026-10-25T10:00:00.450000001Z",
+      "2026-10-25T10:00:00.000000001Z",
+      "2026-10-25T12:00:00.1+02:00",
+      "2026-10-25T09:59:59.999999999Z",
+      "2026-10-25T10:00:01Z",
+      "2026-10-25T10:00:00.123456789-01:00",
+      "2026-10-25T10:00:00.1234567891Z",
+      "2026-02-30T10:00:00Z"
+    ];
+    const capsule = podsCapsule(stamps.length, async ({ name }) => {
+      const index = Number(name.slice(4));
+      return `${stamps[index]} line-${index}\n`;
+    });
+    const { logs } = await capsule.service.logs({ id: "svc" });
+    const expected = stamps
+      .map((stamp, index) => ({ index, nanos: referenceNanos(stamp) }))
+      .sort((left, right) =>
+        left.nanos === undefined || right.nanos === undefined
+          ? left.nanos === right.nanos
+            ? left.index - right.index
+            : left.nanos === undefined
+              ? -1
+              : 1
+          : left.nanos < right.nanos
+            ? -1
+            : left.nanos > right.nanos
+              ? 1
+              : left.index - right.index
+      )
+      .map(({ index }) => `line-${index}`);
+    expect(logs.map((entry) => entry.message)).toEqual(expected);
+  });
+
+  it("redacts every pod's own value from its lines", async () => {
+    const capsule = podsCapsule(120, async ({ name }) => {
+      const index = Number(name.slice(4));
+      return Array.from(
+        { length: 25 },
+        (_, line) =>
+          `2026-10-25T10:${String(line).padStart(2, "0")}:${String(index % 60).padStart(2, "0")}.${String(index).padStart(9, "0")}Z ${name} token=synthetic-secret-${index}`
+      ).join("\n");
+    });
+    const { logs } = await capsule.service.logs({ id: "svc" });
+    expect(logs).toHaveLength(3000);
+    expect(logs.some((entry) => entry.message.includes("synthetic-secret-"))).toBe(false);
+    expect(logs.every((entry) => entry.message.endsWith("token=[REDACTED]"))).toBe(true);
+  });
+});
