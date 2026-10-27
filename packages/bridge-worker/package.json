@@ -15,7 +15,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@capsule-sdk/core": "workspace:*"
+    "@capsule-sdk/core": "workspace:*",
+    "@capsule-sdk/docker": "workspace:*",
+    "@capsule-sdk/store-jsonl": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.5.0",

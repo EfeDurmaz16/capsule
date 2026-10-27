@@ -1,0 +1,286 @@
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, test } from "vitest";
+import { JsonlReceiptStore } from "@capsule-sdk/store-jsonl";
+import type { DockerCommandResult, RunDockerOptions } from "@capsule-sdk/docker";
+import { parseWorkerConfig } from "./config.js";
+import { dockerDriver } from "./docker.js";
+import { readFixture, TestConnection } from "./harness.test.support.js";
+import { checkWorkerMessage } from "./outbound.js";
+import { dockerProfile } from "./profiles.js";
+
+// The Docker profile against an in-memory stand-in for the docker CLI. It proves the mapping (labels,
+// pull never, scope, ownership, dedupe by label, receipts) without a daemon. The physical proof against
+// a real local engine is scripts/bridge-docker-smoke.mjs.
+
+interface FakeContainer {
+  id: string;
+  name: string;
+  image: string;
+  labels: Record<string, string>;
+  env: string[];
+  status: "created" | "running";
+}
+
+class FakeEngine {
+  readonly images = new Set(["debian:bookworm-slim"]);
+  readonly containers = new Map<string, FakeContainer>();
+  readonly calls: string[][] = [];
+  private next = 1;
+
+  runner = async (args: string[], _options?: RunDockerOptions): Promise<DockerCommandResult> => {
+    this.calls.push(args);
+    const ok = (stdout = ""): DockerCommandResult => ({ exitCode: 0, stdout, stderr: "" });
+    const fail = (stderr: string, exitCode = 1): DockerCommandResult => ({ exitCode, stdout: "", stderr });
+    const find = (ref: string) => [...this.containers.values()].find((container) => container.id === ref || container.name === ref);
+    switch (args[0]) {
+      case "context":
+        return ok("fake-engine\n");
+      case "create": {
+        const name = args[args.indexOf("--name") + 1]!;
+        const pull = args.includes("--pull") ? args[args.indexOf("--pull") + 1] : "missing";
+        const labels: Record<string, string> = {};
+        const env: string[] = [];
+        let index = 1;
+        let image = "";
+        while (index < args.length) {
+          const arg = args[index]!;
+          if (["--name", "--workdir", "--pull", "--network", "--publish"].includes(arg)) index += 2;
+          else if (arg === "--label") {
+            const [key, ...value] = args[index + 1]!.split("=");
+            labels[key!] = value.join("=");
+            index += 2;
+          } else if (arg === "--env") {
+            env.push(args[index + 1]!);
+            index += 2;
+          } else {
+            image = arg;
+            break;
+          }
+        }
+        if (!this.images.has(image)) {
+          if (pull === "never") return fail(`Error: No such image: ${image}`, 125);
+          throw new Error("the fake engine would have pulled an image");
+        }
+        const id = `${"c".repeat(60)}${String(this.next++).padStart(4, "0")}`;
+        this.containers.set(id, { id, name, image, labels, env, status: "created" });
+        return ok(`${id}\n`);
+      }
+      case "start": {
+        const container = find(args[1]!);
+        if (!container) return fail(`Error: No such container: ${args[1]}`);
+        container.status = "running";
+        return ok(`${args[1]}\n`);
+      }
+      case "inspect": {
+        const container = find(args.at(-1)!);
+        if (!container) return fail(`Error: No such container: ${args.at(-1)}`);
+        const format = args[args.indexOf("--format") + 1];
+        if (format === "{{.Created}}") return ok("2026-10-27T10:00:00Z\n");
+        return ok(`${JSON.stringify({ Status: container.status, Running: container.status === "running" })}\t${JSON.stringify(container.labels)}\n`);
+      }
+      case "ps": {
+        const filter = args[args.indexOf("--filter") + 1]!.replace(/^label=/, "");
+        const [key, value] = filter.split("=");
+        return ok(
+          [...this.containers.values()]
+            .filter((container) => container.labels[key!] === value)
+            .map((container) => `${container.id}\n`)
+            .join("")
+        );
+      }
+      case "exec": {
+        const rest = args.slice(1);
+        while (rest[0]?.startsWith("-")) rest.splice(0, rest[0] === "-i" ? 1 : 2);
+        const container = find(rest[0]!);
+        if (!container) return fail(`Error: No such container: ${rest[0]}`);
+        const argv = rest.slice(1);
+        return argv[0] === "echo" ? ok(`${argv.slice(1).join(" ")}\n`) : { exitCode: 2, stdout: "", stderr: "fake: unsupported\n" };
+      }
+      case "rm": {
+        const container = find(args.at(-1)!);
+        if (!container) return fail(`Error: No such container: ${args.at(-1)}`);
+        this.containers.delete(container.id);
+        return ok(`${args.at(-1)}\n`);
+      }
+      default:
+        throw new Error(`fake engine: unexpected docker ${args.join(" ")}`);
+    }
+  };
+}
+
+const hello = { ...readFixture<{ message: Record<string, unknown> }>("cases/hello_valid.json").message, profile: "docker" };
+const scope = { job: "01K8W3A00000000000000000J1", task: "01K8W3A00000000000000000T1", attempt: "01K8W3A00000000000000000A1", generation: "3" };
+const engineScope = { engine: "fake-engine" };
+const dirs: string[] = [];
+
+afterEach(() => {
+  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
+function request(n: number, action: string, extra: Record<string, unknown>): Record<string, unknown> {
+  return {
+    type: "request",
+    request_id: `r-${n}`,
+    operation: { id: `01K8W3A0000000000000000D${String(n).padStart(2, "0")}`, key: `key-docker-${n}`, digest: "cd".repeat(32) },
+    scope,
+    action,
+    ...extra,
+    approval: null,
+    deadline_ms: 30_000
+  };
+}
+
+const create = (n: number, image = "debian:bookworm-slim", secretNames: string[] = []) =>
+  request(n, "sandbox.create", { params: { image, env: { MODE: "test" }, secret_names: secretNames, labels: { purpose: "bridge-test" } } });
+const target = (id: string) => ({ provider: "docker", scope: engineScope, kind: "container", native_id: id });
+
+function connect(engine: FakeEngine, options: { receiptsPath?: string; approvals?: unknown[]; secrets?: string[] } = {}) {
+  const config = parseWorkerConfig(
+    { policy: { images: ["debian:bookworm-slim"], ...(options.secrets ? { secrets: { allowed: options.secrets } } : {}) }, approvals: options.approvals ?? [] },
+    dockerProfile
+  );
+  const driver = dockerDriver({
+    runner: engine.runner,
+    checkAvailable: async () => true,
+    ...(options.receiptsPath ? { receipts: { store: new JsonlReceiptStore({ path: options.receiptsPath }), durable: true } } : {}),
+    secret: (name) => (options.secrets?.includes(name) ? `value-of-${name}` : undefined)
+  });
+  return new TestConnection(driver, config);
+}
+
+async function handshake(connection: TestConnection) {
+  connection.send(hello);
+  const ack = await connection.next();
+  expect(ack).toMatchObject({ type: "hello_ack", profile: { profile: "docker" } });
+}
+
+describe("docker profile on a fake engine", () => {
+  test("create, exec and destroy map onto labeled containers with the engine scope", async () => {
+    const engine = new FakeEngine();
+    const dir = mkdtempSync(join(tmpdir(), "capsule-bridge-receipts-"));
+    dirs.push(dir);
+    const receiptsPath = join(dir, "receipts.jsonl");
+    const connection = connect(engine, { receiptsPath, approvals: [{ ref: "apr-destroy", action: "sandbox.destroy", native_id: null }] });
+    await handshake(connection);
+
+    connection.send(create(1));
+    const created = await connection.next();
+    expect(checkWorkerMessage(created, { profile: dockerProfile })).toBeUndefined();
+    expect(created).toMatchObject({ type: "result", state: "completed", output: { status: "ready" }, replayed: false });
+    const id = (created.resource as { native_id: string }).native_id;
+    expect(created.resource).toEqual(target(id));
+    const container = engine.containers.get(id)!;
+    expect(container.labels).toMatchObject({
+      purpose: "bridge-test",
+      "fabric.operation": "01K8W3A0000000000000000D01",
+      "fabric.job": scope.job,
+      "fabric.attempt": scope.attempt,
+      "fabric.generation": "3"
+    });
+    expect(engine.calls.find((call) => call[0] === "create")).toEqual(expect.arrayContaining(["--pull", "never"]));
+    const receipts = created.receipts as Array<{ algorithm: string; digest: string; ref: string }>;
+    expect(receipts).toHaveLength(1);
+    expect(readFileSync(receiptsPath, "utf8")).toContain(receipts[0]!.ref);
+
+    connection.send(
+      request(2, "sandbox.exec", {
+        target: target(id),
+        params: { argv: ["echo", "hi"], stdin: null, cwd: null, timeout_ms: 10_000, max_output_bytes: 1024, secret_names: [] }
+      })
+    );
+    expect(await connection.next()).toMatchObject({
+      type: "result",
+      state: "completed",
+      output: { exit_code: 0, stdout: { text: "hi\n", captured_bytes: 3 } }
+    });
+
+    connection.send({ ...request(3, "sandbox.destroy", { target: target(id), params: {} }), approval: { ref: "apr-destroy" } });
+    expect(await connection.next()).toMatchObject({ type: "result", state: "completed", output: { status: "destroyed" }, resource: target(id) });
+    expect(engine.containers.size).toBe(0);
+  });
+
+  test("a missing image is never pulled: provider_failed not_found with no effect", async () => {
+    const engine = new FakeEngine();
+    const connection = connect(engine);
+    await handshake(connection);
+    connection.send({ ...create(1, "debian:bookworm-slim"), params: { image: "debian:bookworm-slim", env: {}, secret_names: [], labels: {} } });
+    await connection.next();
+    engine.images.clear();
+    connection.send(create(2));
+    expect(await connection.next()).toMatchObject({ error: { code: "provider_failed", reason: "not_found", effect: "none" } });
+    expect(engine.containers.size).toBe(1);
+  });
+
+  test("a container without this job's labels is never acted on", async () => {
+    const engine = new FakeEngine();
+    engine.containers.set("foreign", { id: "foreign", name: "foreign", image: "debian:bookworm-slim", labels: {}, env: [], status: "running" });
+    const connection = connect(engine, { approvals: [{ ref: "apr-destroy", action: "sandbox.destroy", native_id: null }] });
+    await handshake(connection);
+    connection.send({ ...request(1, "sandbox.destroy", { target: target("foreign"), params: {} }), approval: { ref: "apr-destroy" } });
+    expect(await connection.next()).toMatchObject({ error: { code: "denied", reason: "owner_mismatch", effect: "none" } });
+    expect(engine.calls.map((call) => call[0])).toEqual(["context", "inspect"]);
+  });
+
+  test("after a worker restart the same create finds its container by label instead of making another", async () => {
+    const engine = new FakeEngine();
+    const first = connect(engine);
+    await handshake(first);
+    first.send(create(1));
+    const created = await first.next();
+    first.session.kill();
+    const second = connect(engine);
+    await handshake(second);
+    second.send(create(1));
+    const replayed = await second.next();
+    expect(replayed).toMatchObject({ type: "result", state: "completed", replayed: true, resource: created.resource });
+    expect(engine.calls.filter((call) => call[0] === "create")).toHaveLength(1);
+  });
+
+  test("docker exec has no cancel: the ack is unsupported", async () => {
+    const engine = new FakeEngine();
+    const connection = connect(engine);
+    await handshake(connection);
+    connection.send(create(1));
+    const id = ((await connection.next()).resource as { native_id: string }).native_id;
+    connection.send(
+      request(2, "sandbox.exec", {
+        target: target(id),
+        params: { argv: ["echo", "x"], stdin: null, cwd: null, timeout_ms: 10_000, max_output_bytes: 64, secret_names: [] }
+      }),
+      { type: "cancel", request_id: "r-3", cancels: "r-2", operation_id: "01K8W3A0000000000000000D02" }
+    );
+    const answers = await connection.drain();
+    expect(answers).toContainEqual({ type: "cancel_ack", request_id: "r-3", cancels: "r-2", state: "unsupported" });
+    expect(answers).toContainEqual(expect.objectContaining({ type: "result", request_id: "r-2", state: "completed" }));
+  });
+
+  test("secrets resolve only for names the worker policy allows, and values never reach the answer", async () => {
+    const engine = new FakeEngine();
+    const connection = connect(engine, { secrets: ["API_TOKEN"] });
+    await handshake(connection);
+    connection.send(create(1, "debian:bookworm-slim", ["DB_URL"]));
+    expect(await connection.next()).toMatchObject({ error: { code: "denied", reason: "secret_not_allowed", effect: "none" } });
+    expect(engine.calls.some((call) => call[0] === "create")).toBe(false);
+    connection.send(create(2, "debian:bookworm-slim", ["API_TOKEN"]));
+    const answer = await connection.next();
+    expect(answer).toMatchObject({ type: "result", state: "completed" });
+    expect(JSON.stringify(answer)).not.toContain("value-of-API_TOKEN");
+    expect([...engine.containers.values()][0]!.env).toContain("API_TOKEN=value-of-API_TOKEN");
+  });
+
+  test("a locator in another engine scope is refused before any docker call", async () => {
+    const engine = new FakeEngine();
+    const connection = connect(engine);
+    await handshake(connection);
+    connection.send(
+      request(1, "sandbox.exec", {
+        target: { ...target("abc"), scope: { engine: "other" } },
+        params: { argv: ["echo"], stdin: null, cwd: null, timeout_ms: 1000, max_output_bytes: 64, secret_names: [] }
+      })
+    );
+    expect(await connection.next()).toMatchObject({ error: { code: "denied", reason: "scope_mismatch", effect: "none" } });
+    expect(engine.calls.map((call) => call[0])).toEqual(["context"]);
+  });
+});

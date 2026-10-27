@@ -231,6 +231,12 @@ importers:
       '@capsule-sdk/core':
         specifier: workspace:*
         version: link:../core
+      '@capsule-sdk/docker':
+        specifier: workspace:*
+        version: link:../docker
+      '@capsule-sdk/store-jsonl':
+        specifier: workspace:*
+        version: link:../store-jsonl
     devDependencies:
       tsup:
         specifier: ^8.5.0

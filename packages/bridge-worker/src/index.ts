@@ -1,5 +1,6 @@
 export { ConfigError, parseWorkerConfig, resolveApproval, type WorkerApproval, type WorkerConfig, type WorkerPolicy } from "./config.js";
 export { DrainInterrupt, IdempotencyTable, type Answer, type DispatchContext, type OperationRuntime } from "./dispatch.js";
+export { dockerDriver, type DockerDriverOptions } from "./docker.js";
 export type { BridgeDriver, OperationHooks, ResourceState } from "./driver.js";
 export {
   ExecCancelledError,

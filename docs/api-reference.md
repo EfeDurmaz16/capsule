@@ -84,6 +84,8 @@ Exports:
 - `decodeBody` (function)
 - `DestroyParams` (type)
 - `DispatchContext` (interface)
+- `dockerDriver` (function)
+- `DockerDriverOptions` (interface)
 - `dockerProfile` (const)
 - `DrainInterrupt` (class)
 - `Effect` (type)
