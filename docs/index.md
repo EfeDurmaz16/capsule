@@ -33,6 +33,7 @@ Start with the [README](https://github.com/EfeDurmaz16/capsule#readme) for the p
 - [Adding a provider adapter](adding-provider-adapter.md)
 - [Contributing](contributing.md) and [issue labels](issue-labels.md)
 - [Live provider tests](live-tests.md)
+- [Fabric bridge protocol](bridge-protocol.md): pointer to the provider worker protocol and its shared fixtures
 
 ## Project Records
 
