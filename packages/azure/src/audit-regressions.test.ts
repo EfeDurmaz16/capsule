@@ -153,4 +153,50 @@ describe("M1 audit regressions: azure", () => {
     await expect(capsule.service.deploy({ name: "app", image: "i", healthcheck: { command: ["true"] } })).rejects.toThrow(/healthcheck/);
     expect(urls).toEqual([]);
   });
+
+  describe("GAP-10: ARM ids are checked against the configured subscription and resource group", () => {
+    function scopeCapsule() {
+      const urls: string[] = [];
+      const capsule = new Capsule({
+        adapter: azureContainerApps({
+          ...scope,
+          fetch: async (url) => {
+            urls.push(String(url));
+            return new Response(JSON.stringify({ id: "/x", name: "app", properties: { provisioningState: "Succeeded", status: "Running" } }), { status: 200 });
+          }
+        })
+      });
+      return { capsule, urls };
+    }
+    const other = "/subscriptions/other/resourceGroups/r/providers/Microsoft.App";
+
+    it("rejects ids from another subscription or resource group before any request", async () => {
+      const { capsule, urls } = scopeCapsule();
+      await expect(capsule.service.status({ id: `${other}/containerApps/app` })).rejects.toThrow(/outside the configured subscription/);
+      await expect(capsule.service.delete({ id: "/subscriptions/s/resourceGroups/elsewhere/providers/Microsoft.App/containerApps/app" })).rejects.toThrow(
+        /outside the configured subscription/
+      );
+      await expect(capsule.job.status({ id: `${other}/jobs/j/executions/e` })).rejects.toThrow(/outside the configured subscription/);
+      await expect(capsule.job.cancel({ id: `${other}/jobs/j/executions/e` })).rejects.toThrow(/outside the configured subscription/);
+      expect(urls).toEqual([]);
+    });
+
+    it("rejects partial ids and names with path characters instead of trimming them", async () => {
+      const { capsule, urls } = scopeCapsule();
+      await expect(capsule.service.status({ id: "/containerApps/app" })).rejects.toThrow(/must be a resource name or a full ARM resource id/);
+      await expect(capsule.service.status({ id: "/subscriptions/s/resourceGroups/r/providers/Microsoft.App/jobs/app" })).rejects.toThrow(/not a valid ARM container app id/);
+      await expect(capsule.job.status({ id: "a/b", providerOptions: { jobName: "j" } })).rejects.toThrow(/must be a resource name/);
+      expect(urls).toEqual([]);
+    });
+
+    it("accepts in-scope ids case-insensitively, as ARM does", async () => {
+      const { capsule, urls } = scopeCapsule();
+      await capsule.service.status({ id: "/subscriptions/S/resourcegroups/R/providers/microsoft.app/containerapps/app" });
+      await capsule.job.status({ id: "/subscriptions/s/resourceGroups/r/providers/Microsoft.App/jobs/j/executions/e" });
+      expect(urls).toEqual([
+        "https://management.azure.com/subscriptions/s/resourceGroups/r/providers/Microsoft.App/containerApps/app?api-version=2025-07-01",
+        "https://management.azure.com/subscriptions/s/resourceGroups/r/providers/Microsoft.App/jobs/j/executions/e?api-version=2025-07-01"
+      ]);
+    });
+  });
 });

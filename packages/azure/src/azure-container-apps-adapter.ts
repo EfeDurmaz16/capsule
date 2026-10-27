@@ -217,11 +217,40 @@ function jobStatus(resource: AzureResource): JobRun["status"] {
   }
 }
 
-function resourceName(id: string, collection: "containerApps" | "jobs" | "executions"): string {
-  const marker = `/${collection}/`;
-  const index = id.indexOf(marker);
-  if (index === -1) return id;
-  return decodeURIComponent(id.slice(index + marker.length).split("/")[0] ?? id);
+const armResourceId = /^\/subscriptions\/([^/?#]+)\/resourceGroups\/([^/?#]+)\/providers\/Microsoft\.App\/(containerApps|jobs)\/([^/?#]+)(?:\/executions\/([^/?#]+))?\/?$/i;
+
+function plainName(value: string, what: string): string {
+  if (!value || /[/?#\u0000-\u001f\u007f]/.test(value)) {
+    throw new AdapterExecutionError(`Azure Container Apps ${what} ${JSON.stringify(value)} must be a resource name or a full ARM resource id.`);
+  }
+  return value;
+}
+
+// Resolves a plain name or a full ARM id. A full id must be in the configured subscription and
+// resource group (compared case-insensitively, as ARM does); it is never trimmed to its name and
+// re-addressed under this adapter's scope.
+function scopedArmResource(
+  client: AzureContainerAppsClient,
+  id: string,
+  kind: "containerApps" | "jobs" | "executions"
+): { name: string; executionName?: string } {
+  if (!id.startsWith("/subscriptions/")) {
+    if (kind === "executions") throw new AdapterExecutionError("Azure Container Apps execution ids must be full ARM ids unless providerOptions.jobName is set.");
+    return { name: plainName(id, kind === "jobs" ? "job" : "container app") };
+  }
+  const match = armResourceId.exec(id);
+  const collection = match?.[3]?.toLowerCase();
+  const shapeOk = match && (kind === "executions" ? collection === "jobs" && match[5] !== undefined : collection === kind.toLowerCase() && match[5] === undefined);
+  if (!match || !shapeOk) {
+    throw new AdapterExecutionError(`Azure Container Apps id ${JSON.stringify(id)} is not a valid ARM ${kind === "containerApps" ? "container app" : kind.slice(0, -1)} id.`);
+  }
+  const [, subscription, resourceGroup, , name, executionName] = match;
+  if (decodeURIComponent(subscription!).toLowerCase() !== client.subscriptionId.toLowerCase() || decodeURIComponent(resourceGroup!).toLowerCase() !== client.resourceGroupName.toLowerCase()) {
+    throw new AdapterExecutionError(
+      `Azure Container Apps resource ${id} is outside the configured subscription ${client.subscriptionId} and resource group ${client.resourceGroupName}; use an adapter configured for that scope.`
+    );
+  }
+  return { name: decodeURIComponent(name!), ...(executionName === undefined ? {} : { executionName: decodeURIComponent(executionName) }) };
 }
 
 function stringProviderOption(options: JobStatusSpec["providerOptions"], key: string): string | undefined {
@@ -313,13 +342,16 @@ async function cleanupGeneratedJobAfterStartFailure(client: AzureContainerAppsCl
   throw new AdapterExecutionError("Azure Container Apps job start failed.", { startError, cleanup });
 }
 
-function jobExecutionIdentity(spec: JobStatusSpec | CancelJobSpec): { jobName: string; executionName: string } {
-  const jobName = spec.id.includes("/jobs/") ? resourceName(spec.id, "jobs") : stringProviderOption(spec.providerOptions, "jobName");
-  const executionName = spec.id.includes("/executions/") ? resourceName(spec.id, "executions") : spec.id;
+function jobExecutionIdentity(client: AzureContainerAppsClient, spec: JobStatusSpec | CancelJobSpec): { jobName: string; executionName: string } {
+  if (spec.id.startsWith("/subscriptions/")) {
+    const { name, executionName } = scopedArmResource(client, spec.id, "executions");
+    return { jobName: name, executionName: executionName! };
+  }
+  const jobName = stringProviderOption(spec.providerOptions, "jobName");
   if (!jobName) {
     throw new AdapterExecutionError("Azure Container Apps job execution operations require a full ARM execution id or providerOptions.jobName.");
   }
-  return { jobName, executionName };
+  return { jobName: plainName(jobName, "job"), executionName: plainName(spec.id, "execution") };
 }
 
 export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {}): CapsuleAdapter {
@@ -391,7 +423,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
       status: async (spec: JobStatusSpec, context: AdapterContext): Promise<JobStatusResult> => {
         const startedAt = new Date();
         const client = getClient();
-        const { jobName, executionName } = jobExecutionIdentity(spec);
+        const { jobName, executionName } = jobExecutionIdentity(client, spec);
         const execution = await client.request<AzureResource>({ path: client.jobExecutionPath(jobName, executionName) });
         const status = jobStatus(execution);
         const id = execution.id ?? spec.id;
@@ -426,7 +458,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
       cancel: async (spec: CancelJobSpec, context: AdapterContext): Promise<CancelJobResult> => {
         const startedAt = new Date();
         const client = getClient();
-        const { jobName, executionName } = jobExecutionIdentity(spec);
+        const { jobName, executionName } = jobExecutionIdentity(client, spec);
         await client.request<unknown>({ method: "POST", path: client.jobExecutionPath(jobName, executionName, "/stop") });
         const id = spec.id;
         const receipt = context.receipts
@@ -504,7 +536,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
       status: async (spec: ServiceStatusSpec, context: AdapterContext): Promise<ServiceStatusResult> => {
         const startedAt = new Date();
         const client = getClient();
-        const name = resourceName(spec.id, "containerApps");
+        const { name } = scopedArmResource(client, spec.id, "containerApps");
         const resource = await client.request<AzureResource>({ path: client.resourcePath("containerApps", name) });
         const status = resourceStatus(resource);
         const id = resource.id ?? spec.id;
@@ -528,7 +560,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
       delete: async (spec: DeleteServiceSpec, context: AdapterContext): Promise<DeletedService> => {
         const startedAt = new Date();
         const client = getClient();
-        const name = resourceName(spec.id, "containerApps");
+        const { name } = scopedArmResource(client, spec.id, "containerApps");
         // ARM answers DELETE with 202 while deletion runs. deleted is reported only after the
         // operation is observed finished (or 200/204), else PendingOperationError.
         const outcome = await client.deleteAndObserve(client.resourcePath("containerApps", name), {
