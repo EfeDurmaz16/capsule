@@ -3,12 +3,17 @@ import { Daytona } from "@daytona/sdk";
 import {
   AdapterExecutionError,
   CleanupFailureError,
+  ProviderAuthError,
+  ProviderRateLimitError,
+  ProviderValidationError,
+  UnknownOutcomeError,
   asProviderError,
   callProvider,
   capsuleOperationTags,
   logsFromOutput,
   providerRuntimeMetadata,
   redactSecrets,
+  resourceLocator,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
@@ -64,7 +69,7 @@ export interface DaytonaAdapterOptions {
 }
 
 interface DaytonaSandboxCleanupMetadata {
-  action: "delete-created-sandbox" | "delete-sandbox-after-exec-error";
+  action: "delete-created-sandbox";
   sandboxId: string;
   status: "deleted" | "failed";
   error?: string;
@@ -195,6 +200,21 @@ function policyNotes(context: AdapterContext): string[] {
   return notes;
 }
 
+// A refused request (auth, validation, rate limit) never started the command, so the typed provider
+// error is returned as is. Any other failure (timeout, dropped connection, unknown server error) may have
+// happened after the command started, so whether it ran is unknown and it is not safe to retry blindly.
+function execFailure(error: unknown, sandboxId: string): Error {
+  const providerError = asProviderError(error, "Daytona command execution failed.");
+  if (providerError instanceof ProviderAuthError || providerError instanceof ProviderValidationError || providerError instanceof ProviderRateLimitError) {
+    return providerError;
+  }
+  return new UnknownOutcomeError(
+    `Daytona command outcome is unknown: ${providerError.message}`,
+    { operation: "sandbox.exec", resource: resourceLocator({ provider, kind: "sandbox", nativeId: sandboxId }) },
+    providerError
+  );
+}
+
 async function deleteSandboxAfterFailure(
   sandbox: DaytonaSandboxLike,
   action: DaytonaSandboxCleanupMetadata["action"],
@@ -235,7 +255,10 @@ class DaytonaCapsuleSandbox implements Sandbox {
     try {
       response = await this.sandbox.process.executeCommand(commandToString(spec.command), spec.cwd, spec.env, timeoutSeconds(spec.timeoutMs));
     } catch (error) {
-      return await deleteSandboxAfterFailure(this.sandbox, "delete-sandbox-after-exec-error", asProviderError(error, "Daytona command execution failed."));
+      // executeCommand reports an ordinary nonzero exit as a normal response, so an exception here is a
+      // provider or transport failure. The sandbox is caller-owned and may be a persistent workspace:
+      // it is never deleted as a side effect of a failed exec. The caller decides with destroy().
+      throw execFailure(error, this.handle.id);
     }
     const stdout = redactSecrets(response.result, spec.env, this.context.policy);
     const stderr = "";

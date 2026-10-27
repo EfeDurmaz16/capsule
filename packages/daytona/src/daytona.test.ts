@@ -6,6 +6,7 @@ import {
   MemoryReceiptStore,
   ProviderRetryableError,
   ProviderValidationError,
+  UnknownOutcomeError,
   runAdapterContract
 } from "@capsule-sdk/core";
 import { daytona, daytonaCapabilities } from "./index.js";
@@ -180,7 +181,7 @@ describe("daytona adapter", () => {
     expect(sandbox.deleted).toBe(true);
   });
 
-  it("deletes Daytona sandboxes when command execution throws before a receipt", async () => {
+  it("GAP-02: keeps the sandbox and reports an unknown outcome when exec transport fails", async () => {
     const { sandbox } = fakeDaytonaSandbox();
     sandbox.commandError = new Error("daytona exec failed");
     const store = new MemoryReceiptStore();
@@ -188,50 +189,39 @@ describe("daytona adapter", () => {
     const capsule = new Capsule({ adapter: daytona({ client }), receipts: true, receiptStore: store });
     const box = await capsule.sandbox.create({});
 
-    let thrown: unknown;
-    try {
-      await box.exec({ command: "echo never-recorded" });
-    } catch (error) {
-      thrown = error;
-    }
+    const thrown = await box.exec({ command: "echo never-recorded" }).then(
+      () => undefined,
+      (error: unknown) => error
+    );
 
-    expect(thrown).toBeInstanceOf(Error);
-    expect((thrown as Error).message).toBe("daytona exec failed");
-    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
-      action: "delete-sandbox-after-exec-error",
-      sandboxId: "sandbox-1",
-      status: "deleted"
-    });
-    expect(sandbox.deleted).toBe(true);
+    expect(thrown).toBeInstanceOf(UnknownOutcomeError);
+    expect((thrown as UnknownOutcomeError).retrySafe).toBe(false);
+    expect((thrown as UnknownOutcomeError).resource).toMatchObject({ provider: "daytona", kind: "sandbox", nativeId: "sandbox-1" });
+    expect(((thrown as UnknownOutcomeError).cause as Error).message).toBe("daytona exec failed");
+    expect(sandbox.deleted).toBe(false);
     expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
   });
 
-  it("wraps the original Daytona exec error when cleanup delete fails", async () => {
+  it("GAP-02: returns a refused exec as a typed provider error and keeps the sandbox", async () => {
     const { sandbox } = fakeDaytonaSandbox();
-    sandbox.commandError = new Error("daytona exec failed");
-    sandbox.deleteError = new Error("daytona delete failed");
-    const client = { create: async () => sandbox };
-    const capsule = new Capsule({ adapter: daytona({ client }), receipts: true });
+    sandbox.commandError = Object.assign(new Error("bad request"), { status: 400 });
+    const capsule = new Capsule({ adapter: daytona({ client: { create: async () => sandbox } }) });
     const box = await capsule.sandbox.create({});
 
-    let thrown: unknown;
-    try {
-      await box.exec({ command: "echo cleanup-fails" });
-    } catch (error) {
-      thrown = error;
-    }
+    await expect(box.exec({ command: "echo refused" })).rejects.toBeInstanceOf(ProviderValidationError);
+    expect(sandbox.deleted).toBe(false);
+  });
 
-    expect(thrown).toBeInstanceOf(CleanupFailureError);
-    expect((thrown as Error).message).toBe("Daytona sandbox cleanup failed after sandbox allocation.");
-    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
-      action: "delete-sandbox-after-exec-error",
-      sandboxId: "sandbox-1",
-      status: "failed",
-      error: "daytona delete failed"
-    });
-    expect((thrown as CleanupFailureError).cause).toMatchObject({
-      operationError: expect.objectContaining({ message: "daytona exec failed" })
-    });
+  it("GAP-02: a nonzero exit is an ordinary result and keeps the sandbox", async () => {
+    const { sandbox } = fakeDaytonaSandbox();
+    sandbox.process.executeCommand = async () => ({ exitCode: 3, result: "tests failed" });
+    const capsule = new Capsule({ adapter: daytona({ client: { create: async () => sandbox } }), receipts: true });
+    const box = await capsule.sandbox.create({});
+
+    const result = await box.exec({ command: "npm test" });
+
+    expect(result).toMatchObject({ exitCode: 3, stdout: "tests failed" });
+    expect(result.receipt?.exitCode).toBe(3);
     expect(sandbox.deleted).toBe(false);
   });
 });
