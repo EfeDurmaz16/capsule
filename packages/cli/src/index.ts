@@ -147,6 +147,8 @@ interface ParsedArgs {
   reason?: string;
   // Where `adapter` came from. Omitted means the --adapter flag (or no selection at all).
   adapterSource?: AdapterSelectionSource;
+  // Where `policyFile` came from. Omitted means the --policy-file flag.
+  policyFileSource?: "flag" | "config";
   rest: string[];
 }
 
@@ -1212,11 +1214,72 @@ export function redactPolicyExplanation(explanation: ReturnType<typeof explainPo
   };
 }
 
+const policySectionKeys = new Set(["network", "filesystem", "secrets", "limits", "cost", "ttl", "approvals"]);
+const policyNetworkModes = new Set(["none", "allowlist", "all"]);
+
+function deepFreeze<T>(value: T): T {
+  if (typeof value === "object" && value !== null && !Object.isFrozen(value)) {
+    for (const child of Object.values(value)) {
+      deepFreeze(child);
+    }
+    Object.freeze(value);
+  }
+  return value;
+}
+
+// Structural check only: a misspelled section (for example "netwrok") would otherwise be ignored by
+// policy evaluation and silently run without the restriction the user wrote down.
+function assertCapsulePolicyShape(value: unknown, label: string): CapsulePolicy {
+  const record = assertJsonObject(value, label);
+  for (const [key, section] of Object.entries(record)) {
+    if (key === "$schema") {
+      continue;
+    }
+    if (!policySectionKeys.has(key)) {
+      throw new Error(`${label} has unknown policy section ${JSON.stringify(key)}. Known sections: ${[...policySectionKeys].join(", ")}.`);
+    }
+    assertJsonObject(section, `${label} section ${key}`);
+  }
+  const network = record.network as { mode?: unknown } | undefined;
+  if (network !== undefined && !policyNetworkModes.has(String(network.mode))) {
+    throw new Error(`${label} network.mode must be one of ${[...policyNetworkModes].join(", ")}.`);
+  }
+  return record as CapsulePolicy;
+}
+
+// The single place the CLI turns --policy-file or capsule.config.json policyFile into the effective
+// policy. Every command that can reach a provider, and policy explain, use this result, so what
+// explain reports is what run enforces. A selected file that is missing or invalid fails here, before
+// any adapter is created. No selection means no policy, as for a direct SDK caller.
+async function loadEffectivePolicy(parsed: ParsedArgs): Promise<CapsulePolicy | undefined> {
+  if (parsed.policyFile === undefined) {
+    return undefined;
+  }
+  const label = `Policy file ${JSON.stringify(parsed.policyFile)} (from ${parsed.policyFileSource === "config" ? "capsule.config.json policyFile" : "--policy-file"})`;
+  if (parsed.policyFile.length === 0) {
+    throw new Error(`${label} is empty. No provider was contacted.`);
+  }
+  let text: string;
+  try {
+    text = await readFile(parsed.policyFile, "utf8");
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code ?? "read failed";
+    throw new Error(`${label} could not be read (${code}). No provider was contacted.`);
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    throw new Error(`${label} is not valid JSON. No provider was contacted.`);
+  }
+  return deepFreeze(assertCapsulePolicyShape(value, label));
+}
+
 async function createPolicyExplainReport(parsed: ParsedArgs): Promise<PolicyExplainReport> {
-  const capsule = createCapsule(parsed);
+  const policy = (await loadEffectivePolicy(parsed)) ?? {};
+  const capsule = createCapsule(parsed, policy);
   const capabilityPath = assertPolicyExplainCapability(parsed.capability);
   const support = capsule.supportLevel(capabilityPath);
-  const policy = await readJsonObjectFile<CapsulePolicy>(parsed.policyFile, {});
   const spec = await readJsonObjectFile<Omit<PolicyInput, "capabilityPath" | "supportLevel">>(parsed.specFile, {});
   const now = coercePolicySpecNow((spec as { now?: unknown }).now);
 
@@ -1354,7 +1417,7 @@ function formatPresetCatalogTable(entries: PresetCatalogEntry[]): string {
 
 async function createPreviewPlanReport(parsed: ParsedArgs): Promise<PreviewDryRunReceiptBundle> {
   const config = await readPreviewConfigFile(parsed.configFile);
-  return createPreviewDryRunReceiptBundle(createPreviewPlanFromConfig(config));
+  return createPreviewDryRunReceiptBundle(createPreviewPlanFromConfig(config, await loadEffectivePolicy(parsed)));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -1498,15 +1561,15 @@ function parsedArgsFromPreviewAdapterConfig(adapter: string, options: Record<str
   return parsed;
 }
 
-function createPreviewCapsule(config: { adapter: string; options?: Record<string, unknown> }): Capsule {
+function createPreviewCapsule(config: { adapter: string; options?: Record<string, unknown> }, policy: CapsulePolicy | undefined): Capsule {
   const mockFactory = mockAdapterFactories[config.adapter];
   if (mockFactory) {
-    return new Capsule({ adapter: mockFactory(), receipts: true });
+    return new Capsule({ adapter: mockFactory(), policy, receipts: true });
   }
-  return createCapsule(parsedArgsFromPreviewAdapterConfig(config.adapter, config.options));
+  return createCapsule(parsedArgsFromPreviewAdapterConfig(config.adapter, config.options), policy);
 }
 
-function createPreviewPlanFromConfig(config: PreviewConfigFile): PreviewPlan {
+function createPreviewPlanFromConfig(config: PreviewConfigFile, policy: CapsulePolicy | undefined): PreviewPlan {
   return {
     name: config.name,
     source: config.source,
@@ -1514,10 +1577,10 @@ function createPreviewPlanFromConfig(config: PreviewConfigFile): PreviewPlan {
     requireRealProviders: config.requireRealProviders,
     allowMockProviders: config.allowMockProviders,
     labels: config.labels,
-    databases: config.databases?.map((entry) => ({ capsule: createPreviewCapsule(entry), spec: entry.spec })),
-    services: config.services?.map((entry) => ({ capsule: createPreviewCapsule(entry), spec: entry.spec })),
-    edges: config.edges?.map((entry) => ({ capsule: createPreviewCapsule(entry), spec: entry.spec })),
-    jobs: config.jobs?.map((entry) => ({ capsule: createPreviewCapsule(entry), spec: entry.spec }))
+    databases: config.databases?.map((entry) => ({ capsule: createPreviewCapsule(entry, policy), spec: entry.spec })),
+    services: config.services?.map((entry) => ({ capsule: createPreviewCapsule(entry, policy), spec: entry.spec })),
+    edges: config.edges?.map((entry) => ({ capsule: createPreviewCapsule(entry, policy), spec: entry.spec })),
+    jobs: config.jobs?.map((entry) => ({ capsule: createPreviewCapsule(entry, policy), spec: entry.spec }))
   };
 }
 
@@ -1584,8 +1647,9 @@ function createPreviewCleanupPlanFile(
 }
 
 async function createPreviewCreateReport(parsed: ParsedArgs): Promise<PreviewCreateReport> {
+  const policy = await loadEffectivePolicy(parsed);
   const config = await readPreviewConfigFile(parsed.configFile);
-  const result = await createPreviewGraph(createPreviewPlanFromConfig(config));
+  const result = await createPreviewGraph(createPreviewPlanFromConfig(config, policy));
   const cleanupPlan = createPreviewCleanupPlanFile(result.preview, result.resources, config, result.cleanupPlan);
   if (parsed.cleanupFile) {
     await mkdir(dirname(parsed.cleanupFile), { recursive: true });
@@ -1676,7 +1740,11 @@ function hydratedCleanupSpec(cleanup: SerializedPreviewCleanupAction, parsed: Pa
   return spec;
 }
 
-function hydratePreviewCleanupResource(resource: SerializedPreviewResourceRecord, parsed: ParsedArgs): PreviewResourceRecord {
+function hydratePreviewCleanupResource(
+  resource: SerializedPreviewResourceRecord,
+  parsed: ParsedArgs,
+  policy: CapsulePolicy | undefined
+): PreviewResourceRecord {
   return {
     type: resource.type as CapsuleDomain,
     kind: resource.kind,
@@ -1689,7 +1757,7 @@ function hydratePreviewCleanupResource(resource: SerializedPreviewResourceRecord
     cleanup: resource.cleanup
       ? {
           kind: resource.cleanup.kind,
-          capsule: createPreviewCapsule(resource.cleanup),
+          capsule: createPreviewCapsule(resource.cleanup, policy),
           capabilityPath: resource.cleanup.capabilityPath,
           spec: hydratedCleanupSpec(resource.cleanup, parsed)
         }
@@ -1699,11 +1767,12 @@ function hydratePreviewCleanupResource(resource: SerializedPreviewResourceRecord
 }
 
 async function createPreviewDestroyReport(parsed: ParsedArgs): Promise<PreviewDestroyReport> {
+  const policy = await loadEffectivePolicy(parsed);
   const plan = await readPreviewCleanupPlanFile(parsed.cleanupFile);
   const sourceByKey = new Map(plan.resources.map((resource) => [previewResourceKey(resource), resource]));
   const cleanup = await cleanupPreviewEnvironment(
     plan.preview,
-    plan.resources.map((resource) => hydratePreviewCleanupResource(resource, parsed))
+    plan.resources.map((resource) => hydratePreviewCleanupResource(resource, parsed, policy))
   );
   const dispositions = cleanup.dispositions.map((entry) => {
     const source = sourceByKey.get(previewResourceKey(entry.resource));
@@ -2628,6 +2697,9 @@ Configuration:
   Explicit flags (--adapter, --receipt-file, --policy-file) always override the config file.
   An unknown adapter name, from a flag or the config file, fails before any provider is created.
   docker is used only when no adapter is selected at all.
+  The selected policy file is loaded once and enforced by every command that can reach a provider
+  (run, sandbox, job, service, machine, edge, neon, preview), including preview children; policy
+  explain reports the same policy. A missing or invalid selected policy file fails before any provider call.
 
 Output:
   Report commands default to human-readable tables. Add --json for stable automation output.
@@ -2656,6 +2728,7 @@ export function applyCapsuleConfig(parsed: ParsedArgs, config: CapsuleConfigFile
   }
   if (resolved.policyFile === undefined && typeof config.policyFile === "string") {
     resolved.policyFile = config.policyFile;
+    resolved.policyFileSource = "config";
   }
   if (resolved.receiptFile === undefined && config.receipts?.enabled !== false && typeof config.receipts?.path === "string") {
     resolved.receiptFile = config.receipts.path;
@@ -2696,32 +2769,34 @@ function resolveExecutionAdapterName(parsed: ParsedArgs): string {
   return parsed.adapter;
 }
 
-function createCapsule(parsed: ParsedArgs): Capsule {
+function createCapsule(parsed: ParsedArgs, policy?: CapsulePolicy): Capsule {
   const adapterName = resolveExecutionAdapterName(parsed);
   const receiptStore = parsed.receiptFile ? jsonlReceiptStore(parsed.receiptFile) : undefined;
   const mockFactory = mockAdapterFactories[adapterName];
   if (mockFactory) {
-    return new Capsule({ adapter: mockFactory(), receipts: true, receiptStore });
+    return new Capsule({ adapter: mockFactory(), policy, receipts: true, receiptStore });
   }
   if (parsed.adapter === "neon") {
     return new Capsule({
       adapter: neon({ databaseName: parsed.database, roleName: parsed.role }),
+      policy,
       receipts: true,
       receiptStore
     });
   }
   if (parsed.adapter === "e2b") {
-    return new Capsule({ adapter: e2b(), receipts: true, receiptStore });
+    return new Capsule({ adapter: e2b(), policy, receipts: true, receiptStore });
   }
   if (parsed.adapter === "daytona") {
-    return new Capsule({ adapter: daytona({ apiUrl: parsed.apiUrl, target: parsed.target }), receipts: true, receiptStore });
+    return new Capsule({ adapter: daytona({ apiUrl: parsed.apiUrl, target: parsed.target }), policy, receipts: true, receiptStore });
   }
   if (parsed.adapter === "modal") {
-    return new Capsule({ adapter: modal({ appName: parsed.appName, defaultImage: parsed.image }), receipts: true, receiptStore });
+    return new Capsule({ adapter: modal({ appName: parsed.appName, defaultImage: parsed.image }), policy, receipts: true, receiptStore });
   }
   if (parsed.adapter === "cloudflare") {
     return new Capsule({
       adapter: cloudflare({ compatibilityDate: parsed.compatibilityDate, workersDevSubdomain: parsed.workersDevSubdomain, zoneId: parsed.zoneId }),
+      policy,
       receipts: true,
       receiptStore
     });
@@ -2729,6 +2804,7 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   if (parsed.adapter === "cloud-run") {
     return new Capsule({
       adapter: cloudRun({ projectId: parsed.projectId, location: parsed.location }),
+      policy,
       receipts: true,
       receiptStore
     });
@@ -2736,6 +2812,7 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   if (parsed.adapter === "vercel") {
     return new Capsule({
       adapter: vercel({ project: parsed.projectName, target: parsed.target }),
+      policy,
       receipts: true,
       receiptStore
     });
@@ -2743,6 +2820,7 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   if (parsed.adapter === "kubernetes") {
     return new Capsule({
       adapter: kubernetes({ namespace: parsed.namespace, context: parsed.context, kubeconfigPath: parsed.kubeconfig }),
+      policy,
       receipts: true,
       receiptStore
     });
@@ -2750,6 +2828,7 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   if (parsed.adapter === "lambda") {
     return new Capsule({
       adapter: lambda({ region: parsed.region, functionName: parsed.functionName }),
+      policy,
       receipts: true,
       receiptStore
     });
@@ -2767,6 +2846,7 @@ function createCapsule(parsed: ParsedArgs): Capsule {
         subnets: parsed.subnets,
         securityGroups: parsed.securityGroups
       }),
+      policy,
       receipts: true,
       receiptStore
     });
@@ -2780,6 +2860,7 @@ function createCapsule(parsed: ParsedArgs): Capsule {
         subnetId: parsed.subnetId,
         securityGroupIds: parsed.securityGroups
       }),
+      policy,
       receipts: true,
       receiptStore
     });
@@ -2787,6 +2868,7 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   if (parsed.adapter === "fly") {
     return new Capsule({
       adapter: fly({ appName: parsed.appName, region: parsed.region, defaultImage: parsed.image }),
+      policy,
       receipts: true,
       receiptStore
     });
@@ -2799,6 +2881,7 @@ function createCapsule(parsed: ParsedArgs): Capsule {
         location: parsed.location,
         environmentId: parsed.environmentId
       }),
+      policy,
       receipts: true,
       receiptStore
     });
@@ -2806,7 +2889,7 @@ function createCapsule(parsed: ParsedArgs): Capsule {
   if (adapterName !== defaultExecutionAdapter) {
     throw new Error(`Adapter "${adapterName}" has no execution factory.`);
   }
-  return new Capsule({ adapter: docker(), receipts: true, receiptStore });
+  return new Capsule({ adapter: docker(), policy, receipts: true, receiptStore });
 }
 
 const neonCommandAdapters = new Set(["neon", "mock-neon"]);
@@ -2851,7 +2934,7 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "neon": {
-      const capsule = createCapsule(selectNeonCommandAdapter(parsed));
+      const capsule = createCapsule(selectNeonCommandAdapter(parsed), await loadEffectivePolicy(parsed));
       const action = parsed.rest[0];
       const project = parsed.project;
       if (!project) {
@@ -3076,7 +3159,7 @@ export async function main(argv: string[]): Promise<void> {
       if (parsed.adapter !== "cloudflare" && parsed.adapter !== "vercel") {
         throw new Error("edge currently requires --adapter cloudflare or --adapter vercel");
       }
-      const capsule = createCapsule(parsed);
+      const capsule = createCapsule(parsed, await loadEffectivePolicy(parsed));
       if (!parsed.name) {
         throw new Error("Missing --name");
       }
@@ -3094,7 +3177,7 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "job": {
-      const capsule = createCapsule(parsed);
+      const capsule = createCapsule(parsed, await loadEffectivePolicy(parsed));
       const action = parsed.rest[0] === "run" || parsed.rest[0] === "status" || parsed.rest[0] === "cancel" ? parsed.rest[0] : "run";
       if (action === "status") {
         const id = parsed.id ?? parsed.name ?? parsed.rest[1];
@@ -3132,7 +3215,7 @@ export async function main(argv: string[]): Promise<void> {
       if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes" && parsed.adapter !== "ecs" && parsed.adapter !== "azure-container-apps") {
         throw new Error("service currently requires --adapter cloud-run, --adapter kubernetes, --adapter ecs, or --adapter azure-container-apps");
       }
-      const capsule = createCapsule(parsed);
+      const capsule = createCapsule(parsed, await loadEffectivePolicy(parsed));
       if (action === "status") {
         const id = parsed.id ?? parsed.name ?? parsed.rest[1];
         if (!id) {
@@ -3170,7 +3253,7 @@ export async function main(argv: string[]): Promise<void> {
       if (parsed.adapter !== "ec2" && parsed.adapter !== "fly") {
         throw new Error("machine currently requires --adapter ec2 or --adapter fly");
       }
-      const capsule = createCapsule(parsed);
+      const capsule = createCapsule(parsed, await loadEffectivePolicy(parsed));
       if (!parsed.name) {
         throw new Error("Missing --name");
       }
@@ -3184,7 +3267,7 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "run": {
-      const capsule = createCapsule(parsed);
+      const capsule = createCapsule(parsed, await loadEffectivePolicy(parsed));
       const image = parsed.image ?? "node:22";
       const command = parsed.rest.length > 0 ? parsed.rest : ["node", "-e", "console.log('hello from capsule')"];
       const result = await capsule.job.run({ image, command });
@@ -3196,7 +3279,7 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "sandbox": {
-      const capsule = createCapsule(parsed);
+      const capsule = createCapsule(parsed, await loadEffectivePolicy(parsed));
       const image = parsed.image ?? "node:22";
       const sandbox = await capsule.sandbox.create({ image });
       try {

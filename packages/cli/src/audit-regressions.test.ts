@@ -71,13 +71,99 @@ function errorMessage(error: unknown): string {
 }
 
 describe("M1 audit regressions: cli", () => {
-  it.fails("CLI-01: a configured policy file is enforced by run before any provider effect", async () => {
-    const result = await runInFakeDockerProject(["run", "--image", "fixture-image", "--", "echo", "fixture"], {
-      "capsule.config.json": { adapter: "docker", policyFile: "capsule.policy.json" },
-      "capsule.policy.json": { network: { mode: "none" }, approvals: { required: true, reason: "fixture-deny-before-execution" } }
+  describe("CLI-01: configured policy is enforced at the execution boundary", () => {
+    const denyPolicy = { network: { mode: "none" }, approvals: { required: true, reason: "fixture-deny-before-execution" } };
+
+    it("a configured policy file is enforced by run before any provider effect", async () => {
+      const result = await runInFakeDockerProject(["run", "--image", "fixture-image", "--", "echo", "fixture"], {
+        "capsule.config.json": { adapter: "docker", policyFile: "capsule.policy.json" },
+        "capsule.policy.json": denyPolicy
+      });
+      expect(result.outcome).toBe("rejected");
+      expect(errorMessage(result.error)).toMatch(/fixture-deny-before-execution|approval/i);
+      expect(result.calls).toEqual([]);
     });
-    expect(result.outcome).toBe("rejected");
-    expect(result.calls.filter((line) => line.startsWith("run "))).toEqual([]);
+
+    it("an explicit --policy-file is enforced by sandbox and job commands too", async () => {
+      for (const argv of [
+        ["sandbox", "--policy-file", "deny.json", "--image", "fixture-image", "--", "echo", "fixture"],
+        ["job", "run", "--policy-file", "deny.json", "--image", "fixture-image", "--", "echo", "fixture"]
+      ]) {
+        const result = await runInFakeDockerProject(argv, { "deny.json": denyPolicy });
+        expect(result.outcome).toBe("rejected");
+        expect(result.calls).toEqual([]);
+      }
+    });
+
+    it("the --policy-file flag overrides the configured policy file", async () => {
+      const result = await runInFakeDockerProject(["run", "--policy-file", "open.json", "--image", "fixture-image", "--", "echo", "fixture"], {
+        "capsule.config.json": { policyFile: "deny.json" },
+        "deny.json": denyPolicy,
+        "open.json": { network: { mode: "none" } }
+      });
+      expect(result.outcome).toBe("resolved");
+      expect(result.calls.filter((line) => line.startsWith("run "))).toHaveLength(1);
+    });
+
+    it("network none from the configured policy reaches the docker arguments and the receipt", async () => {
+      const result = await runInFakeDockerProject(["run", "--image", "fixture-image", "--", "echo", "fixture"], {
+        "capsule.config.json": { policyFile: "capsule.policy.json" },
+        "capsule.policy.json": { network: { mode: "none" } }
+      });
+      expect(result.outcome).toBe("resolved");
+      const runCalls = result.calls.filter((line) => line.startsWith("run "));
+      expect(runCalls).toHaveLength(1);
+      expect(runCalls[0]).toContain("--network none");
+      const receipt = JSON.parse(result.logs.find((line) => line.trim().startsWith("{")) ?? "{}") as { policy?: { applied?: unknown } };
+      expect(receipt.policy?.applied).toMatchObject({ network: { mode: "none" } });
+    });
+
+    it("a missing configured policy file fails before any provider call", async () => {
+      const result = await runInFakeDockerProject(["run", "--image", "fixture-image", "--", "echo", "fixture"], {
+        "capsule.config.json": { policyFile: "missing.policy.json" }
+      });
+      expect(result.outcome).toBe("rejected");
+      expect(errorMessage(result.error)).toMatch(/missing\.policy\.json.*capsule\.config\.json/);
+      expect(result.calls).toEqual([]);
+    });
+
+    it("an invalid policy file fails before any provider call", async () => {
+      for (const body of ["{ not json", "[]", JSON.stringify({ netwrok: { mode: "none" } }), JSON.stringify({ network: { mode: "nope" } })]) {
+        const result = await runInFakeDockerProject(["run", "--policy-file", "bad.json", "--image", "fixture-image", "--", "echo", "fixture"], {
+          "bad.json": body
+        });
+        expect(result.outcome).toBe("rejected");
+        expect(errorMessage(result.error)).toMatch(/bad\.json/);
+        expect(result.calls).toEqual([]);
+      }
+    });
+
+    it("policy explain and run read the same effective policy", async () => {
+      const result = await runInFakeDockerProject(["policy", "explain", "--capability", "job.run", "--json"], {
+        "capsule.config.json": { policyFile: "capsule.policy.json" },
+        "capsule.policy.json": denyPolicy
+      });
+      expect(result.outcome).toBe("resolved");
+      expect(JSON.parse(result.logs[0] ?? "{}")).toMatchObject({ policy: { decision: "denied" } });
+    });
+
+    it("preview children receive the effective policy", async () => {
+      const preview = {
+        name: "audit",
+        allowMockProviders: true,
+        databases: [{ adapter: "mock-neon", spec: { project: "app", name: "audit-db" } }]
+      };
+      const withoutPolicy = await runInFakeDockerProject(["preview", "create", "--config-file", "preview.json"], { "preview.json": preview });
+      expect(withoutPolicy.outcome).toBe("resolved");
+
+      const result = await runInFakeDockerProject(["preview", "create", "--config-file", "preview.json"], {
+        "capsule.config.json": { policyFile: "capsule.policy.json" },
+        "capsule.policy.json": denyPolicy,
+        "preview.json": preview
+      });
+      expect(result.outcome).toBe("rejected");
+      expect(errorMessage((result.error as Error).cause)).toMatch(/fixture-deny-before-execution|approval/i);
+    });
   });
 
   describe("CLI-02: adapter names fail closed", () => {
