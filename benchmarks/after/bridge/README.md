@@ -49,7 +49,7 @@ Against Fabric's Rust test double the same spawn is about 1.6 to 1.9 ms and a cr
 
 ## After the review fixes
 
-Eight review findings were fixed in commits `6d25ae7` to `8b1501f`. `review/` holds what was measured on that code. The host was busier than for the runs above, with a load average of 19 to 32 from other builds, so absolute times are higher and noisier.
+Eight review findings were fixed in commits `6d25ae7` to `ca38f75`. `review/` holds what was measured on that code. The host was busier than for the runs above, with a load average of 19 to 32 from other builds, so absolute times are higher and noisier.
 
 Hot paths, in a same-session A/B against the branch before the fixes (`d18b2d0`, built from a scratch export, which is why its raw `summary.json` files carry an empty commit):
 
@@ -67,4 +67,4 @@ Docker and Fabric:
 
 - `docker-smoke-node22.json`: `pnpm bridge:docker-smoke` on OrbStack with `debian:bookworm-slim`, never pulled; all 11 checks pass.
 - `context-route-probe.json`: a read-only observe of a container id that exists on no engine. With `--engine desktop-linux`, a context whose daemon is down, the worker now answers `unknown`/`observation_failed`; before, the command went to the CLI's current context (orbstack) and answered `completed` with `destroyed`. With `--engine orbstack` it answers `completed`.
-- `fabric-interop.log`: Fabric `d4855fd` `crates/fabric-bridge/tests/capsule_worker.rs` against this worker, 7 of 7 pass, the Docker profile on the local engine included. `fabric-interop-before-seed-fix.log` is the run that showed the first observe owner check refusing the sandbox Fabric seeds for its restart test, which `8b1501f` fixed.
+- `fabric-interop.log`: Fabric `44d677a` `crates/fabric-bridge/tests/capsule_worker.rs` against the worker at `ca38f75`, 7 of 7 pass, the Docker profile on the local engine included. `fabric-interop-repeats.txt`: of six full runs, five pass and one failed `shutdown_reports_unresolved` step 5 with 4 observations where the fixture has 2. On the fixture's virtual clock each observation sleep is one event loop turn, so when `observe` and `shutdown` arrive in two pipe reads instead of one, the observe has already advanced before the drain starts. Capsule's own scenario run sends both in one chunk. `fabric-interop-before-seed-fix.log` is the run that showed the first observe owner check refusing the sandbox Fabric seeds for its restart test, which `8b1501f` fixed.
