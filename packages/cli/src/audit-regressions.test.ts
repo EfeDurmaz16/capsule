@@ -1,7 +1,7 @@
 // Audit regressions for the M1 campaign (CLI-01, CLI-02, CLI-03). Each test asserts the INTENDED behavior.
 // A local fake `docker` executable on PATH records invocations; no Docker daemon or container is used, and
 // no provider API is contacted.
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -15,6 +15,9 @@ case "$1" in
   *) printf 'unexpected fake Docker command\\n' >&2; exit 93 ;;
 esac
 `;
+
+// Marks an entry in the files map that should be created as a directory rather than a file.
+const asDirectory = Symbol("directory");
 
 interface FakeDockerProject {
   outcome: "resolved" | "rejected";
@@ -40,6 +43,10 @@ async function runInFakeDockerProject(argv: string[], files: Record<string, unkn
     await chmod(join(root, "docker"), 0o755);
     await writeFile(callLog, "", "utf8");
     for (const [name, value] of Object.entries(files)) {
+      if (value === asDirectory) {
+        await mkdir(join(root, name), { recursive: true });
+        continue;
+      }
       await writeFile(join(root, name), typeof value === "string" ? value : JSON.stringify(value), "utf8");
     }
     process.env.PATH = `${root}:/usr/bin:/bin`;
@@ -134,6 +141,54 @@ describe("M1 audit regressions: cli", () => {
         });
         expect(result.outcome).toBe("rejected");
         expect(errorMessage(result.error)).toMatch(/bad\.json/);
+        expect(result.calls).toEqual([]);
+      }
+    });
+
+    it("a wrongly typed or null configured policyFile or adapter fails before any provider call", async () => {
+      for (const config of [
+        { adapter: "docker", policyFile: ["capsule.policy.json"] },
+        { adapter: "docker", policyFile: null },
+        { adapter: { name: "e2b" }, policyFile: "capsule.policy.json" },
+        { adapter: null },
+        { receipts: { path: 7 } },
+        { receipts: "receipts.jsonl" }
+      ]) {
+        const result = await runInFakeDockerProject(["run", "--image", "fixture-image", "--", "echo", "fixture"], {
+          "capsule.config.json": config,
+          "capsule.policy.json": { network: { mode: "none" } }
+        });
+        expect(result.outcome, JSON.stringify(config)).toBe("rejected");
+        expect(errorMessage(result.error)).toMatch(/capsule\.config\.json (adapter|policyFile|receipts)/);
+        expect(result.calls).toEqual([]);
+      }
+    });
+
+    it("an unreadable capsule.config.json fails instead of being treated as absent", async () => {
+      const result = await runInFakeDockerProject(["run", "--image", "fixture-image", "--", "echo", "fixture"], {
+        "capsule.config.json": asDirectory
+      });
+      expect(result.outcome).toBe("rejected");
+      expect(errorMessage(result.error)).toMatch(/Could not read .*capsule\.config\.json/);
+      expect(result.calls).toEqual([]);
+    });
+
+    it("a misspelled or wrongly typed field inside a policy section fails before any provider call", async () => {
+      for (const body of [
+        { network: { mode: "none" }, approvals: { requried: true } },
+        { approvals: { required: "yes" } },
+        { secrets: { alowed: [] } },
+        { secrets: { redactionProfile: "loose" } },
+        { limits: { timeoutMS: 10 } },
+        { limits: { timeoutMs: "10" } },
+        { network: { mode: "allowlist", allowedHost: ["example.com"] } }
+      ]) {
+        const result = await runInFakeDockerProject(["run", "--image", "fixture-image", "--", "echo", "fixture"], {
+          "capsule.config.json": { adapter: "docker", policyFile: "capsule.policy.json" },
+          "capsule.policy.json": body
+        });
+        expect(result.outcome, JSON.stringify(body)).toBe("rejected");
+        expect(errorMessage(result.error)).toMatch(/capsule\.policy\.json/);
         expect(result.calls).toEqual([]);
       }
     });

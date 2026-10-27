@@ -1195,8 +1195,43 @@ export function redactPolicyExplanation(explanation: ReturnType<typeof explainPo
   };
 }
 
-const policySectionKeys = new Set(["network", "filesystem", "secrets", "limits", "cost", "ttl", "approvals"]);
+type PolicyFieldKind = "boolean" | "string" | "stringArray" | "number";
+
+// Every field each policy section accepts, with its JSON type. A field outside this map, or of the wrong
+// type, is rejected: evaluatePolicy reads fields by exact name, so a misspelled field (for example
+// approvals.requried) would otherwise be dropped and the restriction the user wrote down would not apply.
+const policySectionFields: Record<string, Record<string, PolicyFieldKind>> = {
+  network: { mode: "string", allowedHosts: "stringArray" },
+  filesystem: { read: "stringArray", write: "stringArray" },
+  secrets: { allowed: "stringArray", redactFromLogs: "boolean", redactionProfile: "string", redactKeys: "stringArray" },
+  limits: { timeoutMs: "number", maxStdoutBytes: "number", maxStderrBytes: "number", memoryMb: "number", cpu: "number" },
+  cost: { maxUsd: "number" },
+  ttl: { maxMs: "number" },
+  approvals: { required: "boolean", reason: "string" }
+};
+const policySectionKeys = new Set(Object.keys(policySectionFields));
 const policyNetworkModes = new Set(["none", "allowlist", "all"]);
+const policyRedactionProfiles = new Set(["standard", "strict"]);
+
+function policyFieldMatches(kind: PolicyFieldKind, value: unknown): boolean {
+  switch (kind) {
+    case "boolean":
+      return typeof value === "boolean";
+    case "string":
+      return typeof value === "string";
+    case "stringArray":
+      return Array.isArray(value) && value.every((item) => typeof item === "string");
+    case "number":
+      return typeof value === "number" && Number.isFinite(value) && value >= 0;
+  }
+}
+
+const policyFieldKindLabels: Record<PolicyFieldKind, string> = {
+  boolean: "a boolean",
+  string: "a string",
+  stringArray: "an array of strings",
+  number: "a finite non-negative number"
+};
 
 function deepFreeze<T>(value: T): T {
   if (typeof value === "object" && value !== null && !Object.isFrozen(value)) {
@@ -1208,22 +1243,39 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-// Structural check only: a misspelled section (for example "netwrok") would otherwise be ignored by
-// policy evaluation and silently run without the restriction the user wrote down.
+// Structural check only: a misspelled section (for example "netwrok") or field (for example
+// approvals.requried) would otherwise be ignored by policy evaluation and silently run without the
+// restriction the user wrote down.
 function assertCapsulePolicyShape(value: unknown, label: string): CapsulePolicy {
   const record = assertJsonObject(value, label);
   for (const [key, section] of Object.entries(record)) {
     if (key === "$schema") {
       continue;
     }
-    if (!policySectionKeys.has(key)) {
+    const fields = Object.hasOwn(policySectionFields, key) ? policySectionFields[key] : undefined;
+    if (fields === undefined) {
       throw new Error(`${label} has unknown policy section ${JSON.stringify(key)}. Known sections: ${[...policySectionKeys].join(", ")}.`);
     }
-    assertJsonObject(section, `${label} section ${key}`);
+    const sectionRecord = assertJsonObject(section, `${label} section ${key}`);
+    for (const [field, fieldValue] of Object.entries(sectionRecord)) {
+      const kind = Object.hasOwn(fields, field) ? fields[field] : undefined;
+      if (kind === undefined) {
+        throw new Error(
+          `${label} has unknown field ${JSON.stringify(field)} in policy section ${key}. Known fields: ${Object.keys(fields).join(", ")}.`
+        );
+      }
+      if (!policyFieldMatches(kind, fieldValue)) {
+        throw new Error(`${label} ${key}.${field} must be ${policyFieldKindLabels[kind]}.`);
+      }
+    }
   }
   const network = record.network as { mode?: unknown } | undefined;
   if (network !== undefined && !policyNetworkModes.has(String(network.mode))) {
     throw new Error(`${label} network.mode must be one of ${[...policyNetworkModes].join(", ")}.`);
+  }
+  const secrets = record.secrets as { redactionProfile?: unknown } | undefined;
+  if (secrets?.redactionProfile !== undefined && !policyRedactionProfiles.has(String(secrets.redactionProfile))) {
+    throw new Error(`${label} secrets.redactionProfile must be one of ${[...policyRedactionProfiles].join(", ")}.`);
   }
   return record as CapsulePolicy;
 }
@@ -2818,6 +2870,7 @@ export function applyCapsuleConfig(parsed: ParsedArgs, config: CapsuleConfigFile
   if (!config) {
     return parsed;
   }
+  assertCapsuleConfigShape(config);
   const resolved: ParsedArgs = { ...parsed };
   if (resolved.adapter === undefined && typeof config.adapter === "string") {
     resolved.adapter = config.adapter;
@@ -2833,15 +2886,44 @@ export function applyCapsuleConfig(parsed: ParsedArgs, config: CapsuleConfigFile
   return resolved;
 }
 
+// Fails closed on a present but wrongly typed field. Dropping it would silently turn, for example,
+// policyFile: ["capsule.policy.json"] into "no policy" or adapter: {"name": "e2b"} into the docker
+// default on the local host. Null is not an omission either: only a missing key means "not configured".
+function assertCapsuleConfigShape(config: CapsuleConfigFile): void {
+  const record = config as unknown as Record<string, unknown>;
+  for (const key of ["adapter", "policyFile"] as const) {
+    if (Object.hasOwn(record, key) && typeof record[key] !== "string") {
+      throw new Error(`capsule.config.json ${key} must be a string when present.`);
+    }
+  }
+  if (!Object.hasOwn(record, "receipts")) {
+    return;
+  }
+  const receipts = assertJsonObject(record.receipts, "capsule.config.json receipts");
+  if (Object.hasOwn(receipts, "enabled") && typeof receipts.enabled !== "boolean") {
+    throw new Error("capsule.config.json receipts.enabled must be a boolean when present.");
+  }
+  if (Object.hasOwn(receipts, "path") && typeof receipts.path !== "string") {
+    throw new Error("capsule.config.json receipts.path must be a string when present.");
+  }
+}
+
+// Only a missing file means "no config". Any other read failure (EACCES, EISDIR, ...) is surfaced, since
+// treating an unreadable config as absent would silently drop its adapter and policy selection.
 async function readCapsuleConfigFile(cwd: string = process.cwd()): Promise<CapsuleConfigFile | undefined> {
   const path = join(cwd, "capsule.config.json");
   let text: string;
   try {
     text = await readFile(path, "utf8");
-  } catch {
-    return undefined;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") {
+      return undefined;
+    }
+    throw new Error(`Could not read ${path}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
-  return assertJsonObject(JSON.parse(text), path) as CapsuleConfigFile;
+  const config = assertJsonObject(JSON.parse(text), path) as CapsuleConfigFile;
+  assertCapsuleConfigShape(config);
+  return config;
 }
 
 const defaultExecutionAdapter = "docker";
