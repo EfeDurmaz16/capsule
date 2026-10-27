@@ -100,16 +100,21 @@ describe("fly adapter", () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(url), init: init ?? {} });
-      if (String(url).endsWith("/start")) return response({ id: "fly-machine-1", state: "starting" });
-      if (String(url).endsWith("/stop")) return response({ id: "fly-machine-1", state: "stopped" });
-      if (init?.method === "DELETE") return response(undefined, 200);
+      // Actual Machines API acknowledgement shapes: start returns the previous state, stop and delete return ok.
+      if (String(url).endsWith("/start")) return response({ previous_state: "stopped", migrated: false, new_host: "" });
+      if (String(url).endsWith("/stop")) return response({ ok: true });
+      if (init?.method === "DELETE") return response({ ok: true });
       return response({ id: "fly-machine-1", name: "dev", state: "started", region: "iad" });
     }) as typeof fetch;
     const capsule = new Capsule({ adapter: fly({ appName: "capsule-app", apiToken: "fly-token", fetch: fetchMock }), receipts: true });
 
     expect(await capsule.machine.status({ id: "fly-machine-1" })).toMatchObject({ status: "running" });
-    expect(await capsule.machine.start({ id: "fly-machine-1" })).toMatchObject({ status: "starting" });
-    expect(await capsule.machine.stop({ id: "fly-machine-1", force: true })).toMatchObject({ status: "stopped" });
+    expect(await capsule.machine.start({ id: "fly-machine-1" })).toMatchObject({
+      id: "fly-machine-1",
+      status: "starting",
+      metadata: { previousState: "stopped" }
+    });
+    expect(await capsule.machine.stop({ id: "fly-machine-1", force: true })).toMatchObject({ id: "fly-machine-1", status: "stopping" });
     expect(await capsule.machine.destroy({ id: "fly-machine-1", force: true })).toMatchObject({ status: "deleted" });
     expect(calls.map((call) => [call.init.method ?? "GET", call.url])).toEqual([
       ["GET", "https://api.machines.dev/v1/apps/capsule-app/machines/fly-machine-1"],

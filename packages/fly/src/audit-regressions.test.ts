@@ -26,9 +26,47 @@ describe("M1 audit regressions: fly", () => {
     expect(body.auto_destroy).toBeUndefined();
   });
 
-  it.fails("EDGE-08: the native creating state maps to creating, not failed", async () => {
+  it("EDGE-08: the native creating state maps to creating, not failed", async () => {
     const capsule = new Capsule({ adapter: fly({ appName: "audit", apiToken: "fake", fetch: async () => json({ id: "m_audit", state: "creating" }) }) });
     expect((await capsule.machine.status({ id: "m_audit" })).status).toBe("creating");
+  });
+
+  it("EDGE-08: documented transient Fly states map to transitional statuses and keep the native state", async () => {
+    const cases: Array<[string, string]> = [
+      ["created", "creating"],
+      ["starting", "starting"],
+      ["restarting", "starting"],
+      ["updating", "starting"],
+      ["replacing", "starting"],
+      ["started", "running"],
+      ["stopping", "stopping"],
+      ["suspending", "stopping"],
+      ["stopped", "stopped"],
+      ["suspended", "stopped"],
+      ["destroying", "destroying"],
+      ["destroyed", "deleted"],
+      ["failed", "failed"],
+      ["launch_failed", "failed"]
+    ];
+    for (const [state, expected] of cases) {
+      const capsule = new Capsule({ adapter: fly({ appName: "audit", apiToken: "fake", fetch: async () => json({ id: "m_audit", state }) }) });
+      const result = await capsule.machine.status({ id: "m_audit" });
+      expect([state, result.status]).toEqual([state, expected]);
+      expect(result.metadata).toMatchObject({ state });
+    }
+  });
+
+  it("EDGE-08: an unrecognized native state is surfaced as an error, never as failed", async () => {
+    const capsule = new Capsule({ adapter: fly({ appName: "audit", apiToken: "fake", fetch: async () => json({ id: "m_audit", state: "teleporting" }) }) });
+    await expect(capsule.machine.status({ id: "m_audit" })).rejects.toThrow(/unrecognized Machine state "teleporting"/);
+  });
+
+  it("EDGE-08: start and stop acknowledgements report starting and stopping, including an empty success body", async () => {
+    const capsule = new Capsule({
+      adapter: fly({ appName: "audit", apiToken: "fake", fetch: async () => new Response(null, { status: 200 }) })
+    });
+    expect(await capsule.machine.start({ id: "m_audit" })).toMatchObject({ id: "m_audit", status: "starting" });
+    expect(await capsule.machine.stop({ id: "m_audit" })).toMatchObject({ id: "m_audit", status: "stopping" });
   });
 
   it.fails("EDGE-05c: an HTML 503 keeps the HTTP status and retry category instead of a SyntaxError", async () => {

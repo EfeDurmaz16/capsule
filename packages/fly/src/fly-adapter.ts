@@ -10,6 +10,7 @@ import {
   type JobRun,
   type Machine,
   type MachineLifecycleResult,
+  type MachineStatus,
   type MachineStatusResult,
   type MachineStatusSpec,
   type RunJobSpec,
@@ -33,6 +34,18 @@ interface FlyMachine {
   state?: string;
   region?: string;
   instance_id?: string;
+}
+
+/** Start acknowledgement: the Machine is not returned, only its state before the start. */
+interface FlyStartResponse {
+  previous_state?: string;
+  migrated?: boolean;
+  new_host?: string;
+}
+
+/** Stop acknowledgement. Stopping continues asynchronously after this response. */
+interface FlyOkResponse {
+  ok?: boolean;
 }
 
 const provider = "fly";
@@ -72,12 +85,29 @@ function appName(options: FlyAdapterOptions): string {
   return app;
 }
 
-function machineStatus(state: string | undefined): Machine["status"] {
-  if (state === "started") return "running";
-  if (state === "stopped" || state === "suspended") return "stopped";
-  if (state === "destroyed") return "deleted";
-  if (state === "created" || state === "starting") return "creating";
-  return "failed";
+// Fly Machine states: https://docs.fly.io/machines/machine-states. Transient states map to the
+// normalized transitional statuses; the native state is always kept in result metadata. An unrecognized
+// native state is never reported as failed (EDGE-08).
+const flyStateMap: Readonly<Record<string, MachineStatus>> = {
+  created: "creating",
+  creating: "creating",
+  starting: "starting",
+  restarting: "starting",
+  updating: "starting",
+  replacing: "starting",
+  started: "running",
+  stopping: "stopping",
+  suspending: "stopping",
+  stopped: "stopped",
+  suspended: "stopped",
+  destroying: "destroying",
+  destroyed: "deleted",
+  failed: "failed",
+  launch_failed: "failed"
+};
+
+function machineStatus(state: string | undefined): MachineStatus | undefined {
+  return state === undefined ? undefined : flyStateMap[state];
 }
 
 function machineBody(spec: CreateMachineSpec | RunJobSpec, options: FlyAdapterOptions, job = false) {
@@ -176,7 +206,8 @@ export function fly(options: FlyAdapterOptions = {}): CapsuleAdapter {
           path: `/v1/apps/${encodeURIComponent(getApp())}/machines`,
           body: machineBody(spec, options)
         });
-        const status = machineStatus(response.state);
+        // The create was accepted; an unrecognized native state is reported as creating, never failed.
+        const status = machineStatus(response.state) ?? "creating";
         const createdReceipt = context.receipts
           ? context.createReceipt({
               type: "machine.create",
@@ -207,6 +238,11 @@ export function fly(options: FlyAdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const response = await getClient().request<FlyMachine>({ path: `/v1/apps/${encodeURIComponent(getApp())}/machines/${encodeURIComponent(spec.id)}` });
         const status = machineStatus(response.state);
+        if (status === undefined) {
+          throw new AdapterExecutionError(
+            `Fly returned an unrecognized Machine state ${JSON.stringify(response.state ?? null)} for ${spec.id}; Capsule does not guess a normalized status.`
+          );
+        }
         return {
           id: response.id,
           provider,
@@ -226,47 +262,50 @@ export function fly(options: FlyAdapterOptions = {}): CapsuleAdapter {
       },
       start: async (spec: StartMachineSpec, context: AdapterContext): Promise<MachineLifecycleResult> => {
         const startedAt = new Date();
-        const response = await getClient().request<FlyMachine>({
+        const response = await getClient().request<FlyStartResponse | undefined>({
           method: "POST",
           path: `/v1/apps/${encodeURIComponent(getApp())}/machines/${encodeURIComponent(spec.id)}/start`
         });
-        const status = machineStatus(response.state) === "running" ? "running" : "starting";
+        // Fly acknowledges a start with the previous state only; the Machine is starting, not yet observed running.
+        const previousState = response?.previous_state;
+        const status = "starting";
         return {
-          id: response.id ?? spec.id,
+          id: spec.id,
           provider,
           status,
           receipt: receipt(context, {
             type: "machine.start",
             path: "machine.start",
             startedAt,
-            id: response.id ?? spec.id,
+            id: spec.id,
             status,
-            metadata: { state: response.state, reason: spec.reason }
+            metadata: { previousState, migrated: response?.migrated, reason: spec.reason }
           }),
-          metadata: { state: response.state }
+          metadata: { previousState, migrated: response?.migrated }
         };
       },
       stop: async (spec: StopMachineSpec, context: AdapterContext): Promise<MachineLifecycleResult> => {
         const startedAt = new Date();
-        const response = await getClient().request<FlyMachine>({
+        const response = await getClient().request<FlyOkResponse | undefined>({
           method: "POST",
           path: `/v1/apps/${encodeURIComponent(getApp())}/machines/${encodeURIComponent(spec.id)}/stop`,
           body: spec.force ? { signal: "SIGKILL" } : undefined
         });
-        const status = machineStatus(response.state) === "stopped" ? "stopped" : "stopping";
+        // Fly acknowledges a stop with { ok: true }; the Machine is stopping until a status read shows stopped.
+        const status = "stopping";
         return {
-          id: response.id ?? spec.id,
+          id: spec.id,
           provider,
           status,
           receipt: receipt(context, {
             type: "machine.stop",
             path: "machine.stop",
             startedAt,
-            id: response.id ?? spec.id,
+            id: spec.id,
             status,
-            metadata: { state: response.state, force: spec.force, reason: spec.reason }
+            metadata: { acknowledged: response?.ok, force: spec.force, reason: spec.reason }
           }),
-          metadata: { state: response.state }
+          metadata: { acknowledged: response?.ok }
         };
       },
       destroy: async (spec: DestroyMachineSpec, context: AdapterContext): Promise<MachineLifecycleResult> => {
@@ -300,7 +339,7 @@ export function fly(options: FlyAdapterOptions = {}): CapsuleAdapter {
           path: `/v1/apps/${encodeURIComponent(getApp())}/machines`,
           body: machineBody(spec, options, true)
         });
-        const status = machineStatus(response.state);
+        const status = machineStatus(response.state) ?? "creating";
         return {
           id: response.id,
           provider,
