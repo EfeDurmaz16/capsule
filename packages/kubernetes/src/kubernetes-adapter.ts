@@ -737,20 +737,19 @@ async function collectPodLogs(
   let candidates = 0;
   let sourceAtTailCap = false;
   let sourceAtByteCap = false;
+  let untilWindowShort = false;
   let deadlineHit = false;
-  await mapWithConcurrency(targets, bounds.concurrency, async ({ podName, container }, target) => {
-    if (cap === 0) return;
+  // One bounded read: a tail of `tailLines` lines with a server-side byte cap. Resolves undefined when
+  // the client deadline expires first.
+  const readTail = async (podName: string, container: string | undefined, tailLines: number): Promise<string | undefined> => {
     const remainingMs = deadlineAt - Date.now();
-    if (remainingMs <= 0) {
-      deadlineHit = true;
-      return;
-    }
+    if (remainingMs <= 0) return undefined;
     const read = readNamespacedPodLog.call(core, {
       namespace: input.namespace,
       name: podName,
       container,
       sinceSeconds,
-      tailLines: cap,
+      tailLines,
       limitBytes: bounds.maxBytes,
       timestamps: true
     });
@@ -760,20 +759,47 @@ async function collectPodLogs(
     });
     // A read that outlives the deadline is abandoned, not cancelled: the injected API has no abort hook.
     read.catch(() => undefined);
-    const text = await Promise.race([read, expired]).finally(() => clearTimeout(timer));
-    if (text === undefined) {
-      deadlineHit = true;
-      return;
-    }
-    let body = text;
-    if (textEncoder.encode(text).byteLength >= bounds.maxBytes) {
+    return await Promise.race([read, expired]).finally(() => clearTimeout(timer));
+  };
+  await mapWithConcurrency(targets, bounds.concurrency, async ({ podName, container }, target) => {
+    if (cap === 0) return;
+    // Kubelet seeks to the start of the tail and then counts limitBytes forward, so a tail larger than
+    // maxBytes comes back as its OLDEST part. When that happens, read again with a shorter tail (the
+    // number of complete lines that fitted, halving after a few attempts) until the newest lines fit.
+    // Every read stays bounded by maxBytes and the attempt count is logarithmic in the tail length.
+    let tailLines = cap;
+    let body: string | undefined;
+    for (let attempt = 0; ; attempt += 1) {
+      const text = await readTail(podName, container, tailLines);
+      if (text === undefined) {
+        deadlineHit = true;
+        return;
+      }
+      if (textEncoder.encode(text).byteLength < bounds.maxBytes) {
+        body = text;
+        break;
+      }
       // limitBytes stopped the stream; the last line may be cut mid-way, so drop it.
       sourceAtByteCap = true;
-      const lastNewline = body.lastIndexOf("\n");
-      body = lastNewline === -1 ? "" : body.slice(0, lastNewline + 1);
+      const lastNewline = text.lastIndexOf("\n");
+      const complete = lastNewline === -1 ? "" : text.slice(0, lastNewline + 1);
+      const completeLines = complete === "" ? 0 : complete.split("\n").length - 1;
+      if (tailLines <= 1) {
+        // Even the newest single line does not fit in maxBytes; keep only what arrived complete.
+        body = complete;
+        break;
+      }
+      const shorter = attempt < 3 && completeLines > 0 ? Math.min(completeLines, tailLines - 1) : Math.floor(tailLines / 2);
+      tailLines = Math.max(1, completeLines > 0 ? Math.min(shorter, completeLines) : shorter);
     }
-    const entries = filterUntil(parseKubernetesLog(body, "stdout", fallbackTimestamp, podName), input.until);
-    if (entries.length >= cap) sourceAtTailCap = true;
+    const raw = parseKubernetesLog(body, "stdout", fallbackTimestamp, podName);
+    const entries = filterUntil(raw, input.until);
+    // The tail was full, so older lines exist that were not read. With `until`, those older lines may be
+    // exactly the ones the caller asked for, so a window that filters down below the cap is incomplete
+    // whatever the caller's limit was.
+    const fullTail = raw.length >= tailLines;
+    if (fullTail) sourceAtTailCap = true;
+    if (fullTail && input.until !== undefined && entries.length < cap) untilWindowShort = true;
     candidates += entries.length;
     kept = mergeNewest(
       kept,
@@ -804,9 +830,11 @@ async function collectPodLogs(
       ? ({ reason: "deadline", limit: bounds.deadlineMs } as const)
       : sourceAtByteCap
         ? ({ reason: "bytes", limit: bounds.maxBytes } as const)
-        : capFromBounds && (candidates > cap || sourceAtTailCap)
-          ? ({ reason: "records", limit: bounds.maxRecords } as const)
-          : undefined;
+        : untilWindowShort
+          ? ({ reason: "records", limit: cap } as const)
+          : capFromBounds && (candidates > cap || sourceAtTailCap)
+            ? ({ reason: "records", limit: bounds.maxRecords } as const)
+            : undefined;
     if (reason) truncation = { ...budgetTruncation, truncated: true, ...reason };
   }
   if (truncation.truncated && bounds.overflow === "error") {

@@ -104,4 +104,47 @@ describe("kubernetes bounded log capture (PERF-05)", () => {
     await expect(capsule.service.logs({ id: "svc", bounds: { concurrency: 0 } })).rejects.toBeInstanceOf(RangeError);
     expect(lists).toEqual([]);
   });
+  // Answers like kubelet: tailLines selects the last N lines, then limitBytes counts forward from the
+  // start of that tail, so a cut keeps the OLDEST part of the tail.
+  function kubeletLog(lines: string[], reads: LogRead[] = []) {
+    return async (input: LogRead): Promise<string> => {
+      reads.push(input);
+      const tail = input.tailLines === undefined ? lines : lines.slice(-input.tailLines);
+      const text = tail.map((line) => `${line}\n`).join("");
+      return input.limitBytes === undefined ? text : new TextDecoder().decode(new TextEncoder().encode(text).slice(0, input.limitBytes));
+    };
+  }
+
+  const stamp = (day: number, index: number) => `2026-10-${String(day).padStart(2, "0")}T${String(Math.floor(index / 3600) % 24).padStart(2, "0")}:${String(Math.floor(index / 60) % 60).padStart(2, "0")}:${String(index % 60).padStart(2, "0")}Z`;
+
+  it("never reports an until query as complete when the bounded tail could not reach the matching lines", async () => {
+    const yesterday = Array.from({ length: 50 }, (_, index) => `${stamp(24, index)} old ${index}`);
+    const today = Array.from({ length: 200 }, (_, index) => `${stamp(25, index)} new ${index}`);
+    const capsule = podsCapsule(1, kubeletLog([...yesterday, ...today]));
+    const until = "2026-10-24T23:59:59Z";
+    for (const request of [{ bounds: { maxRecords: 100 } }, { limit: 20 }]) {
+      const result = await capsule.service.logs({ id: "svc", until, ...request });
+      expect(result.logs).toEqual([]);
+      expect(result.truncation).toMatchObject({ truncated: true, reason: "records" });
+    }
+
+    // When the tail reaches back past `until`, the matching lines are returned and nothing is flagged.
+    const short = podsCapsule(1, kubeletLog([...yesterday, ...today.slice(0, 20)]));
+    const complete = await short.service.logs({ id: "svc", until, bounds: { maxRecords: 100 } });
+    expect(complete.logs.map((entry) => entry.message)).toEqual(yesterday.map((_, index) => `old ${index}`));
+    expect(complete.truncation?.truncated).toBe(false);
+  });
+
+  it("keeps the newest lines when the server byte cap cuts a tail, with every read bounded by maxBytes", async () => {
+    const lines = Array.from({ length: 2050 }, (_, index) => `${stamp(25, index)} new ${index}`);
+    const reads: LogRead[] = [];
+    const capsule = podsCapsule(1, kubeletLog(lines, reads));
+    const result = await capsule.service.logs({ id: "svc", bounds: { maxBytes: 4096 } });
+    expect(result.logs.at(-1)?.message).toBe("new 2049");
+    const messages = result.logs.map((entry) => entry.message);
+    expect(messages).toEqual(lines.slice(-messages.length).map((_, index) => `new ${2050 - messages.length + index}`));
+    expect(result.truncation).toMatchObject({ truncated: true, reason: "bytes", limit: 4096 });
+    expect(reads.every((read) => read.limitBytes === 4096)).toBe(true);
+    expect(reads.length).toBeLessThanOrEqual(20);
+  });
 });
