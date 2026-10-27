@@ -1,5 +1,4 @@
-import type { ExecResult } from "@capsule-sdk/core";
-import type { CodeExecutionInput, CodeExecutionTool } from "./tool.js";
+import type { CodeExecutionInput, CodeExecutionResult, CodeExecutionTool } from "./tool.js";
 
 export type JsonSchema = Record<string, unknown>;
 
@@ -53,14 +52,14 @@ export interface VercelAiSdkToolDescriptor {
   name: CodeExecutionTool["name"];
   description: string;
   inputSchema: typeof codeExecutionInputJsonSchema;
-  execute(input: CodeExecutionInput): Promise<ExecResult>;
+  execute(input: CodeExecutionInput): Promise<CodeExecutionResult>;
 }
 
 export interface OpenAIAgentsToolDescriptor {
   name: CodeExecutionTool["name"];
   description: string;
   parameters: typeof codeExecutionInputJsonSchema;
-  execute(input: CodeExecutionInput): Promise<ExecResult>;
+  execute(input: CodeExecutionInput): Promise<CodeExecutionResult>;
 }
 
 export interface OpenAIResponsesFunctionTool {
@@ -73,28 +72,28 @@ export interface OpenAIResponsesFunctionTool {
 
 export interface OpenAIResponsesToolDescriptor {
   tool: OpenAIResponsesFunctionTool;
-  execute(input: CodeExecutionInput): Promise<ExecResult>;
+  execute(input: CodeExecutionInput): Promise<CodeExecutionResult>;
 }
 
 export interface LangChainToolDescriptor {
   name: CodeExecutionTool["name"];
   description: string;
   schema: typeof codeExecutionInputJsonSchema;
-  invoke(input: CodeExecutionInput): Promise<ExecResult>;
+  invoke(input: CodeExecutionInput): Promise<CodeExecutionResult>;
 }
 
 export interface MastraToolDescriptor {
   id: CodeExecutionTool["name"];
   description: string;
   inputSchema: typeof codeExecutionInputJsonSchema;
-  execute(input: CodeExecutionInput): Promise<ExecResult>;
+  execute(input: CodeExecutionInput): Promise<CodeExecutionResult>;
 }
 
 export interface CrewAiToolDescriptor {
   name: CodeExecutionTool["name"];
   description: string;
   schema: typeof codeExecutionInputJsonSchema;
-  run(input: CodeExecutionInput): Promise<ExecResult>;
+  run(input: CodeExecutionInput): Promise<CodeExecutionResult>;
 }
 
 export function createVercelAiSdkTool(tool: CodeExecutionTool): VercelAiSdkToolDescriptor {

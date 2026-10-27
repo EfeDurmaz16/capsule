@@ -2,8 +2,9 @@
 // the M1 manifest and is marked it.fails while the defect is present on the baseline (7d3a28a). The owner
 // who fixes an ID flips its it.fails to it in the same commit. The Capsule is an in-memory fake.
 import { describe, expect, it } from "vitest";
-import { CleanupFailureError, partialEffectsOf, type Capsule, type ExecResult } from "@capsule-sdk/core";
+import { CleanupFailureError, partialEffectsOf, type Capsule } from "@capsule-sdk/core";
 import { createCodeExecutionTool } from "./tool.js";
+import { createLangChainTool, createVercelAiSdkTool } from "./wrappers.js";
 
 function errorText(value: unknown, seen = new Set<unknown>()): string {
   if (value === null || value === undefined || seen.has(value)) return "";
@@ -46,15 +47,27 @@ describe("M1 audit regressions: ai tool", () => {
     expect(text).toContain("cleanup failure");
   });
 
-  it("COMP-03: exec success plus destroy failure retains the completed result and the cleanup failure", async () => {
-    const tool = createCodeExecutionTool(fakeCapsule(async () => ({ exitCode: 0, stdout: "completed-output", stderr: "", logs: [], artifacts: [] })));
-    const outcome = await tool.execute({ files: [], command: "x" }).then(
-      (value: unknown) => value,
-      (caught: unknown) => caught
+  it("COMP-03: exec success plus destroy failure resolves with the completed result and the cleanup failure", async () => {
+    let runs = 0;
+    const tool = createCodeExecutionTool(
+      fakeCapsule(async () => {
+        runs += 1;
+        return { exitCode: 0, stdout: "completed-output", stderr: "", logs: [], artifacts: [] };
+      })
     );
-    const text = errorText(outcome);
-    expect(text).toContain("completed-output");
-    expect(text).toContain("cleanup failure");
+    // A throw here would reach every framework wrapper as a tool error and invite a second execution of
+    // a possibly non-idempotent command, so the completed result must be returned, not thrown.
+    for (const execute of [tool.execute, createVercelAiSdkTool(tool).execute, createLangChainTool(tool).invoke]) {
+      const result = await execute({ files: [], command: "x" });
+      expect(result.stdout).toBe("completed-output");
+      expect(result.exitCode).toBe(0);
+      expect(result.cleanup).toEqual({
+        status: "failed",
+        residual: [{ provider: "fake", kind: "sandbox", nativeId: "audit-box" }],
+        error: "cleanup failure"
+      });
+    }
+    expect(runs).toBe(3);
   });
 
   it("COMP-03: the structured record separates primary and cleanup outcomes with the sandbox locator", async () => {
@@ -74,12 +87,6 @@ describe("M1 audit regressions: ai tool", () => {
       primaryError: { message: "primary execution failure" },
       cleanup: { status: "failed", residual: [{ nativeId: "audit-box" }], error: { message: "cleanup failure" } }
     });
-
-    const completed = await createCodeExecutionTool(fakeCapsule(async () => ({ exitCode: 0, stdout: "completed-output", stderr: "", logs: [], artifacts: [] })))
-      .execute({ files: [], command: "x" })
-      .catch((caught: unknown) => caught);
-    expect(partialEffectsOf(completed)).toMatchObject({ outcome: "completed", cleanup: { status: "failed" } });
-    expect((partialEffectsOf(completed)?.result as ExecResult).stdout).toBe("completed-output");
   });
 });
 

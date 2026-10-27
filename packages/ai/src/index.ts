@@ -1,8 +1,10 @@
 export {
   createCodeExecutionTool,
   type CodeExecutionCleanupFailure,
+  type CodeExecutionCleanupReport,
   type CodeExecutionFile,
   type CodeExecutionInput,
+  type CodeExecutionResult,
   type CodeExecutionTool,
   type CodeExecutionToolOptions
 } from "./tool.js";
