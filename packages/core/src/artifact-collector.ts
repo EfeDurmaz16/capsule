@@ -1,16 +1,18 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { closeSync, fstatSync, openSync, readdirSync, readSync } from "node:fs";
 import { join, posix } from "node:path";
-import { sha256 } from "./artifacts.js";
 import type { Artifact } from "./types.js";
 
 const defaultMaxFiles = 1000;
 const defaultMaxBytes = 64 * 1024 * 1024;
+const hashChunkBytes = 64 * 1024;
 
 export interface CollectFileArtifactsOptions {
   // Stop after this many files. Defaults to 1000 so an unexpectedly large tree cannot exhaust memory.
   maxFiles?: number;
   // Stop once collected file content reaches this many total bytes. Defaults to 64 MiB. A single file
-  // larger than the remaining budget is skipped whole, never partially hashed.
+  // larger than the remaining budget is skipped whole, never partially hashed. The size is checked on the
+  // opened file before any content is read, and reads stop at the remaining budget if the file grows.
   maxBytes?: number;
 }
 
@@ -58,17 +60,17 @@ export function collectFileArtifacts(dir: string, options: CollectFileArtifactsO
         truncation = { reason: "maxFiles", collectedFiles: artifacts.length, collectedBytes: state.bytes };
         return false;
       }
-      const content = readFileSync(childPath);
-      if (state.bytes + content.byteLength > maxBytes) {
+      const hashed = hashFileWithinBudget(childPath, maxBytes - state.bytes);
+      if (!hashed) {
         truncation = { reason: "maxBytes", collectedFiles: artifacts.length, collectedBytes: state.bytes };
         return false;
       }
-      state.bytes += content.byteLength;
+      state.bytes += hashed.sizeBytes;
       artifacts.push({
         name: childRelative,
         path: childRelative,
-        sizeBytes: content.byteLength,
-        sha256: sha256(content)
+        sizeBytes: hashed.sizeBytes,
+        sha256: hashed.sha256
       });
     }
     return true;
@@ -76,4 +78,32 @@ export function collectFileArtifacts(dir: string, options: CollectFileArtifactsO
 
   walk(dir, "");
   return truncation ? { artifacts, truncated: true, truncation } : { artifacts, truncated: false };
+}
+
+// Hash one whole file through a fixed-size buffer. Returns undefined, without reading content, when the
+// opened file is already larger than the remaining budget, and stops reading as soon as a file that grew
+// after the size check exceeds it. A file is either hashed whole or not collected at all.
+function hashFileWithinBudget(path: string, remainingBytes: number): { sizeBytes: number; sha256: string } | undefined {
+  const fd = openSync(path, "r");
+  try {
+    if (fstatSync(fd).size > remainingBytes) {
+      return undefined;
+    }
+    const hash = createHash("sha256");
+    const buffer = Buffer.allocUnsafe(Math.max(1, Math.min(hashChunkBytes, remainingBytes + 1)));
+    let sizeBytes = 0;
+    for (;;) {
+      const read = readSync(fd, buffer, 0, Math.min(buffer.byteLength, remainingBytes - sizeBytes + 1), null);
+      if (read === 0) {
+        return { sizeBytes, sha256: hash.digest("hex") };
+      }
+      sizeBytes += read;
+      if (sizeBytes > remainingBytes) {
+        return undefined;
+      }
+      hash.update(buffer.subarray(0, read));
+    }
+  } finally {
+    closeSync(fd);
+  }
 }

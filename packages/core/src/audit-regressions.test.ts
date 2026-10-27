@@ -11,6 +11,7 @@ import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
 import type { CapsuleAdapter } from "./adapters.js";
 import { collectFileArtifacts } from "./artifact-collector.js";
+import { sha256 } from "./artifacts.js";
 import { Capsule } from "./capsule.js";
 import { evaluatePolicy, mergePolicy, redactError } from "./policy.js";
 import { createReceipt, verifyReceipt } from "./receipts.js";
@@ -331,7 +332,7 @@ describe("M1 audit regressions: core", () => {
     });
   });
 
-  it.fails("IO-01: a 16 MiB file is not read in full under maxBytes 1", () => {
+  it("IO-01: a 16 MiB file is not read in full under maxBytes 1", () => {
     const dir = fs.mkdtempSync(join(tmpdir(), "capsule-io01-"));
     const path = join(dir, "large.bin");
     fs.writeFileSync(path, "");
@@ -361,6 +362,51 @@ describe("M1 audit regressions: core", () => {
       expect(bytesRead).toBeLessThan(1024 * 1024);
     } finally {
       fs.readFileSync = original.readFileSync;
+      fs.readSync = original.readSync;
+      syncBuiltinESMExports();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("IO-01: multi-chunk files hash identically to a whole-buffer sha256", () => {
+    const dir = fs.mkdtempSync(join(tmpdir(), "capsule-io01-hash-"));
+    try {
+      const content = Buffer.alloc(300 * 1024 + 7);
+      for (let i = 0; i < content.length; i += 1) content[i] = (i * 31) % 251;
+      fs.writeFileSync(join(dir, "a.bin"), content);
+      fs.writeFileSync(join(dir, "b.txt"), "");
+      const result = collectFileArtifacts(dir, { maxBytes: content.length });
+      expect(result).toEqual({
+        artifacts: [
+          { name: "a.bin", path: "a.bin", sizeBytes: content.length, sha256: sha256(content) },
+          { name: "b.txt", path: "b.txt", sizeBytes: 0, sha256: sha256("") }
+        ],
+        truncated: false
+      });
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("IO-01: a file that grows past the budget after the size check is not read past the budget or collected", () => {
+    const dir = fs.mkdtempSync(join(tmpdir(), "capsule-io01-grow-"));
+    const path = join(dir, "growing.bin");
+    fs.writeFileSync(path, Buffer.alloc(4 * 1024 * 1024, 1));
+    const original = { fstatSync: fs.fstatSync, readSync: fs.readSync };
+    let bytesRead = 0;
+    fs.fstatSync = ((...args: Parameters<typeof fs.fstatSync>) => ({ ...original.fstatSync(...args), size: 10 })) as typeof fs.fstatSync;
+    fs.readSync = ((...args: Parameters<typeof fs.readSync>) => {
+      const read = (original.readSync as (...inner: unknown[]) => number)(...args);
+      bytesRead += read;
+      return read;
+    }) as typeof fs.readSync;
+    syncBuiltinESMExports();
+    try {
+      const result = collectFileArtifacts(dir, { maxBytes: 100 });
+      expect(result).toEqual({ artifacts: [], truncated: true, truncation: { reason: "maxBytes", collectedFiles: 0, collectedBytes: 0 } });
+      expect(bytesRead).toBeLessThanOrEqual(101);
+    } finally {
+      fs.fstatSync = original.fstatSync;
       fs.readSync = original.readSync;
       syncBuiltinESMExports();
       fs.rmSync(dir, { recursive: true, force: true });
