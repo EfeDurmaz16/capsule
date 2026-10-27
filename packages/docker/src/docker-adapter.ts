@@ -125,10 +125,10 @@ export const dockerCapabilities: CapabilityMap = {
     status: "unsupported",
     cancel: "unsupported",
     logs: "unsupported",
-    // Emulated in principle, but job.run uses `docker run --rm`, so the container is gone before we
-    // can `docker cp` from it. Job artifacts stay []; use sandbox.exec + ExecSpec.artifactPaths to
-    // collect artifacts. See docs/artifacts.md.
-    artifacts: "emulated",
+    // Unsupported: job.run uses `docker run --rm`, so the container is gone before we can `docker cp`
+    // from it and job artifacts are always []. Use sandbox.exec + ExecSpec.artifactPaths to collect
+    // artifacts. See docs/artifacts.md.
+    artifacts: "unsupported",
     timeout: "native",
     env: "native",
     resources: "experimental"

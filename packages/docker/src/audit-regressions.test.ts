@@ -213,7 +213,10 @@ describe("M1 audit regressions: docker", () => {
     expect(seen[1]?.input).toBeUndefined();
   });
 
-  it.fails("SB-10d: job.artifacts is not declared while job.run never collects artifacts", () => {
-    expect(new Capsule({ adapter: fakeDocker().adapter }).supports("job.artifacts")).toBe(false);
+  it("SB-10d: job.artifacts is not declared while job.run never collects artifacts", () => {
+    const capsule = new Capsule({ adapter: fakeDocker().adapter });
+    expect(capsule.supports("job.artifacts")).toBe(false);
+    // Sandbox artifact collection is real and stays declared.
+    expect(capsule.supportLevel("sandbox.artifacts")).toBe("emulated");
   });
 });
