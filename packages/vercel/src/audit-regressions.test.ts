@@ -9,7 +9,7 @@ import { VercelClient, vercel } from "./index.js";
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
 
 describe("M1 audit regressions: vercel", () => {
-  it.fails("EDGE-02: a never-closing runtime log body settles at the limit and cancels the body", async () => {
+  it("EDGE-02: a never-closing runtime log body settles at the limit and cancels the body", async () => {
     let controller!: ReadableStreamDefaultController<Uint8Array>;
     let cancelled = false;
     const body = new ReadableStream<Uint8Array>({
@@ -41,7 +41,7 @@ describe("M1 audit regressions: vercel", () => {
     }
   });
 
-  it.fails("EDGE-03: since/until/limit are honored while reading runtime logs, or the request is rejected", async () => {
+  it("EDGE-03: since/until/limit are honored while reading runtime logs, or the request is rejected", async () => {
     const urls: string[] = [];
     const capsule = new Capsule({
       adapter: vercel({
@@ -68,7 +68,7 @@ describe("M1 audit regressions: vercel", () => {
     expect(outcome.logs.every((entry) => Date.parse(entry.timestamp) >= since)).toBe(true);
   });
 
-  it.fails("EDGE-05b: an HTML 503 keeps the HTTP status and retry category instead of a SyntaxError", async () => {
+  it("EDGE-05b: an HTML 503 keeps the HTTP status and retry category instead of a SyntaxError", async () => {
     const client = new VercelClient({
       token: "fake",
       fetch: async () => new Response("<html>maintenance</html>", { status: 503, headers: { "content-type": "text/html", "retry-after": "5" } })
