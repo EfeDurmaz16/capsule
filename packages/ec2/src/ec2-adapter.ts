@@ -9,6 +9,7 @@ import {
 import {
   AdapterExecutionError,
   asProviderError,
+  capsuleOperationTag,
   capsuleOperationTags,
   type AdapterContext,
   type CapsuleAdapter,
@@ -114,6 +115,17 @@ function classifiedClient(client: EC2ClientLike): EC2ClientLike {
       }
     }
   };
+}
+
+/**
+ * Native RunInstances ClientToken for a caller idempotency key (GAP-17): a 32-hex hash of the key scoped
+ * to this adapter and region, so the raw key never reaches AWS. EC2 returns the original instance for a
+ * retried request with the same token and parameters and rejects a reused token with different
+ * parameters (IdempotentParameterMismatch). This is provider retry deduplication within the AWS token
+ * window, not exactly-once execution across arbitrary Capsule calls.
+ */
+function ec2ClientToken(idempotencyKey: string | undefined, region: string | undefined): string | undefined {
+  return capsuleOperationTag({ idempotencyKey, capabilityPath: "machine.create", idempotencyScope: `ec2:machine.create:${region ?? "sdk-default-region"}` });
 }
 
 function tags(name: string, labels?: Record<string, string>, idempotencyKey?: string) {
@@ -281,6 +293,7 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
             KeyName: options.keyName,
             IamInstanceProfile: options.iamInstanceProfileArn ? { Arn: options.iamInstanceProfileArn } : undefined,
             UserData: userData(options, spec),
+            ClientToken: ec2ClientToken(spec.idempotencyKey, options.region),
             TagSpecifications: tags(spec.name, spec.labels, spec.idempotencyKey) as any
           })
         );
@@ -300,6 +313,11 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
                   "EC2 RunInstances is native.",
                   "EC2 is a low-level machine primitive; networking, IAM, SSH access, patching, and runtime hardening are not abstracted away by Capsule.",
                   "Environment values are only encoded into user data when provided; this is not a secret manager.",
+                  ...(spec.idempotencyKey
+                    ? [
+                        "idempotencyKey is sent as a hashed RunInstances ClientToken scoped to the adapter region; EC2 deduplicates retries with identical parameters within its token window and rejects reuse with different parameters. It is not an exactly-once guarantee."
+                      ]
+                    : []),
                   ...envDeliveryNotes(options, spec)
                 ]
               },

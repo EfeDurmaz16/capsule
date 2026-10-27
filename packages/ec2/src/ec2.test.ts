@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, ProviderAuthError, ProviderRateLimitError, runAdapterContract } from "@capsule-sdk/core";
+import { AdapterExecutionError, Capsule, capsuleOperationTag, ProviderAuthError, ProviderRateLimitError, runAdapterContract } from "@capsule-sdk/core";
 import { ec2, ec2Capabilities } from "./index.js";
 
 function awsError(name: string, httpStatusCode: number, message = name): Error {
@@ -228,5 +228,45 @@ describe("ec2 adapter", () => {
     await expect(unknownState.machine.status({ id: "i-odd" })).rejects.toThrow(/unrecognized instance state "hibernating"/);
     const missing = new Capsule({ adapter: ec2({ client: { send: async () => ({ Reservations: [] }) } }) });
     await expect(missing.machine.status({ id: "i-gone" })).rejects.toThrow(/no instance state for i-gone/);
+  });
+  it("maps a machine idempotency key to a hashed RunInstances ClientToken scoped to the adapter region", async () => {
+    const inputs: any[] = [];
+    const createWith = async (region: string | undefined, idempotencyKey?: string) => {
+      const capsule = new Capsule({
+        adapter: ec2({
+          region,
+          client: {
+            send: async (command: any) => {
+              inputs.push(command.input);
+              return { Instances: [{ InstanceId: "i-token", State: { Name: "pending" } }] };
+            }
+          }
+        }),
+        receipts: true
+      });
+      const machine = await capsule.machine.create({ name: "t", image: "ami-x", size: "t3.micro", idempotencyKey });
+      return { token: inputs.at(-1).ClientToken as string | undefined, machine };
+    };
+    const first = await createWith("us-east-1", "machine-7");
+    expect((await createWith("us-east-1", "machine-7")).token).toBe(first.token);
+    expect(first.token).toBe(capsuleOperationTag({ idempotencyKey: "machine-7", capabilityPath: "machine.create", idempotencyScope: "ec2:machine.create:us-east-1" }));
+    expect(first.token).toMatch(/^[0-9a-f]{32}$/);
+    expect(first.token).not.toContain("machine-7");
+    expect((await createWith("eu-west-1", "machine-7")).token).not.toBe(first.token);
+    expect((await createWith("us-east-1", "machine-8")).token).not.toBe(first.token);
+    expect((await createWith("us-east-1")).token).toBeUndefined();
+    expect(first.machine.receipt?.policy.notes?.some((note) => note.includes("RunInstances ClientToken") && note.includes("not an exactly-once guarantee"))).toBe(true);
+  });
+
+  it("surfaces IdempotentParameterMismatch for a reused ClientToken as a provider error", async () => {
+    const mismatch = Object.assign(new Error("Arguments on this idempotent request are inconsistent with arguments used in previous request(s)."), {
+      name: "IdempotentParameterMismatch",
+      $fault: "client",
+      $metadata: { httpStatusCode: 400 }
+    });
+    const capsule = new Capsule({ adapter: ec2({ region: "us-east-1", client: { send: async () => Promise.reject(mismatch) } }) });
+    const error = await capsule.machine.create({ name: "t", image: "ami-x", size: "t3.micro", idempotencyKey: "machine-7" }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(AdapterExecutionError);
+    expect((error as AdapterExecutionError).cause).toMatchObject({ cause: { name: "IdempotentParameterMismatch" } });
   });
 });

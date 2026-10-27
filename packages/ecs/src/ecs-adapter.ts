@@ -12,6 +12,7 @@ import {
 } from "@aws-sdk/client-ecs";
 import {
   asProviderError,
+  capsuleOperationTag,
   capsuleOperationTags,
   logsFromOutput,
   observeUntilTerminal,
@@ -173,6 +174,16 @@ function networkConfiguration(options: ECSAdapterOptions) {
 function tags(labels?: Record<string, string>, idempotencyKey?: string, capabilityPath?: string): Array<{ key: string; value: string }> | undefined {
   const entries = Object.entries({ ...(labels ?? {}), ...(capabilityPath ? (capsuleOperationTags({ idempotencyKey, capabilityPath }) ?? {}) : {}) });
   return entries.length > 0 ? entries.map(([key, value]) => ({ key, value })) : undefined;
+}
+
+/**
+ * Native RunTask clientToken for a caller idempotency key (GAP-17): a 32-hex hash of the key scoped to
+ * this adapter, region and cluster, so the raw key never reaches AWS. ECS uses the token to make a
+ * retried RunTask idempotent; a ConflictException lists the task ARNs already associated with the
+ * token. This is provider retry deduplication within the ECS token window, not exactly-once execution.
+ */
+function ecsRunTaskClientToken(idempotencyKey: string | undefined, options: Pick<ECSAdapterOptions, "region" | "cluster">): string | undefined {
+  return capsuleOperationTag({ idempotencyKey, capabilityPath: "job.run", idempotencyScope: `ecs:job.run:${options.region ?? "sdk-default-region"}:${options.cluster}` });
 }
 
 /**
@@ -438,6 +449,7 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
             launchType: options.launchType ?? "FARGATE",
             networkConfiguration: networkConfiguration(options),
             tags: tags(spec.labels, spec.idempotencyKey, "job.run"),
+            clientToken: ecsRunTaskClientToken(spec.idempotencyKey, options),
             overrides: {
               containerOverrides: [
                 {
@@ -468,7 +480,12 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
                   ...policy.notes,
                   "ECS RunTask is native for an existing task definition.",
                   "Capsule does not register task definitions from image yet; image is recorded for intent/evidence only.",
-                  "Network configuration, IAM roles, logging, and task isolation are ECS/Fargate responsibilities."
+                  "Network configuration, IAM roles, logging, and task isolation are ECS/Fargate responsibilities.",
+                  ...(spec.idempotencyKey
+                    ? [
+                        "idempotencyKey is sent as a hashed RunTask clientToken scoped to the adapter region and cluster; ECS deduplicates retries within its token window. It is not an exactly-once guarantee."
+                      ]
+                    : [])
                 ]
               },
               resource: { id: task?.taskArn ?? failure?.arn ?? options.taskDefinition, name: options.taskDefinition, status },
@@ -564,7 +581,10 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
                   notes: [
                     ...policy.notes,
                     "ECS CreateService is native for an existing task definition.",
-                    "Capsule does not create load balancers, target groups, service discovery, or task definitions in this adapter."
+                    "Capsule does not create load balancers, target groups, service discovery, or task definitions in this adapter.",
+                    ...(spec.idempotencyKey
+                      ? ["service.deploy idempotencyKey is a correlation tag only; ECS service names are unique per cluster, and no native clientToken is sent."]
+                      : [])
                   ]
                 },
                 resource: { id: service?.serviceArn ?? spec.name, name: spec.name, status: "deploying" },

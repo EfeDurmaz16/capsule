@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, CleanupFailureError, PendingOperationError, ProviderRetryableError, ProviderValidationError, runAdapterContract } from "@capsule-sdk/core";
+import { AdapterExecutionError, Capsule, capsuleOperationTag, CleanupFailureError, PendingOperationError, ProviderRetryableError, ProviderValidationError, runAdapterContract } from "@capsule-sdk/core";
 import { ecs, ecsCapabilities } from "./index.js";
 
 function awsError(name: string, httpStatusCode: number, message = name): Error {
@@ -552,5 +552,52 @@ describe("ecs adapter", () => {
     expect(error).toBeInstanceOf(PendingOperationError);
     expect(error).toMatchObject({ operation: "service.delete", state: "ACTIVE runningCount=1 pendingCount=0" });
     expect(sent).not.toContain("DeleteServiceCommand");
+  });
+  it("maps a job idempotency key to a hashed RunTask clientToken scoped to region and cluster", async () => {
+    const inputs: any[] = [];
+    const runWith = async (options: { region?: string; cluster: string }, idempotencyKey?: string) => {
+      const capsule = new Capsule({
+        adapter: ecs({
+          ...options,
+          taskDefinition: "task-def:1",
+          containerName: "main",
+          client: {
+            send: async (command: any) => {
+              inputs.push(command.input);
+              return { tasks: [{ taskArn: "arn:task/1", lastStatus: "PENDING" }] };
+            }
+          }
+        }),
+        receipts: true
+      });
+      const run = await capsule.job.run({ image: "intent", command: ["true"], idempotencyKey });
+      return { token: inputs.at(-1).clientToken as string | undefined, run };
+    };
+    const first = await runWith({ region: "us-east-1", cluster: "a" }, "order-42");
+    const retry = await runWith({ region: "us-east-1", cluster: "a" }, "order-42");
+    expect(first.token).toBe(retry.token);
+    expect(first.token).toBe(capsuleOperationTag({ idempotencyKey: "order-42", capabilityPath: "job.run", idempotencyScope: "ecs:job.run:us-east-1:a" }));
+    expect(first.token).toMatch(/^[0-9a-f]{32}$/);
+    expect(first.token).not.toContain("order-42");
+    expect((await runWith({ region: "us-east-1", cluster: "b" }, "order-42")).token).not.toBe(first.token);
+    expect((await runWith({ region: "eu-west-1", cluster: "a" }, "order-42")).token).not.toBe(first.token);
+    expect((await runWith({ region: "us-east-1", cluster: "a" }, "order-43")).token).not.toBe(first.token);
+    expect((await runWith({ region: "us-east-1", cluster: "a" })).token).toBeUndefined();
+    expect(first.run.receipt?.policy.notes?.some((note) => note.includes("RunTask clientToken") && note.includes("not an exactly-once guarantee"))).toBe(true);
+  });
+
+  it("surfaces a clientToken ConflictException as a provider error instead of a started job", async () => {
+    const conflict = Object.assign(new Error("The specified client token is already in use."), {
+      name: "ConflictException",
+      $fault: "client",
+      $metadata: { httpStatusCode: 400 },
+      resourceIds: ["arn:task/original"]
+    });
+    const capsule = new Capsule({
+      adapter: ecs({ cluster: "a", taskDefinition: "task-def:1", containerName: "main", client: { send: async () => Promise.reject(conflict) } })
+    });
+    const error = await capsule.job.run({ image: "intent", command: ["true"], idempotencyKey: "order-42" }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(AdapterExecutionError);
+    expect((error as AdapterExecutionError).cause).toMatchObject({ cause: { name: "ConflictException", resourceIds: ["arn:task/original"] } });
   });
 });
