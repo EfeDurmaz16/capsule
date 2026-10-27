@@ -179,6 +179,9 @@ export async function observeUntilTerminal<T>(
   }
 }
 
+// Node fires a setTimeout longer than 2^31 - 1 ms after 1 ms; a longer wait uses the largest delay.
+const maxTimerDelayMs = 2_147_483_647;
+
 function boundedSignal(timeoutMs: number, parent?: AbortSignal): { signal: AbortSignal; aborted: Promise<never>; dispose(): void } {
   const controller = new AbortController();
   let rejectAborted: (reason: unknown) => void = () => undefined;
@@ -191,7 +194,7 @@ function boundedSignal(timeoutMs: number, parent?: AbortSignal): { signal: Abort
     controller.abort(reason);
     rejectAborted(reason);
   };
-  const timer = setTimeout(() => abort(new Error("observation deadline expired")), timeoutMs);
+  const timer = setTimeout(() => abort(new Error("observation deadline expired")), Math.min(timeoutMs, maxTimerDelayMs));
   const onParentAbort = () => abort(parent?.reason);
   if (parent) {
     if (parent.aborted) onParentAbort();
@@ -215,7 +218,7 @@ function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
       signal?.removeEventListener("abort", done);
       resolve();
     };
-    const timer = setTimeout(done, ms);
+    const timer = setTimeout(done, Math.min(ms, maxTimerDelayMs));
     signal?.addEventListener("abort", done, { once: true });
   });
 }

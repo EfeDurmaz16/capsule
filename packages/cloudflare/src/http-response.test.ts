@@ -138,3 +138,21 @@ describe("readCapped reader lock", () => {
     expect(capped.body?.locked).toBe(true);
   });
 });
+
+describe("request timeout longer than a timer can wait", () => {
+  it("does not abort after 1 ms when requestTimeoutMs is 2^31 ms or more", async () => {
+    // Node fires a setTimeout longer than 2^31 - 1 ms after 1 ms.
+    const { fetchWithinLimits } = await import("./http-response.js");
+    const response = await fetchWithinLimits({
+      provider: "test",
+      fetchImpl: (async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return new Response('{"ok":true}', { status: 200 });
+      }) as typeof fetch,
+      url: "https://api.example.test/v1/ping",
+      init: { method: "GET" },
+      limits: { requestTimeoutMs: 2 ** 31, maxResponseBytes: 1024 }
+    });
+    expect(response.status).toBe(200);
+  });
+});

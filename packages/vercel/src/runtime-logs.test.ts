@@ -224,3 +224,26 @@ describe("runtime log reader lock", () => {
     expect(responses[0]?.body?.locked).toBe(true);
   });
 });
+
+describe("runtime log deadline longer than a timer can wait", () => {
+  it("does not stop after 1 ms when bounds.deadlineMs is 2^31 ms or more", async () => {
+    // Node fires a setTimeout longer than 2^31 - 1 ms after 1 ms.
+    const client = new VercelClient({
+      token: "test-token",
+      fetch: async () =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            async start(controller) {
+              await new Promise((resolve) => setTimeout(resolve, 30));
+              controller.enqueue(encoder.encode(line({ rowId: "a", message: "late" })));
+              controller.close();
+            }
+          }),
+          { status: 200 }
+        )
+    });
+    const read = await client.readRuntimeLogs({ projectId: "prj", deploymentId: "dpl", bounds: { deadlineMs: 2 ** 31 } });
+    expect(read.logs.map((log) => log.rowId)).toEqual(["a"]);
+    expect(read.truncation.truncated).toBe(false);
+  });
+});

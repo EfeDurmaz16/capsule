@@ -64,14 +64,20 @@ export interface BoundedFetchInput {
   limits: HttpLimits;
 }
 
+// Node fires a setTimeout longer than 2^31 - 1 ms after 1 ms; a longer wait uses the largest delay.
+const maxTimerDelayMs = 2_147_483_647;
+
 export async function fetchWithinLimits(input: BoundedFetchInput): Promise<BoundedHttpResponse> {
   const method = (input.init.method ?? "GET").toUpperCase();
   const controller = new AbortController();
   let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    controller.abort(new Error(`${input.provider} API request deadline of ${input.limits.requestTimeoutMs}ms expired.`));
-  }, input.limits.requestTimeoutMs);
+  const timer = setTimeout(
+    () => {
+      timedOut = true;
+      controller.abort(new Error(`${input.provider} API request deadline of ${input.limits.requestTimeoutMs}ms expired.`));
+    },
+    Math.min(input.limits.requestTimeoutMs, maxTimerDelayMs)
+  );
   try {
     const response = await untilAborted(input.fetchImpl(input.url, { ...input.init, signal: controller.signal }), controller.signal);
     const declared = Number(response.headers.get("content-length"));

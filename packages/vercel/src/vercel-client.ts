@@ -194,10 +194,14 @@ export class VercelClient {
     });
     const controller = new AbortController();
     let deadlineHit = false;
-    const timer = setTimeout(() => {
-      deadlineHit = true;
-      controller.abort(new Error(`Vercel runtime log read deadline of ${bounds.deadlineMs}ms expired.`));
-    }, bounds.deadlineMs);
+    const timer = setTimeout(
+      () => {
+        deadlineHit = true;
+        controller.abort(new Error(`Vercel runtime log read deadline of ${bounds.deadlineMs}ms expired.`));
+        // Node fires a setTimeout longer than 2^31 - 1 ms after 1 ms; a longer deadline uses the largest delay.
+      },
+      Math.min(bounds.deadlineMs, 2_147_483_647)
+    );
     const logs: VercelRuntimeLog[] = [];
     let capturedBytes = 0;
     let malformedRecords = 0;

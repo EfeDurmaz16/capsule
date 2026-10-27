@@ -160,6 +160,19 @@ describe("observeUntilTerminal", () => {
     expect(calls).toBe(3);
   });
 
+  it("waits through a deadline of 2^31 ms or more instead of expiring after 1 ms", async () => {
+    // Node fires a setTimeout longer than 2^31 - 1 ms after 1 ms.
+    let calls = 0;
+    const value = await observeUntilTerminal(
+      async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return ++calls < 2 ? { done: false, state: "Deleting" } : { done: true, value: "deleted" as const };
+      },
+      { operation: "service.delete", resource: locator, deadlineMs: 2 ** 31, intervalMs: 5 }
+    );
+    expect(value).toBe("deleted");
+  });
+
   it("throws PendingOperationError with the last state when the deadline expires, never a terminal value", async () => {
     vi.useFakeTimers();
     const outcome = observeUntilTerminal(async () => ({ done: false, state: "Deleting" }), {
