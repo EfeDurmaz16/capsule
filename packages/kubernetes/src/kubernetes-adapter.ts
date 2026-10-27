@@ -449,8 +449,10 @@ function containers(pod: KubernetesObject): string[] {
   });
 }
 
-function literalEnv(pods: KubernetesObject[]): Record<string, string> {
-  const values: Record<string, string> = {};
+// Every literal env value on every selected container, not one value per name: during a rollout two
+// pods can carry different values for the same variable and both must be redacted.
+function literalEnvValues(pods: KubernetesObject[]): Set<string> {
+  const values = new Set<string>();
   for (const pod of pods) {
     const podContainers = record(pod.spec)?.containers;
     if (!Array.isArray(podContainers)) continue;
@@ -459,8 +461,8 @@ function literalEnv(pods: KubernetesObject[]): Record<string, string> {
       if (!Array.isArray(envVars)) continue;
       for (const envVar of envVars) {
         const item = record(envVar);
-        if (typeof item?.name === "string" && typeof item.value === "string") {
-          values[item.name] = item.value;
+        if (typeof item?.name === "string" && typeof item.value === "string" && item.value.length > 0) {
+          values.add(item.value);
         }
       }
     }
@@ -519,9 +521,10 @@ function limitLogs(logs: LogEntry[], limit: number | undefined): LogEntry[] {
   return logs.slice(-limit);
 }
 
-function redactLiteralEnvValues(logs: LogEntry[], env: Record<string, string>, context: AdapterContext): LogEntry[] {
+function redactLiteralEnvValues(logs: LogEntry[], values: Set<string>, context: AdapterContext): LogEntry[] {
   if (!context.policy.secrets?.redactFromLogs) return logs;
-  const secrets = Object.values(env).filter(Boolean);
+  // Longest first so a value that contains another value is replaced whole.
+  const secrets = [...values].sort((left, right) => right.length - left.length);
   if (secrets.length === 0) return logs;
   return logs.map((entry) => ({
     ...entry,
@@ -578,8 +581,8 @@ async function collectPodLogs(
       logs.push(...parseKubernetesLog(text, "stdout", fallbackTimestamp, podName));
     }
   }
-  const redactionEnv = literalEnv(pods);
-  const redactedLogs = redactLiteralEnvValues(filterUntil(logs, input.until), redactionEnv, input.context);
+  const redactionValues = literalEnvValues(pods);
+  const redactedLogs = redactLiteralEnvValues(filterUntil(logs, input.until), redactionValues, input.context);
   return {
     logs: limitLogs(redactedLogs, input.limit),
     nextCursor,
@@ -588,7 +591,7 @@ async function collectPodLogs(
       selector: input.selector,
       selectorSource: input.selectorSource,
       podNames: pods.map((pod) => pod.metadata?.name).filter(Boolean),
-      redactedFromPodEnv: Object.keys(redactionEnv).length > 0
+      redactedFromPodEnv: redactionValues.size > 0
     }
   };
 }

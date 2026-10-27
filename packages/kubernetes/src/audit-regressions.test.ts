@@ -26,7 +26,7 @@ function logsCapsule(pods: Pod[], logFor: (name: string) => string) {
 }
 
 describe("M1 audit regressions: kubernetes", () => {
-  it.fails("SVC-01: literal secrets from every selected pod are redacted, not only the last value per key", async () => {
+  it("SVC-01: literal secrets from every selected pod are redacted, not only the last value per key", async () => {
     const capsule = logsCapsule([pod("old", "synthetic-old-credential"), pod("new", "synthetic-new-credential")], (name) =>
       name === "old" ? "2026-10-25T00:00:00Z token=synthetic-old-credential" : "2026-10-25T00:00:01Z token=synthetic-new-credential"
     );
