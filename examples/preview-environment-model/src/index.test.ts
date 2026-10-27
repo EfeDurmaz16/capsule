@@ -1,5 +1,9 @@
-import { describe, expect, test } from "vitest";
-import { buildRuntimeConfig, summarizeReceipt } from "./index.js";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, test, vi } from "vitest";
+import { PreviewCreationError } from "@capsule-sdk/preview";
+import { buildRuntimeConfig, createAndCleanUpPreview, summarizeReceipt } from "./index.js";
 import type { CapsuleReceipt } from "@capsule-sdk/core";
 
 describe("preview environment example runtime config", () => {
@@ -81,5 +85,43 @@ describe("preview environment example runtime config", () => {
       supportLevel: "native",
       resource: { id: "branch-1", status: "deleted" }
     });
+  });
+});
+
+describe("preview environment example cleanup (DOC-01)", () => {
+  test("cleans up every created resource it can and reports the unsupported edge", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "capsule-preview-example-"));
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      const { plan } = buildRuntimeConfig({ CAPSULE_EXAMPLE_RECEIPTS_PATH: join(dir, "receipts.jsonl") });
+      const cleanup = await createAndCleanUpPreview(plan);
+      const byKind = Object.fromEntries(cleanup.dispositions.map((entry) => [entry.resource.kind, entry.disposition]));
+      expect(byKind.database).toBe("cleaned");
+      expect(byKind.edge).toBe("unsupported");
+      expect(cleanup.failed).toHaveLength(0);
+    } finally {
+      vi.restoreAllMocks();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("a part-way creation failure cleans up the resources created so far, then rethrows", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "capsule-preview-example-"));
+    const lines: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((line: unknown) => void lines.push(String(line)));
+    try {
+      const { plan } = buildRuntimeConfig({ CAPSULE_EXAMPLE_RECEIPTS_PATH: join(dir, "receipts.jsonl") });
+      const deleteBranch = vi.spyOn(plan.databases![0]!.capsule.database.branch, "delete");
+      vi.spyOn(plan.edges![0]!.capsule.edge, "deploy").mockRejectedValue(new Error("edge provider unavailable"));
+
+      const error = await createAndCleanUpPreview(plan).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(PreviewCreationError);
+      expect((error as PreviewCreationError).resources.map((resource) => resource.kind)).toEqual(["database"]);
+      expect(deleteBranch).toHaveBeenCalledTimes(1);
+      expect(lines.join("\n")).toMatch(/"disposition": "cleaned"/);
+    } finally {
+      vi.restoreAllMocks();
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
