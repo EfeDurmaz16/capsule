@@ -1,13 +1,18 @@
-import { Sandbox as E2BSandbox } from "e2b";
+import { CommandExitError, Sandbox as E2BSandbox } from "e2b";
 import {
   AdapterExecutionError,
   CleanupFailureError,
+  ProviderAuthError,
+  ProviderRateLimitError,
+  ProviderValidationError,
+  UnknownOutcomeError,
   asProviderError,
   callProvider,
   capsuleOperationTags,
   logsFromOutput,
   providerRuntimeMetadata,
   redactSecrets,
+  resourceLocator,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
@@ -70,7 +75,7 @@ export interface E2BAdapterOptions {
 }
 
 interface E2BSandboxCleanupMetadata {
-  action: "kill-created-sandbox" | "kill-sandbox-after-exec-error";
+  action: "kill-created-sandbox";
   sandboxId: string;
   status: "killed" | "failed";
   error?: string;
@@ -208,6 +213,32 @@ function toFileType(type: E2BEntryInfo["type"]): FileEntry["type"] {
   return "unknown";
 }
 
+function commandExitResult(error: unknown): E2BCommandResult | undefined {
+  const exit =
+    error instanceof CommandExitError
+      ? error
+      : error instanceof Error && error.name === "CommandExitError" && typeof (error as Partial<CommandExitError>).exitCode === "number"
+        ? (error as CommandExitError)
+        : undefined;
+  if (!exit) return undefined;
+  return { exitCode: exit.exitCode, stdout: exit.stdout ?? "", stderr: exit.stderr ?? "", ...(exit.error ? { error: exit.error } : {}) };
+}
+
+// A refused request (auth, validation, rate limit) never started the command, so the typed provider
+// error is returned as is. Any other failure (timeout, dropped connection, unknown server error) may have
+// happened after the command started, so whether it ran is unknown and it is not safe to retry blindly.
+function execFailure(error: unknown, sandboxId: string): Error {
+  const providerError = asProviderError(error, "E2B command execution failed.");
+  if (providerError instanceof ProviderAuthError || providerError instanceof ProviderValidationError || providerError instanceof ProviderRateLimitError) {
+    return providerError;
+  }
+  return new UnknownOutcomeError(
+    `E2B command outcome is unknown: ${providerError.message}`,
+    { operation: "sandbox.exec", resource: resourceLocator({ provider, kind: "sandbox", nativeId: sandboxId }) },
+    providerError
+  );
+}
+
 async function killSandboxAfterFailure(sandbox: E2BSandboxInstance, action: E2BSandboxCleanupMetadata["action"], operationError: unknown): Promise<never> {
   const cleanup: E2BSandboxCleanupMetadata = {
     action,
@@ -252,7 +283,12 @@ class E2BCapsuleSandbox implements Sandbox {
         background: false
       });
     } catch (error) {
-      return await killSandboxAfterFailure(this.sandbox, "kill-sandbox-after-exec-error", asProviderError(error, "E2B command execution failed."));
+      // The installed SDK reports an ordinary nonzero exit by throwing CommandExitError from
+      // CommandHandle.wait(). That is a completed command, not a provider failure: keep its output and
+      // the sandbox. Any other error is a provider or transport failure and never destroys the sandbox.
+      const exit = commandExitResult(error);
+      if (!exit) throw execFailure(error, this.handle.id);
+      result = exit;
     }
     const stdout = redactSecrets(result.stdout, spec.env, this.context.policy);
     const stderr = redactSecrets(result.stderr, spec.env, this.context.policy);

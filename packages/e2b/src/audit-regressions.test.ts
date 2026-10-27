@@ -25,7 +25,7 @@ function fakeSandbox(run: () => Promise<{ exitCode: number; stdout: string; stde
 }
 
 describe("M1 audit regressions: e2b", () => {
-  it.fails("SB-01: the installed SDK CommandExitError is a normal nonzero ExecResult and keeps the sandbox", async () => {
+  it("SB-01: the installed SDK CommandExitError is a normal nonzero ExecResult and keeps the sandbox", async () => {
     const commandError = new CommandExitError({ exitCode: 7, stdout: "partial output", stderr: "ordinary test failure", error: "exit status 7" });
     const fake = fakeSandbox(async () => {
       throw commandError;

@@ -6,8 +6,10 @@ import {
   MemoryReceiptStore,
   ProviderAuthError,
   ProviderRateLimitError,
+  UnknownOutcomeError,
   runAdapterContract
 } from "@capsule-sdk/core";
+import { CommandExitError } from "e2b";
 import { e2b, e2bCapabilities } from "./e2b-adapter.js";
 
 function failingE2B(error: Error) {
@@ -192,7 +194,7 @@ describe("e2b adapter", () => {
     expect(allocated.killed).toBe(true);
   });
 
-  it("kills E2B sandboxes when command execution throws before a receipt", async () => {
+  it("keeps the sandbox and reports an unknown outcome when command transport fails", async () => {
     const allocated = resetFakeSandbox();
     allocated.commandError = new Error("e2b exec failed");
     const store = new MemoryReceiptStore();
@@ -210,45 +212,38 @@ describe("e2b adapter", () => {
       thrown = error;
     }
 
-    expect(thrown).toBeInstanceOf(Error);
-    expect((thrown as Error).message).toBe("e2b exec failed");
-    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
-      action: "kill-sandbox-after-exec-error",
-      sandboxId: "e2b_fake_123",
-      status: "killed"
-    });
-    expect(allocated.killed).toBe(true);
+    expect(thrown).toBeInstanceOf(UnknownOutcomeError);
+    expect((thrown as UnknownOutcomeError).retrySafe).toBe(false);
+    expect((thrown as UnknownOutcomeError).operation).toBe("sandbox.exec");
+    expect((thrown as UnknownOutcomeError).resource).toMatchObject({ provider: "e2b", kind: "sandbox", nativeId: "e2b_fake_123" });
+    expect((thrown as Error).message).toContain("e2b exec failed");
+    expect(((thrown as UnknownOutcomeError).cause as Error).message).toBe("e2b exec failed");
+    expect(allocated.killed).toBe(false);
     expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
   });
 
-  it("wraps the original E2B exec error when cleanup kill fails", async () => {
+  it("returns a refused exec as a typed provider error and keeps the sandbox", async () => {
     const allocated = resetFakeSandbox();
-    allocated.commandError = new Error("e2b exec failed");
-    allocated.killError = new Error("e2b kill failed");
-    const capsule = new Capsule({
-      adapter: e2b({ sandboxClass: FakeE2BSandbox }),
-      receipts: true
-    });
+    allocated.commandError = Object.assign(new Error("unauthorized"), { status: 401 });
+    const capsule = new Capsule({ adapter: e2b({ sandboxClass: FakeE2BSandbox }) });
     const sandbox = await capsule.sandbox.create({});
 
-    let thrown: unknown;
-    try {
-      await sandbox.exec({ command: "echo cleanup-fails" });
-    } catch (error) {
-      thrown = error;
-    }
-
-    expect(thrown).toBeInstanceOf(CleanupFailureError);
-    expect((thrown as Error).message).toBe("E2B sandbox cleanup failed after sandbox allocation.");
-    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
-      action: "kill-sandbox-after-exec-error",
-      sandboxId: "e2b_fake_123",
-      status: "failed",
-      error: "e2b kill failed"
-    });
-    expect((thrown as CleanupFailureError).cause).toMatchObject({
-      operationError: expect.objectContaining({ message: "e2b exec failed" })
-    });
+    await expect(sandbox.exec({ command: "echo refused" })).rejects.toBeInstanceOf(ProviderAuthError);
     expect(allocated.killed).toBe(false);
+  });
+
+  it("maps a real CommandExitError from the installed SDK to a nonzero result with output and a receipt", async () => {
+    const allocated = resetFakeSandbox();
+    allocated.commandError = new CommandExitError({ exitCode: 2, stdout: "out", stderr: "err", error: "exit status 2" });
+    const store = new MemoryReceiptStore();
+    const capsule = new Capsule({ adapter: e2b({ sandboxClass: FakeE2BSandbox }), receipts: true, receiptStore: store });
+    const sandbox = await capsule.sandbox.create({});
+
+    const result = await sandbox.exec({ command: "npm test" });
+
+    expect(result).toMatchObject({ exitCode: 2, stdout: "out", stderr: "err" });
+    expect(result.receipt).toMatchObject({ type: "sandbox.exec", exitCode: 2, metadata: expect.objectContaining({ error: "exit status 2" }) });
+    expect(allocated.killed).toBe(false);
+    expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create", "sandbox.exec"]);
   });
 });
