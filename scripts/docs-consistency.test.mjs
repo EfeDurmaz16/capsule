@@ -153,3 +153,11 @@ test("DOC-07: golden live receipt samples use declared capability paths and stay
     assert.equal(sample.supportLevel, declared, `${sample.id}: support level differs from the adapter declaration`);
   }
 });
+
+test("DOC-08: the documented typecheck command is the one package.json runs", () => {
+  const typecheck = JSON.parse(read("package.json")).scripts.typecheck;
+  assert.equal(typecheck, "tsc -p tsconfig.typecheck.json --noEmit");
+  const decisions = read("docs/technical-decisions.md");
+  assert.ok(decisions.includes(`\`${typecheck}\``), "technical-decisions.md must name the actual typecheck command");
+  assert.doesNotMatch(decisions, /`tsc -b`/);
+});
