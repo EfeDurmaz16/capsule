@@ -205,3 +205,22 @@ describe("vercel edge.logs runtime constraints", () => {
     expect(state.cancelled).toBe(true);
   });
 });
+
+describe("runtime log reader lock", () => {
+  it("leaves the read body locked instead of releasing the reader", async () => {
+    // releaseLock in Node builds an "invalid state" error whose first use creates a vm context (about 1 ms
+    // per process), which made the first runtime log read slower than at 7d3a28a.
+    const responses: Response[] = [];
+    const client = new VercelClient({
+      token: "test-token",
+      fetch: async () => {
+        const response = new Response(`${line({ id: "a", message: "one" })}${line({ id: "b", message: "two" })}`, { status: 200 });
+        responses.push(response);
+        return response;
+      }
+    });
+    const read = await client.readRuntimeLogs({ projectId: "prj", deploymentId: "dpl" });
+    expect(read.logs.map((log) => log.id)).toEqual(["a", "b"]);
+    expect(responses[0]?.body?.locked).toBe(true);
+  });
+});

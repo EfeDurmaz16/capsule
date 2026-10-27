@@ -116,3 +116,17 @@ describe("fly client HTTP bounds", () => {
     expect(() => new FlyClient({ apiToken: "fake", maxResponseBytes: 1.5 })).toThrow(RangeError);
   });
 });
+
+describe("readCapped reader lock", () => {
+  it("leaves the finished body locked instead of releasing the reader", async () => {
+    // releaseLock in Node builds an "invalid state" error whose first use creates a vm context (about 1 ms
+    // per process); a body that is closed, cancelled or errored has no other reader to release it for.
+    const { readCapped } = await import("./http-response.js");
+    const finished = new Response("complete body");
+    await expect(readCapped(finished, 1024, new AbortController().signal)).resolves.toEqual({ text: "complete body", bytes: 13, overflowed: false });
+    expect(finished.body?.locked).toBe(true);
+    const capped = new Response("0123456789");
+    await expect(readCapped(capped, 4, new AbortController().signal)).resolves.toEqual({ text: "0123", bytes: 4, overflowed: true });
+    expect(capped.body?.locked).toBe(true);
+  });
+});

@@ -297,7 +297,9 @@ export class VercelClient {
         } finally {
           controller.signal.removeEventListener("abort", onAbort);
           if (stopped || providerLimit) await reader.cancel().catch(() => undefined);
-          reader.releaseLock();
+          // No releaseLock: the body is closed, cancelled or errored here and nothing reads it again. In
+          // Node, releaseLock builds an "invalid state" error whose first use creates a vm context (about
+          // 1 ms per process), which made the first runtime log read slower than at 7d3a28a.
         }
       } else if (deadlineHit) {
         stopped = { reason: "deadline", limit: bounds.deadlineMs };

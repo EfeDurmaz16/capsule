@@ -289,6 +289,14 @@ describe("capture bounds", () => {
     expect(pulls).toBeLessThan(10);
   });
 
+  it("readBoundedText leaves the finished body locked instead of releasing the reader", async () => {
+    // releaseLock in Node builds an "invalid state" error whose first use creates a vm context (about 1 ms
+    // per process); a body that is closed or cancelled has no other reader to release it for.
+    const response = new Response("complete body");
+    await expect(readBoundedText(response, 1024)).resolves.toMatchObject({ text: "complete body", truncation: { truncated: false } });
+    expect(response.body?.locked).toBe(true);
+  });
+
   it("maps with bounded concurrency, keeps input order and stops scheduling after a failure", async () => {
     let inFlight = 0;
     let peak = 0;

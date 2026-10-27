@@ -179,7 +179,9 @@ export async function readCapped(response: Response, maxBytes: number, signal: A
     }
   } finally {
     signal.removeEventListener("abort", onAbort);
-    reader.releaseLock();
+    // No releaseLock: the body is closed, cancelled or errored here and nothing reads it again. In Node,
+    // releaseLock builds an "invalid state" error whose first use creates a vm context (about 1 ms per
+    // process), which made the first request slower than response.text() at 7d3a28a.
   }
   return { text: text + decoder.decode(), bytes, overflowed };
 }
