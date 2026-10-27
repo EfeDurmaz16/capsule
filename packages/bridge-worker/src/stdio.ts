@@ -67,6 +67,8 @@ export function runStdioWorker(driver: BridgeDriver, config: WorkerConfig): Work
         exiting = true;
         stdin.pause();
         stdout.end(() => process.exit(code));
+        // If the reader of stdout has gone away, the flush never completes; exit anyway.
+        setTimeout(() => process.exit(code), 5_000).unref();
       },
       stopInput: () => {
         stdin.pause();
