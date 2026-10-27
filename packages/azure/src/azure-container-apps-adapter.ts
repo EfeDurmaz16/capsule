@@ -83,7 +83,7 @@ export const azureContainerAppsCapabilities: CapabilityMap = {
     url: "native",
     scale: "native",
     rollback: "unsupported",
-    healthcheck: "experimental",
+    healthcheck: "unsupported",
     secrets: "unsupported"
   }
 };
@@ -132,6 +132,10 @@ function tagsWithOperationTag(
 
 function serviceBody(spec: DeployServiceSpec, options: AzureContainerAppsAdapterOptions) {
   const image = required("service image", spec.image);
+  // The Container App template written below has no probes, so any healthcheck would be dropped.
+  if (spec.healthcheck !== undefined) {
+    throw new AdapterExecutionError("Azure Container Apps service.deploy does not implement healthcheck yet; omit spec.healthcheck.");
+  }
   const port = spec.ports?.[0]?.port;
   return {
     location: required("location", options.location ?? process.env.AZURE_LOCATION),

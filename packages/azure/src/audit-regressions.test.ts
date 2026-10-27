@@ -134,4 +134,23 @@ describe("M1 audit regressions: azure", () => {
       expect(partialEffectsOf(error)).toMatchObject({ outcome: "failed", cleanup: { status: "failed", residual: [{ kind: "job" }] } });
     });
   });
+
+  it("GAP-07: a healthcheck the template cannot express is rejected before any request", async () => {
+    const urls: string[] = [];
+    const capsule = new Capsule({
+      adapter: azureContainerApps({
+        ...scope,
+        location: "westeurope",
+        environmentId: "env",
+        fetch: async (url) => {
+          urls.push(String(url));
+          return new Response(JSON.stringify({ id: "/x", name: "app", properties: { provisioningState: "Succeeded" } }), { status: 200 });
+        }
+      })
+    });
+    expect(capsule.capabilities().service?.healthcheck).toBe("unsupported");
+    await expect(capsule.service.deploy({ name: "app", image: "i", healthcheck: { path: "/healthz" } })).rejects.toThrow(/healthcheck/);
+    await expect(capsule.service.deploy({ name: "app", image: "i", healthcheck: { command: ["true"] } })).rejects.toThrow(/healthcheck/);
+    expect(urls).toEqual([]);
+  });
 });
