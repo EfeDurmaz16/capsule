@@ -38,12 +38,25 @@ describe("M1 audit regressions: kubernetes", () => {
     }
   });
 
-  it.fails("SVC-09: limit selects the globally newest entries regardless of provider pod order", async () => {
+  it("SVC-09: limit selects the globally newest entries regardless of provider pod order", async () => {
     const capsule = logsCapsule([pod("new", "a-value"), pod("old", "b-value")], (name) =>
       name === "new" ? "2026-10-25T10:00:00.000000002Z newest" : "2026-10-24T10:00:00.000000001Z oldest"
     );
     const logs = (await capsule.service.logs({ id: "svc", limit: 1 })).logs;
     expect(logs.map((entry) => entry.message)).toEqual(["newest"]);
+  });
+
+  it("SVC-09: nanosecond timestamps inside one millisecond and equal timestamps order deterministically", async () => {
+    const capsule = logsCapsule([pod("a", "a-value"), pod("b", "b-value"), pod("c", "c-value")], (name) =>
+      name === "a"
+        ? "2026-10-25T10:00:00.000000002Z later-in-same-ms"
+        : name === "b"
+          ? "2026-10-25T10:00:00.000000001Z earlier-in-same-ms"
+          : "2026-10-25T10:00:00.000000001Z tie-from-c"
+    );
+    const logs = (await capsule.service.logs({ id: "svc", limit: 3 })).logs;
+    expect(logs.map((entry) => `${entry.source}:${entry.message}`)).toEqual(["b:earlier-in-same-ms", "c:tie-from-c", "a:later-in-same-ms"]);
+    expect((await capsule.service.logs({ id: "svc", limit: 1 })).logs.map((entry) => entry.message)).toEqual(["later-in-same-ms"]);
   });
 
   it.fails("SVC-06: Deployment and Service cleanup are independent and a retry converges on the Service", async () => {

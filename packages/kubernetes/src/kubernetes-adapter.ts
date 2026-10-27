@@ -500,6 +500,39 @@ function parseKubernetesLog(text: string, stream: LogEntry["stream"], fallbackTi
     });
 }
 
+// Comparable instant with nanosecond precision. Kubernetes log timestamps are RFC3339 with up to nine
+// fractional digits, which Date.parse would round to milliseconds and so misorder close entries.
+function timestampKey(value: string): { seconds: number; nanos: number } | undefined {
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$/.exec(value);
+  if (!match) {
+    const millis = Date.parse(value);
+    return Number.isNaN(millis) ? undefined : { seconds: Math.floor(millis / 1000), nanos: (millis % 1000) * 1_000_000 };
+  }
+  const millis = Date.parse(`${match[1]}${match[3]}`);
+  if (Number.isNaN(millis)) return undefined;
+  return { seconds: millis / 1000, nanos: Number((match[2] ?? "").padEnd(9, "0")) };
+}
+
+// Global oldest-to-newest order across every pod and container, independent of the order the provider
+// listed pods in. Ties fall back to source name and then to the original line order, so the result is
+// deterministic.
+function orderLogs(logs: LogEntry[]): LogEntry[] {
+  const keyed = logs.map((entry, index) => ({ entry, index, key: timestampKey(entry.timestamp) }));
+  keyed.sort((left, right) => {
+    const a = left.key;
+    const b = right.key;
+    if (a && b) {
+      if (a.seconds !== b.seconds) return a.seconds - b.seconds;
+      if (a.nanos !== b.nanos) return a.nanos - b.nanos;
+    } else if (a || b) {
+      return a ? 1 : -1;
+    }
+    const sourceOrder = (left.entry.source ?? "").localeCompare(right.entry.source ?? "");
+    return sourceOrder !== 0 ? sourceOrder : left.index - right.index;
+  });
+  return keyed.map((item) => item.entry);
+}
+
 function filterUntil(logs: LogEntry[], until: string | undefined): LogEntry[] {
   if (!until) return logs;
   const cutoff = parseTimestamp(until);
@@ -582,7 +615,7 @@ async function collectPodLogs(
     }
   }
   const redactionValues = literalEnvValues(pods);
-  const redactedLogs = redactLiteralEnvValues(filterUntil(logs, input.until), redactionValues, input.context);
+  const redactedLogs = redactLiteralEnvValues(orderLogs(filterUntil(logs, input.until)), redactionValues, input.context);
   return {
     logs: limitLogs(redactedLogs, input.limit),
     nextCursor,
