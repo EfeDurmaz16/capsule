@@ -253,7 +253,8 @@ export function neonPreviewBranchPreset(options: NeonPreviewBranchPresetOptions)
     policy: options.ttlMs ? { ttl: { maxMs: options.ttlMs } } : undefined,
     notes: [
       "Targets Neon branching through @capsule-sdk/neon.",
-      "Connection roles, pooling, migrations, endpoint lifecycle, and branch cleanup remain explicit."
+      "Connection roles, pooling, migrations, endpoint lifecycle, and branch cleanup remain explicit.",
+      "ttlMs becomes a policy.ttl.maxMs ceiling and is recorded in receipts. The Neon adapter declares database TTL unsupported, so the branch is not deleted at expiry; schedule cleanup yourself."
     ]
   };
 }
@@ -329,7 +330,8 @@ export function flyVercelNeonPreviewPreset(options: ProviderPreviewPresetOptions
       policy,
       notes: [
         "Composes a common preview shape: Fly-style API service, Vercel web/edge deployment, Neon branch, and optional check jobs.",
-        "This preset does not execute or orchestrate providers; use Capsule adapters and @capsule-sdk/preview to run it with explicit receipts."
+        "This preset does not execute or orchestrate providers; use Capsule adapters and @capsule-sdk/preview to run it with explicit receipts.",
+        "Top-level ttlMs is recorded on the preview spec only. It is not copied into child resource specs, and nothing deletes the preview when it expires."
       ]
     },
     components: {
@@ -397,7 +399,8 @@ function composeEdgeNeonPreview(params: EdgeNeonPreviewParams): ProviderPreviewP
       policy,
       notes: [
         "Composes a common preview shape: an edge web/worker deployment, a Neon branch, and optional check jobs.",
-        "This preset does not execute or orchestrate providers; use Capsule adapters and @capsule-sdk/preview to run it with explicit receipts."
+        "This preset does not execute or orchestrate providers; use Capsule adapters and @capsule-sdk/preview to run it with explicit receipts.",
+        "Top-level ttlMs is recorded on the preview spec only. It is not copied into child resource specs, and nothing deletes the preview when it expires."
       ]
     },
     components: {
@@ -527,7 +530,7 @@ export const presetCatalog: PresetCatalogEntry[] = [
     id: "preview-database-branch",
     name: "previewDatabaseBranchPreset",
     package: "@capsule-sdk/core",
-    description: "Ephemeral database branch spec for previews with an optional TTL policy.",
+    description: "Ephemeral database branch spec for previews with an optional TTL ceiling recorded in policy and receipts (no provider-side expiry).",
     capabilityPaths: ["database.branchCreate", "database.connectionString"]
   },
   {
@@ -576,7 +579,7 @@ export const presetCatalog: PresetCatalogEntry[] = [
     id: "neon-preview-branch",
     name: "neonPreviewBranchPreset",
     package: "@capsule-sdk/presets",
-    description: "Neon branch spec targeting @capsule-sdk/neon with an optional TTL policy.",
+    description: "Neon branch spec targeting @capsule-sdk/neon with an optional TTL ceiling recorded in policy and receipts (no provider-side expiry).",
     capabilityPaths: ["database.branchCreate", "database.connectionString", "database.branchDelete"]
   },
   {

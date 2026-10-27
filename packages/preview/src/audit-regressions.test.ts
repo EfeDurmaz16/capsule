@@ -2,7 +2,7 @@
 // from the M1 manifest and is marked it.fails while the defect is present on the baseline (7d3a28a). The
 // owner who fixes an ID flips its it.fails to it in the same commit. All adapters are in-memory fakes.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Capsule, type CapsuleApprovalGrant, type CleanupApprovalRequest } from "@capsule-sdk/core";
+import { Capsule, UnsupportedCapabilityError, type CapsuleApprovalGrant, type CleanupApprovalRequest } from "@capsule-sdk/core";
 import {
   aggregatePreviewStatus,
   cleanupPreviewEnvironment,
@@ -309,5 +309,42 @@ describe("M1 audit regressions: preview", () => {
     expect(denied.cleanup?.dispositions.map((entry) => entry.disposition)).toEqual(["leaked"]);
     expect(denied.cleanup?.dispositions[0]?.error).toMatch(/approval was not granted/);
     expect(calls).toEqual([]);
+  });
+
+  it("GAP-18: required preview expiry is rejected before any provider call", async () => {
+    let creates = 0;
+    const capsule = new Capsule({
+      adapter: {
+        name: "counting-db",
+        provider: "fake",
+        capabilities: { database: { branchCreate: "native", branchDelete: "native" } } as never,
+        database: {
+          branch: {
+            create: async (spec) => {
+              creates += 1;
+              return { id: "b", provider: "fake", project: spec.project, name: spec.name, status: "ready" };
+            }
+          }
+        }
+      }
+    });
+    const plan = {
+      name: "ttl",
+      ttlMs: 60_000,
+      ttlEnforcement: "required" as const,
+      databases: [{ capsule, spec: { project: "p", name: "db" } }]
+    };
+    await expect(createPreviewGraph(plan)).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(createPreviewEnvironmentWithCleanup(plan)).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    expect(creates).toBe(0);
+  });
+
+  it("GAP-18: a recorded preview TTL is labeled record-only in the create receipt", async () => {
+    const graph = await createPreviewGraph({
+      name: "ttl",
+      ttlMs: 60_000,
+      databases: [{ capsule: fakeDatabase("fake", "p", []), spec: { project: "p", name: "db" } }]
+    });
+    expect(graph.receipts.at(-1)?.metadata?.ttl).toMatchObject({ requestedMs: 60_000, enforcement: "record-only" });
   });
 });

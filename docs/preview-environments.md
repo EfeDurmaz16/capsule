@@ -10,7 +10,7 @@ Typical flow:
 4. Run checks or jobs.
 5. Collect logs and artifacts.
 6. Return URLs.
-7. Enforce TTL, cost, and resource policy.
+7. Apply TTL, cost, and resource policy (see the TTL note below for what is enforced).
 8. Cleanup.
 9. Produce a preview receipt.
 
@@ -42,6 +42,10 @@ The cleanup result also carries an overall `status` derived from those dispositi
 - `cleaned`: every disposition is `cleaned`.
 - `unsupported`: nothing failed, but at least one resource was left behind because its kind has no cleanup action by design (edge, job). This is not a failure.
 - `partial`: at least one disposition is `partial` or `leaked`, meaning a real cleanup failure occurred.
+
+### TTL
+
+`PreviewPlan.ttlMs` is recorded, not enforced. It appears in the dry-run and `preview.create` receipt metadata as `ttl: { requestedMs, enforcement: "record-only" }`. `@capsule-sdk/preview` has no expiry controller or scheduler: nothing deletes the preview when the TTL passes, and the top-level value is not copied into child resource specs. Set `ttlEnforcement: "required"` when a preview must not be created without enforced expiry; creation then fails with `UnsupportedCapabilityError` (`preview.ttl`) before any provider call. A per-resource `ttlMs` (for example on a database branch spec) is checked against `policy.ttl.maxMs` by Capsule core; whether the provider expires the resource depends on the adapter, and the Neon adapter declares database TTL unsupported.
 
 ### Cleanup approval
 

@@ -20,7 +20,7 @@ import type {
   ServiceDeployment
 } from "@capsule-sdk/core";
 import { randomBytes } from "node:crypto";
-import { createReceipt, evaluateCapabilityRequirements } from "@capsule-sdk/core";
+import { createReceipt, evaluateCapabilityRequirements, UnsupportedCapabilityError } from "@capsule-sdk/core";
 
 export type PreviewResourceKind = "database" | "service" | "edge" | "job";
 export type PreviewCleanupDisposition = "cleaned" | "partial" | "unsupported" | "leaked";
@@ -179,6 +179,14 @@ export interface PreviewResourceGroup<TSpec> {
   spec: TSpec;
 }
 
+/**
+ * How a preview TTL is handled. `record-only` (the default) records `ttlMs` in plan and receipt
+ * metadata; nothing deletes the preview when it expires and the value is not copied into child
+ * resource specs. `required` asks for enforced expiry, which this package cannot provide, so creation
+ * is rejected before any provider call.
+ */
+export type PreviewTtlEnforcement = "record-only" | "required";
+
 export interface PreviewPlan {
   name: string;
   /**
@@ -190,6 +198,7 @@ export interface PreviewPlan {
   operationId?: string;
   source?: CreatePreviewSpec["source"];
   ttlMs?: number;
+  ttlEnforcement?: PreviewTtlEnforcement;
   requireRealProviders?: boolean;
   allowMockProviders?: boolean;
   databases?: Array<PreviewResourceGroup<CreateDatabaseBranchSpec>>;
@@ -441,6 +450,7 @@ export function createPreviewDryRunReceiptBundle(plan: PreviewPlan, options: Cre
       dryRun: true,
       source: compiledPlan.source,
       ttlMs: compiledPlan.ttlMs,
+      ...(compiledPlan.ttlMs === undefined ? {} : { ttl: ttlRecord(compiledPlan.ttlMs) }),
       labels: compiledPlan.labels,
       resources: compiledPlan.resources.map((resource) => ({
         order: resource.order,
@@ -528,6 +538,25 @@ function receiptOf(value: { receipt?: CapsuleReceipt } | undefined): CapsuleRece
 function isMockCapsule(capsule: Capsule): boolean {
   const raw = capsule.raw();
   return typeof raw === "object" && raw !== null && "mock" in raw && (raw as { mock?: unknown }).mock === true;
+}
+
+function assertTtlEnforcementSupported(plan: PreviewPlan): void {
+  if (plan.ttlEnforcement === "required") {
+    throw new UnsupportedCapabilityError(
+      "preview.ttl",
+      '@capsule-sdk/preview records ttlMs but has no expiry controller. Use ttlEnforcement "record-only" and schedule cleanup outside Capsule, or rely on a provider-native expiry.'
+    );
+  }
+}
+
+function ttlRecord(ttlMs: number | undefined): Record<string, unknown> | undefined {
+  return ttlMs === undefined
+    ? undefined
+    : {
+        requestedMs: ttlMs,
+        enforcement: "record-only",
+        note: "Recorded only. @capsule-sdk/preview does not delete the preview at expiry and does not pass ttlMs to child resources."
+      };
 }
 
 function assertRealProviders(plan: PreviewPlan): void {
@@ -755,8 +784,10 @@ function previewCreateReceipt(
   preview: PreviewEnvironment,
   resources: PreviewResourceRecord[],
   cleanupPlan: PreviewCleanupPlan,
-  startedAt: Date
+  startedAt: Date,
+  ttlMs?: number
 ): CapsuleReceipt {
+  const ttl = ttlRecord(ttlMs);
   return createReceipt({
     type: "preview.create",
     provider: "capsule-preview",
@@ -771,6 +802,7 @@ function previewCreateReceipt(
     },
     metadata: {
       ...(cleanupPlan.operationId === undefined ? {} : { operationId: cleanupPlan.operationId }),
+      ...(ttl ? { ttl } : {}),
       resourceCount: resources.length,
       resources: resources.map((resource, index) => ({
         ref: cleanupPlan.resources[index]?.ref,
@@ -1000,6 +1032,7 @@ function resourceReceipts(resources: PreviewResourceRecord[]): CapsuleReceipt[] 
 
 export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrchestrationResult> {
   assertRealProviders(plan);
+  assertTtlEnforcementSupported(plan);
   // Aggregate timing starts before the first provisioning call so the preview.create receipt
   // duration covers the provider work it summarizes.
   const startedAt = new Date();
@@ -1023,7 +1056,7 @@ export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrch
 
   const preview = previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
   const cleanupPlan = createPreviewCleanupPlan(preview, resources, { operationId: plan.operationId });
-  const receipt = previewCreateReceipt(preview, resources, cleanupPlan, startedAt);
+  const receipt = previewCreateReceipt(preview, resources, cleanupPlan, startedAt, plan.ttlMs);
 
   return {
     preview,
@@ -1128,6 +1161,7 @@ export async function createPreviewEnvironmentWithCleanup(
   options: CreatePreviewEnvironmentWithCleanupOptions = {}
 ): Promise<PreviewEnvironment> {
   assertRealProviders(plan);
+  assertTtlEnforcementSupported(plan);
   const id = createPreviewId(plan.name);
   const resources: PreviewResourceRecord[] = [];
 
