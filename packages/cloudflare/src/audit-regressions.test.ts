@@ -23,7 +23,7 @@ function errorText(value: unknown, seen = new Set<unknown>()): string {
 }
 
 describe("M1 audit regressions: cloudflare", () => {
-  it.fails("EDGE-07: implicit rollback to a split deployment requires an explicit target", async () => {
+  it("EDGE-07: implicit rollback to a split deployment requires an explicit target", async () => {
     const posts: unknown[] = [];
     const capsule = new Capsule({
       adapter: cloudflare({
@@ -58,6 +58,58 @@ describe("M1 audit regressions: cloudflare", () => {
     );
     expect(outcome).toBe("rejected");
     expect(posts).toHaveLength(0);
+  });
+
+  it("EDGE-07: a split rollback names the split, and an explicit target still deploys it at 100%", async () => {
+    const posts: Array<{ versions?: unknown }> = [];
+    const adapter = cloudflare({
+      apiToken: "fake",
+      accountId: "acct_audit",
+      fetch: async (_url, init) => {
+        if (init?.method === "GET") {
+          return json({
+            success: true,
+            result: {
+              deployments: [
+                { id: "d_current", versions: [{ version_id: "v_current", percentage: 100 }] },
+                { id: "d_prev", versions: [{ version_id: "v_a", percentage: 10 }, { version_id: "v_b", percentage: 90 }] }
+              ]
+            }
+          });
+        }
+        posts.push(JSON.parse(String(init?.body)));
+        return json({ success: true, result: { id: "d_rollback" } });
+      }
+    });
+    const capsule = new Capsule({ adapter });
+    await expect(capsule.edge.rollback({ deploymentId: "d_current", providerOptions: { scriptName: "audit" } })).rejects.toThrow(
+      /requires targetVersionId because the previous deployment d_prev split traffic across v_a=10%, v_b=90%/
+    );
+    const explicit = await capsule.edge.rollback({ deploymentId: "d_current", targetVersionId: "v_b", providerOptions: { scriptName: "audit" } });
+    expect(explicit.targetVersionId).toBe("v_b");
+    expect(posts).toEqual([expect.objectContaining({ versions: [{ version_id: "v_b", percentage: 100 }] })]);
+  });
+
+  it("EDGE-07: a previous deployment with one version at 100% plus a 0% entry is still unambiguous", async () => {
+    const capsule = new Capsule({
+      adapter: cloudflare({
+        apiToken: "fake",
+        accountId: "acct_audit",
+        fetch: async (_url, init) =>
+          init?.method === "GET"
+            ? json({
+                success: true,
+                result: {
+                  deployments: [
+                    { id: "d_current", versions: [{ version_id: "v_current", percentage: 100 }] },
+                    { id: "d_prev", versions: [{ version_id: "v_prev", percentage: 100 }, { version_id: "v_zero", percentage: 0 }] }
+                  ]
+                }
+              })
+            : json({ success: true, result: { id: "d_rollback" } })
+      })
+    });
+    expect((await capsule.edge.rollback({ deploymentId: "d_current", providerOptions: { scriptName: "audit" } })).targetVersionId).toBe("v_prev");
   });
 
   it.fails("EDGE-06a: a route failure after upload carries Worker/route identities and the cleanup failure", async () => {

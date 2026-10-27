@@ -180,12 +180,23 @@ async function resolveRollbackTargetVersion(client: CloudflareClient, scriptName
     return spec.targetVersionId;
   }
   const deployments = (await client.listWorkerDeployments(scriptName)).deployments ?? [];
+  // Cloudflare lists deployments latest first. Rollback deploys one version at 100%, so it may only infer
+  // the target when the previous deployment served exactly one version at 100%. A traffic split such as
+  // 10/90 is never collapsed into one of its members (EDGE-07).
   const previousDeployment = deployments[1];
-  const previousVersion = previousDeployment?.versions?.find((version) => version.percentage === 100) ?? previousDeployment?.versions?.[0];
-  if (!previousVersion?.version_id) {
-    throw new AdapterExecutionError("Cloudflare edge.rollback requires targetVersionId when the previous Worker deployment cannot be inferred.");
+  const servingVersions = (previousDeployment?.versions ?? []).filter((version) => version.percentage > 0);
+  const onlyVersion = servingVersions.length === 1 && servingVersions[0]?.percentage === 100 ? servingVersions[0] : undefined;
+  if (!onlyVersion?.version_id) {
+    const reason = !previousDeployment
+      ? "there is no previous Worker deployment"
+      : servingVersions.length > 1
+        ? `the previous deployment ${previousDeployment.id ?? ""} split traffic across ${servingVersions
+            .map((version) => `${version.version_id}=${version.percentage}%`)
+            .join(", ")}`
+        : `the previous deployment ${previousDeployment.id ?? ""} has no single version at 100%`;
+    throw new AdapterExecutionError(`Cloudflare edge.rollback requires targetVersionId because ${reason}.`);
   }
-  return previousVersion.version_id;
+  return onlyVersion.version_id;
 }
 
 async function createRoutesWithCleanup(client: CloudflareClient, routes: string[], scriptName: string) {
