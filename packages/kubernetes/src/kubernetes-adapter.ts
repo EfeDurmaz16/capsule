@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import * as k8s from "@kubernetes/client-node";
 import {
   AdapterExecutionError,
@@ -173,14 +174,30 @@ export const kubernetesCapabilities: CapabilityMap = {
   }
 };
 
-function normalizeName(value: string): string {
-  return (
-    value
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 63) || `capsule-${Date.now()}`
-  );
+const dnsLabel = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
+
+// Lowercases, replaces characters Kubernetes does not allow and truncates to 63 characters. Trimming
+// runs after truncation too, so the result never ends with a dash. A name with no usable characters is
+// rejected instead of silently replaced, so callers can always find the resource they named.
+function kubernetesName(value: string, operation: string, options: { rfc1035?: boolean } = {}): string {
+  const name = value
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/^-+/, "")
+    .slice(0, 63)
+    .replace(/-+$/, "");
+  if (!dnsLabel.test(name)) {
+    throw new AdapterExecutionError(`Kubernetes ${operation} name ${JSON.stringify(value)} does not contain a valid Kubernetes name.`);
+  }
+  if (options.rfc1035 && !/^[a-z]/.test(name)) {
+    throw new AdapterExecutionError(`Kubernetes ${operation} name ${JSON.stringify(value)} must start with a letter because Service names are RFC 1035 labels.`);
+  }
+  return name;
+}
+
+// Generated names carry random bits so two runs in the same millisecond never collide.
+function generatedJobName(): string {
+  return `capsule-job-${Date.now().toString(36)}-${randomBytes(4).toString("hex")}`;
 }
 
 function labels(name: string, extra?: Record<string, string>): Record<string, string> {
@@ -840,7 +857,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
       run: async (spec: RunJobSpec, context: AdapterContext): Promise<JobRun> => {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
-        const name = normalizeName(spec.name ?? `capsule-job-${Date.now()}`);
+        const name = spec.name === undefined ? generatedJobName() : kubernetesName(spec.name, "job.run");
         const created = await getClients().batch.createNamespacedJob({ namespace, body: jobBody(name, spec) });
         const receipt = context.receipts
           ? context.createReceipt({
@@ -958,7 +975,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
       deploy: async (spec: DeployServiceSpec, context: AdapterContext): Promise<ServiceDeployment> => {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env });
-        const name = normalizeName(spec.name);
+        const name = kubernetesName(spec.name, "service.deploy", { rfc1035: true });
         // Build and validate both manifests before the first API call.
         const deploymentManifest = deploymentBody(name, namespace, spec);
         const serviceManifest = serviceBody(name, namespace, spec);

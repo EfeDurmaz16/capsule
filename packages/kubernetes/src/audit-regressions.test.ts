@@ -133,4 +133,60 @@ describe("M1 audit regressions: kubernetes", () => {
     await expect(capsule.service.deploy({ name: "app", image: "i", ports: [{ port: 70000 }] })).rejects.toThrow(/between 1 and 65535/);
     expect(deployments).toBe(0);
   });
+
+  describe("GAP-16: names are valid after truncation and generated names do not collide", () => {
+    function namingCapsule() {
+      const jobs: string[] = [];
+      const deployments: string[] = [];
+      const capsule = new Capsule({
+        adapter: kubernetes({
+          clients: {
+            batch: {
+              createNamespacedJob: async ({ body }: { body: { metadata: { name: string } } }) => {
+                jobs.push(body.metadata.name);
+                return {};
+              }
+            } as never,
+            apps: {
+              createNamespacedDeployment: async ({ body }: { body: { metadata: { name: string } } }) => {
+                deployments.push(body.metadata.name);
+                return {};
+              }
+            } as never,
+            core: { createNamespacedService: async () => ({}) } as never
+          }
+        })
+      });
+      return { capsule, jobs, deployments };
+    }
+
+    it("never ends a truncated name with a dash", async () => {
+      const { capsule, jobs } = namingCapsule();
+      await capsule.job.run({ name: `${"a".repeat(62)}-b`, image: "i" });
+      expect(jobs[0]).toBe("a".repeat(62));
+    });
+
+    it("rejects a name with no valid characters, and a Service name that starts with a digit, before any request", async () => {
+      const { capsule, jobs, deployments } = namingCapsule();
+      await expect(capsule.job.run({ name: "!!!", image: "i" })).rejects.toThrow(/valid Kubernetes name/);
+      await expect(capsule.service.deploy({ name: "___", image: "i" })).rejects.toThrow(/valid Kubernetes name/);
+      await expect(capsule.service.deploy({ name: "1api", image: "i" })).rejects.toThrow(/must start with a letter/);
+      expect(jobs).toEqual([]);
+      expect(deployments).toEqual([]);
+    });
+
+    it("generates distinct job names within the same millisecond", async () => {
+      const { capsule, jobs } = namingCapsule();
+      const now = Date.now;
+      Date.now = () => 1_800_000_000_000;
+      try {
+        await capsule.job.run({ image: "i" });
+        await capsule.job.run({ image: "i" });
+      } finally {
+        Date.now = now;
+      }
+      expect(jobs[0]).toMatch(/^capsule-job-[a-z0-9]+-[0-9a-f]{8}$/);
+      expect(jobs[0]).not.toBe(jobs[1]);
+    });
+  });
 });
