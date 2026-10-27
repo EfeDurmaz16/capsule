@@ -4,17 +4,17 @@ Host: darwin 25.6.0 arm64, Apple M5 Pro, 18 cpus, 48 GiB. The host ran other wor
 
 ## Bridge worker (fixture profile)
 
-`node benchmarks/run.mjs --label bridge-m3-node22 --only perf-12-bridge-worker` with the built worker, three repetitions per case, every repetition kept under `raw/`. The fixture provider is in memory, so a round trip is framing, the worker and the Capsule facade, not a provider.
+`node benchmarks/run.mjs --label bridge-m3-node22 --only m3-bridge-worker` with the built worker, three repetitions per case, every repetition kept under `raw/`. The fixture provider is in memory, so a round trip is framing, the worker and the Capsule facade, not a provider.
 
 | Metric (median of repetitions)                     | Node 22.23.2     | Node 24.19.0     |
 | -------------------------------------------------- | ---------------- | ---------------- |
-| spawn to decoded hello_ack, p50 of 20 fresh spawns | 35.1 ms          | 30.5 ms          |
-| worker peak RSS after hello_ack                    | 47.4 MiB         | 53.8 MiB         |
-| exec round trip p50 / p95, 500 sequential          | 0.077 / 0.175 ms | 0.066 / 0.211 ms |
-| create round trip p50, 100                         | 0.073 ms         | 0.038 ms         |
-| destroy round trip p50, 100                        | 0.074 ms         | 0.036 ms         |
-| policy refusal round trip p50, 100                 | 0.055 ms         | 0.030 ms         |
-| worker peak RSS after 800 requests                 | 63.2 MiB         | 76.4 MiB         |
+| spawn to decoded hello_ack, p50 of 20 fresh spawns | 29.8 ms          | 31.3 ms          |
+| worker peak RSS after hello_ack                    | 47.2 MiB         | 53.8 MiB         |
+| exec round trip p50 / p95, 500 sequential          | 0.081 / 0.179 ms | 0.071 / 0.167 ms |
+| create round trip p50, 100                         | 0.073 ms         | 0.047 ms         |
+| destroy round trip p50, 100                        | 0.067 ms         | 0.044 ms         |
+| policy refusal round trip p50, 100                 | 0.051 ms         | 0.034 ms         |
+| worker peak RSS after 800 requests                 | 62.9 MiB         | 76.8 MiB         |
 
 Before the shared operation context fix in `@capsule-sdk/core` (commit 575c614), the same exec round trip measured 0.44 ms p50 on Node 22 at 500 requests and grew to 2.7 ms per request by 2500 requests, because each per-request Capsule left an AsyncLocalStorage that every later async resource visited. After the fix, 8000 sequential requests run at about 0.04 ms each in process, with heap after GC at 10.8 MiB.
 

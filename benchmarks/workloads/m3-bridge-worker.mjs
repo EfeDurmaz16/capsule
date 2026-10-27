@@ -1,4 +1,4 @@
-// PERF-12 (M3 bridge): capsule-bridge-worker spawn latency and request round trips on the fixture
+// M3 bridge: capsule-bridge-worker spawn latency and request round trips on the fixture
 // profile. LOCAL: spawns the built worker (packages/bridge-worker/dist/bin.js) and talks to it over
 // its pipes with the independent client in scripts/bridge-worker-client.mjs. The fixture provider is
 // in memory, so the numbers are worker plus framing plus Capsule facade cost, not provider latency.
@@ -117,8 +117,8 @@ async function roundTrips(params, spawnOne) {
 }
 
 export const workload = {
-  id: "perf-12-bridge-worker",
-  perfIds: ["PERF-12"],
+  id: "m3-bridge-worker",
+  perfIds: [],
   manifestIds: ["M3-BRIDGE"],
   description: "Bridge worker on the fixture profile: spawn to hello_ack and sequential request round trips over real pipes.",
   reps: 3,
