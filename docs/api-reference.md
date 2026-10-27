@@ -18,7 +18,9 @@ Exports:
 - `CodeExecutionFile` (interface)
 - `CodeExecutionInput` (interface)
 - `codeExecutionInputJsonSchema` (const)
+- `codeExecutionInputStrictJsonSchema` (const)
 - `CodeExecutionResult` (interface)
+- `CodeExecutionStrictInput` (interface)
 - `CodeExecutionTool` (interface)
 - `CodeExecutionToolOptions` (interface)
 - `createCodeExecutionTool` (function)
@@ -35,6 +37,7 @@ Exports:
 - `OpenAIAgentsToolDescriptor` (interface)
 - `OpenAIResponsesFunctionTool` (interface)
 - `OpenAIResponsesToolDescriptor` (interface)
+- `toOpenAIStrictJsonSchema` (function)
 - `VercelAiSdkToolDescriptor` (interface)
 
 ## @capsule-sdk/azure
@@ -677,6 +680,8 @@ Exports:
 - Source: `packages/store-jsonl/src/index.ts`
 
 Exports:
+- `DEFAULT_MAX_JSONL_LINE_BYTES` (const)
+- `JsonlReadOptions` (interface)
 - `jsonlReceiptStore` (function)
 - `JsonlReceiptStore` (class)
 - `JsonlReceiptStoreOptions` (interface)
