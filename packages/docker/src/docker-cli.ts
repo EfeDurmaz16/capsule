@@ -38,6 +38,11 @@ export interface RunDockerOptions {
    * discarded so the process never blocks on a full pipe, and the result carries `truncation`.
    */
   outputBounds?: DockerOutputBounds;
+  /**
+   * Aborting kills the local docker CLI with SIGKILL and rejects with the signal's AbortError. Like a
+   * timeout, this stops only the client: a container or an exec'd process keeps running in the daemon.
+   */
+  signal?: AbortSignal;
 }
 
 class StreamCapture {
@@ -76,7 +81,10 @@ class StreamCapture {
 
 export function runDocker(args: string[], options: RunDockerOptions = {}): Promise<DockerCommandResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn("docker", args, { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn("docker", args, {
+      stdio: ["pipe", "pipe", "pipe"],
+      ...(options.signal ? { signal: options.signal, killSignal: "SIGKILL" as const } : {})
+    });
     const stdout = new StreamCapture(options.outputBounds?.stdout);
     const stderr = new StreamCapture(options.outputBounds?.stderr);
     let settled = false;

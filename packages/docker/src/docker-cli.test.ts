@@ -1,6 +1,6 @@
 // Exercises the real runDocker child-process plumbing against a fake `docker` executable placed first
 // on PATH. No Docker daemon is used.
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -41,6 +41,30 @@ describe.skipIf(process.platform === "win32")("runDocker", () => {
     const result = await runDocker(["run", "image"], { timeoutMs: 100 });
     expect(result).toMatchObject({ exitCode: 124, timedOut: true });
     expect(Date.now() - started).toBeLessThan(4_000);
+  });
+
+  it("an abort kills the local CLI at once and rejects with the abort reason", async () => {
+    fakeDocker('echo $$ > "$0.pid"; exec sleep 30');
+    const controller = new AbortController();
+    const started = Date.now();
+    const running = runDocker(["exec", "c", "sleep", "30"], { timeoutMs: 60_000, signal: controller.signal });
+    for (let tries = 0; tries < 200 && !existsSync(join(binDir, "docker.pid")); tries += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+    const pid = Number(readFileSync(join(binDir, "docker.pid"), "utf8"));
+    controller.abort();
+    await expect(running).rejects.toMatchObject({ name: "AbortError" });
+    // The rejection comes as the kill is sent; give the process a moment to be reaped.
+    const alive = () => {
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    for (let tries = 0; tries < 200 && alive(); tries += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(alive()).toBe(false);
+    expect(Date.now() - started).toBeLessThan(4_000);
+    rmSync(join(binDir, "docker.pid"), { force: true });
   });
 
   it("GAP-01: a command that exits 124 by itself is not a timeout", async () => {
