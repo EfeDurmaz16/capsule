@@ -184,9 +184,9 @@ async function collect(iterable: AsyncIterable<unknown>): Promise<unknown[]> {
 }
 
 describe("PERF-11: incremental reader with a bounded line size", () => {
-  // Lines longer than the 1 MiB read chunk, multi-byte characters across chunk edges, CRLF, blank
+  // Lines longer than a read chunk (2.7 MB each, past the 1 MiB and 4 MiB chunks), multi-byte characters across chunk edges, CRLF, blank
   // lines and a final line without a line break.
-  const big = "\u00e9\u4e2d\ud83d\ude00".repeat(150_000);
+  const big = "\u00e9\u4e2d\ud83d\ude00".repeat(300_000);
   const lines = [
     JSON.stringify({ id: "a", note: "plain" }),
     "",
@@ -209,14 +209,20 @@ describe("PERF-11: incremental reader with a bounded line size", () => {
     });
   });
 
-  test("a multi-byte character cut by the 1 MiB chunk edge decodes as in the whole file", async () => {
-    for (const offset of [1, 2, 3]) {
-      // {"id":"<pad>😀"} with the 4-byte emoji starting `offset` bytes before the chunk edge.
-      const pad = "p".repeat(1024 * 1024 - 7 - offset);
-      const content = `${JSON.stringify({ id: `${pad}\ud83d\ude00` })}\n${JSON.stringify({ id: "\u00e9" })}\n`;
-      await withFile(content, async (path) => {
-        expect(await jsonlReceiptStore(path).readAll()).toEqual(referenceRead(content, path).receipts);
-      });
+  test("a multi-byte character cut by a chunk edge decodes as in the whole file", async () => {
+    // iterate reads 1 MiB chunks, readAll 4 MiB chunks.
+    for (const [edge, read] of [
+      [1024 * 1024, (path: string) => collect(jsonlReceiptStore(path).iterate())],
+      [4 * 1024 * 1024, (path: string) => jsonlReceiptStore(path).readAll()]
+    ] as const) {
+      for (const offset of [1, 2, 3]) {
+        // {"id":"<pad>😀"} with the 4-byte emoji starting `offset` bytes before the chunk edge.
+        const pad = "p".repeat(edge - 7 - offset);
+        const content = `${JSON.stringify({ id: `${pad}\ud83d\ude00` })}\n${JSON.stringify({ id: "\u00e9" })}\n`;
+        await withFile(content, async (path) => {
+          expect(await read(path)).toEqual(referenceRead(content, path).receipts);
+        });
+      }
     }
   });
 
@@ -249,26 +255,34 @@ describe("PERF-11: incremental reader with a bounded line size", () => {
       );
       await expect(jsonlReceiptStore(path).readAll({ maxLineBytes: limit - 1 })).rejects.toThrow(`${path}:2 is longer`);
     });
-    // A line spanning many read chunks is cut off once it passes the limit, not after it is complete.
-    await withFile(`{"id":"${"y".repeat(8 * 1024 * 1024)}"}\n`, async (path) => {
-      const reads: number[] = [];
+    // A line spanning many read chunks is cut off once it passes the limit, not after it is complete:
+    // iterate reads 1 MiB chunks and readAll 4 MiB chunks, against a 16 MiB line and a 1 MiB limit.
+    await withFile(`{"id":"${"y".repeat(16 * 1024 * 1024)}"}\n`, async (path) => {
       const probe = await open(path, "r");
       const proto = Object.getPrototypeOf(probe) as { read: (...args: unknown[]) => Promise<{ bytesRead: number }> };
       await probe.close();
       const original = proto.read;
-      const spy = vi.spyOn(proto, "read").mockImplementation(async function (this: unknown, ...args: unknown[]) {
-        const result = await original.apply(this, args);
-        reads.push(result.bytesRead);
-        return result;
-      });
-      try {
-        await expect(jsonlReceiptStore(path, { maxLineBytes: 1024 * 1024 }).readAll()).rejects.toThrow(`${path}:1 is longer`);
-      } finally {
-        spy.mockRestore();
-      }
-      // At most the limit plus the 1 MiB chunk being read, and one more chunk in flight: not the 8 MiB line.
-      expect(reads.reduce((sum, bytes) => sum + bytes, 0)).toBeLessThanOrEqual(3 * 1024 * 1024);
-      expect(Math.max(...reads)).toBeLessThanOrEqual(1024 * 1024);
+      const readsOf = async (read: () => Promise<unknown>) => {
+        const reads: number[] = [];
+        const spy = vi.spyOn(proto, "read").mockImplementation(async function (this: unknown, ...args: unknown[]) {
+          const result = await original.apply(this, args);
+          reads.push(result.bytesRead);
+          return result;
+        });
+        try {
+          await expect(read()).rejects.toThrow(`${path}:1 is longer`);
+        } finally {
+          spy.mockRestore();
+        }
+        return reads;
+      };
+      const store = jsonlReceiptStore(path, { maxLineBytes: 1024 * 1024 });
+      const iterated = await readsOf(() => collect(store.iterate()));
+      expect(iterated.reduce((sum, bytes) => sum + bytes, 0)).toBeLessThanOrEqual(3 * 1024 * 1024);
+      expect(Math.max(...iterated)).toBeLessThanOrEqual(1024 * 1024);
+      const all = await readsOf(() => store.readAll());
+      expect(all.reduce((sum, bytes) => sum + bytes, 0)).toBeLessThanOrEqual(5 * 1024 * 1024);
+      expect(Math.max(...all)).toBeLessThanOrEqual(4 * 1024 * 1024);
     });
     expect(() => jsonlReceiptStore("unused.jsonl", { maxLineBytes: 0 })).toThrow("maxLineBytes must be a positive integer");
   });

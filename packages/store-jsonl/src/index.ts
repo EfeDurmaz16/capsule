@@ -6,7 +6,11 @@ import type { CapsuleReceipt, ReceiptStore } from "@capsule-sdk/core";
 /** Default largest accepted JSONL line (16 MiB), counted in bytes without the line break. */
 export const DEFAULT_MAX_JSONL_LINE_BYTES = 16 * 1024 * 1024;
 
-const readChunkBytes = 1024 * 1024;
+// iterate reads 1 MiB at a time to keep its own memory small. readAll holds every receipt anyway, so it
+// reads 4 MiB at a time: fewer chunks let the parse loop warm up sooner, which made a first readAll of
+// 50k receipts faster than the whole-file read of 7d3a28a, where 1 MiB chunks were slower (PERF-11).
+const iterateChunkBytes = 1024 * 1024;
+const readAllChunkBytes = 4 * 1024 * 1024;
 
 export interface JsonlReceiptStoreOptions {
   path: string;
@@ -61,7 +65,7 @@ export class JsonlReceiptStore implements ReceiptStore {
    */
   async *iterate(options: JsonlReadOptions = {}): AsyncGenerator<CapsuleReceipt, void, undefined> {
     this.assertOpen();
-    const lines = await JsonlLineReader.open(this.options.path, this.maxLineBytes(options));
+    const lines = await JsonlLineReader.open(this.options.path, this.maxLineBytes(options), iterateChunkBytes);
     if (!lines) return;
     try {
       while (await lines.fill()) {
@@ -79,13 +83,13 @@ export class JsonlReceiptStore implements ReceiptStore {
   }
 
   /**
-   * Reads every receipt into an array, with the same reader, order, errors and line numbers as iterate.
-   * It collects without an asynchronous step per receipt, so it is not slower than reading the whole file.
+   * Reads every receipt into an array, with the same reader, order, errors and line numbers as iterate,
+   * in 4 MiB chunks and without an asynchronous step per receipt.
    */
   async readAll(options: JsonlReadOptions = {}): Promise<CapsuleReceipt[]> {
     this.assertOpen();
     const receipts: CapsuleReceipt[] = [];
-    const lines = await JsonlLineReader.open(this.options.path, this.maxLineBytes(options));
+    const lines = await JsonlLineReader.open(this.options.path, this.maxLineBytes(options), readAllChunkBytes);
     if (!lines) return receipts;
     try {
       while (await lines.fill()) lines.drainInto(receipts);
@@ -135,7 +139,6 @@ export class JsonlReceiptStore implements ReceiptStore {
  * line is carried to the next chunk.
  */
 class JsonlLineReader {
-  private readonly chunk = Buffer.allocUnsafe(readChunkBytes);
   private readonly decoder = new StringDecoder("utf8");
   private text = "";
   private position = 0;
@@ -143,14 +146,20 @@ class JsonlLineReader {
   private pending = "";
   private lineNumber = 0;
 
+  private readonly chunk: Buffer;
+
   private constructor(
     private readonly file: FileHandle,
     private readonly path: string,
     private readonly maxLineBytes: number,
-    private remaining: number
-  ) {}
+    private remaining: number,
+    chunkBytes: number
+  ) {
+    // No larger than the file, so a small store does not allocate a whole chunk.
+    this.chunk = Buffer.allocUnsafe(Math.max(1, Math.min(chunkBytes, remaining)));
+  }
 
-  static async open(path: string, maxLineBytes: number): Promise<JsonlLineReader | undefined> {
+  static async open(path: string, maxLineBytes: number, chunkBytes: number): Promise<JsonlLineReader | undefined> {
     let file: FileHandle;
     try {
       file = await open(path, "r");
@@ -161,7 +170,7 @@ class JsonlLineReader {
     try {
       const stat = await file.stat();
       // A regular file is read up to its size now, like readFile; anything else until end of file.
-      return new JsonlLineReader(file, path, maxLineBytes, stat.isFile() ? stat.size : Number.POSITIVE_INFINITY);
+      return new JsonlLineReader(file, path, maxLineBytes, stat.isFile() ? stat.size : Number.POSITIVE_INFINITY, chunkBytes);
     } catch (error) {
       await file.close();
       throw error;
@@ -179,7 +188,7 @@ class JsonlLineReader {
     this.text = "";
     this.position = 0;
     if (this.remaining <= 0) return false;
-    const { bytesRead } = await this.file.read(this.chunk, 0, Math.min(readChunkBytes, this.remaining), null);
+    const { bytesRead } = await this.file.read(this.chunk, 0, Math.min(this.chunk.byteLength, this.remaining), null);
     if (bytesRead === 0) return false;
     this.remaining -= bytesRead;
     this.text = this.decoder.write(this.chunk.subarray(0, bytesRead));
