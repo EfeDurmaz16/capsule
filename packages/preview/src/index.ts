@@ -914,6 +914,9 @@ export async function createPreviewEnvironment(plan: PreviewPlan): Promise<Previ
 
 export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrchestrationResult> {
   assertRealProviders(plan);
+  // Aggregate timing starts before the first provisioning call so the preview.create receipt
+  // duration covers the provider work it summarizes.
+  const startedAt = new Date();
   const id = createPreviewId(plan.name);
   const resources: PreviewResourceRecord[] = [];
 
@@ -933,7 +936,7 @@ export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrch
 
     const preview = previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
     const cleanupPlan = createPreviewCleanupPlan(preview, resources);
-    const receipt = previewCreateReceipt(preview, resources, cleanupPlan, new Date());
+    const receipt = previewCreateReceipt(preview, resources, cleanupPlan, startedAt);
 
     return {
       preview,

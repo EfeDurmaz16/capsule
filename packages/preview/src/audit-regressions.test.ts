@@ -128,12 +128,30 @@ describe("M1 audit regressions: preview", () => {
     expect(aggregatePreviewStatus([{ type: "service", kind: "service", id: "api", provider: "fake", status: "running" }])).toBe("ready");
   });
 
-  it.fails("COMP-05: the aggregate preview receipt duration covers provisioning time", async () => {
+  it("COMP-05: the aggregate preview receipt duration covers provisioning time", async () => {
     const graph = await createPreviewGraph({
       name: "timing",
       databases: [{ capsule: fakeDatabase("fake", "p", [], 40), spec: { project: "p", name: "slow" } }]
     });
     expect(graph.receipts.at(-1)?.durationMs ?? 0).toBeGreaterThanOrEqual(30);
+  });
+
+  it("COMP-05: a fake clock advance during provisioning appears in the aggregate duration", async () => {
+    vi.useFakeTimers({ now: new Date("2026-10-27T00:00:00.000Z") });
+    try {
+      const pending = createPreviewGraph({
+        name: "timing",
+        databases: [{ capsule: fakeDatabase("fake", "p", [], 5_000), spec: { project: "p", name: "slow" } }]
+      });
+      await vi.advanceTimersByTimeAsync(5_000);
+      const graph = await pending;
+      const receipt = graph.receipts.at(-1);
+      expect(receipt?.type).toBe("preview.create");
+      expect(receipt?.startedAt).toBe("2026-10-27T00:00:00.000Z");
+      expect(receipt?.durationMs).toBe(5_000);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it.fails("COMP-06: the same name in the same millisecond yields distinct preview ids", () => {
