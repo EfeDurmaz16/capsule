@@ -265,7 +265,17 @@ function deploymentBody(name: string, namespace: string, spec: DeployServiceSpec
     ...(spec.labels ?? {}),
     ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "service.deploy" }) ?? {})
   });
+  // Only what the manifest really expresses is accepted: a fixed replica count and an HTTP readiness
+  // path. A command healthcheck or an autoscaling range would otherwise be dropped silently.
+  if (spec.healthcheck?.command !== undefined) {
+    throw new AdapterExecutionError("Kubernetes service.deploy supports only healthcheck.path (HTTP readiness probe); healthcheck.command is not implemented.");
+  }
   const replicas = spec.scale?.min ?? 1;
+  if (spec.scale?.max !== undefined && spec.scale.max !== replicas) {
+    throw new AdapterExecutionError(
+      "Kubernetes service.deploy sets a fixed replica count; scale.max must be omitted or equal scale.min because autoscaling (HPA) is not implemented."
+    );
+  }
   return {
     apiVersion: "apps/v1",
     kind: "Deployment",

@@ -414,7 +414,7 @@ describe("kubernetes adapter", () => {
       name: "api",
       image: "ghcr.io/example/api:latest",
       ports: [{ port: 8080, public: true, protocol: "http" }],
-      scale: { min: 2, max: 5 },
+      scale: { min: 2 },
       healthcheck: { path: "/healthz" },
       env: { NODE_ENV: "production" },
       idempotencyKey: "k8s-service-key"

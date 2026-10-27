@@ -189,4 +189,27 @@ describe("M1 audit regressions: kubernetes", () => {
       expect(jobs[0]).not.toBe(jobs[1]);
     });
   });
+
+  it("GAP-07: command healthchecks and autoscaling ranges are rejected instead of silently dropped", async () => {
+    let deployments = 0;
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        clients: {
+          batch: {} as never,
+          apps: {
+            createNamespacedDeployment: async () => {
+              deployments += 1;
+              return {};
+            }
+          } as never,
+          core: { createNamespacedService: async () => ({}) } as never
+        }
+      })
+    });
+    await expect(capsule.service.deploy({ name: "app", image: "i", healthcheck: { command: ["true"] } })).rejects.toThrow(/healthcheck.command/);
+    await expect(capsule.service.deploy({ name: "app", image: "i", scale: { min: 1, max: 3 } })).rejects.toThrow(/scale.max/);
+    expect(deployments).toBe(0);
+    await capsule.service.deploy({ name: "app", image: "i", scale: { min: 2, max: 2 }, healthcheck: { path: "/healthz" } });
+    expect(deployments).toBe(1);
+  });
 });
