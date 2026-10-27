@@ -161,8 +161,41 @@ export class CloudRunClient {
     return `projects/${this.projectId}/locations/${this.location}`;
   }
 
+  /** Full resource name for a short id. The id must be one plain path segment. */
   resource(kind: "jobs" | "services", id: string): string {
+    if (!resourceSegment.test(id)) {
+      throw new AdapterExecutionError(`Cloud Run ${kind} id ${JSON.stringify(id)} must be a single resource name segment or a full resource name.`);
+    }
     return `${this.parent()}/${kind}/${id}`;
+  }
+
+  /**
+   * Resolves a short id or a full resource name to a full name inside the configured project and
+   * location. A full name for another project or location is rejected instead of being routed or
+   * relabeled under this adapter's scope; use an adapter configured for that scope.
+   */
+  scopedName(kind: "jobs" | "services" | "executions", id: string): string {
+    if (!id.startsWith("projects/")) {
+      if (kind === "executions") {
+        throw new AdapterExecutionError(`Cloud Run execution id ${JSON.stringify(id)} must be a full execution resource name.`);
+      }
+      return this.resource(kind, id);
+    }
+    const match = fullResourceName.exec(id);
+    const collection = match?.[3];
+    const isExecution = match?.[5] !== undefined;
+    const shapeOk = match && (kind === "executions" ? collection === "jobs" && isExecution : collection === kind && !isExecution);
+    if (!match || !shapeOk) {
+      throw new AdapterExecutionError(`Cloud Run ${kind} id ${JSON.stringify(id)} is not a valid ${kind.slice(0, -1)} resource name.`);
+    }
+    const [, project, location] = match;
+    const projectOk = project === this.projectId || (this.options.projectNumber !== undefined && project === this.options.projectNumber);
+    if (!projectOk || location !== this.location) {
+      throw new AdapterExecutionError(
+        `Cloud Run resource ${id} is outside the configured scope projects/${this.projectId}/locations/${this.location}; use an adapter configured for that project and location.`
+      );
+    }
+    return id;
   }
 
   async createJob(jobId: string, body: unknown): Promise<CloudRunOperation> {
@@ -395,6 +428,9 @@ export class CloudRunClient {
     }
   }
 }
+
+const resourceSegment = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const fullResourceName = /^projects\/([^/?#]+)\/locations\/([^/?#]+)\/(jobs|services)\/([A-Za-z0-9][A-Za-z0-9._-]*)(?:\/executions\/([A-Za-z0-9][A-Za-z0-9._-]*))?$/;
 
 // Extra client time beyond the server-side wait, so the HTTP request outlives the wait it asked for.
 const waitGraceMs = 15_000;

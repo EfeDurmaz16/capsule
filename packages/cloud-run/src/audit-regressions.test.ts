@@ -269,4 +269,50 @@ describe("M1 audit regressions: cloud-run", () => {
       expect((error as Error).message).toMatch(/quota exceeded/);
     });
   });
+
+  describe("GAP-10: resource names are checked against the configured project and location", () => {
+    function scopeCapsule(extra: { projectNumber?: string } = {}) {
+      const urls: string[] = [];
+      const capsule = new Capsule({
+        adapter: cloudRun({
+          projectId: "p",
+          location: "l",
+          accessToken: "fake",
+          ...extra,
+          fetch: async (url) => {
+            urls.push(String(url));
+            return json({ name: "projects/p/locations/l/services/s", uri: "https://s.example" });
+          }
+        })
+      });
+      return { capsule, urls };
+    }
+
+    it("rejects full names from another project or location before any request", async () => {
+      const { capsule, urls } = scopeCapsule();
+      await expect(capsule.service.status({ id: "projects/other/locations/l/services/s" })).rejects.toThrow(/outside the configured scope/);
+      await expect(capsule.service.delete({ id: "projects/p/locations/elsewhere/services/s" })).rejects.toThrow(/outside the configured scope/);
+      await expect(capsule.job.status({ id: "projects/other/locations/l/jobs/j/executions/e" })).rejects.toThrow(/outside the configured scope/);
+      await expect(capsule.job.cancel({ id: "projects/other/locations/l/jobs/j/executions/e" })).rejects.toThrow(/outside the configured scope/);
+      await expect(capsule.job.logs({ id: "projects/other/locations/l/jobs/j" })).rejects.toThrow(/outside the configured scope/);
+      await expect(capsule.service.logs({ id: "projects/other/locations/l/services/s" })).rejects.toThrow(/outside the configured scope/);
+      expect(urls).toEqual([]);
+    });
+
+    it("rejects malformed ids and short ids that are not one path segment", async () => {
+      const { capsule, urls } = scopeCapsule();
+      await expect(capsule.service.status({ id: "s/../../other" })).rejects.toThrow(/single resource name segment/);
+      await expect(capsule.service.status({ id: "projects/p/locations/l/jobs/j" })).rejects.toThrow(/not a valid service resource name/);
+      await expect(capsule.job.status({ id: "e" })).rejects.toThrow(/full execution resource name/);
+      expect(urls).toEqual([]);
+    });
+
+    it("accepts names in scope, including the configured project number", async () => {
+      const { capsule, urls } = scopeCapsule({ projectNumber: "123456" });
+      await capsule.service.status({ id: "s" });
+      await capsule.service.status({ id: "projects/p/locations/l/services/s" });
+      await capsule.service.status({ id: "projects/123456/locations/l/services/s" });
+      expect(urls).toHaveLength(3);
+    });
+  });
 });

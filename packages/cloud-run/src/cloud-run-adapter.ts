@@ -330,7 +330,7 @@ function locate(client: CloudRunClient, kind: "job" | "service" | "execution", n
 }
 
 function serviceName(client: CloudRunClient, id: string): string {
-  return id.startsWith("projects/") ? id : client.resource("services", id);
+  return client.scopedName("services", id);
 }
 
 function providerBoolean(options: UpdateServiceSpec["providerOptions"], key: string, fallback: boolean): boolean {
@@ -395,6 +395,8 @@ function loggingTimeRange(spec: { since?: string; until?: string }): string[] {
 }
 
 function jobLogFilter(client: CloudRunClient, spec: JobLogsSpec): string {
+  // Validates the id against the configured scope; the filter below always names that scope.
+  client.scopedName(spec.id.includes("/executions/") ? "executions" : "jobs", spec.id);
   const jobName = resourceLeaf(spec.id, "jobs");
   const executionName = spec.id.includes("/executions/") ? resourceLeaf(spec.id, "executions") : undefined;
   return [
@@ -408,6 +410,7 @@ function jobLogFilter(client: CloudRunClient, spec: JobLogsSpec): string {
 }
 
 function serviceLogFilter(client: CloudRunClient, spec: ServiceLogsSpec): string {
+  client.scopedName("services", spec.id);
   const name = resourceLeaf(spec.id, "services");
   return [
     'resource.type="cloud_run_revision"',
@@ -538,7 +541,7 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
       },
       status: async (spec: JobStatusSpec): Promise<JobStatusResult> => {
         const client = getClient();
-        const execution = await client.getExecution(spec.id);
+        const execution = await client.getExecution(client.scopedName("executions", spec.id));
         return {
           id: execution.name,
           provider,
@@ -550,7 +553,7 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
         const client = getClient();
         // executions.cancel returns a long-running Operation. Its name identifies the cancel
         // operation, never the Execution, so the result keeps the Execution identity it was given.
-        const operation = await client.cancelExecution(spec.id);
+        const operation = await client.cancelExecution(client.scopedName("executions", spec.id));
         if (operation.error) {
           throw new AdapterExecutionError(`Cloud Run execution cancellation failed: ${operation.error.message ?? "unknown error"}`, { operation });
         }
@@ -594,10 +597,10 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env });
         const client = getClient();
+        const serviceName = client.resource("services", spec.name);
         const create = await client.createService(spec.name, serviceBody(spec));
         const operation = await client.waitOperation(create);
         const status = serviceOperationStatus(operation);
-        const serviceName = client.resource("services", spec.name);
         const service = status === "ready" ? await client.getService(serviceName) : isService(operation.response) ? operation.response : {};
         const url = serviceUrl(service, operation);
         const receipt = context.receipts
