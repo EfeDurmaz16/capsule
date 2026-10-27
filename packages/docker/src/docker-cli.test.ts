@@ -50,6 +50,16 @@ describe.skipIf(process.platform === "win32")("runDocker", () => {
     expect(result.timedOut).toBeUndefined();
   });
 
+  it("PERF-10: decodes output as the unbounded capture did, keeping a leading BOM and split characters", async () => {
+    // A UTF-8 BOM, then a 4-byte character written in two separate writes so it can arrive split.
+    fakeDocker("printf '\\357\\273\\277bom '; printf '\\360\\237'; sleep 0.05; printf '\\230\\200 end'");
+    const bounds = { ...defaultCaptureBounds, deadlineMs: Number.MAX_SAFE_INTEGER };
+    const bounded = await runDocker(["exec", "c", "emit"], { timeoutMs: 5_000, outputBounds: { stdout: bounds, stderr: bounds } });
+    const unbounded = await runDocker(["exec", "c", "emit"], { timeoutMs: 5_000 });
+    expect(bounded.stdout).toBe("\ufeffbom \ud83d\ude00 end");
+    expect(unbounded.stdout).toBe(bounded.stdout);
+  });
+
   it("PERF-10: caps captured output while draining the rest so the command completes", async () => {
     fakeDocker("head -c 3145728 /dev/zero | tr '\\000' a; echo done >&2");
     const bounds = { ...defaultCaptureBounds, maxBytes: 1024, deadlineMs: Number.MAX_SAFE_INTEGER };
