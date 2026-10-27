@@ -616,8 +616,9 @@ function orderedLog(entry: LogEntry, target: number, line: number): OrderedLog {
   return { entry, seconds: key ? key.seconds : Number.NaN, nanos: key ? key.nanos : 0, target, line };
 }
 
-// The second the last UTC timestamp started with; log lines of one source often share it.
-let lastSecondPrefix = "";
+// The whole second ("YYYY-MM-DDTHH:MM:SSZ") of the last UTC timestamp and its Date.parse value; log lines
+// of one source often share it. Built by concatenation, so it holds no reference into a log body.
+let lastSecond = "";
 let lastSecondMillis = Number.NaN;
 // Fraction of the last timestamp utcTimestampSeconds accepted, in nanoseconds (kept out of a return
 // object so that ordering thousands of lines allocates nothing per line).
@@ -650,13 +651,21 @@ function utcTimestampSeconds(value: string): number | undefined {
     }
     nanos *= 10 ** (9 - digits);
   }
-  if (lastSecondPrefix === "" || !value.startsWith(lastSecondPrefix)) {
-    lastSecondPrefix = value.slice(0, 19);
-    lastSecondMillis = Date.parse(`${lastSecondPrefix}Z`);
+  if (!sameSecond(value, lastSecond)) {
+    lastSecond = `${value.slice(0, 19)}Z`;
+    lastSecondMillis = Date.parse(lastSecond);
   }
   if (Number.isNaN(lastSecondMillis)) return undefined;
   utcNanos = nanos;
   return lastSecondMillis / 1000;
+}
+
+function sameSecond(value: string, second: string): boolean {
+  if (second.length !== 20) return false;
+  for (let index = 0; index < 19; index += 1) {
+    if (value.charCodeAt(index) !== second.charCodeAt(index)) return false;
+  }
+  return true;
 }
 
 function generalTimestampKey(value: string): { seconds: number; nanos: number } | undefined {
