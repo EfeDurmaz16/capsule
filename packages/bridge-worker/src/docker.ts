@@ -52,12 +52,13 @@ export function dockerDriver(options: DockerDriverOptions = {}): BridgeDriver {
     adapter: () => adapter,
     admit: (request) => {
       // Values here become docker CLI arguments. A leading dash would read as an option, and an = in a
-      // label key would shift where docker splits the key from the value.
+      // label key or variable name would shift where docker splits the name from the value.
       const refuse = (detail: string) => new Refusal("provider_failed", "provider_refused", detail);
       if ("target" in request && request.target.native_id.startsWith("-")) return refuse("a container id cannot start with a dash");
       if (request.action === "sandbox.create") {
         if (request.params.image.startsWith("-")) return refuse("an image reference cannot start with a dash");
         if (Object.keys(request.params.labels).some((key) => key.includes("="))) return refuse("a label key cannot hold =");
+        if (Object.keys(request.params.env).some((key) => key.includes("="))) return refuse("an environment variable name cannot hold =");
       }
       return undefined;
     },

@@ -52,7 +52,6 @@ const KEY = /^[A-Za-z0-9._:-]{1,128}$/;
 const DIGEST = /^[0-9a-f]{64}$/;
 const GENERATION = /^[1-9][0-9]{0,19}$/;
 const U64_MAX = 18_446_744_073_709_551_615n;
-const NAME = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
 // Control characters except \n and \t; those two are allowed only in stdin and output text.
 const CONTROL = /[\u0000-\u001f\u007f]/;
 const CONTROL_EXCEPT_NL_TAB = /[\u0000-\u0008\u000b-\u001f\u007f]/;
@@ -116,11 +115,11 @@ function generation(value: unknown): string {
   return value;
 }
 
-function stringMap(value: unknown, what: string, keyPattern?: RegExp): Record<string, string> {
+function stringMap(value: unknown, what: string): Record<string, string> {
   if (!isPlainObject(value)) throw invalid("missing_field", `${what} must be an object`);
   const out: Record<string, string> = {};
   for (const [key, entry] of Object.entries(value)) {
-    if (keyPattern ? !keyPattern.test(key) : CONTROL.test(key) || key.length === 0) throw invalid("bad_string", `${what} has a bad key`);
+    if (CONTROL.test(key) || key.length === 0) throw invalid("bad_string", `${what} has a bad key`);
     out[key] = text(entry, `${what}.${key}`);
   }
   return out;
@@ -129,7 +128,7 @@ function stringMap(value: unknown, what: string, keyPattern?: RegExp): Record<st
 function names(value: unknown, what: string): string[] {
   if (!Array.isArray(value)) throw invalid("missing_field", `${what} must be an array`);
   return value.map((entry, index) => {
-    if (typeof entry !== "string" || !NAME.test(entry)) throw invalid("bad_string", `${what}[${index}] is not a name`);
+    if (typeof entry !== "string" || entry.length === 0 || CONTROL.test(entry)) throw invalid("bad_string", `${what}[${index}] is not a name`);
     return entry;
   });
 }
@@ -262,8 +261,8 @@ export function parseRequest(message: Json, profile: CapabilityProfile): BridgeR
   if (action === "sandbox.create") {
     const p = fields(body.params, ["image", "env", "secret_names", "labels"], ["image", "env", "secret_names", "labels"], "params");
     params = {
-      image: text(p.image, "params.image", { min: 1, max: 512 }),
-      env: stringMap(p.env, "params.env", NAME),
+      image: text(p.image, "params.image"),
+      env: stringMap(p.env, "params.env"),
       secret_names: names(p.secret_names, "params.secret_names"),
       labels: stringMap(p.labels, "params.labels")
     };
@@ -276,13 +275,13 @@ export function parseRequest(message: Json, profile: CapabilityProfile): BridgeR
     );
     if (!Array.isArray(p.argv)) throw invalid("missing_field", "params.argv must be an array");
     if (p.argv.length < 1 || p.argv.length > limits.max_argv) throw invalid("limit", `params.argv must hold 1 to ${limits.max_argv} strings`);
-    const argv = p.argv.map((entry, index) => text(entry, `params.argv[${index}]`, { max: 65_536 }));
+    const argv = p.argv.map((entry, index) => text(entry, `params.argv[${index}]`));
     const stdin = p.stdin === null ? null : text(p.stdin, "params.stdin", { allowNewlines: true });
     if (stdin !== null && Buffer.byteLength(stdin) > limits.max_stdin_bytes) throw invalid("limit", `params.stdin exceeds ${limits.max_stdin_bytes} bytes`);
     params = {
       argv,
       stdin,
-      cwd: p.cwd === null ? null : text(p.cwd, "params.cwd", { min: 1, max: 4096 }),
+      cwd: p.cwd === null ? null : text(p.cwd, "params.cwd"),
       timeout_ms: bounded(p.timeout_ms, 1, limits.max_deadline_ms, "params.timeout_ms"),
       max_output_bytes: bounded(p.max_output_bytes, 1, limits.max_output_bytes, "params.max_output_bytes"),
       secret_names: names(p.secret_names, "params.secret_names")

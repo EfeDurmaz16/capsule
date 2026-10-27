@@ -279,6 +279,8 @@ describe("docker profile on a fake engine", () => {
     expect(await connection.next()).toMatchObject({ error: { code: "provider_failed", reason: "provider_refused", effect: "none" } });
     connection.send({ ...create(2), params: { image: "debian:bookworm-slim", env: {}, secret_names: [], labels: { "a=fabric.job": "x" } } });
     expect(await connection.next()).toMatchObject({ error: { code: "provider_failed", reason: "provider_refused", effect: "none" } });
+    connection.send({ ...create(4), params: { image: "debian:bookworm-slim", env: { "PATH=/evil:": "x" }, secret_names: [], labels: {} } });
+    expect(await connection.next()).toMatchObject({ error: { code: "provider_failed", reason: "provider_refused", effect: "none" } });
     connection.send({ ...request(3, "sandbox.destroy", { target: target("--help"), params: {} }), approval: { ref: "apr-destroy" } });
     expect(await connection.next()).toMatchObject({ error: { code: "provider_failed", effect: "none" } });
     expect(engine.calls.map((call) => call[0])).toEqual(["context"]);
