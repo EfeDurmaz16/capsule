@@ -571,10 +571,19 @@ export async function dispatchObserve(context: DispatchContext, runtime: Operati
   }
   const resource = observe.resource;
   try {
+    // Who made the resource is settled before anything about it is reported. The worker's labels name
+    // the creating operation and its job. A create is answered only for the operation the resource is
+    // labelled with. A destroy's own id is on no label, but a destroy is only ever sent for a resource
+    // that some job made, so one without a job label was never the target of this operation.
+    const state = await guarded(runtime, driver.read(resource.native_id));
     if (observe.action === "sandbox.create") {
       // A create that never happened has nothing to observe: report it as a definite not found.
-      const state = await driver.read(resource.native_id);
       if (!state.exists) return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("provider_failed", "not_found"));
+      if (state.owner?.operation !== observe.operation_id) {
+        return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("denied", "owner_mismatch", "the resource was not created by this operation"));
+      }
+    } else if (state.exists && state.owner?.job === undefined) {
+      return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("denied", "owner_mismatch", "the resource was not created by any job"));
     }
     await observeUntilTerminal({
       timer: runtime.timer,
@@ -587,6 +596,16 @@ export async function dispatchObserve(context: DispatchContext, runtime: Operati
     });
     return result(runtime, "completed", resource, observe.action === "sandbox.destroy" ? { status: "destroyed" } : { status: "ready" });
   } catch (error) {
+    if (error instanceof DrainInterrupt) {
+      // The drain ended before the first read answered: nothing was observed.
+      const pending = new BridgePendingError("shutting_down", {
+        operation: observe.action,
+        resource: coreLocator(resource),
+        deadlineMs: observe.wait_ms,
+        observations: 0
+      });
+      return outcomeAnswer(runtime, pending, driver, binding, resource, context.diagnostic);
+    }
     if (error instanceof PendingOperationError || error instanceof UnknownOutcomeError) {
       return outcomeAnswer(runtime, error, driver, binding, resource, context.diagnostic);
     }

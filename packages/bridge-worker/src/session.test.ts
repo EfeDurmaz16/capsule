@@ -279,3 +279,39 @@ describe("outputs", () => {
     expect(connection.stderr.join("").length).toBeLessThanOrEqual(10);
   });
 });
+
+describe("observe", () => {
+  const locator = (nativeId: string) => ({ provider: "fixture", scope: { account: "acct-a", project: "proj-1" }, kind: "sandbox", native_id: nativeId });
+  const observe = (requestId: string, operationId: string, action: string, nativeId: string) => ({
+    type: "observe",
+    request_id: requestId,
+    operation_id: operationId,
+    action,
+    resource: locator(nativeId),
+    wait_ms: 1000
+  });
+
+  test("an observe of a create answers only for the operation that made the resource", async () => {
+    const { world, connection } = await started({ sandboxes: [] });
+    connection.send(createRequest);
+    expect(await connection.next()).toMatchObject({ type: "result", operation_id: "01K8W3A00000000000000000P1", state: "completed" });
+    connection.send(observe("r-10", "01K8W3A00000000000000000P9", "sandbox.create", "fx-key-create-1"));
+    expect(await connection.next()).toEqual({
+      type: "error",
+      request_id: "r-10",
+      operation_id: "01K8W3A00000000000000000P9",
+      error: { code: "denied", reason: "owner_mismatch", message: expect.any(String), effect: "none" }
+    });
+    connection.send(observe("r-11", "01K8W3A00000000000000000P1", "sandbox.create", "fx-key-create-1"));
+    expect(await connection.next()).toMatchObject({ type: "result", request_id: "r-11", state: "completed", output: { status: "ready" } });
+    expect(world.provider.effects).toHaveLength(1);
+  });
+
+  test("an observe of a destroy refuses a resource no Fabric job made, without reporting its state", async () => {
+    const { connection } = await started({ sandboxes: [{ native_id: "fx-foreign", project: "proj-1", status: "ready" }] });
+    connection.send(observe("r-10", "01K8W3A00000000000000000P3", "sandbox.destroy", "fx-foreign"));
+    const answer = await connection.next();
+    expect(answer).toMatchObject({ type: "error", error: { code: "denied", reason: "owner_mismatch", effect: "none" } });
+    expect(answer.error).not.toHaveProperty("state");
+  });
+});
