@@ -97,6 +97,28 @@ describe("admission", () => {
     expect(await connection.next()).toMatchObject({ error: { code: "provider_failed", reason: "not_found", effect: "none" } });
     expect(world.provider.effects).toEqual([]);
   });
+
+  test("a destroyed sandbox is gone: exec and a second destroy are not_found with no effect, as on Docker", async () => {
+    const { world, connection } = await started();
+    connection.send(destroyRequest);
+    expect(await connection.next()).toMatchObject({ type: "result", state: "completed", output: { status: "destroyed" } });
+    connection.send(exec(1, { params: { ...(execRequest.params as object), argv: ["echo", "ran-in-destroyed-sandbox"] } }));
+    expect(await connection.next()).toMatchObject({ type: "error", error: { code: "provider_failed", reason: "not_found", effect: "none" } });
+    connection.send({ ...destroyRequest, request_id: "r-4", operation: { id: "01K8W3A00000000000000000P4", key: "key-destroy-9", digest: "ab".repeat(32) } });
+    expect(await connection.next()).toMatchObject({ type: "error", error: { code: "provider_failed", reason: "not_found", effect: "none" } });
+    expect(world.provider.effects).toEqual([{ call: "destroy", native_id: "fx-key-create-1" }]);
+  });
+
+  test("a sandbox that is stopping refuses exec at the provider and reports no output", async () => {
+    const { world, connection } = await started({
+      script: [{ action: "sandbox.destroy", native_id: "fx-key-create-1", behavior: "stay_stopping_until_settle" }]
+    });
+    connection.send({ ...destroyRequest, deadline_ms: 1000 });
+    expect(await connection.next()).toMatchObject({ error: { code: "pending", state: "stopping" } });
+    connection.send(exec(1));
+    expect(await connection.next()).toMatchObject({ type: "error", error: { code: "provider_failed", reason: "provider_refused", effect: "none" } });
+    expect(world.provider.sandbox("fx-key-create-1")?.status).toBe("stopping");
+  });
 });
 
 describe("dedupe", () => {

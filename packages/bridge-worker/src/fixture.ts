@@ -141,6 +141,15 @@ export class FixtureProvider {
 
   async exec(nativeId: string, spec: ExecSpec, hooks: OperationHooks): Promise<ExecResult> {
     this.effects.push({ call: "exec", native_id: nativeId });
+    const status = this.sandboxes.get(nativeId)?.status;
+    if (status !== "ready") {
+      // Like a container that is no longer running, a sandbox that is stopping or gone runs nothing.
+      throw new ProviderValidationError(`fixture sandbox ${nativeId} is ${status ?? "absent"}, not ready`, {
+        category: "validation",
+        retryable: false,
+        code: "not_ready"
+      });
+    }
     if (this.behavior("sandbox.exec", nativeId) === "run_until_cancelled") {
       hooks.onRunning("running");
       await new Promise<void>((resolve) => {
@@ -277,7 +286,8 @@ export function fixtureAdapter(provider: FixtureProvider, hooks: OperationHooks)
         return new FixtureSandbox(handle(nativeId), provider, hooks);
       },
       attach: async (spec: AttachSandboxSpec): Promise<Sandbox> => {
-        if (!provider.sandbox(spec.id)) {
+        const existing = provider.sandbox(spec.id);
+        if (!existing || existing.status === "destroyed") {
           throw new ProviderValidationError(`fixture sandbox ${spec.id} not found`, { category: "validation", retryable: false, code: "not_found" });
         }
         return new FixtureSandbox(handle(spec.id), provider, hooks);
@@ -296,7 +306,10 @@ export function fixtureDriver(provider: FixtureProvider): BridgeDriver {
     receipts: { store: provider.receipts, durable: false },
     read: async (nativeId): Promise<ResourceState> => {
       const sandbox = provider.sandbox(nativeId);
-      if (!sandbox || sandbox.account !== provider.binding.account || sandbox.project !== provider.binding.project) return { exists: false };
+      // A destroyed sandbox reads as absent, the way an inspect of a removed container fails.
+      if (!sandbox || sandbox.status === "destroyed" || sandbox.account !== provider.binding.account || sandbox.project !== provider.binding.project) {
+        return { exists: false };
+      }
       return {
         exists: true,
         status: sandbox.status,
