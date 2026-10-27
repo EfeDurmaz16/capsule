@@ -145,8 +145,18 @@ interface ParsedArgs {
   allowUnverifiedSignatures?: boolean;
   dryRun?: boolean;
   reason?: string;
+  // Where `adapter` came from. Omitted means the --adapter flag (or no selection at all).
+  adapterSource?: AdapterSelectionSource;
   rest: string[];
 }
+
+type AdapterSelectionSource = "flag" | "config" | "preview";
+
+const adapterSelectionSourceLabels: Record<AdapterSelectionSource, string> = {
+  flag: "--adapter",
+  config: "capsule.config.json",
+  preview: "preview config"
+};
 
 interface CredentialRequirement {
   provider: string;
@@ -1478,7 +1488,7 @@ const previewAdapterOptionKeys = new Set<keyof ParsedArgs>([
 ]);
 
 function parsedArgsFromPreviewAdapterConfig(adapter: string, options: Record<string, unknown> | undefined): ParsedArgs {
-  const parsed: ParsedArgs = { adapter, rest: [] };
+  const parsed: ParsedArgs = { adapter, adapterSource: "preview", rest: [] };
   for (const [key, value] of Object.entries(options ?? {})) {
     if (!previewAdapterOptionKeys.has(key as keyof ParsedArgs)) {
       throw new Error(`Unsupported preview adapter option "${key}" for ${adapter}.`);
@@ -2615,6 +2625,8 @@ Receipt signatures:
 Configuration:
   capsule.config.json in the working directory supplies default adapter, receipts.path, and policyFile.
   Explicit flags (--adapter, --receipt-file, --policy-file) always override the config file.
+  An unknown adapter name, from a flag or the config file, fails before any provider is created.
+  docker is used only when no adapter is selected at all.
 
 Output:
   Report commands default to human-readable tables. Add --json for stable automation output.
@@ -2639,6 +2651,7 @@ export function applyCapsuleConfig(parsed: ParsedArgs, config: CapsuleConfigFile
   const resolved: ParsedArgs = { ...parsed };
   if (resolved.adapter === undefined && typeof config.adapter === "string") {
     resolved.adapter = config.adapter;
+    resolved.adapterSource = "config";
   }
   if (resolved.policyFile === undefined && typeof config.policyFile === "string") {
     resolved.policyFile = config.policyFile;
@@ -2660,8 +2673,35 @@ async function readCapsuleConfigFile(cwd: string = process.cwd()): Promise<Capsu
   return assertJsonObject(JSON.parse(text), path) as CapsuleConfigFile;
 }
 
+const defaultExecutionAdapter = "docker";
+
+function executionAdapterNames(): string[] {
+  return [...comparableProviders, ...Object.keys(mockAdapterFactories)];
+}
+
+// Fails closed: only an omitted adapter selection falls back to the documented docker default. An
+// explicit flag, config, or preview adapter name that Capsule does not know is rejected before any
+// provider client is constructed, so a typo can never silently run work on the local host.
+function resolveExecutionAdapterName(parsed: ParsedArgs): string {
+  if (parsed.adapter === undefined) {
+    return defaultExecutionAdapter;
+  }
+  if (!executionAdapterNames().includes(parsed.adapter)) {
+    const shown = parsed.adapter.length > 64 ? `${parsed.adapter.slice(0, 64)}...` : parsed.adapter;
+    throw new Error(
+      `Unknown adapter ${JSON.stringify(shown)} (from ${adapterSelectionSourceLabels[parsed.adapterSource ?? "flag"]}). Valid adapters: ${executionAdapterNames().join(", ")}.`
+    );
+  }
+  return parsed.adapter;
+}
+
 function createCapsule(parsed: ParsedArgs): Capsule {
+  const adapterName = resolveExecutionAdapterName(parsed);
   const receiptStore = parsed.receiptFile ? jsonlReceiptStore(parsed.receiptFile) : undefined;
+  const mockFactory = mockAdapterFactories[adapterName];
+  if (mockFactory) {
+    return new Capsule({ adapter: mockFactory(), receipts: true, receiptStore });
+  }
   if (parsed.adapter === "neon") {
     return new Capsule({
       adapter: neon({ databaseName: parsed.database, roleName: parsed.role }),
@@ -2761,6 +2801,9 @@ function createCapsule(parsed: ParsedArgs): Capsule {
       receipts: true,
       receiptStore
     });
+  }
+  if (adapterName !== defaultExecutionAdapter) {
+    throw new Error(`Adapter "${adapterName}" has no execution factory.`);
   }
   return new Capsule({ adapter: docker(), receipts: true, receiptStore });
 }
@@ -3010,10 +3053,10 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "edge": {
-      const capsule = createCapsule(parsed);
       if (parsed.adapter !== "cloudflare" && parsed.adapter !== "vercel") {
         throw new Error("edge currently requires --adapter cloudflare or --adapter vercel");
       }
+      const capsule = createCapsule(parsed);
       if (!parsed.name) {
         throw new Error("Missing --name");
       }
@@ -3065,11 +3108,11 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "service": {
-      const capsule = createCapsule(parsed);
       const action = parsed.rest[0] === "deploy" || parsed.rest[0] === "status" || parsed.rest[0] === "delete" ? parsed.rest[0] : "deploy";
       if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes" && parsed.adapter !== "ecs" && parsed.adapter !== "azure-container-apps") {
         throw new Error("service currently requires --adapter cloud-run, --adapter kubernetes, --adapter ecs, or --adapter azure-container-apps");
       }
+      const capsule = createCapsule(parsed);
       if (action === "status") {
         const id = parsed.id ?? parsed.name ?? parsed.rest[1];
         if (!id) {
@@ -3104,10 +3147,10 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "machine": {
-      const capsule = createCapsule(parsed);
       if (parsed.adapter !== "ec2" && parsed.adapter !== "fly") {
         throw new Error("machine currently requires --adapter ec2 or --adapter fly");
       }
+      const capsule = createCapsule(parsed);
       if (!parsed.name) {
         throw new Error("Missing --name");
       }
