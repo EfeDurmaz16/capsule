@@ -3,6 +3,7 @@ import {
   AdapterExecutionError,
   Capsule,
   MemoryReceiptStore,
+  PendingOperationError,
   ProviderAuthError,
   ProviderRetryableError,
   runAdapterContract,
@@ -27,6 +28,7 @@ function fakeModalSandbox() {
     terminated: false,
     terminateError: undefined as Error | undefined,
     terminateParams: [] as unknown[],
+    terminateHangs: false,
     exec: async (command: string[]) => ({
       wait: async () => 0,
       stdout: { readText: async () => command.join(" ") },
@@ -45,7 +47,12 @@ function fakeModalSandbox() {
       if (sandbox.terminateError) {
         throw sandbox.terminateError;
       }
+      if (sandbox.terminateHangs) {
+        return await new Promise(() => undefined);
+      }
       sandbox.terminated = true;
+      // The installed SDK resolves terminate({ wait: true }) with the sandbox exit code.
+      return (params as { wait?: boolean } | undefined)?.wait ? 137 : undefined;
     }
   };
   return { sandbox, files };
@@ -140,8 +147,10 @@ describe("modal adapter", () => {
     expect(store.receipts.find((receipt) => receipt.type === "sandbox.destroy")?.metadata).toMatchObject({
       runtimeVersion: process.version,
       adapterVersion: "0.1.1",
-      terminateWait: false
+      terminateWait: true,
+      exitCode: 137
     });
+    expect(sandbox.terminateParams).toEqual([{ wait: true }]);
     expect(store.receipts.map((receipt) => receipt.type)).toEqual([
       "sandbox.create",
       "sandbox.file.write",
@@ -161,6 +170,24 @@ describe("modal adapter", () => {
     await expect(box.listFiles("/workspace")).rejects.toThrow(UnsupportedCapabilityError);
     await expect(capsule.job.run({ image: "node:22", command: "echo unsupported" })).rejects.toThrow(UnsupportedCapabilityError);
     expect(created).toHaveLength(1);
+  });
+
+  it("rejects destroy as pending when termination is requested but not observed before the deadline", async () => {
+    const { sandbox } = fakeModalSandbox();
+    sandbox.terminateHangs = true;
+    const store = new MemoryReceiptStore();
+    const capsule = new Capsule({ adapter: modal({ client: fakeModalClient(sandbox), terminateDeadlineMs: 20 }), receipts: true, receiptStore: store });
+    const box = await capsule.sandbox.create({});
+
+    const error = await box.destroy().then(
+      () => undefined,
+      (caught: unknown) => caught
+    );
+
+    expect(error).toBeInstanceOf(PendingOperationError);
+    expect((error as PendingOperationError).operation).toBe("sandbox.destroy");
+    expect((error as PendingOperationError).resource).toMatchObject({ provider: "modal", kind: "sandbox", nativeId: "sb-1" });
+    expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
   });
 
   it("propagates Modal sandbox destroy failures without writing destroy receipts", async () => {

@@ -54,7 +54,7 @@ describe("M1 audit regressions: modal", () => {
     expect(fake.state.terminateCalls.length).toBeGreaterThan(0);
   });
 
-  it.fails("SB-06: destroy observes terminal termination (wait: true) before writing a deleted receipt", async () => {
+  it("SB-06: destroy observes terminal termination (wait: true) before writing a deleted receipt", async () => {
     const fake = fakeModal();
     const store = new MemoryReceiptStore();
     const box = await new Capsule({ adapter: fake.adapter, receipts: true, receiptStore: store }).sandbox.create({});

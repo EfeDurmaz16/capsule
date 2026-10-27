@@ -1,7 +1,10 @@
 import { Image, ModalClient } from "modal";
 import {
   AdapterExecutionError,
+  asProviderError,
   callProvider,
+  observeUntilTerminal,
+  resourceLocator,
   logsFromOutput,
   providerRuntimeMetadata,
   redactSecrets,
@@ -53,7 +56,15 @@ export interface ModalAdapterOptions {
   tokenSecret?: string;
   environment?: string;
   client?: ModalClientLike;
+  /**
+   * Client-side budget for observing sandbox termination after the terminate request, in milliseconds.
+   * When it expires destroy rejects with PendingOperationError and writes no deleted receipt.
+   * Defaults to 60000.
+   */
+  terminateDeadlineMs?: number;
 }
+
+const defaultTerminateDeadlineMs = 60_000;
 
 const provider = "modal";
 const adapter = "modal";
@@ -147,11 +158,37 @@ function policyNotes(context: AdapterContext): string[] {
   return notes;
 }
 
+function sandboxLocator(sandboxId: string) {
+  return resourceLocator({ provider, kind: "sandbox", nativeId: sandboxId });
+}
+
+/**
+ * Requests termination and waits for the sandbox to reach a terminal state through the SDK's
+ * terminate({ wait: true }), which resolves with the sandbox exit code only after it has stopped.
+ * The wait is bounded on the client: if it expires the termination is known to be requested but not
+ * confirmed, and PendingOperationError carries the sandbox locator. A rejected request or wait is a
+ * termination failure and is thrown as a provider error.
+ */
+async function terminateUntilStopped(sandbox: ModalSandboxLike, operation: string, deadlineMs: number): Promise<number | undefined> {
+  return await observeUntilTerminal<number | undefined>(
+    async () => {
+      try {
+        const exitCode = await sandbox.terminate({ wait: true });
+        return { done: true, value: typeof exitCode === "number" ? exitCode : undefined };
+      } catch (error) {
+        return { done: "failed", error: asProviderError(error, "Modal sandbox termination failed.") };
+      }
+    },
+    { operation, resource: sandboxLocator(sandbox.sandboxId), deadlineMs, maxObservations: 1 }
+  );
+}
+
 class ModalCapsuleSandbox implements Sandbox {
   constructor(
     private readonly sandbox: ModalSandboxLike,
     readonly handle: SandboxHandle,
-    private readonly context: AdapterContext
+    private readonly context: AdapterContext,
+    private readonly terminateDeadlineMs: number
   ) {}
 
   async exec(spec: ExecSpec): Promise<ExecResult> {
@@ -212,7 +249,7 @@ class ModalCapsuleSandbox implements Sandbox {
 
   async destroy(): Promise<void> {
     const startedAt = new Date();
-    await this.sandbox.terminate();
+    const exitCode = await terminateUntilStopped(this.sandbox, "sandbox.destroy", this.terminateDeadlineMs);
     if (this.context.receipts) {
       this.context.createReceipt({
         type: "sandbox.destroy",
@@ -220,7 +257,7 @@ class ModalCapsuleSandbox implements Sandbox {
         startedAt,
         policy: { decision: "allowed", applied: this.context.policy, notes: policyNotes(this.context) },
         resource: { id: this.handle.id, status: "deleted" },
-        metadata: modalReceiptMetadata({ terminateWait: false })
+        metadata: modalReceiptMetadata(removeUndefined({ terminateWait: true, exitCode }))
       });
     }
   }
@@ -228,6 +265,7 @@ class ModalCapsuleSandbox implements Sandbox {
 
 export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
   const getClient = () => options.client ?? defaultClient(options);
+  const terminateDeadlineMs = options.terminateDeadlineMs ?? defaultTerminateDeadlineMs;
   return {
     name: adapter,
     provider,
@@ -274,7 +312,7 @@ export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
             )
           });
         }
-        return new ModalCapsuleSandbox(sandbox, handle, context);
+        return new ModalCapsuleSandbox(sandbox, handle, context, terminateDeadlineMs);
       }
     }
   };
