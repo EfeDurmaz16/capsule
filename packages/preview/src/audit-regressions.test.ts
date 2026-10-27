@@ -154,8 +154,24 @@ describe("M1 audit regressions: preview", () => {
     }
   });
 
-  it.fails("COMP-06: the same name in the same millisecond yields distinct preview ids", () => {
+  it("COMP-06: the same name in the same millisecond yields distinct preview ids", () => {
     vi.spyOn(Date, "now").mockReturnValue(123);
     expect(createPreviewId("a")).not.toBe(createPreviewId("a"));
+  });
+
+  it("COMP-06: a caller-stable operation id is recorded separately from the unique run id", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(123);
+    const run = () =>
+      createPreviewGraph({
+        name: "pr-7",
+        operationId: "pr-7@abc123",
+        databases: [{ capsule: fakeDatabase("fake", "p", []), spec: { project: "p", name: "db" } }]
+      });
+    const [first, second] = [await run(), await run()];
+    expect(first.preview.id).not.toBe(second.preview.id);
+    expect(first.cleanupPlan.operationId).toBe("pr-7@abc123");
+    expect(second.cleanupPlan.operationId).toBe("pr-7@abc123");
+    expect(first.receipts.at(-1)?.metadata?.operationId).toBe("pr-7@abc123");
+    expect(first.cleanupPlan.actions[0]?.idempotencyKey).not.toBe(second.cleanupPlan.actions[0]?.idempotencyKey);
   });
 });

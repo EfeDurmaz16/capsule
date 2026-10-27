@@ -17,6 +17,7 @@ import type {
   RunJobSpec,
   ServiceDeployment
 } from "@capsule-sdk/core";
+import { randomBytes } from "node:crypto";
 import { createReceipt, evaluateCapabilityRequirements } from "@capsule-sdk/core";
 
 export type PreviewResourceKind = "database" | "service" | "edge" | "job";
@@ -160,12 +161,15 @@ export interface PreviewCleanupPlan {
   cleanupOrder: "reverse-create-order";
   cleanupActionCount: number;
   unsupportedCleanupCount: number;
+  /** Caller-stable operation identity from PreviewPlan.operationId, when one was supplied. */
+  operationId?: string;
   resources: PreviewCleanupPlanResource[];
   actions: PreviewCleanupPlanAction[];
 }
 
 export interface CreatePreviewCleanupPlanOptions {
   createdAt?: Date;
+  operationId?: string;
 }
 
 export interface PreviewResourceGroup<TSpec> {
@@ -175,6 +179,13 @@ export interface PreviewResourceGroup<TSpec> {
 
 export interface PreviewPlan {
   name: string;
+  /**
+   * Caller-stable identity of the logical preview operation, for example a pull request number plus
+   * commit. It is recorded on the cleanup plan and the preview.create receipt so retries of one
+   * operation can be correlated. It is not the run id: every run still gets a unique preview id, and
+   * cleanup idempotency keys stay scoped to that run so a retry never reuses another run's keys.
+   */
+  operationId?: string;
   source?: CreatePreviewSpec["source"];
   ttlMs?: number;
   requireRealProviders?: boolean;
@@ -277,13 +288,18 @@ const previewResourceCapabilities: Record<PreviewResourceKind, { create: Capabil
   }
 };
 
+/**
+ * Returns a unique run id for one preview creation. The time component keeps ids roughly sortable and
+ * the random component keeps two runs with the same name in the same millisecond distinct. A run id is
+ * not an idempotency key; use PreviewPlan.operationId for caller-stable operation identity.
+ */
 export function createPreviewId(name: string): string {
   const safeName =
     name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "") || "preview";
-  return `preview_${safeName}_${Date.now().toString(36)}`;
+  return `preview_${safeName}_${Date.now().toString(36)}_${randomBytes(6).toString("hex")}`;
 }
 
 export function compilePreviewSpec(spec: CreatePreviewSpec): PreviewCompiledPlan {
@@ -565,6 +581,7 @@ export function createPreviewCleanupPlan(
     cleanupOrder: "reverse-create-order",
     cleanupActionCount: actions.length,
     unsupportedCleanupCount: resources.length - actions.length,
+    ...(options.operationId === undefined ? {} : { operationId: options.operationId }),
     resources: resources.map((resource, order) => {
       const action = actionByRef.get(refs[order]);
       return {
@@ -706,6 +723,7 @@ function previewCreateReceipt(
       status: preview.status
     },
     metadata: {
+      ...(cleanupPlan.operationId === undefined ? {} : { operationId: cleanupPlan.operationId }),
       resourceCount: resources.length,
       resources: resources.map((resource, index) => ({
         ref: cleanupPlan.resources[index]?.ref,
@@ -935,7 +953,7 @@ export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrch
     }
 
     const preview = previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
-    const cleanupPlan = createPreviewCleanupPlan(preview, resources);
+    const cleanupPlan = createPreviewCleanupPlan(preview, resources, { operationId: plan.operationId });
     const receipt = previewCreateReceipt(preview, resources, cleanupPlan, startedAt);
 
     return {
@@ -1036,7 +1054,7 @@ export async function createPreviewEnvironmentWithCleanup(plan: PreviewPlan): Pr
     return previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
   } catch (error) {
     const failedPreview = previewFromResources(id, plan, "failed", resources);
-    const cleanupPlan = createPreviewCleanupPlan(failedPreview, resources);
+    const cleanupPlan = createPreviewCleanupPlan(failedPreview, resources, { operationId: plan.operationId });
     const cleanup = await cleanupPreviewEnvironment(failedPreview, resources, { cleanupPlan });
     throw new PreviewCreationError("Preview environment creation failed and cleanup was attempted.", {
       preview: failedPreview,

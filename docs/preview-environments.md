@@ -22,6 +22,8 @@ Production preview plans should set `requireRealProviders: true`. When that flag
 
 The package records a resource graph containing service, edge, database, and job resources. Cleanup walks that graph in reverse dependency order and reports partial cleanup failures instead of hiding successfully cleaned resources.
 
+Every creation gets a unique run id from `createPreviewId` (name, time and a random component). The run id is not an idempotency key. Pass `operationId` on the plan to record a caller-stable identity, such as a pull request and commit, on the cleanup plan and the `preview.create` receipt; cleanup idempotency keys stay scoped to the run so one run's keys are never reused for another run's resources.
+
 Preview status is aggregated from resource statuses. Any `failed`, `error`, `errored`, `crashed` or `cancelled` resource makes the preview `failed`, so a cancelled check never yields `ready`. `creating`, `pending`, `provisioning`, `queued` and `deploying` make it `creating`. A preview whose resources are all `deleted` is `deleted`. Everything else, including running services, a `running` job and resources without a status, is `ready`. A running job is not evidence that a check passed; callers that gate on checks should require each job's status to be `succeeded`.
 
 Each created resource gets a graph-local `ref` (for example `resource-0`). The ref, not the provider-native id, is the join key between a resource, its cleanup action and its receipts, because native ids are not unique across providers or across projects of one provider. Cleanup plan actions record `resourceRef`, `resourceId`, `resourceProvider`, `resourceAdapter` and `resourceScope`, and each resource is always deleted through the Capsule that created it.
