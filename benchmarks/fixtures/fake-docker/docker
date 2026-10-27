@@ -1,0 +1,17 @@
+#!/bin/sh
+# Local fake `docker` executable for the synthetic benchmark harness. It never contacts a daemon.
+# exec writes CAPSULE_BENCH_DOCKER_STDOUT_BYTES bytes of 100-byte lines to stdout and a marker to stderr.
+case "$1" in
+  version) printf 'bench-fake-docker\n' ;;
+  create) printf 'bench-fake-container\n' ;;
+  start | rm | stop | kill) ;;
+  exec)
+    bytes="${CAPSULE_BENCH_DOCKER_STDOUT_BYTES:-0}"
+    yes "$(printf '%099d' 0)" | head -c "$bytes"
+    printf 'synthetic-stderr-marker\n' >&2
+    ;;
+  *)
+    printf 'unexpected fake docker command: %s\n' "$1" >&2
+    exit 93
+    ;;
+esac

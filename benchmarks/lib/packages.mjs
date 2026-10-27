@@ -1,0 +1,29 @@
+// Loads the built workspace packages (packages/*/dist). Run `pnpm build` before benchmarking so the
+// harness measures the same artifacts that are packed and published.
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
+
+const packagesRoot = new URL("../../packages/", import.meta.url);
+
+export function packageDir(name) {
+  return fileURLToPath(new URL(`${name}/`, packagesRoot));
+}
+
+export async function loadPackage(name) {
+  const entry = new URL(`${name}/dist/index.js`, packagesRoot);
+  if (!existsSync(entry)) {
+    throw new Error(`Missing ${fileURLToPath(entry)}. Run \`pnpm build\` before benchmarks.`);
+  }
+  return await import(entry.href);
+}
+
+// Resolve a dependency exactly as the named workspace package resolves it, so prototype probes
+// observe the same module instance the adapter uses.
+export function requireFromPackage(name, specifier) {
+  return createRequire(new URL(`${name}/package.json`, packagesRoot))(specifier);
+}
+
+export function cliEntry() {
+  return fileURLToPath(new URL("cli/dist/index.js", packagesRoot));
+}
