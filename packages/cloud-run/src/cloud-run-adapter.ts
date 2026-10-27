@@ -1,6 +1,10 @@
+import { randomBytes } from "node:crypto";
 import {
   AdapterExecutionError,
+  PendingOperationError,
+  UnknownOutcomeError,
   providerErrorStatus,
+  resourceLocator,
   capsuleOperationTags,
   logsFromOutput,
   providerRuntimeMetadata,
@@ -20,6 +24,7 @@ import {
   type JobRun,
   type LogEntry,
   type RollbackServiceSpec,
+  type ResourceLocator,
   type RunJobSpec,
   type ServiceDeployment,
   type ServiceLogsResult,
@@ -270,11 +275,17 @@ function operationStatus(operation: CloudRunOperation): JobRun["status"] {
   if (operation.error) return "failed";
   if (isExecution(operation.response)) return executionStatus(operation.response);
   if (operation.done) return "succeeded";
-  return "running";
+  const execution = operationExecution(operation);
+  return execution ? executionStatus(execution) : "running";
 }
 
-function executionName(operation: CloudRunOperation, fallback: string): string {
-  return isExecution(operation.response) ? operation.response.name : fallback;
+// The Execution an operation reports, from its response when done or from its metadata, which Cloud
+// Run populates with the Execution for run and cancel operations. Only a real executions/ name counts.
+function operationExecution(operation: CloudRunOperation): CloudRunExecution | undefined {
+  for (const candidate of [operation.response, operation.metadata]) {
+    if (isExecution(candidate) && candidate.name.includes("/executions/")) return candidate;
+  }
+  return undefined;
 }
 
 function isService(value: unknown): value is CloudRunService {
@@ -312,6 +323,10 @@ function serviceOperationStatus(operation: CloudRunOperation): ServiceDeployment
   }
   if (operation.done) return "ready";
   return "deploying";
+}
+
+function locate(client: CloudRunClient, kind: "job" | "service" | "execution", nativeId: string): ResourceLocator {
+  return resourceLocator({ provider, kind, nativeId, scope: { project: client.projectId, location: client.location } });
 }
 
 function serviceName(client: CloudRunClient, id: string): string {
@@ -463,12 +478,36 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
         const client = getClient();
-        const id = spec.name ?? `capsule-job-${Date.now()}`;
+        const id = spec.name ?? `capsule-job-${Date.now().toString(36)}-${randomBytes(4).toString("hex")}`;
+        const jobName = client.resource("jobs", id);
+        const jobLocator = locate(client, "job", jobName);
+        // jobs.create returns an Operation. :run needs the Job to exist, so creation is always observed
+        // to completion (bounded by operationDeadlineMs) and a failed create never proceeds to :run.
         const create = await client.createJob(id, jobBody(spec));
-        const run = await client.runJob(client.resource("jobs", id));
+        const created = await client.awaitOperation(create, { operation: "job.run", resource: jobLocator, always: true });
+        if (created.error) {
+          throw new AdapterExecutionError(`Cloud Run job creation failed: ${created.error.message ?? "unknown error"}`, { operation: created });
+        }
+        const run = await client.runJob(jobName);
         const operation = await client.waitOperation(run);
+        // The Execution comes from the run operation's response or metadata. Without it there is no
+        // execution identity to return; the Job name is never substituted for it.
+        const execution = operationExecution(operation);
+        if (!execution) {
+          if (operation.error) {
+            throw new AdapterExecutionError(`Cloud Run job execution failed to start: ${operation.error.message ?? "unknown error"}`, { operation });
+          }
+          const runLocator = resourceLocator({ ...jobLocator, scope: { ...jobLocator.scope }, nativeOperationId: run.name });
+          if (operation.done) {
+            throw new UnknownOutcomeError("Cloud Run job.run operation finished without reporting its Execution.", { operation: "job.run", resource: runLocator });
+          }
+          throw new PendingOperationError(
+            `Cloud Run job.run for ${jobName} was accepted but has not reported its Execution yet; observe operation ${run.name}.`,
+            { operation: "job.run", resource: runLocator, state: "running" }
+          );
+        }
         const status = operationStatus(operation);
-        const runId = executionName(operation, client.resource("jobs", id));
+        const runId = execution.name;
         const receipt = context.receipts
           ? context.createReceipt({
               type: "job.run",
@@ -486,7 +525,7 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
                 ]
               },
               resource: { id: runId, name: runId, status },
-              metadata: cloudRunReceiptMetadata(client, { createOperation: create.name, runOperation: run.name, operation })
+              metadata: cloudRunReceiptMetadata(client, { jobName, createOperation: create.name, runOperation: run.name, operation })
             })
           : undefined;
         return {
@@ -509,13 +548,19 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
       },
       cancel: async (spec: CancelJobSpec): Promise<CancelJobResult> => {
         const client = getClient();
-        const execution = await client.cancelExecution(spec.id);
-        const status = executionStatus(execution) === "cancelled" ? "cancelled" : "cancelling";
+        // executions.cancel returns a long-running Operation. Its name identifies the cancel
+        // operation, never the Execution, so the result keeps the Execution identity it was given.
+        const operation = await client.cancelExecution(spec.id);
+        if (operation.error) {
+          throw new AdapterExecutionError(`Cloud Run execution cancellation failed: ${operation.error.message ?? "unknown error"}`, { operation });
+        }
+        const execution = operationExecution(operation);
+        const status = operation.done && execution && executionStatus(execution) === "cancelled" ? "cancelled" : "cancelling";
         return {
-          id: execution.name,
+          id: spec.id,
           provider,
           status,
-          metadata: { execution, reason: spec.reason }
+          metadata: { operation: operation.name, operationResource: operation, execution, reason: spec.reason }
         };
       },
       logs: async (spec: JobLogsSpec, context: AdapterContext): Promise<JobLogsResult> => {
@@ -677,18 +722,23 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
         const client = getClient();
         const name = serviceName(client, spec.id);
         let alreadyAbsent = false;
-        let waited: Awaited<ReturnType<typeof client.waitOperation>> | undefined;
+        let waited: CloudRunOperation | undefined;
+        let operation: CloudRunOperation | undefined;
         try {
-          const operation = await client.deleteService(name);
-          waited = await client.waitOperation(operation);
-          if (waited.error) {
-            throw new AdapterExecutionError("Cloud Run service deletion failed.", { operation: waited });
-          }
+          operation = await client.deleteService(name);
         } catch (error) {
           if (providerErrorStatus(error) !== 404) {
             throw error;
           }
           alreadyAbsent = true;
+        }
+        if (operation) {
+          // operations.wait is best effort and may return before the deletion is done. deleted is
+          // reported only for a done operation without error; otherwise PendingOperationError.
+          waited = await client.awaitOperation(operation, { operation: "service.delete", resource: locate(client, "service", name) });
+          if (waited.error) {
+            throw new AdapterExecutionError(`Cloud Run service deletion failed: ${waited.error.message ?? "unknown error"}`, { operation: waited });
+          }
         }
         const receipt = context.receipts
           ? context.createReceipt({

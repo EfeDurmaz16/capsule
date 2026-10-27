@@ -3,7 +3,7 @@
 // fixes an ID flips its it.fails to it in the same commit. fetch is an injected fake returning
 // Operation-shaped JSON; no Google API is contacted.
 import { describe, expect, it } from "vitest";
-import { Capsule } from "@capsule-sdk/core";
+import { AdapterExecutionError, Capsule, PendingOperationError, UnknownOutcomeError } from "@capsule-sdk/core";
 import { cloudRun } from "./index.js";
 
 const execution = "projects/p/locations/l/jobs/j/executions/e";
@@ -25,7 +25,7 @@ async function settleOrPending<T>(
 }
 
 describe("M1 audit regressions: cloud-run", () => {
-  it.fails("SVC-03: cancel keeps the original Execution identity instead of the Operation name", async () => {
+  it("SVC-03: cancel keeps the original Execution identity instead of the Operation name", async () => {
     const capsule = new Capsule({
       adapter: cloudRun({
         projectId: "p",
@@ -37,7 +37,7 @@ describe("M1 audit regressions: cloud-run", () => {
     expect((await capsule.job.cancel({ id: execution })).id).toBe(execution);
   });
 
-  it.fails("SVC-04: a pending delete Operation never produces deleted", async () => {
+  it("SVC-04: a pending delete Operation never produces deleted", async () => {
     const capsule = new Capsule({
       adapter: cloudRun({
         projectId: "p",
@@ -50,7 +50,7 @@ describe("M1 audit regressions: cloud-run", () => {
     expect(outcome.state === "resolved" && outcome.value.status === "deleted").toBe(false);
   });
 
-  it.fails("SVC-07b: a pending run never reports the Job resource name as the execution id", async () => {
+  it("SVC-07b: a pending run never reports the Job resource name as the execution id", async () => {
     const capsule = new Capsule({
       adapter: cloudRun({
         projectId: "p",
@@ -86,7 +86,7 @@ describe("M1 audit regressions: cloud-run", () => {
     expect(requests).toBe(0);
   });
 
-  it.fails("SVC-07a: a failed create Operation never proceeds to :run", async () => {
+  it("SVC-07a: a failed create Operation never proceeds to :run", async () => {
     const urls: string[] = [];
     const capsule = new Capsule({
       adapter: cloudRun({
@@ -130,5 +130,143 @@ describe("M1 audit regressions: cloud-run", () => {
     expect(container.command).toBeUndefined();
     expect(container.args).toBeUndefined();
     expect(container.startupProbe).toEqual({ httpGet: { path: "/healthz" } });
+  });
+
+  it("SVC-03: a cancel Operation that is not done reports cancelling and keeps the operation as metadata", async () => {
+    const capsule = new Capsule({
+      adapter: cloudRun({
+        projectId: "p",
+        location: "l",
+        accessToken: "fake",
+        fetch: async () => json({ name: "projects/p/locations/l/operations/cancel", done: false, metadata: { name: execution, completionStatus: "EXECUTION_RUNNING" } })
+      })
+    });
+    const cancelled = await capsule.job.cancel({ id: execution });
+    expect(cancelled).toMatchObject({ id: execution, status: "cancelling", metadata: { operation: "projects/p/locations/l/operations/cancel" } });
+  });
+
+  describe("SVC-04: service.delete reports deleted only for a done operation", () => {
+    function deleteCapsule(waitResponses: unknown[], options: { waitForOperations?: boolean; operationDeadlineMs?: number } = {}) {
+      const urls: string[] = [];
+      const capsule = new Capsule({
+        adapter: cloudRun({
+          projectId: "p",
+          location: "l",
+          accessToken: "fake",
+          operationPollIntervalMs: 1,
+          ...options,
+          fetch: async (url) => {
+            urls.push(String(url));
+            if (String(url).endsWith(":wait")) return json(waitResponses.length > 1 ? waitResponses.shift() : waitResponses[0]);
+            return json({ name: "projects/p/locations/l/operations/delete", done: false });
+          }
+        })
+      });
+      return { capsule, urls };
+    }
+
+    it("throws PendingOperationError with the operation locator when waiting is disabled", async () => {
+      const { capsule } = deleteCapsule([], { waitForOperations: false });
+      const error = await capsule.service.delete({ id: "s" }).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(PendingOperationError);
+      expect(error).toMatchObject({ resource: { kind: "service", nativeId: "projects/p/locations/l/services/s", nativeOperationId: "projects/p/locations/l/operations/delete" } });
+    });
+
+    it("keeps waiting across best-effort waits that return early and stops at the client deadline", async () => {
+      const { capsule, urls } = deleteCapsule([{ name: "projects/p/locations/l/operations/delete", done: false }], { operationDeadlineMs: 60 });
+      const error = await capsule.service.delete({ id: "s" }).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(PendingOperationError);
+      expect(urls.filter((url) => url.endsWith(":wait")).length).toBeGreaterThan(1);
+    });
+
+    it("reports deleted once a later wait returns done", async () => {
+      const { capsule } = deleteCapsule([
+        { name: "projects/p/locations/l/operations/delete", done: false },
+        { name: "projects/p/locations/l/operations/delete", done: true }
+      ]);
+      await expect(capsule.service.delete({ id: "s" })).resolves.toMatchObject({ status: "deleted" });
+    });
+
+    it("keeps a terminal failure as a failure", async () => {
+      const { capsule } = deleteCapsule([{ name: "projects/p/locations/l/operations/delete", done: true, error: { code: 9, message: "precondition" } }]);
+      await expect(capsule.service.delete({ id: "s" })).rejects.toThrow(/precondition/);
+    });
+  });
+
+  describe("SVC-07: job creation and run identity", () => {
+    it("SVC-07a: a pending create is awaited before :run and a create that never finishes never runs", async () => {
+      const urls: string[] = [];
+      const capsule = new Capsule({
+        adapter: cloudRun({
+          projectId: "p",
+          location: "l",
+          accessToken: "fake",
+          operationDeadlineMs: 50,
+          operationPollIntervalMs: 1,
+          fetch: async (url) => {
+            urls.push(String(url));
+            return json({ name: "projects/p/locations/l/operations/create", done: false });
+          }
+        })
+      });
+      const error = await capsule.job.run({ name: "j", image: "i" }).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(PendingOperationError);
+      expect(error).toMatchObject({ resource: { kind: "job", nativeId: "projects/p/locations/l/jobs/j" } });
+      expect(urls.some((url) => url.includes(":run"))).toBe(false);
+    });
+
+    it("SVC-07b: a pending run returns the Execution from the operation metadata", async () => {
+      const capsule = new Capsule({
+        adapter: cloudRun({
+          projectId: "p",
+          location: "l",
+          accessToken: "fake",
+          waitForOperations: false,
+          fetch: async (url) =>
+            String(url).includes(":run")
+              ? json({ name: "projects/p/locations/l/operations/run", done: false, metadata: { name: execution, completionStatus: "EXECUTION_RUNNING" } })
+              : json({ name: "projects/p/locations/l/operations/create", done: true, response: { name: "projects/p/locations/l/jobs/j" } })
+        })
+      });
+      const run = await capsule.job.run({ name: "j", image: "i" });
+      expect(run).toMatchObject({ id: execution, status: "running" });
+      expect(run.result).toBeUndefined();
+    });
+
+    it("SVC-07b: a pending run with no Execution yet is pending with the run operation locator", async () => {
+      const capsule = new Capsule({
+        adapter: cloudRun({
+          projectId: "p",
+          location: "l",
+          accessToken: "fake",
+          waitForOperations: false,
+          fetch: async (url) =>
+            String(url).includes(":run")
+              ? json({ name: "projects/p/locations/l/operations/run", done: false })
+              : json({ name: "projects/p/locations/l/operations/create", done: true })
+        })
+      });
+      const error = await capsule.job.run({ name: "j", image: "i" }).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(PendingOperationError);
+      expect(error).toMatchObject({ resource: { nativeId: "projects/p/locations/l/jobs/j", nativeOperationId: "projects/p/locations/l/operations/run" } });
+    });
+
+    it("SVC-07b: a run that failed to start throws instead of returning a fabricated id", async () => {
+      const capsule = new Capsule({
+        adapter: cloudRun({
+          projectId: "p",
+          location: "l",
+          accessToken: "fake",
+          fetch: async (url) =>
+            String(url).includes(":run")
+              ? json({ name: "projects/p/locations/l/operations/run", done: true, error: { code: 8, message: "quota exceeded" } })
+              : json({ name: "projects/p/locations/l/operations/create", done: true })
+        })
+      });
+      const error = await capsule.job.run({ name: "j", image: "i" }).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(AdapterExecutionError);
+      expect(error).not.toBeInstanceOf(UnknownOutcomeError);
+      expect((error as Error).message).toMatch(/quota exceeded/);
+    });
   });
 });

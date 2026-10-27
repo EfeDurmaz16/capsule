@@ -1,10 +1,14 @@
 import { GoogleAuth } from "google-auth-library";
 import {
   AdapterExecutionError,
+  PendingOperationError,
   UnknownOutcomeError,
   classifyProviderError,
+  observeUntilTerminal,
   providerExecutionError,
-  readBoundedText
+  readBoundedText,
+  resourceLocator,
+  type ResourceLocator
 } from "@capsule-sdk/core";
 
 export interface CloudRunClientOptions {
@@ -178,8 +182,9 @@ export class CloudRunClient {
     return await this.request<CloudRunExecution>({ path: `/${name}` });
   }
 
-  async cancelExecution(name: string): Promise<CloudRunExecution> {
-    return await this.request<CloudRunExecution>({ method: "POST", path: `/${name}:cancel`, body: {} });
+  /** executions.cancel returns a long-running Operation, not the Execution. */
+  async cancelExecution(name: string): Promise<CloudRunOperation<CloudRunExecution>> {
+    return await this.request<CloudRunOperation<CloudRunExecution>>({ method: "POST", path: `/${name}:cancel`, body: {} });
   }
 
   async deleteExecution(name: string): Promise<CloudRunOperation> {
@@ -232,6 +237,47 @@ export class CloudRunClient {
       idempotent: true,
       timeoutMs: serverWaitMs + waitGraceMs
     });
+  }
+
+  /**
+   * Observes an accepted operation until it is done, with repeated best-effort operations.wait calls
+   * inside one client-side deadline. Returns the done operation, which may carry `error`. Throws
+   * PendingOperationError when the deadline expires or waiting is disabled; it never treats a
+   * not-done operation as finished.
+   */
+  async awaitOperation<T>(
+    operation: CloudRunOperation<T>,
+    target: { operation: string; resource: ResourceLocator; always?: boolean }
+  ): Promise<CloudRunOperation<T>> {
+    if (operation.done) return operation;
+    const resource = resourceLocator({ ...target.resource, scope: { ...target.resource.scope }, nativeOperationId: operation.name });
+    if (this.options.waitForOperations === false && !target.always) {
+      throw new PendingOperationError(
+        `${target.operation} for ${resource.kind} ${resource.nativeId} was accepted and is not done; waitForOperations is false.`,
+        { operation: target.operation, resource, state: "running" }
+      );
+    }
+    const serverWaitMs = this.options.operationTimeoutMs ?? 300_000;
+    return await observeUntilTerminal<CloudRunOperation<T>>(
+      async ({ signal, remainingMs }) => {
+        const waitMs = Math.min(serverWaitMs, remainingMs);
+        const waited = await this.request<CloudRunOperation<T>>({
+          method: "POST",
+          path: `/${operation.name}:wait`,
+          body: { timeout: waitTimeout(waitMs) },
+          idempotent: true,
+          signal,
+          timeoutMs: waitMs + waitGraceMs
+        });
+        return waited.done ? { done: true, value: waited } : { done: false, state: "running" };
+      },
+      {
+        operation: target.operation,
+        resource,
+        deadlineMs: this.options.operationDeadlineMs ?? this.options.operationTimeoutMs ?? 300_000,
+        intervalMs: this.options.operationPollIntervalMs ?? 1_000
+      }
+    );
   }
 
   async listLogEntries(request: CloudLoggingListEntriesRequest): Promise<CloudLoggingListEntriesResponse> {
