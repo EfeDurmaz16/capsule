@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, ProviderRetryableError, ProviderValidationError, runAdapterContract } from "@capsule-sdk/core";
+import { AdapterExecutionError, Capsule, ProviderRetryableError, ProviderValidationError, defaultCaptureBounds, runAdapterContract } from "@capsule-sdk/core";
 import { kubernetes, kubernetesCapabilities } from "./index.js";
 
 function k8sError(code: number, reason: string, message = reason): Error {
@@ -280,6 +280,7 @@ describe("kubernetes adapter", () => {
         container: "main",
         sinceSeconds: expect.any(Number),
         tailLines: 10,
+        limitBytes: defaultCaptureBounds.maxBytes,
         timestamps: true
       }
     ]);
@@ -713,8 +714,8 @@ describe("kubernetes adapter", () => {
 
     expect(lists).toEqual([{ namespace: "preview", labelSelector: "app.kubernetes.io/managed-by=capsule,app.kubernetes.io/name=api" }]);
     expect(logReads).toEqual([
-      { namespace: "preview", name: "api-pod-a", container: "web", tailLines: 2, timestamps: true },
-      { namespace: "preview", name: "api-pod-a", container: "sidecar", tailLines: 2, timestamps: true }
+      { namespace: "preview", name: "api-pod-a", container: "web", tailLines: 2, limitBytes: defaultCaptureBounds.maxBytes, timestamps: true },
+      { namespace: "preview", name: "api-pod-a", container: "sidecar", tailLines: 2, limitBytes: defaultCaptureBounds.maxBytes, timestamps: true }
     ]);
     expect(logs).toMatchObject({
       id: "api",

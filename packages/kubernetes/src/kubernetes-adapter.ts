@@ -5,7 +5,13 @@ import {
   capsuleOperationTags,
   logsFromOutput,
   providerRuntimeMetadata,
+  CaptureBudget,
+  CaptureLimitError,
+  mapWithConcurrency,
+  resolveCaptureBounds,
   type AdapterContext,
+  type CaptureBounds,
+  type CaptureTruncation,
   type CapsuleAdapter,
   type CapabilityMap,
   type CancelJobResult,
@@ -88,6 +94,7 @@ interface CoreApi {
     sinceSeconds?: number;
     stream?: "Stdout" | "Stderr";
     tailLines?: number;
+    limitBytes?: number;
     timestamps?: boolean;
   }): Promise<string>;
 }
@@ -514,23 +521,28 @@ function timestampKey(value: string): { seconds: number; nanos: number } | undef
 }
 
 // Global oldest-to-newest order across every pod and container, independent of the order the provider
-// listed pods in. Ties fall back to source name and then to the original line order, so the result is
+// listed pods in or the order concurrent reads finished. Ties fall back to source name, then to the
+// read target's position in the pod list, then to the original line order, so the result is
 // deterministic.
-function orderLogs(logs: LogEntry[]): LogEntry[] {
-  const keyed = logs.map((entry, index) => ({ entry, index, key: timestampKey(entry.timestamp) }));
-  keyed.sort((left, right) => {
-    const a = left.key;
-    const b = right.key;
-    if (a && b) {
-      if (a.seconds !== b.seconds) return a.seconds - b.seconds;
-      if (a.nanos !== b.nanos) return a.nanos - b.nanos;
-    } else if (a || b) {
-      return a ? 1 : -1;
-    }
-    const sourceOrder = (left.entry.source ?? "").localeCompare(right.entry.source ?? "");
-    return sourceOrder !== 0 ? sourceOrder : left.index - right.index;
-  });
-  return keyed.map((item) => item.entry);
+interface OrderedLog {
+  entry: LogEntry;
+  key: { seconds: number; nanos: number } | undefined;
+  target: number;
+  line: number;
+}
+
+function compareOrderedLogs(left: OrderedLog, right: OrderedLog): number {
+  const a = left.key;
+  const b = right.key;
+  if (a && b) {
+    if (a.seconds !== b.seconds) return a.seconds - b.seconds;
+    if (a.nanos !== b.nanos) return a.nanos - b.nanos;
+  } else if (a || b) {
+    return a ? 1 : -1;
+  }
+  const sourceOrder = (left.entry.source ?? "").localeCompare(right.entry.source ?? "");
+  if (sourceOrder !== 0) return sourceOrder;
+  return left.target !== right.target ? left.target - right.target : left.line - right.line;
 }
 
 function filterUntil(logs: LogEntry[], until: string | undefined): LogEntry[] {
@@ -545,15 +557,6 @@ function filterUntil(logs: LogEntry[], until: string | undefined): LogEntry[] {
   });
 }
 
-function limitLogs(logs: LogEntry[], limit: number | undefined): LogEntry[] {
-  if (limit === undefined) return logs;
-  if (!Number.isInteger(limit) || limit < 0) {
-    throw new AdapterExecutionError("Kubernetes log limit must be a non-negative integer.");
-  }
-  if (limit === 0) return [];
-  return logs.slice(-limit);
-}
-
 function redactLiteralEnvValues(logs: LogEntry[], values: Set<string>, context: AdapterContext): LogEntry[] {
   if (!context.policy.secrets?.redactFromLogs) return logs;
   // Longest first so a value that contains another value is replaced whole.
@@ -563,6 +566,20 @@ function redactLiteralEnvValues(logs: LogEntry[], values: Set<string>, context: 
     ...entry,
     message: secrets.reduce((message, secret) => message.split(secret).join("[REDACTED]"), entry.message)
   }));
+}
+
+function validateLogLimit(limit: number | undefined): void {
+  if (limit !== undefined && (!Number.isInteger(limit) || limit < 0)) {
+    throw new AdapterExecutionError("Kubernetes log limit must be a non-negative integer.");
+  }
+}
+
+const textEncoder = new TextEncoder();
+
+// Merges a new source into the kept window and keeps only the `cap` newest entries.
+function mergeNewest(kept: OrderedLog[], incoming: OrderedLog[], cap: number): OrderedLog[] {
+  const merged = [...kept, ...incoming].sort(compareOrderedLogs);
+  return merged.length > cap ? merged.slice(-cap) : merged;
 }
 
 async function collectPodLogs(
@@ -577,48 +594,128 @@ async function collectPodLogs(
     limit?: number;
     follow?: boolean;
     cursor?: string;
+    bounds?: CaptureBounds;
     context: AdapterContext;
   }
-): Promise<{ logs: LogEntry[]; nextCursor?: string; metadata: Record<string, unknown> }> {
+): Promise<{ logs: LogEntry[]; nextCursor?: string; truncation: CaptureTruncation; metadata: Record<string, unknown> }> {
   if (!input.selector) {
     throw new AdapterExecutionError(`Kubernetes ${input.selectorSource} logs require a pod selector for ${input.id}.`);
   }
   if (input.follow) {
     throw new AdapterExecutionError("Kubernetes logs follow mode is not supported yet; call logs again to fetch newer entries.");
   }
+  validateLogLimit(input.limit);
+  const bounds = resolveCaptureBounds(input.bounds);
+  const sinceSeconds = secondsSince(input.since);
+  if (input.until !== undefined && Number.isNaN(parseTimestamp(input.until))) {
+    throw new AdapterExecutionError(`Invalid Kubernetes log until timestamp: ${input.until}`);
+  }
   const listNamespacedPod = requireCoreMethod(core, "listNamespacedPod");
   const readNamespacedPodLog = requireCoreMethod(core, "readNamespacedPodLog");
+  // The caller's limit is the requested page size; bounds.maxRecords is a ceiling that is reported as
+  // truncation when it cuts the result. Every per-source read is a bounded tail (tailLines) with a
+  // server-side byte cap (limitBytes), so no single source can return an unbounded transcript.
+  const cap = Math.min(input.limit ?? bounds.maxRecords, bounds.maxRecords);
+  const capFromBounds = input.limit === undefined || input.limit > bounds.maxRecords;
+  // The deadline bounds provider reads; the byte and record budget is applied afterwards to what arrived.
+  const deadlineAt = Date.now() + bounds.deadlineMs;
+  const budget = new CaptureBudget({ ...bounds, deadlineMs: Number.MAX_SAFE_INTEGER, overflow: "truncate" });
   // Pagination rides the pod list continue token: one page of matched pods per call, their logs
-  // fanned out and tagged with source. readNamespacedPodLog itself has no cursor, so the log lines
-  // within a pod are always a bounded tail, never a full transcript.
+  // fanned out with at most bounds.concurrency reads in flight and tagged with source.
   const podList = await listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: input.selector, _continue: input.cursor });
   const pods = podList.items ?? [];
   const nextCursor = typeof podList.metadata?.["continue"] === "string" && podList.metadata["continue"] ? (podList.metadata["continue"] as string) : undefined;
-  const sinceSeconds = secondsSince(input.since);
   const fallbackTimestamp = new Date().toISOString();
-  const logs: LogEntry[] = [];
-  for (const pod of pods) {
+  const targets = pods.flatMap((pod) => {
     const podName = pod.metadata?.name;
-    if (!podName) continue;
+    if (!podName) return [];
     const podContainers = containers(pod);
-    const targets = podContainers.length > 0 ? podContainers : [undefined];
-    for (const container of targets) {
-      const text = await readNamespacedPodLog.call(core, {
-        namespace: input.namespace,
-        name: podName,
-        container,
-        sinceSeconds,
-        tailLines: input.limit,
-        timestamps: true
-      });
-      logs.push(...parseKubernetesLog(text, "stdout", fallbackTimestamp, podName));
+    return (podContainers.length > 0 ? podContainers : [undefined]).map((container) => ({ podName, container }));
+  });
+
+  let kept: OrderedLog[] = [];
+  let candidates = 0;
+  let sourceAtTailCap = false;
+  let sourceAtByteCap = false;
+  let deadlineHit = false;
+  await mapWithConcurrency(targets, bounds.concurrency, async ({ podName, container }, target) => {
+    if (cap === 0) return;
+    const remainingMs = deadlineAt - Date.now();
+    if (remainingMs <= 0) {
+      deadlineHit = true;
+      return;
     }
-  }
+    const read = readNamespacedPodLog.call(core, {
+      namespace: input.namespace,
+      name: podName,
+      container,
+      sinceSeconds,
+      tailLines: cap,
+      limitBytes: bounds.maxBytes,
+      timestamps: true
+    });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const expired = new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => resolve(undefined), remainingMs);
+    });
+    // A read that outlives the deadline is abandoned, not cancelled: the injected API has no abort hook.
+    read.catch(() => undefined);
+    const text = await Promise.race([read, expired]).finally(() => clearTimeout(timer));
+    if (text === undefined) {
+      deadlineHit = true;
+      return;
+    }
+    let body = text;
+    if (textEncoder.encode(text).byteLength >= bounds.maxBytes) {
+      // limitBytes stopped the stream; the last line may be cut mid-way, so drop it.
+      sourceAtByteCap = true;
+      const lastNewline = body.lastIndexOf("\n");
+      body = lastNewline === -1 ? "" : body.slice(0, lastNewline + 1);
+    }
+    const entries = filterUntil(parseKubernetesLog(body, "stdout", fallbackTimestamp, podName), input.until);
+    if (entries.length >= cap) sourceAtTailCap = true;
+    candidates += entries.length;
+    kept = mergeNewest(
+      kept,
+      entries.map((entry, line) => ({ entry, key: timestampKey(entry.timestamp), target, line })),
+      cap
+    );
+  });
+
   const redactionValues = literalEnvValues(pods);
-  const redactedLogs = redactLiteralEnvValues(orderLogs(filterUntil(logs, input.until)), redactionValues, input.context);
+  const redacted = redactLiteralEnvValues(
+    kept.map((item) => item.entry),
+    redactionValues,
+    input.context
+  );
+  // Aggregate byte budget, filled newest first so a cut drops the oldest entries.
+  const selected: LogEntry[] = [];
+  for (let index = redacted.length - 1; index >= 0; index -= 1) {
+    const entry = redacted[index]!;
+    if (!budget.takeRecord(textEncoder.encode(entry.message).byteLength)) break;
+    selected.push(entry);
+  }
+  selected.reverse();
+
+  const budgetTruncation = budget.truncation();
+  let truncation: CaptureTruncation = budgetTruncation;
+  if (!budgetTruncation.truncated) {
+    const reason = deadlineHit
+      ? ({ reason: "deadline", limit: bounds.deadlineMs } as const)
+      : sourceAtByteCap
+        ? ({ reason: "bytes", limit: bounds.maxBytes } as const)
+        : capFromBounds && (candidates > cap || sourceAtTailCap)
+          ? ({ reason: "records", limit: bounds.maxRecords } as const)
+          : undefined;
+    if (reason) truncation = { ...budgetTruncation, truncated: true, ...reason };
+  }
+  if (truncation.truncated && bounds.overflow === "error") {
+    throw new CaptureLimitError(`Kubernetes ${input.selectorSource} logs exceeded capture bounds: ${truncation.reason}.`, truncation);
+  }
   return {
-    logs: limitLogs(redactedLogs, input.limit),
+    logs: selected,
     nextCursor,
+    truncation,
     metadata: {
       namespace: input.namespace,
       selector: input.selector,
@@ -803,6 +900,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
           limit: spec.limit,
           follow: spec.follow,
           cursor: spec.cursor,
+          bounds: spec.bounds,
           context
         });
         const policy = context.evaluatePolicy();
@@ -825,7 +923,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
               metadata: kubernetesReceiptMetadata("batch/v1+v1", { ...result.metadata, kubernetesName: name, uid: job.metadata?.uid })
             })
           : undefined;
-        return { id: name, provider, logs: result.logs, nextCursor: result.nextCursor, metadata: result.metadata, receipt };
+        return { id: name, provider, logs: result.logs, truncation: result.truncation, nextCursor: result.nextCursor, metadata: result.metadata, receipt };
       }
     },
     service: {
@@ -970,6 +1068,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
           limit: spec.limit,
           follow: spec.follow,
           cursor: spec.cursor,
+          bounds: spec.bounds,
           context
         });
         const policy = context.evaluatePolicy();
@@ -992,7 +1091,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
               metadata: kubernetesReceiptMetadata("v1", { ...result.metadata, serviceName: name, uid: service.metadata?.uid })
             })
           : undefined;
-        return { id: name, provider, name, logs: result.logs, nextCursor: result.nextCursor, metadata: result.metadata, receipt };
+        return { id: name, provider, name, logs: result.logs, truncation: result.truncation, nextCursor: result.nextCursor, metadata: result.metadata, receipt };
       }
     }
   };
