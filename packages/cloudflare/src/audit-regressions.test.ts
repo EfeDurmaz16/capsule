@@ -94,7 +94,7 @@ describe("M1 audit regressions: cloudflare", () => {
     }
   });
 
-  it.fails("EDGE-05a: an HTML 503 keeps the HTTP status and retry category instead of a SyntaxError", async () => {
+  it("EDGE-05a: an HTML 503 keeps the HTTP status and retry category instead of a SyntaxError", async () => {
     const client = new CloudflareClient({
       apiToken: "fake",
       accountId: "acct_audit",
