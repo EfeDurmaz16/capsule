@@ -13,7 +13,7 @@ export interface StdioWorkerOptions {
   configPath?: string;
   /** JSONL receipt file. Receipts written there are listed in results by digest and id. */
   receiptsPath?: string;
-  /** Docker engine scope when no binding is configured. */
+  /** Docker context to send every command to, when no binding is configured. */
   engine?: string;
 }
 

@@ -27,18 +27,27 @@ class FakeEngine {
   readonly images = new Set(["debian:bookworm-slim"]);
   readonly containers = new Map<string, FakeContainer>();
   readonly calls: string[][] = [];
+  /** The context each call named with --context=, or undefined when it named none. */
+  readonly routed: Array<string | undefined> = [];
+  /** What `docker context show` prints: the CLI's current context. */
+  current = "fake-engine";
   /** Makes `docker rm` come back the way runDocker reports its own timeout. */
   rmTimesOut = false;
   private next = 1;
 
-  runner = async (args: string[], _options?: RunDockerOptions): Promise<DockerCommandResult> => {
+  runner = async (given: string[], _options?: RunDockerOptions): Promise<DockerCommandResult> => {
+    const route = given[0]?.startsWith("--context=") ? given[0].slice("--context=".length) : undefined;
+    const args = route === undefined ? given : given.slice(1);
     this.calls.push(args);
+    this.routed.push(route);
     const ok = (stdout = ""): DockerCommandResult => ({ exitCode: 0, stdout, stderr: "" });
     const fail = (stderr: string, exitCode = 1): DockerCommandResult => ({ exitCode, stdout: "", stderr });
     const find = (ref: string) => [...this.containers.values()].find((container) => container.id === ref || container.name === ref);
     switch (args[0]) {
       case "context":
-        return ok("fake-engine\n");
+        return ok(`${this.current}\n`);
+      case "version":
+        return ok("29.0.0\n");
       case "create": {
         const name = args[args.indexOf("--name") + 1]!;
         const pull = args.includes("--pull") ? args[args.indexOf("--pull") + 1] : "missing";
@@ -139,14 +148,18 @@ const create = (n: number, image = "debian:bookworm-slim", secretNames: string[]
   request(n, "sandbox.create", { params: { image, env: { MODE: "test" }, secret_names: secretNames, labels: { purpose: "bridge-test" } } });
 const target = (id: string) => ({ provider: "docker", scope: engineScope, kind: "container", native_id: id });
 
-function connect(engine: FakeEngine, options: { receiptsPath?: string; approvals?: unknown[]; secrets?: string[] } = {}) {
+function connect(
+  engine: FakeEngine,
+  options: { receiptsPath?: string; approvals?: unknown[]; secrets?: string[]; binding?: { engine: string }; realAvailability?: boolean } = {}
+) {
   const config = parseWorkerConfig(
     { policy: { images: ["debian:bookworm-slim"], ...(options.secrets ? { secrets: { allowed: options.secrets } } : {}) }, approvals: options.approvals ?? [] },
     dockerProfile
   );
   const driver = dockerDriver({
     runner: engine.runner,
-    checkAvailable: async () => true,
+    ...(options.binding ? { binding: options.binding } : {}),
+    ...(options.realAvailability ? {} : { checkAvailable: async () => true }),
     ...(options.receiptsPath ? { receipts: { store: new JsonlReceiptStore({ path: options.receiptsPath }), durable: true } } : {}),
     secret: (name) => (options.secrets?.includes(name) ? `value-of-${name}` : undefined)
   });
@@ -305,6 +318,54 @@ describe("docker profile on a fake engine", () => {
     connection.send({ ...request(3, "sandbox.destroy", { target: target("--help"), params: {} }), approval: { ref: "apr-destroy" } });
     expect(await connection.next()).toMatchObject({ error: { code: "provider_failed", effect: "none" } });
     expect(engine.calls.map((call) => call[0])).toEqual(["context"]);
+  });
+
+  test("every docker command goes to the bound engine's context, not to the CLI's current one", async () => {
+    const engine = new FakeEngine();
+    engine.current = "orbstack";
+    const bound = { engine: "desktop-linux" };
+    const connection = connect(engine, {
+      binding: bound,
+      realAvailability: true,
+      approvals: [{ ref: "apr-destroy", action: "sandbox.destroy", native_id: null }]
+    });
+    await handshake(connection);
+    connection.send(create(1));
+    const created = await connection.next();
+    expect(created).toMatchObject({ type: "result", state: "completed", resource: { scope: bound } });
+    const locator = created.resource as Record<string, unknown>;
+    connection.send(
+      request(2, "sandbox.exec", {
+        target: locator,
+        params: { argv: ["echo", "hi"], stdin: null, cwd: null, timeout_ms: 10_000, max_output_bytes: 64, secret_names: [] }
+      })
+    );
+    expect(await connection.next()).toMatchObject({ type: "result", state: "completed" });
+    connection.send({ ...request(3, "sandbox.destroy", { target: locator, params: {} }), approval: { ref: "apr-destroy" } });
+    expect(await connection.next()).toMatchObject({ type: "result", state: "completed", output: { status: "destroyed" } });
+    expect(engine.calls.map((call) => call[0])).toEqual(expect.arrayContaining(["version", "ps", "create", "start", "inspect", "exec", "rm"]));
+    expect(engine.calls.some((call) => call[0] === "context")).toBe(false);
+    expect(engine.routed).toEqual(engine.calls.map(() => "desktop-linux"));
+  });
+
+  test("without a binding, the context read at the first request stays the route after the CLI switches", async () => {
+    const engine = new FakeEngine();
+    const connection = connect(engine);
+    await handshake(connection);
+    connection.send(create(1));
+    const id = ((await connection.next()).resource as { native_id: string }).native_id;
+    engine.current = "another-engine";
+    connection.send(
+      request(2, "sandbox.exec", {
+        target: target(id),
+        params: { argv: ["echo", "hi"], stdin: null, cwd: null, timeout_ms: 10_000, max_output_bytes: 64, secret_names: [] }
+      })
+    );
+    expect(await connection.next()).toMatchObject({ type: "result", state: "completed", resource: { scope: engineScope } });
+    expect(engine.calls.filter((call) => call[0] === "context")).toHaveLength(1);
+    expect(engine.routed.filter((_, index) => engine.calls[index]![0] !== "context")).toEqual(
+      engine.calls.filter((call) => call[0] !== "context").map(() => "fake-engine")
+    );
   });
 
   test("a locator in another engine scope is refused before any docker call", async () => {

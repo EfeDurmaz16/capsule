@@ -38,7 +38,7 @@ node packages/bridge-worker/dist/bin.js --profile fixture --config worker.json
 node packages/bridge-worker/dist/bin.js --profile docker --config worker.json --receipts receipts.jsonl
 ```
 
-Installed from npm the same command is `capsule-bridge-worker --profile <fixture|docker> --config <file>`. The config holds the scope the worker is bound to (`binding`), the worker's policy (`images`, `secrets.allowed`) and the approval grants it can resolve by ref (`approvals`); a scenario's `provider_state` is a valid fixture config. For Docker, `binding` may be omitted and the engine scope is read once from `docker context show`.
+Installed from npm the same command is `capsule-bridge-worker --profile <fixture|docker> --config <file>`. The config holds the scope the worker is bound to (`binding`), the worker's policy (`images`, `secrets.allowed`) and the approval grants it can resolve by ref (`approvals`); a scenario's `provider_state` is a valid fixture config. For Docker, `binding.engine` names a docker context, and every docker command the worker runs names it with `--context=`, so the engine scope on a locator is the engine the command reaches. `binding` may be omitted; the scope is then read once from `docker context show` and kept, even if the CLI's current context changes later.
 
 How the worker applies the protocol:
 

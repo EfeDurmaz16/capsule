@@ -12,7 +12,8 @@ length-prefixed JSON frames on stdin and stdout. Stdout carries frames only; dia
   --profile   capability profile to serve: fixture (deterministic in-memory provider) or docker (local engine)
   --config    worker config: binding, policy, approvals; for fixture also sandboxes and script
   --receipts  docker only: append receipts to this JSONL file and list them in results
-  --engine    docker only: engine scope when the config has no binding (default: docker context show)
+  --engine    docker only: the docker context every command goes to, when the config has no binding
+              (default: the CLI's current context, read once)
 `;
 
 let values;

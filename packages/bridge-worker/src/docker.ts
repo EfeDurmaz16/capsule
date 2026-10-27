@@ -1,5 +1,5 @@
 import type { ReceiptStore } from "@capsule-sdk/core";
-import { docker, dockerAvailable, runDocker, type DockerCommandResult, type RunDockerOptions } from "@capsule-sdk/docker";
+import { docker, runDocker, type DockerCommandResult, type RunDockerOptions } from "@capsule-sdk/docker";
 import type { BridgeDriver, ResourceState } from "./driver.js";
 import { wallClock } from "./observe.js";
 import { dockerProfile } from "./profiles.js";
@@ -14,7 +14,10 @@ import { Refusal } from "./validate.js";
 type DockerRunner = (args: string[], options?: RunDockerOptions) => Promise<DockerCommandResult>;
 
 export interface DockerDriverOptions {
-  /** The engine scope. Omitted: the docker CLI's current context, read once at the first request. */
+  /**
+   * The engine scope: the docker context every command is sent to. Omitted: the docker CLI's current
+   * context, read once at the first request and then used for every command, even if the CLI switches.
+   */
   binding?: { engine: string };
   runner?: DockerRunner;
   checkAvailable?: () => Promise<boolean>;
@@ -32,23 +35,41 @@ interface InspectedState {
 }
 
 export function dockerDriver(options: DockerDriverOptions = {}): BridgeDriver {
-  const runner = options.runner ?? runDocker;
-  const adapter = docker({ runner, checkAvailable: options.checkAvailable ?? dockerAvailable, pull: "never" });
-  let binding: Promise<Record<string, string>> | undefined;
+  const cli = options.runner ?? runDocker;
+  let shown: Promise<Record<string, string>> | undefined;
+  const binding = (): Promise<Record<string, string>> => {
+    if (options.binding) return Promise.resolve({ ...options.binding });
+    shown ??= cli(["context", "show"], { timeoutMs: 10_000 }).then((result) => {
+      if (result.exitCode !== 0 || result.stdout.trim() === "") throw new Error("docker context show failed");
+      return { engine: result.stdout.trim() };
+    });
+    shown.catch(() => {
+      shown = undefined;
+    });
+    return shown;
+  };
+  // The engine scope is a route, not only a label: every command names the bound context, so the
+  // engine a locator names is the engine the command reaches. Without --context the CLI would follow
+  // DOCKER_CONTEXT or its current context, which can differ from a configured binding or change under
+  // a running worker. The = form keeps the name one argument whatever it holds.
+  const runner: DockerRunner = async (args, runOptions) => {
+    const { engine } = await binding();
+    return cli([`--context=${engine}`, ...args], runOptions);
+  };
+  const checkAvailable =
+    options.checkAvailable ??
+    (async () => {
+      try {
+        return (await runner(["version", "--format", "{{.Server.Version}}"], { timeoutMs: 5_000 })).exitCode === 0;
+      } catch {
+        return false;
+      }
+    });
+  const adapter = docker({ runner, checkAvailable, pull: "never" });
   return {
     profile: dockerProfile,
     clock: wallClock,
-    binding: () => {
-      if (options.binding) return Promise.resolve({ ...options.binding });
-      binding ??= runner(["context", "show"], { timeoutMs: 10_000 }).then((shown) => {
-        if (shown.exitCode !== 0 || shown.stdout.trim() === "") throw new Error("docker context show failed");
-        return { engine: shown.stdout.trim() };
-      });
-      binding.catch(() => {
-        binding = undefined;
-      });
-      return binding;
-    },
+    binding,
     adapter: () => adapter,
     admit: (request) => {
       // Values here become docker CLI arguments. A leading dash would read as an option, and an = in a
