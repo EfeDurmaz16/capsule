@@ -1,0 +1,345 @@
+{
+  "meta": {
+    "label": "bridge-m3-node24",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "bb83ed14a5b225e1205ebc42acbd8c4641abcb33",
+    "packagesTree": "c9f139ee61855ec186024d9a4c8574ec62fc0448",
+    "dirty": false,
+    "date": "2026-10-27T19:39:12.723Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v24.19.0",
+      "v8": "13.6.233.17-node.51",
+      "execArgv": [
+        "--expose-gc"
+      ]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": "perf-12-bridge-worker",
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workloads": [
+    {
+      "id": "perf-12-bridge-worker",
+      "perfIds": [
+        "PERF-12"
+      ],
+      "manifestIds": [
+        "M3-BRIDGE"
+      ],
+      "description": "Bridge worker on the fixture profile: spawn to hello_ack and sequential request round trips over real pipes.",
+      "cases": [
+        {
+          "name": "spawn-to-hello-ack",
+          "description": "Fresh worker process per sample: time from spawn to a decoded hello_ack, and the worker's peak RSS.",
+          "params": {
+            "samples": 20
+          },
+          "reps": 3,
+          "okReps": 3,
+          "errors": [],
+          "metrics": {
+            "spawnToHelloAckMs.p50": {
+              "median": 30.49954200000002,
+              "p95": 30.522042,
+              "min": 29.846583999999993,
+              "max": 30.522042,
+              "n": 3
+            },
+            "spawnToHelloAckMs.p95": {
+              "median": 32.51949999999994,
+              "p95": 33.48516699999999,
+              "min": 31.070832999999993,
+              "max": 33.48516699999999,
+              "n": 3
+            },
+            "spawnToHelloAckMs.min": {
+              "median": 28.885374999999954,
+              "p95": 29.13050000000004,
+              "min": 28.43141700000001,
+              "max": 29.13050000000004,
+              "n": 3
+            },
+            "spawnToHelloAckMs.max": {
+              "median": 34.15987500000001,
+              "p95": 45.50600000000003,
+              "min": 31.269833000000006,
+              "max": 45.50600000000003,
+              "n": 3
+            },
+            "spawnToHelloAckMs.n": {
+              "median": 20,
+              "p95": 20,
+              "min": 20,
+              "max": 20,
+              "n": 3
+            },
+            "workerMaxRssBytes.p50": {
+              "median": 56410112,
+              "p95": 56410112,
+              "min": 56410112,
+              "max": 56410112,
+              "n": 3
+            },
+            "workerMaxRssBytes.p95": {
+              "median": 56557568,
+              "p95": 56623104,
+              "min": 56492032,
+              "max": 56623104,
+              "n": 3
+            },
+            "workerMaxRssBytes.min": {
+              "median": 56295424,
+              "p95": 56328192,
+              "min": 56262656,
+              "max": 56328192,
+              "n": 3
+            },
+            "workerMaxRssBytes.max": {
+              "median": 56573952,
+              "p95": 56950784,
+              "min": 56557568,
+              "max": 56950784,
+              "n": 3
+            },
+            "workerMaxRssBytes.n": {
+              "median": 20,
+              "p95": 20,
+              "min": 20,
+              "max": 20,
+              "n": 3
+            },
+            "samples": {
+              "median": 20,
+              "p95": 20,
+              "min": 20,
+              "max": 20,
+              "n": 3
+            },
+            "process.maxRssBytes": {
+              "median": 56082432,
+              "p95": 56131584,
+              "min": 56049664,
+              "max": 56131584,
+              "n": 3
+            },
+            "childWallMs": {
+              "median": 754.113292,
+              "p95": 754.2701250000001,
+              "min": 706.9279580000002,
+              "max": 754.2701250000001,
+              "n": 3
+            }
+          }
+        },
+        {
+          "name": "request-round-trip",
+          "description": "One worker: 500 sequential execs, 100 create and destroy pairs, 100 policy refusals; each timed from write to decoded answer.",
+          "params": {
+            "execs": 500,
+            "lifecycles": 100,
+            "refusals": 100
+          },
+          "reps": 3,
+          "okReps": 3,
+          "errors": [],
+          "metrics": {
+            "execRoundTripMs.p50": {
+              "median": 0.06637499999999363,
+              "p95": 0.06775000000000375,
+              "min": 0.06199999999999761,
+              "max": 0.06775000000000375,
+              "n": 3
+            },
+            "execRoundTripMs.p95": {
+              "median": 0.21091599999999744,
+              "p95": 0.2135420000000039,
+              "min": 0.18345899999999915,
+              "max": 0.2135420000000039,
+              "n": 3
+            },
+            "execRoundTripMs.min": {
+              "median": 0.043082999999995764,
+              "p95": 0.04479200000000105,
+              "min": 0.04137500000000216,
+              "max": 0.04479200000000105,
+              "n": 3
+            },
+            "execRoundTripMs.max": {
+              "median": 0.9209999999999994,
+              "p95": 1.1862500000000011,
+              "min": 0.6450829999999996,
+              "max": 1.1862500000000011,
+              "n": 3
+            },
+            "execRoundTripMs.n": {
+              "median": 500,
+              "p95": 500,
+              "min": 500,
+              "max": 500,
+              "n": 3
+            },
+            "createRoundTripMs.p50": {
+              "median": 0.037750000000002615,
+              "p95": 0.04358400000000984,
+              "min": 0.0365420000000114,
+              "max": 0.04358400000000984,
+              "n": 3
+            },
+            "createRoundTripMs.p95": {
+              "median": 0.15970799999999485,
+              "p95": 0.18250000000000455,
+              "min": 0.10008299999999792,
+              "max": 0.18250000000000455,
+              "n": 3
+            },
+            "createRoundTripMs.min": {
+              "median": 0.031375000000011255,
+              "p95": 0.03316699999999173,
+              "min": 0.030457999999995877,
+              "max": 0.03316699999999173,
+              "n": 3
+            },
+            "createRoundTripMs.max": {
+              "median": 0.5120830000000041,
+              "p95": 0.5605410000000006,
+              "min": 0.4927500000000009,
+              "max": 0.5605410000000006,
+              "n": 3
+            },
+            "createRoundTripMs.n": {
+              "median": 100,
+              "p95": 100,
+              "min": 100,
+              "max": 100,
+              "n": 3
+            },
+            "destroyRoundTripMs.p50": {
+              "median": 0.03558400000000006,
+              "p95": 0.0410839999999979,
+              "min": 0.03508399999999767,
+              "max": 0.0410839999999979,
+              "n": 3
+            },
+            "destroyRoundTripMs.p95": {
+              "median": 0.16254200000000196,
+              "p95": 0.17287499999999056,
+              "min": 0.11670900000000017,
+              "max": 0.17287499999999056,
+              "n": 3
+            },
+            "destroyRoundTripMs.min": {
+              "median": 0.03012499999999818,
+              "p95": 0.03166700000001299,
+              "min": 0.02908299999999997,
+              "max": 0.03166700000001299,
+              "n": 3
+            },
+            "destroyRoundTripMs.max": {
+              "median": 0.4007909999999981,
+              "p95": 0.4585840000000019,
+              "min": 0.30262500000000614,
+              "max": 0.4585840000000019,
+              "n": 3
+            },
+            "destroyRoundTripMs.n": {
+              "median": 100,
+              "p95": 100,
+              "min": 100,
+              "max": 100,
+              "n": 3
+            },
+            "refusalRoundTripMs.p50": {
+              "median": 0.030457999999995877,
+              "p95": 0.033124999999998295,
+              "min": 0.02949999999999875,
+              "max": 0.033124999999998295,
+              "n": 3
+            },
+            "refusalRoundTripMs.p95": {
+              "median": 0.05258299999999849,
+              "p95": 0.05316700000000196,
+              "min": 0.05066599999999255,
+              "max": 0.05316700000000196,
+              "n": 3
+            },
+            "refusalRoundTripMs.min": {
+              "median": 0.02704199999999446,
+              "p95": 0.029333999999991534,
+              "min": 0.02691599999999994,
+              "max": 0.029333999999991534,
+              "n": 3
+            },
+            "refusalRoundTripMs.max": {
+              "median": 0.20408299999999713,
+              "p95": 0.2241250000000008,
+              "min": 0.1951660000000004,
+              "max": 0.2241250000000008,
+              "n": 3
+            },
+            "refusalRoundTripMs.n": {
+              "median": 100,
+              "p95": 100,
+              "min": 100,
+              "max": 100,
+              "n": 3
+            },
+            "execOk": {
+              "median": 500,
+              "p95": 500,
+              "min": 500,
+              "max": 500,
+              "n": 3
+            },
+            "lifecycleOk": {
+              "median": 100,
+              "p95": 100,
+              "min": 100,
+              "max": 100,
+              "n": 3
+            },
+            "exitCode": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 3
+            },
+            "workerMaxRssBytes": {
+              "median": 80150528,
+              "p95": 80330752,
+              "min": 78594048,
+              "max": 80330752,
+              "n": 3
+            },
+            "process.maxRssBytes": {
+              "median": 65159168,
+              "p95": 67289088,
+              "min": 65110016,
+              "max": 67289088,
+              "n": 3
+            },
+            "childWallMs": {
+              "median": 133.8549579999999,
+              "p95": 144.5662500000003,
+              "min": 131.20308400000022,
+              "max": 144.5662500000003,
+              "n": 3
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
