@@ -45,6 +45,41 @@ describe("collectFileArtifacts", () => {
     ]);
   });
 
+  test("PERF-02: a short read before the end of a file does not end the hash", () => {
+    // FUSE, NFS and SMB may return fewer bytes than requested before end of file. Treating any short read
+    // as end of file recorded a prefix's size and sha256 as the whole artifact. Files whose fstat size is
+    // 0 but have content (procfs-like) are read to the end too, as readFileSync does.
+    const content = Buffer.alloc(10_000);
+    for (let index = 0; index < content.length; index += 1) content[index] = (index * 7) % 251;
+    writeFileSync(join(dir, "big.bin"), content);
+    writeFileSync(join(dir, "small.txt"), "small");
+    const original = { readSync: fs.readSync, fstatSync: fs.fstatSync };
+    let reportZeroSize = false;
+    // The collector calls readSync(fd, buffer, offset, length, position); cap length at 4096.
+    fs.readSync = ((fd: number, buffer: NodeJS.ArrayBufferView, offset: number, length: number, position: fs.ReadPosition | null) =>
+      (original.readSync as (...inner: unknown[]) => number)(fd, buffer, offset, Math.min(length, 4096), position)) as typeof fs.readSync;
+    fs.fstatSync = ((...args: Parameters<typeof fs.fstatSync>) => {
+      const stat = original.fstatSync(...args);
+      return reportZeroSize ? { ...stat, size: 0 } : stat;
+    }) as typeof fs.fstatSync;
+    syncBuiltinESMExports();
+    const expected = [
+      ["big.bin", content.length, sha256(content)],
+      ["small.txt", 5, sha256("small")]
+    ];
+    try {
+      const shortReads = collectFileArtifacts(dir);
+      reportZeroSize = true;
+      const zeroSize = collectFileArtifacts(dir);
+      expect(shortReads.artifacts.map((artifact) => [artifact.path, artifact.sizeBytes, artifact.sha256])).toEqual(expected);
+      expect(zeroSize.artifacts.map((artifact) => [artifact.path, artifact.sizeBytes, artifact.sha256])).toEqual(expected);
+    } finally {
+      fs.readSync = original.readSync;
+      fs.fstatSync = original.fstatSync;
+      syncBuiltinESMExports();
+    }
+  });
+
   test("walks nested files, hashes each, and uses posix relative paths", () => {
     writeFileSync(join(dir, "root.txt"), "root");
     mkdirSync(join(dir, "nested"));

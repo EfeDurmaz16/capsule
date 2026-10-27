@@ -1,0 +1,517 @@
+{
+  "meta": {
+    "label": "review-fixes-1b43859-vs-aeefbb2-recheck",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 40,
+    "anchor": {
+      "commit": "aeefbb256c8314240e63e339b5bf0dae126fd093",
+      "packagesTree": "cf7875190d8205697a7a93db8194dc50e04485b3"
+    },
+    "candidate": {
+      "commit": "1b43859d81d052de0784d9a795814af9557c576a",
+      "packagesTree": "fe78af81afaafa586b653ca94efafe57a6a1b006",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "1b43859d81d052de0784d9a795814af9557c576a",
+    "date": "2026-10-27T22:46:09.571Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        11.36474609375,
+        14.38720703125,
+        15.53271484375
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)",
+    "loadAverageAtEnd": [
+      11.64208984375,
+      14.8095703125,
+      15.6669921875
+    ]
+  },
+  "cases": [
+    {
+      "workload": "perf-14-docker-artifacts",
+      "case": "paths-1",
+      "okA": 40,
+      "okB": 40,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "artifactsCollected": {
+          "n": 40,
+          "medianA": 1,
+          "medianB": 1,
+          "p95A": 1,
+          "p95B": 1,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "bytesCollected": {
+          "n": 40,
+          "medianA": 4096,
+          "medianB": 4096,
+          "p95A": 4096,
+          "p95B": 4096,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "childWallMs": {
+          "n": 40,
+          "medianA": 146.58943750000617,
+          "medianB": 139.28785399998014,
+          "p95A": 407.1134999999922,
+          "p95B": 426.8894580000051,
+          "medianRatio": 0.9467676210188583,
+          "ci95": [
+            0.9126567041380778,
+            1.0690268367939375
+          ],
+          "verdict": "no difference"
+        },
+        "dockerCpSpawns": {
+          "n": 40,
+          "medianA": 1,
+          "medianB": 1,
+          "p95A": 1,
+          "p95B": 1,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "elapsedMs": {
+          "n": 40,
+          "medianA": 34.8985415,
+          "medianB": 36.66364600000001,
+          "p95A": 93.54791699999998,
+          "p95B": 95.28087499999998,
+          "medianRatio": 0.9678590407116111,
+          "ci95": [
+            0.7760082950453577,
+            1.1531270082903076
+          ],
+          "verdict": "no difference"
+        },
+        "heapUsedDeltaBytes": {
+          "n": 40,
+          "medianA": 457880,
+          "medianB": 459780,
+          "p95A": 459264,
+          "p95B": 462560,
+          "medianRatio": 1.0042107102297546,
+          "ci95": [
+            1.0040709356163187,
+            1.0048782193625094
+          ],
+          "verdict": "worse"
+        },
+        "paths": {
+          "n": 40,
+          "medianA": 1,
+          "medianB": 1,
+          "p95A": 1,
+          "p95B": 1,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "peakRssGrowthBytes": {
+          "n": 40,
+          "medianA": 1130496,
+          "medianB": 1196032,
+          "p95A": 1228800,
+          "p95B": 1245184,
+          "medianRatio": 1.0422535211267605,
+          "ci95": [
+            1.0139866979655712,
+            1.0730277185501067
+          ],
+          "verdict": "worse"
+        },
+        "process.maxRssBytes": {
+          "n": 40,
+          "medianA": 57139200,
+          "medianB": 57040896,
+          "p95A": 57360384,
+          "p95B": 57442304,
+          "medianRatio": 0.9992823101592287,
+          "ci95": [
+            0.9974237806476818,
+            1.0018632519308786
+          ],
+          "verdict": "no difference"
+        },
+        "requestedPaths": {
+          "n": 40,
+          "medianA": 1,
+          "medianB": 1,
+          "p95A": 1,
+          "p95B": 1,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        }
+      },
+      "observations": {
+        "outcome": {
+          "A": "\"resolved\"",
+          "B": "\"resolved\""
+        },
+        "error": {
+          "A": "null",
+          "B": "null"
+        },
+        "layoutMatchesExpected": {
+          "A": "true",
+          "B": "true"
+        },
+        "layoutDigest": {
+          "A": "\"dded156c66186b0d7cfc8027ba9d9f726ba99ade27b4e25ea298b6255e42033c\"",
+          "B": "\"dded156c66186b0d7cfc8027ba9d9f726ba99ade27b4e25ea298b6255e42033c\""
+        }
+      }
+    },
+    {
+      "workload": "perf-14-docker-artifacts",
+      "case": "paths-10",
+      "okA": 40,
+      "okB": 40,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "artifactsCollected": {
+          "n": 40,
+          "medianA": 10,
+          "medianB": 10,
+          "p95A": 10,
+          "p95B": 10,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "bytesCollected": {
+          "n": 40,
+          "medianA": 40960,
+          "medianB": 40960,
+          "p95A": 40960,
+          "p95B": 40960,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "childWallMs": {
+          "n": 40,
+          "medianA": 265.2424164999975,
+          "medianB": 256.76029150001705,
+          "p95A": 1041.510374999998,
+          "p95B": 871.1084169999958,
+          "medianRatio": 0.8907898654707196,
+          "ci95": [
+            0.8400341986366979,
+            0.9413559959112647
+          ],
+          "verdict": "better"
+        },
+        "dockerCpSpawns": {
+          "n": 40,
+          "medianA": 10,
+          "medianB": 10,
+          "p95A": 10,
+          "p95B": 10,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "elapsedMs": {
+          "n": 40,
+          "medianA": 98.996834,
+          "medianB": 102.580625,
+          "p95A": 409.28479100000004,
+          "p95B": 327.672542,
+          "medianRatio": 0.9435640067270843,
+          "ci95": [
+            0.8262466584941701,
+            1.0252457186505048
+          ],
+          "verdict": "no difference"
+        },
+        "heapUsedDeltaBytes": {
+          "n": 40,
+          "medianA": 1558436,
+          "medianB": 1528092,
+          "p95A": 1559584,
+          "p95B": 1529520,
+          "medianRatio": 0.9806433066140348,
+          "ci95": [
+            0.9803230684356636,
+            0.9809810584805578
+          ],
+          "verdict": "better"
+        },
+        "paths": {
+          "n": 40,
+          "medianA": 10,
+          "medianB": 10,
+          "p95A": 10,
+          "p95B": 10,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "peakRssGrowthBytes": {
+          "n": 40,
+          "medianA": 950272,
+          "medianB": 974848,
+          "p95A": 1064960,
+          "p95B": 1048576,
+          "medianRatio": 1.0084745762711864,
+          "ci95": [
+            0.9671778315846112,
+            1.0625
+          ],
+          "verdict": "no difference"
+        },
+        "process.maxRssBytes": {
+          "n": 40,
+          "medianA": 57769984,
+          "medianB": 57835520,
+          "p95A": 58097664,
+          "p95B": 58245120,
+          "medianRatio": 1.0005663357210164,
+          "ci95": [
+            0.9994332670324817,
+            1.0024150973016028
+          ],
+          "verdict": "no difference"
+        },
+        "requestedPaths": {
+          "n": 40,
+          "medianA": 10,
+          "medianB": 10,
+          "p95A": 10,
+          "p95B": 10,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        }
+      },
+      "observations": {
+        "outcome": {
+          "A": "\"resolved\"",
+          "B": "\"resolved\""
+        },
+        "error": {
+          "A": "null",
+          "B": "null"
+        },
+        "layoutMatchesExpected": {
+          "A": "true",
+          "B": "true"
+        },
+        "layoutDigest": {
+          "A": "\"389fc7add8a0385cadf59183b96bdd00c8ff8216d42d1a44f6df9ff536353052\"",
+          "B": "\"389fc7add8a0385cadf59183b96bdd00c8ff8216d42d1a44f6df9ff536353052\""
+        }
+      }
+    },
+    {
+      "workload": "perf-14-docker-artifacts",
+      "case": "nested-100",
+      "okA": 40,
+      "okB": 40,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "artifactsCollected": {
+          "n": 40,
+          "medianA": 100,
+          "medianB": 100,
+          "p95A": 100,
+          "p95B": 100,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "bytesCollected": {
+          "n": 40,
+          "medianA": 409600,
+          "medianB": 409600,
+          "p95A": 409600,
+          "p95B": 409600,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "childWallMs": {
+          "n": 40,
+          "medianA": 2495.9389999999985,
+          "medianB": 2175.6515420000214,
+          "p95A": 9446.422208000004,
+          "p95B": 12822.557208000006,
+          "medianRatio": 1.012208251973829,
+          "ci95": [
+            0.8907450557883478,
+            1.0622551347905405
+          ],
+          "verdict": "no difference"
+        },
+        "dockerCpSpawns": {
+          "n": 40,
+          "medianA": 101,
+          "medianB": 101,
+          "p95A": 101,
+          "p95B": 101,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "elapsedMs": {
+          "n": 40,
+          "medianA": 2020.1902915,
+          "medianB": 1919.8297705,
+          "p95A": 7205.341665999999,
+          "p95B": 9223.178333,
+          "medianRatio": 1.0389639218870304,
+          "ci95": [
+            0.9689043148976866,
+            1.0861442597376088
+          ],
+          "verdict": "no difference"
+        },
+        "heapUsedDeltaBytes": {
+          "n": 40,
+          "medianA": 1693580,
+          "medianB": 1697332,
+          "p95A": 1719992,
+          "p95B": 1730352,
+          "medianRatio": 1.0020633651920097,
+          "ci95": [
+            0.9962918518696608,
+            1.0092010947102956
+          ],
+          "verdict": "no difference"
+        },
+        "paths": {
+          "n": 40,
+          "medianA": 100,
+          "medianB": 100,
+          "p95A": 100,
+          "p95B": 100,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "peakRssGrowthBytes": {
+          "n": 40,
+          "medianA": 3391488,
+          "medianB": 3424256,
+          "p95A": 3571712,
+          "p95B": 3604480,
+          "medianRatio": null,
+          "ci95": null,
+          "verdict": "n/a"
+        },
+        "process.maxRssBytes": {
+          "n": 40,
+          "medianA": 60473344,
+          "medianB": 60522496,
+          "p95A": 60751872,
+          "p95B": 60719104,
+          "medianRatio": 0.9995941553098178,
+          "ci95": [
+            0.9977012348221244,
+            1.0014077788170836
+          ],
+          "verdict": "no difference"
+        },
+        "requestedPaths": {
+          "n": 40,
+          "medianA": 101,
+          "medianB": 101,
+          "p95A": 101,
+          "p95B": 101,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        }
+      },
+      "observations": {
+        "outcome": {
+          "A": "\"resolved\"",
+          "B": "\"resolved\""
+        },
+        "error": {
+          "A": "null",
+          "B": "null"
+        },
+        "layoutMatchesExpected": {
+          "A": "true",
+          "B": "true"
+        },
+        "layoutDigest": {
+          "A": "\"160d632fc54a341e23faccb9c55715f084dde0b1e380c2ea4aa3824257b44805\"",
+          "B": "\"160d632fc54a341e23faccb9c55715f084dde0b1e380c2ea4aa3824257b44805\""
+        }
+      }
+    }
+  ]
+}

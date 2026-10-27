@@ -85,12 +85,15 @@ export function collectFileArtifacts(dir: string, options: CollectFileArtifactsO
 
 // Hash one whole file through the shared fixed-size buffer. Returns undefined, without reading content,
 // when the opened file is already larger than the remaining budget, and stops reading as soon as a file
-// that grew after the size check exceeds it. A file is either hashed whole or not collected at all. A read
-// shorter than requested is the end of a regular file, so a small file takes one read, as readFileSync did.
+// that grew after the size check exceeds it. A file is either hashed whole or not collected at all.
+// A read of 0 bytes is end of file. A shorter read than requested is end of file only once the bytes read
+// reach the nonzero fstat size, so a small file still takes one read while a file system that returns
+// short reads before the end (FUSE, NFS, SMB) or reports size 0 for content (procfs) is read to the end.
 function hashFileWithinBudget(path: string, remainingBytes: number, buffer: Buffer): { sizeBytes: number; sha256: string } | undefined {
   const fd = openSync(path, "r");
   try {
-    if (fstatSync(fd).size > remainingBytes) {
+    const statSize = fstatSync(fd).size;
+    if (statSize > remainingBytes) {
       return undefined;
     }
     const hash = createHash("sha256");
@@ -103,7 +106,7 @@ function hashFileWithinBudget(path: string, remainingBytes: number, buffer: Buff
         return undefined;
       }
       if (read > 0) hash.update(buffer.subarray(0, read));
-      if (read < requested) {
+      if (read === 0 || (read < requested && statSize > 0 && sizeBytes >= statSize)) {
         return { sizeBytes, sha256: hash.digest("hex") };
       }
     }
