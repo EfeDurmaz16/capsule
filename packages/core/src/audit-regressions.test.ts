@@ -13,6 +13,7 @@ import type { CapsuleAdapter } from "./adapters.js";
 import { collectFileArtifacts } from "./artifact-collector.js";
 import { sha256 } from "./artifacts.js";
 import { Capsule } from "./capsule.js";
+import { adapterContractFixtures, runCapsuleAdapterContract } from "./contract.js";
 import { evaluatePolicy, mergePolicy, redactError } from "./policy.js";
 import { createReceipt, verifyReceipt } from "./receipts.js";
 import type { CapsulePolicy, ExecResult, ExecSpec } from "./types.js";
@@ -460,5 +461,23 @@ describe("M1 audit regressions: core", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("GAP-19: the lifecycle fixture is labeled as descriptive data that the guard-only runner does not execute", async () => {
+    const lifecycleNotes = adapterContractFixtures.lifecycle.notes.join(" ");
+    expect(lifecycleNotes).not.toMatch(/end to end/);
+    expect(lifecycleNotes).toMatch(/runCapsuleAdapterContract does not execute/);
+    let destroyCalls = 0;
+    const adapter = sandboxAdapter(async () => okResult());
+    const create = adapter.sandbox!.create;
+    adapter.sandbox!.create = async (spec, context) => ({
+      ...(await create(spec, context)),
+      destroy: async () => {
+        destroyCalls += 1;
+        throw new Error("destroy always fails");
+      }
+    });
+    await expect(runCapsuleAdapterContract(adapter, { domains: ["sandbox"] })).resolves.toBeUndefined();
+    expect(destroyCalls).toBe(0);
   });
 });
