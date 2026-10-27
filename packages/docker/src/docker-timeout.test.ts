@@ -33,7 +33,11 @@ describe("GAP-01: docker timeouts", () => {
       return undefined;
     });
     const store = new MemoryReceiptStore();
-    const run = await new Capsule({ adapter: fake.adapter, receipts: true, receiptStore: store }).job.run({ image: "node:22", command: "sleep 60", timeoutMs: 50 });
+    const run = await new Capsule({ adapter: fake.adapter, receipts: true, receiptStore: store }).job.run({
+      image: "node:22",
+      command: "sleep 60",
+      timeoutMs: 50
+    });
 
     const label = runLabelOf(fake.calls);
     expect(label).toMatch(/^capsule_docker_run=[0-9a-f-]{36}$/);
@@ -61,12 +65,10 @@ describe("GAP-01: docker timeouts", () => {
       return undefined;
     });
     const store = new MemoryReceiptStore();
-    const error = await new Capsule({ adapter: fake.adapter, receipts: true, receiptStore: store })
-      .job.run({ image: "node:22", timeoutMs: 50 })
-      .then(
-        () => undefined,
-        (caught: unknown) => caught
-      );
+    const error = await new Capsule({ adapter: fake.adapter, receipts: true, receiptStore: store }).job.run({ image: "node:22", timeoutMs: 50 }).then(
+      () => undefined,
+      (caught: unknown) => caught
+    );
 
     expect(error).toBeInstanceOf(CleanupFailureError);
     const effects = partialEffectsOf(error)!;
@@ -92,12 +94,10 @@ describe("GAP-01: docker timeouts", () => {
 
   it("reports a timed-out docker create as unknown by name without removing anything", async () => {
     const fake = fakeDaemon((args) => (args[0] === "create" ? timedOut : undefined));
-    const error = await new Capsule({ adapter: fake.adapter })
-      .sandbox.create({ name: "maybe-created", timeoutMs: 50 })
-      .then(
-        () => undefined,
-        (caught: unknown) => caught
-      );
+    const error = await new Capsule({ adapter: fake.adapter }).sandbox.create({ name: "maybe-created", timeoutMs: 50 }).then(
+      () => undefined,
+      (caught: unknown) => caught
+    );
 
     expect(error).toBeInstanceOf(UnknownOutcomeError);
     expect((error as UnknownOutcomeError).resource).toMatchObject({ kind: "sandbox", nativeId: "maybe-created" });

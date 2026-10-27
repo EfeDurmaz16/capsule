@@ -39,7 +39,9 @@ describe("M1 audit regressions: docker", () => {
   });
 
   it("SB-03: an already absent container is an explicit idempotent destroy", async () => {
-    const fake = fakeDocker((args) => (args[0] === "rm" ? { exitCode: 1, stdout: "", stderr: "Error response from daemon: No such container: audit-container" } : undefined));
+    const fake = fakeDocker((args) =>
+      args[0] === "rm" ? { exitCode: 1, stdout: "", stderr: "Error response from daemon: No such container: audit-container" } : undefined
+    );
     const store = new MemoryReceiptStore();
     const box = await new Capsule({ adapter: fake.adapter, receipts: true, receiptStore: store }).sandbox.create({});
     await box.destroy();
@@ -71,7 +73,7 @@ describe("M1 audit regressions: docker", () => {
   });
 
   it("SB-02: listFiles passes the literal path as one argv element and parses NUL-separated entries", async () => {
-    const tricky = "/workspace/it's \"$HOME\" `id`\nnext";
+    const tricky = '/workspace/it\'s "$HOME" `id`\nnext';
     const fake = fakeDocker((args) => {
       if (args[0] !== "exec") return undefined;
       return { ...ok, stdout: ["a\tb\nc", `${tricky}/a\tb\nc`, "f", "3", "sub", `${tricky}/sub`, "d", "4096", ""].join("\0") };

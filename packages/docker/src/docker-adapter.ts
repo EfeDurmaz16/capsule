@@ -431,7 +431,13 @@ async function reapTimedOutJob(
       `Docker job timed out and its container could not be confirmed removed: ${errorMessage(cleanupError)}`,
       { action: "remove-timed-out-job-container", runLabel, status: "failed", error: errorMessage(cleanupError) },
       primaryError,
-      { operation: "job.run", outcome: "unknown", resources: residual, primaryError, cleanup: { status: "failed", resources: residual, residual, error: cleanupError } }
+      {
+        operation: "job.run",
+        outcome: "unknown",
+        resources: residual,
+        primaryError,
+        cleanup: { status: "failed", resources: residual, residual, error: cleanupError }
+      }
     );
   };
   let listed: DockerCommandResult;
@@ -443,7 +449,10 @@ async function reapTimedOutJob(
   if (listed.exitCode !== 0) {
     return fail(dockerCliError(`docker ps failed while reaping a timed-out job: ${listed.stderr}`, listed), [labelLocator]);
   }
-  const containers = listed.stdout.split("\n").map((line) => line.trim()).filter(Boolean);
+  const containers = listed.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
   if (containers.length === 0) {
     return { termination: "not-created", containers, note: "No container was created for this job before the timeout." };
   }

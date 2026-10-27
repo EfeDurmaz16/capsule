@@ -73,6 +73,8 @@ describe.skipIf(process.platform === "win32")("runDocker", () => {
   it("PERF-10: overflow error rejects with CaptureLimitError after the command exits", async () => {
     fakeDocker("printf 'abcdef'");
     const bounds = { ...defaultCaptureBounds, maxBytes: 2, deadlineMs: Number.MAX_SAFE_INTEGER, overflow: "error" as const };
-    await expect(runDocker(["exec", "c", "x"], { timeoutMs: 5_000, outputBounds: { stdout: bounds, stderr: bounds } })).rejects.toBeInstanceOf(CaptureLimitError);
+    await expect(runDocker(["exec", "c", "x"], { timeoutMs: 5_000, outputBounds: { stdout: bounds, stderr: bounds } })).rejects.toBeInstanceOf(
+      CaptureLimitError
+    );
   });
 });
