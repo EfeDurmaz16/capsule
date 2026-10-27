@@ -8,6 +8,7 @@ import {
   cleanupPreviewEnvironment,
   createPreviewGraph,
   createPreviewId,
+  PreviewCreationError,
   PreviewCleanupPlanError,
   type PreviewCleanupPlan
 } from "./index.js";
@@ -203,5 +204,44 @@ describe("M1 audit regressions: preview", () => {
     expect(calls.every((call) => call.owner === call.project)).toBe(true);
     // Indexed joins read each plan action a constant number of times; a per-resource search reads O(n^2).
     expect(elementReads).toBeLessThanOrEqual(4 * size);
+  });
+
+  function failingService() {
+    return new Capsule({
+      adapter: {
+        name: "failing-service",
+        provider: "fake-service",
+        capabilities: { service: { deploy: "native", delete: "native" } } as never,
+        service: {
+          deploy: async () => {
+            throw new Error("service deploy failed");
+          }
+        }
+      }
+    });
+  }
+
+  it("GAP-06: a basic create failure exposes the created resources, cleanup plan and receipts for recovery", async () => {
+    const calls: DeleteCall[] = [];
+    const error = await createPreviewGraph({
+      name: "partial",
+      databases: [{ capsule: fakeDatabase("fake", "project-one", calls), spec: { project: "project-one", name: "db" } }],
+      services: [{ capsule: failingService(), spec: { name: "api", image: "api:1" } }]
+    }).then(
+      () => undefined,
+      (caught: unknown) => caught
+    );
+    expect(error).toBeInstanceOf(PreviewCreationError);
+    const failure = error as PreviewCreationError;
+    expect(failure.resources.map((resource) => [resource.ref, resource.kind, resource.id])).toEqual([["resource-0", "database", "provider-local-id"]]);
+    expect(failure.resources[0]?.cleanup?.capsule).toBeDefined();
+    expect(failure.cleanupPlan?.previewId).toBe(failure.preview.id);
+    expect(failure.cleanupPlan?.actions.map((action) => [action.resourceRef, action.resourceScope])).toEqual([["resource-0", { project: "project-one" }]]);
+    expect((failure.cause as Error).message).toBe("service deploy failed");
+    expect(calls).toEqual([]);
+
+    const cleanup = await cleanupPreviewEnvironment(failure.preview, failure.resources, { cleanupPlan: failure.cleanupPlan });
+    expect(cleanup.status).toBe("cleaned");
+    expect(calls).toEqual([{ owner: "project-one", provider: "fake", project: "project-one", branchId: "provider-local-id" }]);
   });
 });

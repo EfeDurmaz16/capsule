@@ -43,7 +43,11 @@ The cleanup result also carries an overall `status` derived from those dispositi
 - `unsupported`: nothing failed, but at least one resource was left behind because its kind has no cleanup action by design (edge, job). This is not a failure.
 - `partial`: at least one disposition is `partial` or `leaked`, meaning a real cleanup failure occurred.
 
-`createPreviewEnvironmentWithCleanup(...)` attempts cleanup when creation fails after earlier resources were provisioned. The cleanup result includes underlying provider receipts plus an orchestration-level `preview.cleanup` receipt from `@capsule-sdk/preview`. That receipt summarizes the cleanup status and per-resource dispositions. Provider receipts remain the strongest evidence for what happened at each provider; preview orchestration does not claim provider-native preview support unless an adapter exposes it.
+### Creation failures and the two create variants
+
+`createPreviewGraph(...)` never cleans up by itself. If a provider call throws part-way, it throws `PreviewCreationError` carrying `resources` (the resources created before the failure, each bound to the Capsule that created it), a `cleanupPlan` for exactly those resources, and their provider `receipts`, plus the original error as `cause`. Recover with `cleanupPreviewEnvironment(error.preview, error.resources, { cleanupPlan: error.cleanupPlan })`; there is no need to rebuild provider identity. The resources live only in memory: a process that crashes before cleanup loses them, so a durable controller must persist each resource as it is created.
+
+`createPreviewEnvironmentWithCleanup(...)` attempts cleanup when creation fails after earlier resources were provisioned, and reports it on `error.cleanup`. Neither variant cleans up a preview that was created without throwing but aggregates to `failed` (for example a failed or cancelled check job); the caller decides. The cleanup result includes underlying provider receipts plus an orchestration-level `preview.cleanup` receipt from `@capsule-sdk/preview`. That receipt summarizes the cleanup status and per-resource dispositions. Provider receipts remain the strongest evidence for what happened at each provider; preview orchestration does not claim provider-native preview support unless an adapter exposes it.
 
 ## CLI
 

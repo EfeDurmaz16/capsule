@@ -2,7 +2,7 @@ import { pathToFileURL } from "node:url";
 import { Capsule, type CapsuleReceipt } from "@capsule-sdk/core";
 import { createCodeExecutionTool } from "@capsule-sdk/ai";
 import { mockE2B, mockNeon, mockVercel, mockCloudRun } from "@capsule-sdk/mock";
-import { createPreviewGraph, cleanupPreviewEnvironment } from "@capsule-sdk/preview";
+import { createPreviewGraph, cleanupPreviewEnvironment, PreviewCreationError, type PreviewPlan } from "@capsule-sdk/preview";
 
 // End-to-end shape: an agent runs a code-execution check in a Capsule sandbox, and only if that
 // check passes does it provision a preview environment (database branch + web edge + api service)
@@ -54,14 +54,26 @@ export async function run(): Promise<AgentPreviewResult> {
 
   // Step 2: the check passed, so provision a preview environment across mock providers: a database
   // branch, a web edge, and a smoke job that the preview runs.
-  const graph = await createPreviewGraph({
+  const plan: PreviewPlan = {
     name: previewName,
     allowMockProviders: true,
     labels: { example: "agent-preview-environment" },
     databases: [{ capsule: receiptCapsule(mockNeon()), spec: { project: "acme-app", name: previewName } }],
     edges: [{ capsule: receiptCapsule(mockVercel()), spec: { name: "web", source: workerSource } }],
     jobs: [{ capsule: receiptCapsule(mockCloudRun()), spec: { name: "smoke", image: "us-docker.pkg.dev/cloudrun/container/hello", command: "echo ok" } }]
-  });
+  };
+  let graph: Awaited<ReturnType<typeof createPreviewGraph>>;
+  try {
+    graph = await createPreviewGraph(plan);
+  } catch (error) {
+    // createPreviewGraph does not clean up on failure. The error carries the resources created before
+    // the failure, bound to their own Capsules, plus a cleanup plan for exactly those resources.
+    if (error instanceof PreviewCreationError) {
+      const partial = await cleanupPreviewEnvironment(error.preview, error.resources, { cleanupPlan: error.cleanupPlan });
+      console.log(`preview creation failed; partial cleanup ${partial.status}, cleaned ${partial.cleaned.length}, failed ${partial.failed.length}`);
+    }
+    throw error;
+  }
   console.log(`preview ${graph.preview.id}: ${graph.resources.length} resources, ${graph.preview.urls.length} urls`);
 
   // Step 3: tear the preview down and keep the cleanup receipts.

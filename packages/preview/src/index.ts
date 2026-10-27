@@ -222,16 +222,40 @@ export interface PreviewOrchestrationResult {
   receipts: CapsuleReceipt[];
 }
 
+/**
+ * Thrown when preview creation fails part-way. It keeps everything needed to clean up the resources
+ * that were created before the failure: `resources` with their cleanup bindings (each bound to the
+ * Capsule that created it), a `cleanupPlan` for exactly those resources, and their provider
+ * `receipts`. Pass them to `cleanupPreviewEnvironment(error.preview, error.resources, { cleanupPlan:
+ * error.cleanupPlan })`. `createPreviewEnvironmentWithCleanup` has already attempted that cleanup and
+ * reports it on `cleanup`.
+ */
 export class PreviewCreationError extends Error {
   readonly preview: PreviewEnvironment;
   readonly cleanup?: PreviewCleanupResult;
+  readonly resources: PreviewResourceRecord[];
+  readonly cleanupPlan?: PreviewCleanupPlan;
+  readonly receipts: CapsuleReceipt[];
   readonly cause: unknown;
 
-  constructor(message: string, options: { preview: PreviewEnvironment; cleanup?: PreviewCleanupResult; cause: unknown }) {
+  constructor(
+    message: string,
+    options: {
+      preview: PreviewEnvironment;
+      cleanup?: PreviewCleanupResult;
+      cause: unknown;
+      resources?: PreviewResourceRecord[];
+      cleanupPlan?: PreviewCleanupPlan;
+      receipts?: CapsuleReceipt[];
+    }
+  ) {
     super(message);
     this.name = "PreviewCreationError";
     this.preview = options.preview;
     this.cleanup = options.cleanup;
+    this.resources = options.resources ?? [];
+    this.cleanupPlan = options.cleanupPlan;
+    this.receipts = options.receipts ?? [];
     this.cause = options.cause;
   }
 }
@@ -930,6 +954,27 @@ export async function createPreviewEnvironment(plan: PreviewPlan): Promise<Previ
   return (await createPreviewGraph(plan)).preview;
 }
 
+// Provisions the plan in its fixed order (databases, services, edges, jobs) and appends each created
+// resource to `resources` as soon as it exists, so a failure part-way leaves the created prefix intact.
+async function provisionPreviewResources(plan: PreviewPlan, resources: PreviewResourceRecord[]): Promise<void> {
+  for (const entry of plan.databases ?? []) {
+    resources.push(withRef(databaseRecord(await entry.capsule.database.branch.create(entry.spec), entry.capsule), resources.length));
+  }
+  for (const entry of plan.services ?? []) {
+    resources.push(withRef(serviceRecord(await entry.capsule.service.deploy(entry.spec), entry.capsule), resources.length));
+  }
+  for (const entry of plan.edges ?? []) {
+    resources.push(withRef(edgeRecord(await entry.capsule.edge.deploy(entry.spec)), resources.length));
+  }
+  for (const entry of plan.jobs ?? []) {
+    resources.push(withRef(jobRecord(await entry.capsule.job.run(entry.spec)), resources.length));
+  }
+}
+
+function resourceReceipts(resources: PreviewResourceRecord[]): CapsuleReceipt[] {
+  return resources.map((resource) => resource.receipt).filter((entry): entry is CapsuleReceipt => entry !== undefined);
+}
+
 export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrchestrationResult> {
   assertRealProviders(plan);
   // Aggregate timing starts before the first provisioning call so the preview.create receipt
@@ -939,33 +984,30 @@ export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrch
   const resources: PreviewResourceRecord[] = [];
 
   try {
-    for (const entry of plan.databases ?? []) {
-      resources.push(withRef(databaseRecord(await entry.capsule.database.branch.create(entry.spec), entry.capsule), resources.length));
-    }
-    for (const entry of plan.services ?? []) {
-      resources.push(withRef(serviceRecord(await entry.capsule.service.deploy(entry.spec), entry.capsule), resources.length));
-    }
-    for (const entry of plan.edges ?? []) {
-      resources.push(withRef(edgeRecord(await entry.capsule.edge.deploy(entry.spec)), resources.length));
-    }
-    for (const entry of plan.jobs ?? []) {
-      resources.push(withRef(jobRecord(await entry.capsule.job.run(entry.spec)), resources.length));
-    }
-
-    const preview = previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
-    const cleanupPlan = createPreviewCleanupPlan(preview, resources, { operationId: plan.operationId });
-    const receipt = previewCreateReceipt(preview, resources, cleanupPlan, startedAt);
-
-    return {
-      preview,
-      resources,
-      cleanupPlan,
-      receipts: [...resources.map((resource) => resource.receipt).filter((entry): entry is CapsuleReceipt => entry !== undefined), receipt]
-    };
+    await provisionPreviewResources(plan, resources);
   } catch (error) {
+    // The basic API does not clean up. It hands back the created resources, their cleanup bindings,
+    // a cleanup plan and receipts so the caller can clean up without reconstructing provider identity.
     const failedPreview = previewFromResources(id, plan, "failed", resources);
-    throw new PreviewCreationError("Preview environment creation failed.", { preview: failedPreview, cause: error });
+    throw new PreviewCreationError("Preview environment creation failed.", {
+      preview: failedPreview,
+      cause: error,
+      resources,
+      cleanupPlan: createPreviewCleanupPlan(failedPreview, resources, { operationId: plan.operationId }),
+      receipts: resourceReceipts(resources)
+    });
   }
+
+  const preview = previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
+  const cleanupPlan = createPreviewCleanupPlan(preview, resources, { operationId: plan.operationId });
+  const receipt = previewCreateReceipt(preview, resources, cleanupPlan, startedAt);
+
+  return {
+    preview,
+    resources,
+    cleanupPlan,
+    receipts: [...resourceReceipts(resources), receipt]
+  };
 }
 
 export async function cleanupPreviewEnvironment(
@@ -995,7 +1037,7 @@ export async function cleanupPreviewEnvironment(
     }
     try {
       let receipt: CapsuleReceipt | undefined;
-      const cleanupSpec = bindings.get(resource)?.spec ?? resource.cleanup.spec;
+      const cleanupSpec: Record<string, unknown> = bindings.get(resource)?.spec ?? resource.cleanup.spec;
       if (resource.cleanup.kind === "database") {
         const result = await resource.cleanup.capsule.database.branch.delete(cleanupSpec as { project: string; branchId: string; hardDelete?: boolean });
         receipt = result.receipt;
@@ -1033,25 +1075,18 @@ export async function cleanupPreviewEnvironment(
   };
 }
 
+/**
+ * Creates the preview and, when creation throws part-way, attempts cleanup of the resources created so
+ * far before rethrowing. A preview that is created but aggregates to `failed` (for example a failed or
+ * cancelled check job) is returned, not cleaned up; callers decide whether to clean it up.
+ */
 export async function createPreviewEnvironmentWithCleanup(plan: PreviewPlan): Promise<PreviewEnvironment> {
   assertRealProviders(plan);
   const id = createPreviewId(plan.name);
   const resources: PreviewResourceRecord[] = [];
 
   try {
-    for (const entry of plan.databases ?? []) {
-      resources.push(withRef(databaseRecord(await entry.capsule.database.branch.create(entry.spec), entry.capsule), resources.length));
-    }
-    for (const entry of plan.services ?? []) {
-      resources.push(withRef(serviceRecord(await entry.capsule.service.deploy(entry.spec), entry.capsule), resources.length));
-    }
-    for (const entry of plan.edges ?? []) {
-      resources.push(withRef(edgeRecord(await entry.capsule.edge.deploy(entry.spec)), resources.length));
-    }
-    for (const entry of plan.jobs ?? []) {
-      resources.push(withRef(jobRecord(await entry.capsule.job.run(entry.spec)), resources.length));
-    }
-    return previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
+    await provisionPreviewResources(plan, resources);
   } catch (error) {
     const failedPreview = previewFromResources(id, plan, "failed", resources);
     const cleanupPlan = createPreviewCleanupPlan(failedPreview, resources, { operationId: plan.operationId });
@@ -1059,7 +1094,11 @@ export async function createPreviewEnvironmentWithCleanup(plan: PreviewPlan): Pr
     throw new PreviewCreationError("Preview environment creation failed and cleanup was attempted.", {
       preview: failedPreview,
       cleanup,
-      cause: error
+      cause: error,
+      resources,
+      cleanupPlan,
+      receipts: resourceReceipts(resources)
     });
   }
+  return previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
 }
