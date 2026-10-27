@@ -1128,12 +1128,7 @@ function residualEffectsOf(error: unknown): { outcome: ActionOutcome; locators: 
   return undefined;
 }
 
-function residualRecord(
-  kind: PreviewResourceKind,
-  capsule: Capsule,
-  spec: PreviewPlannedResourceSpec,
-  residual: PreviewResidualEffect
-): PreviewResourceRecord {
+function residualRecord(kind: PreviewResourceKind, capsule: Capsule, spec: PreviewPlannedResourceSpec, residual: PreviewResidualEffect): PreviewResourceRecord {
   const { locator } = residual;
   const project = locator.scope?.project;
   // Only a Neon-shaped database branch locator maps onto the preview's own cleanup action

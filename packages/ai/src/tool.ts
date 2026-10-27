@@ -69,7 +69,11 @@ export interface CodeExecutionCleanupFailure {
 
 // Thrown only when execution itself failed and teardown failed too. A completed execution is returned
 // with a cleanup report instead (see execute below).
-function cleanupFailure(handle: { id: string; provider: string }, primaryError: unknown, cleanupError: unknown): CleanupFailureError<CodeExecutionCleanupFailure> {
+function cleanupFailure(
+  handle: { id: string; provider: string },
+  primaryError: unknown,
+  cleanupError: unknown
+): CleanupFailureError<CodeExecutionCleanupFailure> {
   const sandbox = resourceLocator({ provider: handle.provider, kind: "sandbox", nativeId: handle.id });
   const effects: PartialEffects<ExecResult> = {
     operation: "sandbox.exec",

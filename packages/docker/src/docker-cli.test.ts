@@ -89,7 +89,8 @@ describe.skipIf(process.platform === "win32")("runDocker", () => {
     // Through the adapter the same run is an unknown outcome, not a capture-limit error.
     const adapter = docker({
       checkAvailable: async () => true,
-      runner: (args, options) => (args[0] === "exec" ? runDocker(args, options) : Promise.resolve({ exitCode: 0, stdout: args[0] === "create" ? "box-1\n" : "", stderr: "" }))
+      runner: (args, options) =>
+        args[0] === "exec" ? runDocker(args, options) : Promise.resolve({ exitCode: 0, stdout: args[0] === "create" ? "box-1\n" : "", stderr: "" })
     });
     const box = await new Capsule({ adapter }).sandbox.create({});
     const error = await box.exec({ command: "x", timeoutMs: 300, bounds: { maxBytes: 2, overflow: "error" } }).then(
@@ -117,7 +118,8 @@ describe.skipIf(process.platform === "win32")("runDocker", () => {
 
     const adapter = docker({
       checkAvailable: async () => true,
-      runner: (args, options) => (args[0] === "exec" ? runDocker(args, options) : Promise.resolve({ exitCode: 0, stdout: args[0] === "create" ? "box-1\n" : "", stderr: "" }))
+      runner: (args, options) =>
+        args[0] === "exec" ? runDocker(args, options) : Promise.resolve({ exitCode: 0, stdout: args[0] === "create" ? "box-1\n" : "", stderr: "" })
     });
     const box = await new Capsule({ adapter, policy }).sandbox.create({});
     const error = (await box.exec({ command: "x", env, timeoutMs: 300 }).catch((caught: unknown) => caught)) as UnknownOutcomeError;

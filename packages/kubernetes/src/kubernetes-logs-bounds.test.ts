@@ -115,7 +115,8 @@ describe("kubernetes bounded log capture (PERF-05)", () => {
     };
   }
 
-  const stamp = (day: number, index: number) => `2026-10-${String(day).padStart(2, "0")}T${String(Math.floor(index / 3600) % 24).padStart(2, "0")}:${String(Math.floor(index / 60) % 60).padStart(2, "0")}:${String(index % 60).padStart(2, "0")}Z`;
+  const stamp = (day: number, index: number) =>
+    `2026-10-${String(day).padStart(2, "0")}T${String(Math.floor(index / 3600) % 24).padStart(2, "0")}:${String(Math.floor(index / 60) % 60).padStart(2, "0")}:${String(index % 60).padStart(2, "0")}Z`;
 
   it("never reports an until query as complete when the bounded tail could not reach the matching lines", async () => {
     const yesterday = Array.from({ length: 50 }, (_, index) => `${stamp(24, index)} old ${index}`);

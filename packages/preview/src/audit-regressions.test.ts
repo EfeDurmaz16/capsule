@@ -422,7 +422,9 @@ describe("M1 audit regressions: preview", () => {
               ? { status: "failed", resources: [deployment], residual: [deployment], error: new Error("403 Forbidden") }
               : { status: "succeeded", resources: [deployment] };
             const effects: PartialEffects = { operation: "service.deploy", outcome: "unknown", resources: [deployment, service], primaryError, cleanup };
-            throw rollbackFails ? new CleanupFailureError("rollback failed", cleanup, primaryError, effects) : new PartialEffectsError("deploy failed", effects);
+            throw rollbackFails
+              ? new CleanupFailureError("rollback failed", cleanup, primaryError, effects)
+              : new PartialEffectsError("deploy failed", effects);
           }
         }
       }

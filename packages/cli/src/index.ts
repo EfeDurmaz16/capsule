@@ -1264,9 +1264,7 @@ function assertCapsulePolicyShape(value: unknown, label: string): CapsulePolicy 
     for (const [field, fieldValue] of Object.entries(sectionRecord)) {
       const kind = Object.hasOwn(fields, field) ? fields[field] : undefined;
       if (kind === undefined) {
-        throw new Error(
-          `${label} has unknown field ${JSON.stringify(field)} in policy section ${key}. Known fields: ${Object.keys(fields).join(", ")}.`
-        );
+        throw new Error(`${label} has unknown field ${JSON.stringify(field)} in policy section ${key}. Known fields: ${Object.keys(fields).join(", ")}.`);
       }
       if (!policyFieldMatches(kind, fieldValue)) {
         throw new Error(`${label} ${key}.${field} must be ${policyFieldKindLabels[kind]}.`);

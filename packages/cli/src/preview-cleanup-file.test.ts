@@ -198,7 +198,9 @@ describe("preview create failing part-way (GAP-06 CLI half)", () => {
     });
 
     await withNeon(423, async (calls) => {
-      await expect(main(["preview", "create", "--config-file", configFile, "--cleanup-file", cleanupFile])).rejects.toThrow(/Preview environment creation failed/);
+      await expect(main(["preview", "create", "--config-file", configFile, "--cleanup-file", cleanupFile])).rejects.toThrow(
+        /Preview environment creation failed/
+      );
       expect(calls.filter((call) => call.method === "DELETE")).toHaveLength(1);
     });
     expect(errors.join("\n")).toContain(cleanupFile);
