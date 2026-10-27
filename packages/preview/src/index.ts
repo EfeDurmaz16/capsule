@@ -691,13 +691,14 @@ function cleanupScope(cleanup: PreviewCleanupAction): Record<string, string> | u
   return undefined;
 }
 
-function cleanupApprovalScope(cleanup: PreviewCleanupAction): CapsuleApprovalResourceScope {
-  // Exactly the resource hint Capsule core evaluates for database.branchDelete and service.delete, so a
-  // resolver can scope its grant to this request's resource and have it match.
+function cleanupApprovalScope(resource: PreviewResourceRecord, cleanup: PreviewCleanupAction): CapsuleApprovalResourceScope {
+  // Exactly the resource hint Capsule core evaluates for database.branchDelete and service.delete
+  // (including the provider), so a resolver can scope its grant to this request's resource and have it
+  // match, and a grant scoped to one provider never matches a same-id resource on another.
   if (cleanup.kind === "database") {
-    return { type: "database", project: String(cleanup.spec.project), id: String(cleanup.spec.branchId) };
+    return { type: "database", project: String(cleanup.spec.project), id: String(cleanup.spec.branchId), provider: resource.provider };
   }
-  return { type: "service", id: String(cleanup.spec.id) };
+  return { type: "service", id: String(cleanup.spec.id), provider: resource.provider };
 }
 
 function sameCleanupIdentity(spec: Record<string, unknown>, cleanup: PreviewCleanupAction): boolean {
@@ -1093,12 +1094,23 @@ export async function cleanupPreviewEnvironment(
     }
     try {
       let receipt: CapsuleReceipt | undefined;
-      let cleanupSpec: Record<string, unknown> = bindings.get(resource)?.spec ?? resource.cleanup.spec;
+      const action = bindings.get(resource);
+      let cleanupSpec: Record<string, unknown> = action?.spec ?? resource.cleanup.spec;
       if (options.approval) {
+        const scope = cleanupScope(resource.cleanup);
+        const ref = resource.ref ?? action?.resourceRef;
         const grant = await options.approval({
           capabilityPath: resource.cleanup.capabilityPath,
-          resource: cleanupApprovalScope(resource.cleanup),
-          reason: `Cleanup of preview ${preview.id}`
+          resource: cleanupApprovalScope(resource, resource.cleanup),
+          reason: `Cleanup of preview ${preview.id}`,
+          context: {
+            provider: resource.provider,
+            adapter: resource.cleanup.capsule.adapterName(),
+            previewId: preview.id,
+            ...(ref === undefined ? {} : { resourceRef: ref }),
+            ...(action === undefined ? {} : { actionId: action.actionId }),
+            ...(scope === undefined ? {} : { scope })
+          }
         });
         if (!grant) {
           const deniedResource = cloneWithDisposition(resource, "leaked");

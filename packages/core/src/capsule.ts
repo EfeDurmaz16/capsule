@@ -263,7 +263,13 @@ export class Capsule {
       },
       delete: async (spec: DeleteServiceSpec) => {
         this.require("service.delete");
-        const policyInput = { approval: spec.approval, idempotencyKey: spec.idempotencyKey, resource: approvalResource("service", { id: spec.id }) };
+        // The provider is part of the hint so a grant scoped to one provider's resource does not match a
+        // same-id resource on another provider. A grant without provider still matches as before.
+        const policyInput = {
+          approval: spec.approval,
+          idempotencyKey: spec.idempotencyKey,
+          resource: approvalResource("service", { id: spec.id, provider: this.options.adapter.provider })
+        };
         this.evaluateOperationPolicy("service.delete", policyInput);
         if (!this.options.adapter.service?.delete) {
           throw new UnsupportedCapabilityError("service.delete");
@@ -383,7 +389,7 @@ export class Capsule {
           const policyInput = {
             approval: spec.approval,
             idempotencyKey: spec.idempotencyKey,
-            resource: approvalResource("database", { project: spec.project, id: spec.branchId })
+            resource: approvalResource("database", { project: spec.project, id: spec.branchId, provider: this.options.adapter.provider })
           };
           this.evaluateOperationPolicy("database.branchDelete", policyInput);
           if (!this.options.adapter.database?.branch.delete) {

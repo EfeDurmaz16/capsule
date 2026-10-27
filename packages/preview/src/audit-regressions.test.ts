@@ -297,7 +297,19 @@ describe("M1 audit regressions: preview", () => {
     }).catch((caught: unknown) => caught)) as PreviewCreationError;
     expect(approved.cleanup?.status).toBe("cleaned");
     expect(requests).toEqual([
-      { capabilityPath: "database.branchDelete", resource: { type: "database", project: "p", id: "branch-1" }, reason: expect.any(String) }
+      {
+        capabilityPath: "database.branchDelete",
+        resource: { type: "database", project: "p", id: "branch-1", provider: "fake-db" },
+        reason: expect.any(String),
+        context: {
+          provider: "fake-db",
+          adapter: "approval-db",
+          previewId: approved.preview.id,
+          resourceRef: "resource-0",
+          actionId: expect.stringContaining("resource-0"),
+          scope: { project: "p" }
+        }
+      }
     ]);
     expect(calls).toHaveLength(1);
 

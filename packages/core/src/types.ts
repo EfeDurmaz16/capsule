@@ -191,6 +191,28 @@ export interface CleanupApprovalRequest {
   /** Resource the cleanup targets, in approval-scope form. */
   resource: CapsuleApprovalResourceScope;
   reason?: string;
+  /**
+   * Context that tells apart cleanup actions whose approval scope alone is identical, for example two
+   * services named "web" in different namespaces or on different providers. All fields are optional and
+   * informational: a resolver uses them to decide whether to grant this one action. The grant it returns
+   * is applied to this action only.
+   */
+  context?: CleanupApprovalContext;
+}
+
+export interface CleanupApprovalContext {
+  /** Provider of the resource, for example "neon" or "kubernetes". */
+  provider?: string;
+  /** Adapter name of the Capsule that created the resource and will run the cleanup. */
+  adapter?: string;
+  /** Graph-local resource reference, unique within one preview. */
+  resourceRef?: string;
+  /** Cleanup plan action id, unique within one preview run. */
+  actionId?: string;
+  /** Preview the resource belongs to. */
+  previewId?: string;
+  /** Provider scope that disambiguates the native id, for example the database project. */
+  scope?: Record<string, string>;
 }
 
 /**
