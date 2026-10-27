@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   AdapterExecutionError,
   Capsule,
+  CleanupFailureError,
   MemoryReceiptStore,
   PendingOperationError,
   ProviderAuthError,
   ProviderRetryableError,
+  partialEffectsOf,
   runAdapterContract,
   UnsupportedCapabilityError
 } from "@capsule-sdk/core";
@@ -170,6 +172,32 @@ describe("modal adapter", () => {
     await expect(box.listFiles("/workspace")).rejects.toThrow(UnsupportedCapabilityError);
     await expect(capsule.job.run({ image: "node:22", command: "echo unsupported" })).rejects.toThrow(UnsupportedCapabilityError);
     expect(created).toHaveLength(1);
+  });
+
+  it("reports a failed rollback with the residual sandbox when termination fails after allocation", async () => {
+    const { sandbox } = fakeModalSandbox();
+    sandbox.terminateError = new Error("modal terminate failed");
+    const capsule = new Capsule({
+      adapter: modal({ client: fakeModalClient(sandbox) }),
+      receipts: true,
+      receiptSigner: {
+        algorithm: "test",
+        sign: () => {
+          throw new Error("sign failed");
+        }
+      }
+    });
+
+    const error = await capsule.sandbox.create({}).then(
+      () => undefined,
+      (caught: unknown) => caught
+    );
+
+    expect(error).toBeInstanceOf(CleanupFailureError);
+    const effects = partialEffectsOf(error)!;
+    expect((effects.primaryError as Error).message).toBe("sign failed");
+    expect(effects.cleanup).toMatchObject({ status: "failed", residual: [expect.objectContaining({ nativeId: "sb-1" })] });
+    expect((effects.cleanup.error as Error).message).toBe("modal terminate failed");
   });
 
   it("rejects destroy as pending when termination is requested but not observed before the deadline", async () => {

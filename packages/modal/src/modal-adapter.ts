@@ -1,6 +1,9 @@
 import { Image, ModalClient } from "modal";
 import {
   AdapterExecutionError,
+  CleanupFailureError,
+  PartialEffectsError,
+  PendingOperationError,
   asProviderError,
   callProvider,
   observeUntilTerminal,
@@ -11,6 +14,8 @@ import {
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
+  type CleanupOutcome,
+  type PartialEffects,
   type CreateSandboxSpec,
   type ExecResult,
   type ExecSpec,
@@ -183,6 +188,34 @@ async function terminateUntilStopped(sandbox: ModalSandboxLike, operation: strin
   );
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+// Terminates a sandbox this create call allocated but could not hand back (for example when receipt
+// signing threw). The primary error and the cleanup outcome stay separate.
+async function rollbackCreatedSandbox(sandbox: ModalSandboxLike, primaryError: unknown, deadlineMs: number): Promise<never> {
+  const resources = [sandboxLocator(sandbox.sandboxId)];
+  let cleanup: CleanupOutcome;
+  try {
+    await terminateUntilStopped(sandbox, "sandbox.create", deadlineMs);
+    cleanup = { status: "succeeded", resources };
+  } catch (error) {
+    cleanup = { status: error instanceof PendingOperationError ? "pending" : "failed", resources, residual: resources, error };
+  }
+  const effects: PartialEffects = { operation: "sandbox.create", outcome: "failed", resources, primaryError, cleanup };
+  if (cleanup.status === "failed") {
+    throw new CleanupFailureError(
+      `Modal sandbox cleanup failed after sandbox allocation: ${errorMessage(primaryError)}`,
+      { action: "terminate-created-sandbox", sandboxId: sandbox.sandboxId, status: "failed", error: errorMessage(cleanup.error) },
+      primaryError,
+      effects
+    );
+  }
+  const suffix = cleanup.status === "succeeded" ? "the sandbox was terminated" : "sandbox termination is still pending";
+  throw new PartialEffectsError(`Modal sandbox creation failed after sandbox allocation; ${suffix}: ${errorMessage(primaryError)}`, effects);
+}
+
 class ModalCapsuleSandbox implements Sandbox {
   constructor(
     private readonly sandbox: ModalSandboxLike,
@@ -293,24 +326,29 @@ export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
           })
         );
         const handle: SandboxHandle = { id: sandbox.sandboxId, provider, createdAt: new Date().toISOString(), metadata: { appName } };
-        if (context.receipts) {
-          context.createReceipt({
-            type: "sandbox.create",
-            capabilityPath: "sandbox.create",
-            startedAt,
-            image: imageTag,
-            policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
-            resource: { id: sandbox.sandboxId, name: spec.name, status: "running" },
-            metadata: modalReceiptMetadata(
-              removeUndefined({
-                appName,
-                environment: options.environment,
-                image: imageTag,
-                blockNetwork: context.policy.network?.mode === "none" ? true : undefined,
-                cidrAllowlist: context.policy.network?.mode === "allowlist" ? context.policy.network.allowedHosts : undefined
-              })
-            )
-          });
+        try {
+          if (context.receipts) {
+            context.createReceipt({
+              type: "sandbox.create",
+              capabilityPath: "sandbox.create",
+              startedAt,
+              image: imageTag,
+              policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
+              resource: { id: sandbox.sandboxId, name: spec.name, status: "running" },
+              metadata: modalReceiptMetadata(
+                removeUndefined({
+                  appName,
+                  environment: options.environment,
+                  image: imageTag,
+                  blockNetwork: context.policy.network?.mode === "none" ? true : undefined,
+                  cidrAllowlist: context.policy.network?.mode === "allowlist" ? context.policy.network.allowedHosts : undefined
+                })
+              )
+            });
+          }
+        } catch (error) {
+          // Allocation succeeded but the handle cannot be returned (for example receipt signing threw).
+          return await rollbackCreatedSandbox(sandbox, error, terminateDeadlineMs);
         }
         return new ModalCapsuleSandbox(sandbox, handle, context, terminateDeadlineMs);
       }

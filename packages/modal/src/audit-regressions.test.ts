@@ -3,7 +3,7 @@
 // who fixes an ID flips its it.fails to it in the same commit. The client is an injected fake shaped like
 // the installed modal SDK, whose Sandbox.terminate({ wait: true }) resolves with the exit code.
 import { describe, expect, it } from "vitest";
-import { Capsule, MemoryReceiptStore } from "@capsule-sdk/core";
+import { Capsule, MemoryReceiptStore, PartialEffectsError, partialEffectsOf } from "@capsule-sdk/core";
 import { modal } from "./index.js";
 
 function fakeModal() {
@@ -34,7 +34,7 @@ function fakeModal() {
 }
 
 describe("M1 audit regressions: modal", () => {
-  it.fails("SB-05: a receipt signer failure after allocation attempts termination and keeps the original error", async () => {
+  it("SB-05: a receipt signer failure after allocation attempts termination and keeps the original error", async () => {
     const fake = fakeModal();
     const capsule = new Capsule({
       adapter: fake.adapter,
@@ -52,6 +52,31 @@ describe("M1 audit regressions: modal", () => {
     );
     expect(`${error?.message} ${String((error as { cause?: unknown } | undefined)?.cause)}`).toContain("sign failed");
     expect(fake.state.terminateCalls.length).toBeGreaterThan(0);
+  });
+
+  it("SB-05: the rollback outcome is recorded separately from the signer error", async () => {
+    const fake = fakeModal();
+    const capsule = new Capsule({
+      adapter: fake.adapter,
+      receipts: true,
+      receiptSigner: {
+        algorithm: "test",
+        sign: () => {
+          throw new Error("sign failed");
+        }
+      }
+    });
+    const error = await capsule.sandbox.create({}).then(
+      () => undefined,
+      (caught: unknown) => caught
+    );
+    expect(error).toBeInstanceOf(PartialEffectsError);
+    const effects = partialEffectsOf(error)!;
+    expect((effects.primaryError as Error).message).toBe("sign failed");
+    expect(effects.cleanup.status).toBe("succeeded");
+    expect(effects.resources[0]).toMatchObject({ provider: "modal", kind: "sandbox", nativeId: "audit-modal" });
+    expect(fake.state.terminateCalls).toEqual([{ wait: true }]);
+    expect(fake.state.terminated).toBe(true);
   });
 
   it("SB-06: destroy observes terminal termination (wait: true) before writing a deleted receipt", async () => {
