@@ -1,8 +1,10 @@
+import { isIP } from "node:net";
 import { posix } from "node:path";
 import { Daytona } from "@daytona/sdk";
 import {
   AdapterExecutionError,
   CleanupFailureError,
+  PolicyViolationError,
   ProviderAuthError,
   ProviderRateLimitError,
   ProviderValidationError,
@@ -158,7 +160,38 @@ function timeoutSeconds(timeoutMs?: number): number | undefined {
   return timeoutMs === undefined ? undefined : Math.ceil(timeoutMs / 1000);
 }
 
+// Daytona and Modal enforce network allowlists as CIDR ranges only. A host or domain name cannot be
+// represented, so it is rejected before any provider call instead of being sent as a CIDR the provider
+// would misread or ignore. An allowlist with no entries allows nothing and maps to blocking all traffic.
+type CidrAllowlist = { kind: "block-all" } | { kind: "cidrs"; cidrs: string[] } | undefined;
+
+function cidrAllowlist(policy: AdapterContext["policy"], providerName: string): CidrAllowlist {
+  if (policy.network?.mode !== "allowlist") return undefined;
+  const entries = policy.network.allowedHosts ?? [];
+  if (entries.length === 0) return { kind: "block-all" };
+  const invalid = entries.filter((entry) => !isCidr(entry));
+  if (invalid.length > 0) {
+    throw new PolicyViolationError(
+      `${providerName} network allowlists accept CIDR ranges only (for example 203.0.113.0/24); these allowedHosts entries cannot be enforced: ${invalid.join(", ")}.`,
+      [`${providerName} cannot enforce host or domain allowlist entries; the sandbox was not created.`]
+    );
+  }
+  return { kind: "cidrs", cidrs: entries };
+}
+
+function isCidr(value: string): boolean {
+  const slash = value.indexOf("/");
+  if (slash <= 0 || slash !== value.lastIndexOf("/")) return false;
+  const address = value.slice(0, slash);
+  const prefix = value.slice(slash + 1);
+  if (!/^\d{1,3}$/.test(prefix)) return false;
+  const version = isIP(address);
+  const bits = Number(prefix);
+  return (version === 4 && bits <= 32) || (version === 6 && bits <= 128);
+}
+
 function createParams(spec: CreateSandboxSpec, context: AdapterContext, options: DaytonaAdapterOptions): Record<string, unknown> {
+  const allowlist = cidrAllowlist(context.policy, "Daytona");
   return {
     name: spec.name,
     image: spec.image,
@@ -167,8 +200,8 @@ function createParams(spec: CreateSandboxSpec, context: AdapterContext, options:
     labels: labelsWithOperationTag(spec.labels, spec.idempotencyKey),
     autoStopInterval: options.autoStopIntervalMinutes,
     ephemeral: options.ephemeral,
-    networkBlockAll: context.policy.network?.mode === "none" ? true : undefined,
-    networkAllowList: context.policy.network?.mode === "allowlist" ? context.policy.network.allowedHosts?.join(",") : undefined
+    networkBlockAll: context.policy.network?.mode === "none" || allowlist?.kind === "block-all" ? true : undefined,
+    networkAllowList: allowlist?.kind === "cidrs" ? allowlist.cidrs.join(",") : undefined
   };
 }
 
@@ -195,7 +228,13 @@ function defaultClient(options: DaytonaAdapterOptions): DaytonaClientLike {
 function policyNotes(context: AdapterContext): string[] {
   const notes = ["Daytona sandbox isolation is provided by Daytona, not by Capsule itself."];
   if (context.policy.network?.mode === "none") notes.push("Daytona networkBlockAll is requested for this sandbox.");
-  if (context.policy.network?.mode === "allowlist") notes.push("Daytona networkAllowList is requested from Capsule allowedHosts.");
+  if (context.policy.network?.mode === "allowlist") {
+    notes.push(
+      (context.policy.network.allowedHosts ?? []).length === 0
+        ? "Daytona networkBlockAll is requested because the network allowlist is empty."
+        : "Daytona networkAllowList is requested from the CIDR ranges in Capsule allowedHosts."
+    );
+  }
   if (context.policy.filesystem) notes.push("Filesystem policy is emulated at Capsule adapter boundaries.");
   return notes;
 }
@@ -326,9 +365,8 @@ export function daytona(options: DaytonaAdapterOptions = {}): CapsuleAdapter {
       create: async (spec: CreateSandboxSpec, context: AdapterContext): Promise<Sandbox> => {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
-        const sandbox = await callProvider("Daytona sandbox creation failed.", () =>
-          getClient().create(removeUndefined(createParams(spec, context, options)), { timeout: timeoutSeconds(spec.timeoutMs) })
-        );
+        const params = removeUndefined(createParams(spec, context, options));
+        const sandbox = await callProvider("Daytona sandbox creation failed.", () => getClient().create(params, { timeout: timeoutSeconds(spec.timeoutMs) }));
         const handle: SandboxHandle = {
           id: sandbox.id,
           provider,

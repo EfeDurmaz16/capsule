@@ -1,9 +1,11 @@
+import { isIP } from "node:net";
 import { Image, ModalClient } from "modal";
 import {
   AdapterExecutionError,
   CleanupFailureError,
   PartialEffectsError,
   PendingOperationError,
+  PolicyViolationError,
   asProviderError,
   callProvider,
   observeUntilTerminal,
@@ -157,10 +159,46 @@ function modalReceiptMetadata(metadata: Record<string, unknown> = {}): Record<st
   };
 }
 
+// Daytona and Modal enforce network allowlists as CIDR ranges only. A host or domain name cannot be
+// represented, so it is rejected before any provider call instead of being sent as a CIDR the provider
+// would misread or ignore. An allowlist with no entries allows nothing and maps to blocking all traffic.
+type CidrAllowlist = { kind: "block-all" } | { kind: "cidrs"; cidrs: string[] } | undefined;
+
+function cidrAllowlist(policy: AdapterContext["policy"], providerName: string): CidrAllowlist {
+  if (policy.network?.mode !== "allowlist") return undefined;
+  const entries = policy.network.allowedHosts ?? [];
+  if (entries.length === 0) return { kind: "block-all" };
+  const invalid = entries.filter((entry) => !isCidr(entry));
+  if (invalid.length > 0) {
+    throw new PolicyViolationError(
+      `${providerName} network allowlists accept CIDR ranges only (for example 203.0.113.0/24); these allowedHosts entries cannot be enforced: ${invalid.join(", ")}.`,
+      [`${providerName} cannot enforce host or domain allowlist entries; the sandbox was not created.`]
+    );
+  }
+  return { kind: "cidrs", cidrs: entries };
+}
+
+function isCidr(value: string): boolean {
+  const slash = value.indexOf("/");
+  if (slash <= 0 || slash !== value.lastIndexOf("/")) return false;
+  const address = value.slice(0, slash);
+  const prefix = value.slice(slash + 1);
+  if (!/^\d{1,3}$/.test(prefix)) return false;
+  const version = isIP(address);
+  const bits = Number(prefix);
+  return (version === 4 && bits <= 32) || (version === 6 && bits <= 128);
+}
+
 function policyNotes(context: AdapterContext): string[] {
   const notes = ["Modal sandbox isolation is provided by Modal, not by Capsule itself."];
   if (context.policy.network?.mode === "none") notes.push("Modal blockNetwork is requested for this sandbox.");
-  if (context.policy.network?.mode === "allowlist") notes.push("Modal cidrAllowlist is requested from Capsule allowedHosts.");
+  if (context.policy.network?.mode === "allowlist") {
+    notes.push(
+      (context.policy.network.allowedHosts ?? []).length === 0
+        ? "Modal blockNetwork is requested because the network allowlist is empty."
+        : "Modal cidrAllowlist is requested from the CIDR ranges in Capsule allowedHosts."
+    );
+  }
   if (context.policy.filesystem) notes.push("Filesystem policy is emulated at Capsule adapter boundaries.");
   return notes;
 }
@@ -310,6 +348,9 @@ export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
       create: async (spec: CreateSandboxSpec, context: AdapterContext): Promise<Sandbox> => {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
+        const allowlist = cidrAllowlist(context.policy, "Modal");
+        const blockNetwork = context.policy.network?.mode === "none" || allowlist?.kind === "block-all" ? true : undefined;
+        const cidrs = allowlist?.kind === "cidrs" ? allowlist.cidrs : undefined;
         const client = getClient();
         const appName = options.appName ?? "capsule";
         const imageTag = spec.image ?? options.defaultImage ?? "debian:bookworm-slim";
@@ -323,8 +364,8 @@ export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
             env: spec.env,
             timeoutMs: spec.timeoutMs,
             workdir: spec.cwd,
-            blockNetwork: context.policy.network?.mode === "none" ? true : undefined,
-            cidrAllowlist: context.policy.network?.mode === "allowlist" ? context.policy.network.allowedHosts : undefined
+            blockNetwork,
+            cidrAllowlist: cidrs
           })
         );
         const handle: SandboxHandle = { id: sandbox.sandboxId, provider, createdAt: new Date().toISOString(), metadata: { appName } };
@@ -342,8 +383,8 @@ export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
                   appName,
                   environment: options.environment,
                   image: imageTag,
-                  blockNetwork: context.policy.network?.mode === "none" ? true : undefined,
-                  cidrAllowlist: context.policy.network?.mode === "allowlist" ? context.policy.network.allowedHosts : undefined
+                  blockNetwork,
+                  cidrAllowlist: cidrs
                 })
               )
             });

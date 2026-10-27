@@ -5,6 +5,7 @@ import {
   CleanupFailureError,
   MemoryReceiptStore,
   PendingOperationError,
+  PolicyViolationError,
   ProviderAuthError,
   ProviderRetryableError,
   partialEffectsOf,
@@ -237,5 +238,33 @@ describe("modal adapter", () => {
 
     expect(sandbox.terminated).toBe(false);
     expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
+  });
+  it("GAP-03: rejects a domain allowlist entry before resolving the app or creating a sandbox", async () => {
+    const created: unknown[] = [];
+    const { sandbox } = fakeModalSandbox();
+    const client = fakeModalClient(sandbox, created);
+    let appLookups = 0;
+    client.apps.fromName = async () => {
+      appLookups += 1;
+      return { appId: "app-1" };
+    };
+    const capsule = new Capsule({ adapter: modal({ client }), policy: { network: { mode: "allowlist", allowedHosts: ["api.example.com"] } } });
+
+    await expect(capsule.sandbox.create({})).rejects.toBeInstanceOf(PolicyViolationError);
+    expect(appLookups).toBe(0);
+    expect(created).toHaveLength(0);
+  });
+
+  it("GAP-03: maps CIDR allowlists to cidrAllowlist and an empty allowlist to blockNetwork", async () => {
+    const created: any[] = [];
+    const { sandbox } = fakeModalSandbox();
+    const client = fakeModalClient(sandbox, created);
+    await new Capsule({ adapter: modal({ client }), policy: { network: { mode: "allowlist", allowedHosts: ["192.0.2.0/24"] } } }).sandbox.create({});
+    await new Capsule({ adapter: modal({ client }), policy: { network: { mode: "allowlist" } } }).sandbox.create({});
+
+    expect(created[0][2]).toMatchObject({ cidrAllowlist: ["192.0.2.0/24"] });
+    expect(created[0][2].blockNetwork).toBeUndefined();
+    expect(created[1][2]).toMatchObject({ blockNetwork: true });
+    expect(created[1][2].cidrAllowlist).toBeUndefined();
   });
 });

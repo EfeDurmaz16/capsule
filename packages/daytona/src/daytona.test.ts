@@ -4,6 +4,7 @@ import {
   Capsule,
   CleanupFailureError,
   MemoryReceiptStore,
+  PolicyViolationError,
   ProviderRetryableError,
   ProviderValidationError,
   UnknownOutcomeError,
@@ -223,5 +224,26 @@ describe("daytona adapter", () => {
     expect(result).toMatchObject({ exitCode: 3, stdout: "tests failed" });
     expect(result.receipt?.exitCode).toBe(3);
     expect(sandbox.deleted).toBe(false);
+  });
+  it("GAP-03: rejects a domain allowlist entry before any provider call", async () => {
+    const created: unknown[] = [];
+    const client = { create: async (...args: unknown[]) => (created.push(args), fakeDaytonaSandbox().sandbox) };
+    const capsule = new Capsule({ adapter: daytona({ client }), policy: { network: { mode: "allowlist", allowedHosts: ["10.0.0.0/8", "registry.npmjs.org"] } } });
+
+    await expect(capsule.sandbox.create({})).rejects.toBeInstanceOf(PolicyViolationError);
+    await expect(capsule.sandbox.create({})).rejects.toThrow("registry.npmjs.org");
+    expect(created).toHaveLength(0);
+  });
+
+  it("GAP-03: maps CIDR allowlists to networkAllowList and an empty allowlist to networkBlockAll", async () => {
+    const created: any[] = [];
+    const client = { create: async (params: unknown) => (created.push(params), fakeDaytonaSandbox().sandbox) };
+    await new Capsule({ adapter: daytona({ client }), policy: { network: { mode: "allowlist", allowedHosts: ["10.0.0.0/8", "2001:db8::/32"] } } }).sandbox.create({});
+    await new Capsule({ adapter: daytona({ client }), policy: { network: { mode: "allowlist", allowedHosts: [] } } }).sandbox.create({});
+
+    expect(created[0]).toMatchObject({ networkAllowList: "10.0.0.0/8,2001:db8::/32" });
+    expect(created[0]).not.toHaveProperty("networkBlockAll");
+    expect(created[1]).toMatchObject({ networkBlockAll: true });
+    expect(created[1]).not.toHaveProperty("networkAllowList");
   });
 });
