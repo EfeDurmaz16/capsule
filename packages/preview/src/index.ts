@@ -88,6 +88,12 @@ export interface PreviewCleanupDispositionRecord {
 }
 
 export interface PreviewResourceRecord {
+  /**
+   * Graph-local resource reference assigned at creation, unique within one preview graph. It is the
+   * authoritative join key between a resource, its cleanup action and its receipts. Provider-native ids
+   * (`id`) are not unique across providers or across projects of one provider.
+   */
+  ref?: string;
   type: CapsuleDomain;
   kind: PreviewResourceKind;
   id: string;
@@ -111,8 +117,18 @@ export interface PreviewCleanupPlanAction {
   actionId: string;
   cleanupOrder: number;
   kind: PreviewResourceKind;
+  /**
+   * Graph-local reference of the resource this action cleans up. Always set on plans created by this
+   * package. Plans serialized before it existed omit it and are accepted only when their action can be
+   * matched to exactly one resource with the same cleanup identity.
+   */
+  resourceRef?: string;
   resourceId: string;
   resourceProvider: string;
+  /** Adapter name of the Capsule that created the resource. */
+  resourceAdapter?: string;
+  /** Provider scope that disambiguates resourceId, for example the database project. */
+  resourceScope?: Record<string, string>;
   resourceName?: string;
   capabilityPath: CapabilityPath;
   spec: Record<string, unknown>;
@@ -121,6 +137,7 @@ export interface PreviewCleanupPlanAction {
 }
 
 export interface PreviewCleanupPlanResource {
+  ref?: string;
   order: number;
   cleanupOrder?: number;
   type: CapsuleDomain;
@@ -205,6 +222,25 @@ export class PreviewCreationError extends Error {
     this.preview = options.preview;
     this.cleanup = options.cleanup;
     this.cause = options.cause;
+  }
+}
+
+/**
+ * Thrown before any cleanup effect when a supplied cleanup plan does not belong to the preview, or when a
+ * plan action cannot be bound to exactly one resource with the same kind, capability, provider and cleanup
+ * identity. Cleanup never falls back to another resource's action.
+ */
+export class PreviewCleanupPlanError extends Error {
+  readonly previewId: string;
+  readonly planPreviewId: string;
+  readonly resourceRef?: string;
+
+  constructor(message: string, options: { previewId: string; planPreviewId: string; resourceRef?: string }) {
+    super(message);
+    this.name = "PreviewCleanupPlanError";
+    this.previewId = options.previewId;
+    this.planPreviewId = options.planPreviewId;
+    this.resourceRef = options.resourceRef;
   }
 }
 
@@ -493,19 +529,25 @@ export function createPreviewCleanupPlan(
 ): PreviewCleanupPlan {
   const createdAt = options.createdAt ?? new Date();
   const planId = `cleanup_${preview.id}`;
-  const actions = [...resources]
+  const refs = resources.map((resource, index) => resourceRefOf(resource, index));
+  const actions = resources
+    .map((resource, index) => ({ resource, ref: refs[index] }))
     .reverse()
-    .filter((resource) => resource.cleanup)
-    .map((resource, cleanupOrder): PreviewCleanupPlanAction => {
+    .filter((entry) => entry.resource.cleanup)
+    .map(({ resource, ref }, cleanupOrder): PreviewCleanupPlanAction => {
       const cleanup = resource.cleanup!;
-      const actionId = `${preview.id}:cleanup:${cleanup.kind}:${resource.id}:${cleanup.capabilityPath}`;
+      const actionId = `${preview.id}:cleanup:${ref}:${cleanup.kind}:${cleanup.capabilityPath}`;
       const idempotencyKey = actionId;
+      const scope = cleanupScope(cleanup);
       return {
         actionId,
         cleanupOrder,
         kind: cleanup.kind,
+        resourceRef: ref,
         resourceId: resource.id,
         resourceProvider: resource.provider,
+        resourceAdapter: cleanup.capsule.adapterName(),
+        ...(scope ? { resourceScope: scope } : {}),
         resourceName: resource.name,
         capabilityPath: cleanup.capabilityPath,
         spec: { ...cleanup.spec, idempotencyKey },
@@ -513,7 +555,7 @@ export function createPreviewCleanupPlan(
         reversible: true
       };
     });
-  const actionByResourceId = new Map(actions.map((action) => [action.resourceId, action]));
+  const actionByRef = new Map(actions.map((action) => [action.resourceRef, action]));
 
   return {
     schema: previewCleanupPlanSchema,
@@ -524,8 +566,9 @@ export function createPreviewCleanupPlan(
     cleanupActionCount: actions.length,
     unsupportedCleanupCount: resources.length - actions.length,
     resources: resources.map((resource, order) => {
-      const action = actionByResourceId.get(resource.id);
+      const action = actionByRef.get(refs[order]);
       return {
+        ref: refs[order],
         order,
         cleanupOrder: action?.cleanupOrder,
         type: resource.type,
@@ -542,6 +585,106 @@ export function createPreviewCleanupPlan(
     }),
     actions
   };
+}
+
+function resourceRefOf(resource: PreviewResourceRecord, index: number): string {
+  return resource.ref ?? `resource-${index}`;
+}
+
+// Fields of a cleanup spec that name the provider resource. A plan action may only be bound to a
+// resource whose own cleanup spec carries the same values, so a plan cannot redirect deletion.
+const cleanupIdentityFields: Record<PreviewResourceKind, readonly string[]> = {
+  database: ["project", "branchId"],
+  service: ["id"],
+  edge: [],
+  job: []
+};
+
+function cleanupScope(cleanup: PreviewCleanupAction): Record<string, string> | undefined {
+  if (cleanup.kind === "database" && typeof cleanup.spec.project === "string") {
+    return { project: cleanup.spec.project };
+  }
+  return undefined;
+}
+
+function sameCleanupIdentity(spec: Record<string, unknown>, cleanup: PreviewCleanupAction): boolean {
+  return cleanupIdentityFields[cleanup.kind].every((field) => spec[field] === cleanup.spec[field]);
+}
+
+function actionMatchesResource(action: PreviewCleanupPlanAction, resource: PreviewResourceRecord, cleanup: PreviewCleanupAction): boolean {
+  return (
+    action.kind === cleanup.kind &&
+    action.capabilityPath === cleanup.capabilityPath &&
+    action.resourceId === resource.id &&
+    action.resourceProvider === resource.provider &&
+    typeof action.spec === "object" &&
+    action.spec !== null &&
+    sameCleanupIdentity(action.spec, cleanup)
+  );
+}
+
+/**
+ * Binds every cleanup-capable resource to at most one action of a supplied plan, before any effect.
+ * Resources with a graph-local ref bind by ref. Resources or plan actions without a ref (plans
+ * serialized before refs existed) bind only when exactly one action has the same kind, capability,
+ * provider, native id and cleanup identity. Anything else throws PreviewCleanupPlanError.
+ */
+function bindCleanupPlan(
+  preview: PreviewEnvironment,
+  resources: PreviewResourceRecord[],
+  plan: PreviewCleanupPlan
+): Map<PreviewResourceRecord, PreviewCleanupPlanAction | undefined> {
+  const context = { previewId: preview.id, planPreviewId: String(plan.previewId) };
+  if (plan.previewId !== preview.id) {
+    throw new PreviewCleanupPlanError(`Cleanup plan belongs to preview ${String(plan.previewId)}, not ${preview.id}.`, context);
+  }
+  if (!Array.isArray(plan.actions)) {
+    throw new PreviewCleanupPlanError("Cleanup plan actions must be an array.", context);
+  }
+  const actionsByRef = new Map<string, PreviewCleanupPlanAction>();
+  const legacyActions: PreviewCleanupPlanAction[] = [];
+  for (const action of plan.actions) {
+    if (action.resourceRef === undefined) {
+      legacyActions.push(action);
+      continue;
+    }
+    if (actionsByRef.has(action.resourceRef)) {
+      throw new PreviewCleanupPlanError(`Cleanup plan has more than one action for resource ${action.resourceRef}.`, {
+        ...context,
+        resourceRef: action.resourceRef
+      });
+    }
+    actionsByRef.set(action.resourceRef, action);
+  }
+
+  const bindings = new Map<PreviewResourceRecord, PreviewCleanupPlanAction | undefined>();
+  for (const resource of resources) {
+    const cleanup = resource.cleanup;
+    if (!cleanup) continue;
+    if (resource.ref !== undefined) {
+      const action = actionsByRef.get(resource.ref);
+      if (action) {
+        if (!actionMatchesResource(action, resource, cleanup)) {
+          throw new PreviewCleanupPlanError(`Cleanup plan action for resource ${resource.ref} does not match that resource's kind, provider or identity.`, {
+            ...context,
+            resourceRef: resource.ref
+          });
+        }
+        bindings.set(resource, action);
+        continue;
+      }
+    }
+    const pool = resource.ref === undefined ? plan.actions : legacyActions;
+    const candidates = pool.filter((action) => actionMatchesResource(action, resource, cleanup));
+    if (candidates.length > 1) {
+      throw new PreviewCleanupPlanError(`Cleanup plan is ambiguous for ${resource.kind} resource ${resource.id}; refusing to guess which action applies.`, {
+        ...context,
+        resourceRef: resource.ref
+      });
+    }
+    bindings.set(resource, candidates[0]);
+  }
+  return bindings;
 }
 
 function previewCreateReceipt(
@@ -564,13 +707,14 @@ function previewCreateReceipt(
     },
     metadata: {
       resourceCount: resources.length,
-      resources: resources.map((resource) => ({
+      resources: resources.map((resource, index) => ({
+        ref: cleanupPlan.resources[index]?.ref,
         id: resource.id,
         kind: resource.kind,
         provider: resource.provider,
         name: resource.name,
         receiptId: resource.receipt?.id,
-        cleanupActionId: cleanupPlan.resources.find((entry) => entry.id === resource.id)?.cleanupActionId,
+        cleanupActionId: cleanupPlan.resources[index]?.cleanupActionId,
         cleanupCapabilityPath: resource.cleanup?.capabilityPath
       })),
       cleanupPlan: {
@@ -584,6 +728,7 @@ function previewCreateReceipt(
           cleanupOrder: action.cleanupOrder,
           kind: action.kind,
           capabilityPath: action.capabilityPath,
+          resourceRef: action.resourceRef,
           resourceId: action.resourceId,
           idempotencyKey: action.idempotencyKey
         }))
@@ -627,10 +772,12 @@ function createCleanupReceipt(
         cleanupOrder: action.cleanupOrder,
         kind: action.kind,
         capabilityPath: action.capabilityPath,
+        resourceRef: action.resourceRef,
         resourceId: action.resourceId,
         idempotencyKey: action.idempotencyKey
       })),
       resources: dispositions.map((entry) => ({
+        ref: entry.resource.ref,
         id: entry.resource.id,
         kind: entry.resource.kind,
         provider: entry.resource.provider,
@@ -666,7 +813,7 @@ function serviceRecord(resource: ServiceDeployment, capsule: Capsule): PreviewRe
       kind: "service",
       capsule,
       capabilityPath: "service.delete",
-      spec: { id: resource.id, name: resource.name }
+      spec: Object.freeze({ id: resource.id, name: resource.name })
     }
   };
 }
@@ -697,7 +844,7 @@ function databaseRecord(resource: DatabaseBranch, capsule: Capsule): PreviewReso
       kind: "database",
       capsule,
       capabilityPath: "database.branchDelete",
-      spec: { project: resource.project, branchId: resource.id }
+      spec: Object.freeze({ project: resource.project, branchId: resource.id })
     }
   };
 }
@@ -736,6 +883,10 @@ export function previewUrlRegistry(resources: PreviewResourceRecord[]): PreviewU
     .map((resource) => ({ resourceId: resource.id, type: resource.type, provider: resource.provider, url: resource.url }));
 }
 
+function withRef(record: PreviewResourceRecord, index: number): PreviewResourceRecord {
+  return { ref: `resource-${index}`, ...record };
+}
+
 function previewFromResources(id: string, plan: PreviewPlan, status: PreviewEnvironment["status"], resources: PreviewResourceRecord[]): PreviewEnvironment {
   const urlEntries = previewUrlRegistry(resources);
   return {
@@ -765,16 +916,16 @@ export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrch
 
   try {
     for (const entry of plan.databases ?? []) {
-      resources.push(databaseRecord(await entry.capsule.database.branch.create(entry.spec), entry.capsule));
+      resources.push(withRef(databaseRecord(await entry.capsule.database.branch.create(entry.spec), entry.capsule), resources.length));
     }
     for (const entry of plan.services ?? []) {
-      resources.push(serviceRecord(await entry.capsule.service.deploy(entry.spec), entry.capsule));
+      resources.push(withRef(serviceRecord(await entry.capsule.service.deploy(entry.spec), entry.capsule), resources.length));
     }
     for (const entry of plan.edges ?? []) {
-      resources.push(edgeRecord(await entry.capsule.edge.deploy(entry.spec)));
+      resources.push(withRef(edgeRecord(await entry.capsule.edge.deploy(entry.spec)), resources.length));
     }
     for (const entry of plan.jobs ?? []) {
-      resources.push(jobRecord(await entry.capsule.job.run(entry.spec)));
+      resources.push(withRef(jobRecord(await entry.capsule.job.run(entry.spec)), resources.length));
     }
 
     const preview = previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
@@ -800,6 +951,9 @@ export async function cleanupPreviewEnvironment(
 ): Promise<PreviewCleanupResult> {
   const startedAt = options.startedAt ?? new Date();
   const cleanupPlan = options.cleanupPlan ?? createPreviewCleanupPlan(preview, resources, { createdAt: startedAt });
+  // Bind every resource to its own plan action (or none) before the first delete, so a foreign or
+  // ambiguous plan fails without effects instead of routing one resource's spec to another Capsule.
+  const bindings = bindCleanupPlan(preview, resources, cleanupPlan);
   const cleaned: PreviewResourceRecord[] = [];
   const failed: PreviewCleanupResult["failed"] = [];
   const receipts: CapsuleReceipt[] = [];
@@ -817,10 +971,7 @@ export async function cleanupPreviewEnvironment(
     }
     try {
       let receipt: CapsuleReceipt | undefined;
-      const cleanupAction = cleanupPlan.actions.find(
-        (action) => action.resourceId === resource.id && action.capabilityPath === resource.cleanup?.capabilityPath
-      );
-      const cleanupSpec = cleanupAction?.spec ?? resource.cleanup.spec;
+      const cleanupSpec = bindings.get(resource)?.spec ?? resource.cleanup.spec;
       if (resource.cleanup.kind === "database") {
         const result = await resource.cleanup.capsule.database.branch.delete(cleanupSpec as { project: string; branchId: string; hardDelete?: boolean });
         receipt = result.receipt;
@@ -865,16 +1016,16 @@ export async function createPreviewEnvironmentWithCleanup(plan: PreviewPlan): Pr
 
   try {
     for (const entry of plan.databases ?? []) {
-      resources.push(databaseRecord(await entry.capsule.database.branch.create(entry.spec), entry.capsule));
+      resources.push(withRef(databaseRecord(await entry.capsule.database.branch.create(entry.spec), entry.capsule), resources.length));
     }
     for (const entry of plan.services ?? []) {
-      resources.push(serviceRecord(await entry.capsule.service.deploy(entry.spec), entry.capsule));
+      resources.push(withRef(serviceRecord(await entry.capsule.service.deploy(entry.spec), entry.capsule), resources.length));
     }
     for (const entry of plan.edges ?? []) {
-      resources.push(edgeRecord(await entry.capsule.edge.deploy(entry.spec)));
+      resources.push(withRef(edgeRecord(await entry.capsule.edge.deploy(entry.spec)), resources.length));
     }
     for (const entry of plan.jobs ?? []) {
-      resources.push(jobRecord(await entry.capsule.job.run(entry.spec)));
+      resources.push(withRef(jobRecord(await entry.capsule.job.run(entry.spec)), resources.length));
     }
     return previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
   } catch (error) {

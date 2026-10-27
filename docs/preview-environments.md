@@ -22,6 +22,10 @@ Production preview plans should set `requireRealProviders: true`. When that flag
 
 The package records a resource graph containing service, edge, database, and job resources. Cleanup walks that graph in reverse dependency order and reports partial cleanup failures instead of hiding successfully cleaned resources.
 
+Each created resource gets a graph-local `ref` (for example `resource-0`). The ref, not the provider-native id, is the join key between a resource, its cleanup action and its receipts, because native ids are not unique across providers or across projects of one provider. Cleanup plan actions record `resourceRef`, `resourceId`, `resourceProvider`, `resourceAdapter` and `resourceScope`, and each resource is always deleted through the Capsule that created it.
+
+When a cleanup plan is passed to `cleanupPreviewEnvironment`, it is validated before the first delete. The plan must belong to the same preview, and each action must match its resource's kind, capability, provider, native id and cleanup identity (database project and branch, service id). Otherwise `PreviewCleanupPlanError` is thrown and nothing is deleted. Plans written before refs existed are accepted only when every action matches exactly one resource; ambiguous plans are rejected rather than guessed.
+
 Cleanup evidence is explicit. Every resource gets a cleanup disposition:
 
 - `cleaned`: Capsule invoked a cleanup action and the provider receipt reported deletion or did not expose a conflicting status.

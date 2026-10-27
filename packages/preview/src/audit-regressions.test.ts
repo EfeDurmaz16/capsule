@@ -3,7 +3,14 @@
 // owner who fixes an ID flips its it.fails to it in the same commit. All adapters are in-memory fakes.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Capsule } from "@capsule-sdk/core";
-import { aggregatePreviewStatus, cleanupPreviewEnvironment, createPreviewGraph, createPreviewId } from "./index.js";
+import {
+  aggregatePreviewStatus,
+  cleanupPreviewEnvironment,
+  createPreviewGraph,
+  createPreviewId,
+  PreviewCleanupPlanError,
+  type PreviewCleanupPlan
+} from "./index.js";
 
 type DeleteCall = { owner: string; provider: string; project: string; branchId: string };
 
@@ -38,7 +45,7 @@ describe("M1 audit regressions: preview", () => {
     ["provider-a", "provider-b"],
     ["same-provider", "same-provider"]
   ] as const) {
-    it.fails(`COMP-01: equal native ids (${providers.join(", ")}) clean up through their own Capsule and project`, async () => {
+    it(`COMP-01: equal native ids (${providers.join(", ")}) clean up through their own Capsule and project`, async () => {
       const calls: DeleteCall[] = [];
       const graph = await createPreviewGraph({
         name: "collision",
@@ -55,6 +62,57 @@ describe("M1 audit regressions: preview", () => {
       expect(new Set(graph.cleanupPlan.actions.map((action) => action.actionId)).size).toBe(graph.cleanupPlan.actions.length);
     });
   }
+
+  async function collisionGraph(calls: DeleteCall[]) {
+    return createPreviewGraph({
+      name: "collision",
+      databases: [
+        { capsule: fakeDatabase("same-provider", "project-one", calls), spec: { project: "project-one", name: "one" } },
+        { capsule: fakeDatabase("same-provider", "project-two", calls), spec: { project: "project-two", name: "two" } }
+      ]
+    });
+  }
+
+  it("COMP-01: a cleanup plan from another preview is rejected before any delete", async () => {
+    const calls: DeleteCall[] = [];
+    const graph = await collisionGraph(calls);
+    const foreign: PreviewCleanupPlan = { ...graph.cleanupPlan, previewId: "preview_other_run" };
+    await expect(cleanupPreviewEnvironment(graph.preview, graph.resources, { cleanupPlan: foreign })).rejects.toBeInstanceOf(PreviewCleanupPlanError);
+    expect(calls).toEqual([]);
+  });
+
+  it("COMP-01: a plan action that points a resource at another project is rejected before any delete", async () => {
+    const calls: DeleteCall[] = [];
+    const graph = await collisionGraph(calls);
+    const tampered: PreviewCleanupPlan = {
+      ...graph.cleanupPlan,
+      actions: graph.cleanupPlan.actions.map((action) =>
+        action.resourceRef === graph.resources[0]?.ref ? { ...action, spec: { ...action.spec, project: "project-two" } } : action
+      )
+    };
+    await expect(cleanupPreviewEnvironment(graph.preview, graph.resources, { cleanupPlan: tampered })).rejects.toBeInstanceOf(PreviewCleanupPlanError);
+    expect(calls).toEqual([]);
+  });
+
+  it("COMP-01: a legacy plan without resource refs is accepted only when each action matches exactly one identity", async () => {
+    const calls: DeleteCall[] = [];
+    const graph = await collisionGraph(calls);
+    const legacy: PreviewCleanupPlan = {
+      ...graph.cleanupPlan,
+      actions: graph.cleanupPlan.actions.map(({ resourceRef: _ref, resourceAdapter: _adapter, resourceScope: _scope, ...action }) => action)
+    };
+    const legacyResources = graph.resources.map(({ ref: _ref, ...resource }) => resource);
+    await cleanupPreviewEnvironment(graph.preview, legacyResources, { cleanupPlan: legacy });
+    expect(calls.map((call) => [call.owner, call.project]).sort()).toEqual([
+      ["project-one", "project-one"],
+      ["project-two", "project-two"]
+    ]);
+
+    const ambiguous: PreviewCleanupPlan = { ...legacy, actions: [...legacy.actions, ...legacy.actions] };
+    calls.length = 0;
+    await expect(cleanupPreviewEnvironment(graph.preview, legacyResources, { cleanupPlan: ambiguous })).rejects.toBeInstanceOf(PreviewCleanupPlanError);
+    expect(calls).toEqual([]);
+  });
 
   it.fails("COMP-02: a cancelled required check never aggregates to ready", () => {
     expect(aggregatePreviewStatus([{ type: "job", kind: "job", id: "check", provider: "fake", status: "cancelled" } as never])).not.toBe("ready");
