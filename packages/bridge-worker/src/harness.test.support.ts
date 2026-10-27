@@ -84,6 +84,15 @@ export class TestConnection {
     throw new Error("the worker wrote nothing");
   }
 
+  /** The next message, waiting up to `ms` of wall time: for wall-clock profiles whose answers wait on timers. */
+  async nextWithin(ms: number): Promise<Record<string, unknown>> {
+    for (const end = Date.now() + ms; Date.now() < end; await new Promise((resolve) => setTimeout(resolve, 5))) {
+      const message = this.received.shift();
+      if (message) return message;
+    }
+    return this.next();
+  }
+
   /** Every message still queued after the worker has had time to settle. */
   async drain(turns = 50): Promise<Record<string, unknown>[]> {
     for (let turn = 0; turn < turns; turn += 1) await new Promise((resolve) => setImmediate(resolve));

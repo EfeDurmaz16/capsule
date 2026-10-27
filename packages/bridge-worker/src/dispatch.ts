@@ -63,6 +63,11 @@ export interface OperationRuntime {
   drainAt(): number | undefined;
   /** Reports provider progress; the session decides whether to send it. */
   progress(state: string, resource: WireLocator): void;
+  /**
+   * Provider work that goes on after its answer, such as an exec answered running. It keeps counting
+   * against max_in_flight until it settles, so answered work cannot pile up past the limit.
+   */
+  linger(work: Promise<unknown>): void;
 }
 
 export type Answer = Result | ErrorMessage;
@@ -543,7 +548,9 @@ async function dispatchChecked(
     });
     const outcome = await guarded(runtime, withDeadline(runtime, exec, request.deadline_ms, driver));
     if (outcome === "deadline") {
-      // Not terminal-only: answer what is known, a running command, and leave it running.
+      // Not terminal-only: answer what is known, a running command, and leave it running. It still
+      // holds its in-flight slot until it ends. v1 has no observe for exec, so its exit is not reported.
+      runtime.linger(exec);
       return result(runtime, "running", resource, { exit_code: null, stdout: emptyStream, stderr: emptyStream }, evidence);
     }
     return result(runtime, "completed", resource, execOutput(outcome), evidence);

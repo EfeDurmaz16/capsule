@@ -85,6 +85,8 @@ export class WorkerSession {
   private readonly seenRequestIds = new BoundedSet(MAX_REMEMBERED_REQUEST_IDS);
   private readonly answered = new BoundedSet(MAX_REMEMBERED_REQUEST_IDS);
   private readonly idempotency = new IdempotencyTable();
+  /** Answered work still running at the provider; it counts against max_in_flight. */
+  private lingering = 0;
   private readonly context: DispatchContext;
   private stderrLeft = WORKER_MAX_STDERR_BYTES;
   private exitCode: number | undefined;
@@ -301,7 +303,15 @@ export class WorkerSession {
   }
 
   private capacity(): Refusal | undefined {
-    return this.inFlight.size >= this.limits.max_in_flight ? new Refusal("unavailable", "busy") : undefined;
+    return this.inFlight.size + this.lingering >= this.limits.max_in_flight ? new Refusal("unavailable", "busy") : undefined;
+  }
+
+  private linger(work: Promise<unknown>): void {
+    this.lingering += 1;
+    const settled = () => {
+      this.lingering -= 1;
+    };
+    work.then(settled, settled);
   }
 
   private track(requestId: string, operationId: string, action: BridgeAction, kind: "request" | "observe", resource: WireLocator | undefined): InFlight {
@@ -328,6 +338,7 @@ export class WorkerSession {
         entry.resource = locator;
         this.write({ type: "progress", request_id: requestId, operation_id: operationId, seq: entry.progressSeq, state, resource: locator });
       },
+      linger: (work) => this.linger(work),
       done: Promise.resolve()
     };
     this.inFlight.set(requestId, entry);

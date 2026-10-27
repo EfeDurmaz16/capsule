@@ -33,6 +33,11 @@ class FakeEngine {
   current = "fake-engine";
   /** Makes `docker rm` come back the way runDocker reports its own timeout. */
   rmTimesOut = false;
+  /** While set, docker exec runs until it settles: a long command. */
+  execGate: Promise<void> | undefined;
+  /** docker exec commands running now, and the most that ran at once. */
+  execsRunning = 0;
+  execsPeak = 0;
   private next = 1;
 
   runner = async (given: string[], _options?: RunDockerOptions): Promise<DockerCommandResult> => {
@@ -107,6 +112,12 @@ class FakeEngine {
         const container = find(rest[0]!);
         if (!container) return fail(`Error: No such container: ${rest[0]}`);
         const argv = rest.slice(1);
+        if (this.execGate) {
+          this.execsRunning += 1;
+          this.execsPeak = Math.max(this.execsPeak, this.execsRunning);
+          await this.execGate;
+          this.execsRunning -= 1;
+        }
         return argv[0] === "echo" ? ok(`${argv.slice(1).join(" ")}\n`) : { exitCode: 2, stdout: "", stderr: "fake: unsupported\n" };
       }
       case "rm": {
@@ -366,6 +377,34 @@ describe("docker profile on a fake engine", () => {
     expect(engine.routed.filter((_, index) => engine.calls[index]![0] !== "context")).toEqual(
       engine.calls.filter((call) => call[0] !== "context").map(() => "fake-engine")
     );
+  });
+
+  test("an exec answered running at its deadline keeps its in-flight slot until the command ends", async () => {
+    const engine = new FakeEngine();
+    const connection = connect(engine);
+    connection.send({ ...hello, limits: { ...((hello as Record<string, unknown>).limits as object), max_in_flight: 1 } });
+    expect(await connection.next()).toMatchObject({ type: "hello_ack", limits: { max_in_flight: 1 } });
+    connection.send(create(1));
+    const id = ((await connection.next()).resource as { native_id: string }).native_id;
+    let release: () => void = () => undefined;
+    engine.execGate = new Promise((resolve) => (release = resolve));
+    const execRequest = (n: number) => ({
+      ...request(n, "sandbox.exec", {
+        target: target(id),
+        params: { argv: ["echo", `run-${n}`], stdin: null, cwd: null, timeout_ms: 600_000, max_output_bytes: 64, secret_names: [] }
+      }),
+      deadline_ms: 50
+    });
+    connection.send(execRequest(2));
+    expect(await connection.nextWithin(2_000)).toMatchObject({ type: "result", request_id: "r-2", state: "running" });
+    connection.send(execRequest(3));
+    expect(await connection.next()).toMatchObject({ type: "error", request_id: "r-3", error: { code: "unavailable", reason: "busy", effect: "none" } });
+    expect(engine.execsPeak).toBe(1);
+    release();
+    engine.execGate = undefined;
+    await connection.drain();
+    connection.send(execRequest(4));
+    expect(await connection.nextWithin(2_000)).toMatchObject({ type: "result", request_id: "r-4", state: "completed" });
   });
 
   test("a locator in another engine scope is refused before any docker call", async () => {
