@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
+import { packedEntryViolations } from "./packed-file-policy.mjs";
 
 function parseArgs(argv) {
   const options = {
@@ -172,8 +173,22 @@ function packPackages(packages, packDir) {
       throw new Error(`pnpm pack did not return a tarball filename for ${pkg.name}.`);
     }
     const filename = isAbsolute(packed.filename) ? packed.filename : join(packDir, packed.filename);
-    return { name: pkg.name, filename, sizeBytes: statSync(filename).size };
+    return { name: pkg.name, main: pkg.main, filename, sizeBytes: statSync(filename).size };
   });
+}
+
+function checkPackedContents(tarballs) {
+  const errors = tarballs.flatMap((tarball) =>
+    packedEntryViolations(tarball.name, run("tar", ["-tzf", tarball.filename]).split(/\r?\n/), { main: tarball.main })
+  );
+  if (errors.length === 0) {
+    return true;
+  }
+  console.error("Packed package contents check failed:");
+  for (const error of errors) {
+    console.error(`- ${error}`);
+  }
+  return false;
 }
 
 function checkPackedSizeBudgets(tarballs) {
@@ -269,7 +284,8 @@ try {
   mkdirSync(packDir, { recursive: true });
   mkdirSync(fixtureDir, { recursive: true });
   const tarballs = packPackages(packages, packDir);
-  if (!checkPackedSizeBudgets(tarballs)) {
+  const contentsOk = checkPackedContents(tarballs);
+  if (!checkPackedSizeBudgets(tarballs) || !contentsOk) {
     failed = true;
   } else {
     writeFixture(fixtureDir, tarballs);
