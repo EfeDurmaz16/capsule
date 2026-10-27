@@ -267,4 +267,16 @@ describe("e2b adapter", () => {
     await expect(sandbox.exec({ command: "cat", input: "" })).rejects.toThrow("ExecSpec.input");
     expect(runs).toBe(0);
   });
+  it("PERF-13: uploads exactly the bytes of a subarray view as one Blob", async () => {
+    const allocated = resetFakeSandbox();
+    const sandbox = await new Capsule({ adapter: e2b({ sandboxClass: FakeE2BSandbox }) }).sandbox.create({});
+    const backing = new Uint8Array([9, 9, 1, 2, 3, 9]);
+    const view = backing.subarray(2, 5);
+
+    await sandbox.writeFile("/workspace/bin", view);
+
+    const written = allocated.written.get("/workspace/bin");
+    expect(written).toBeInstanceOf(Blob);
+    expect([...new Uint8Array(await (written as Blob).arrayBuffer())]).toEqual([1, 2, 3]);
+  });
 });

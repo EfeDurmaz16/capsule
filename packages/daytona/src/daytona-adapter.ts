@@ -281,6 +281,12 @@ async function deleteSandboxAfterFailure(
   throw new AdapterExecutionError("Daytona sandbox operation failed after sandbox allocation.", { operationError, cleanup });
 }
 
+function uploadBuffer(data: string | Uint8Array): Buffer {
+  if (typeof data === "string") return Buffer.from(data, "utf8");
+  if (Buffer.isBuffer(data)) return data;
+  return Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+}
+
 class DaytonaCapsuleSandbox implements Sandbox {
   constructor(
     private readonly sandbox: DaytonaSandboxLike,
@@ -328,7 +334,10 @@ class DaytonaCapsuleSandbox implements Sandbox {
   }
 
   async writeFile(path: string, data: string | Uint8Array): Promise<void> {
-    await callProvider("Daytona file write failed.", () => this.sandbox.fs.uploadFile(typeof data === "string" ? Buffer.from(data) : Buffer.from(data), path));
+    // The installed SDK treats a string source as a local file path, so text is always encoded to a Buffer.
+    // Bytes are wrapped as a Buffer view over the caller's memory (same byteOffset/byteLength) instead of
+    // being copied; the SDK streams it with Readable.from. Callers must not mutate it until this resolves.
+    await callProvider("Daytona file write failed.", () => this.sandbox.fs.uploadFile(uploadBuffer(data), path));
   }
 
   async readFile(path: string): Promise<Uint8Array> {

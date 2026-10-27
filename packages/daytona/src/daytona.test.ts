@@ -259,4 +259,20 @@ describe("daytona adapter", () => {
     await expect(box.exec({ command: "cat", input: "hello" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
     expect(runs).toBe(0);
   });
+  it("PERF-13: uploads a subarray as a Buffer view of the same bytes without copying", async () => {
+    const { sandbox, files } = fakeDaytonaSandbox();
+    const box = await new Capsule({ adapter: daytona({ client: { create: async () => sandbox } }) }).sandbox.create({});
+    const backing = new Uint8Array([9, 9, 1, 2, 3, 9]);
+    const view = backing.subarray(2, 5);
+
+    await box.writeFile("/workspace/bin", view);
+    await box.writeFile("/workspace/text", "héllo");
+
+    const uploaded = files.get("/workspace/bin")!;
+    expect(Buffer.isBuffer(uploaded)).toBe(true);
+    expect([...uploaded]).toEqual([1, 2, 3]);
+    expect(uploaded.buffer).toBe(backing.buffer);
+    expect(uploaded.byteOffset).toBe(2);
+    expect(files.get("/workspace/text")!.toString("utf8")).toBe("héllo");
+  });
 });

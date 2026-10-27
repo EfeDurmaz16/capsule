@@ -166,8 +166,12 @@ function commandForReceipt(command: string[] | string): string[] {
   return typeof command === "string" ? ["sh", "-lc", command] : command;
 }
 
-function arrayBufferFromBytes(data: Uint8Array): ArrayBuffer {
-  return new Uint8Array(data).buffer;
+// The installed SDK turns string and ArrayBuffer data into a Blob before upload (toBlob/toUploadBody)
+// and passes a Blob through unchanged. Building the Blob from the caller's view directly copies the
+// bytes once and honors byteOffset/byteLength of a subarray, instead of first copying into a fresh
+// ArrayBuffer and then into the SDK's Blob.
+function uploadBlob(data: Uint8Array): Blob {
+  return new Blob([data as Uint8Array<ArrayBuffer>]);
 }
 
 function policyNotes(context: AdapterContext): string[] {
@@ -321,7 +325,7 @@ class E2BCapsuleSandbox implements Sandbox {
   }
 
   async writeFile(path: string, data: string | Uint8Array): Promise<void> {
-    await callProvider("E2B file write failed.", () => this.sandbox.files.write(path, typeof data === "string" ? data : arrayBufferFromBytes(data)));
+    await callProvider("E2B file write failed.", () => this.sandbox.files.write(path, typeof data === "string" ? data : uploadBlob(data)));
   }
 
   async readFile(path: string): Promise<Uint8Array> {
