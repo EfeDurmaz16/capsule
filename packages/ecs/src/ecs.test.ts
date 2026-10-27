@@ -504,4 +504,53 @@ describe("ecs adapter", () => {
     });
     expect(receipts).toEqual([]);
   });
+  it("waits for scale-down to drain running tasks before a non-forced DeleteService", async () => {
+    const sent: Array<{ name: string; input: any }> = [];
+    let deleted = false;
+    let drainDescribes = 0;
+    const client = {
+      send: async (command: any) => {
+        const name = command.constructor.name;
+        sent.push({ name, input: command.input });
+        if (name === "UpdateServiceCommand") return { service: { serviceArn: "arn:service/api", status: "ACTIVE", desiredCount: 0, runningCount: 1, pendingCount: 0 } };
+        if (name === "DeleteServiceCommand") {
+          deleted = true;
+          return { service: { serviceArn: "arn:service/api", status: "DRAINING", runningCount: 0 } };
+        }
+        if (deleted) return { services: [{ serviceArn: "arn:service/api", status: "INACTIVE" }] };
+        drainDescribes += 1;
+        return { services: [{ serviceArn: "arn:service/api", status: "ACTIVE", desiredCount: 0, runningCount: drainDescribes < 2 ? 1 : 0, pendingCount: 0 }] };
+      }
+    };
+    const capsule = new Capsule({
+      adapter: ecs({ cluster: "cluster-a", taskDefinition: "api:3", containerName: "main", deleteObservation: { deadlineMs: 5_000, intervalMs: 1 }, client })
+    });
+    await expect(capsule.service.delete({ id: "api" })).resolves.toMatchObject({ status: "deleted" });
+    expect(sent.map((entry) => entry.name)).toEqual([
+      "UpdateServiceCommand",
+      "DescribeServicesCommand",
+      "DescribeServicesCommand",
+      "DeleteServiceCommand",
+      "DescribeServicesCommand"
+    ]);
+    expect(sent[3]?.input).toEqual({ cluster: "cluster-a", service: "api", force: undefined });
+  });
+
+  it("does not call DeleteService when scale-down tasks are still running at the deadline", async () => {
+    const sent: string[] = [];
+    const client = {
+      send: async (command: any) => {
+        sent.push(command.constructor.name);
+        if (command.constructor.name === "DescribeServicesCommand") return { services: [{ serviceArn: "arn:service/api", status: "ACTIVE", runningCount: 1, pendingCount: 0 }] };
+        return { service: { serviceArn: "arn:service/api", status: "ACTIVE", desiredCount: 0, runningCount: 1, pendingCount: 0 } };
+      }
+    };
+    const capsule = new Capsule({
+      adapter: ecs({ cluster: "cluster-a", taskDefinition: "api:3", containerName: "main", deleteObservation: { deadlineMs: 30, intervalMs: 5 }, client })
+    });
+    const error = await capsule.service.delete({ id: "api" }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(PendingOperationError);
+    expect(error).toMatchObject({ operation: "service.delete", state: "ACTIVE runningCount=1 pendingCount=0" });
+    expect(sent).not.toContain("DeleteServiceCommand");
+  });
 });

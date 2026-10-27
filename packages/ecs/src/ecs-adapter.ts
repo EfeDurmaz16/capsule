@@ -19,6 +19,7 @@ import {
   type AdapterContext,
   AdapterExecutionError,
   CleanupFailureError,
+  PendingOperationError,
   type CapsuleAdapter,
   type CapabilityMap,
   type CancelJobResult,
@@ -330,11 +331,64 @@ interface ObservedServiceDeletion {
  * Observes DescribeServices until the service is INACTIVE or no longer known to ECS (CD-DELETE). Throws
  * PendingOperationError with the last native status when the deadline expires.
  */
+/** Both observation phases share one budget; report that configured budget rather than a phase remainder. */
+async function withDeleteBudget<T>(deadlineMs: number, observe: () => Promise<T>): Promise<T> {
+  try {
+    return await observe();
+  } catch (error) {
+    if (!(error instanceof PendingOperationError) || error.deadlineMs === deadlineMs) throw error;
+    throw new PendingOperationError(
+      `service.delete for service ${error.resource.nativeId} is still pending after the ${deadlineMs}ms observation budget.`,
+      {
+        operation: error.operation,
+        resource: error.resource,
+        ...(error.state === undefined ? {} : { state: error.state }),
+        deadlineMs,
+        ...(error.observations === undefined ? {} : { observations: error.observations })
+      },
+      error.cause
+    );
+  }
+}
+
+function activeTaskCount(service: Service | undefined): number {
+  return (service?.runningCount ?? 0) + (service?.pendingCount ?? 0);
+}
+
+/**
+ * Observes DescribeServices after the scale-to-zero request until no task is running or pending (GAP-11).
+ * ECS only deletes a service without force once it has no running tasks, so a non-forced DeleteService
+ * must not race the scale-down. Throws PendingOperationError, before any DeleteService, at the deadline.
+ */
+async function observeScaleDownDrained(
+  client: ECSClientLike,
+  options: ECSAdapterOptions,
+  serviceId: string,
+  locator: ResourceLocator,
+  deadlineMs: number
+): Promise<void> {
+  await observeUntilTerminal<void>(
+    async ({ signal }) => {
+      const response: { services?: Service[] } = await client.send(new DescribeServicesCommand({ cluster: options.cluster, services: [serviceId] }), {
+        abortSignal: signal
+      });
+      const service = response.services?.[0];
+      if (service && activeTaskCount(service) === 0) return { done: true, value: undefined };
+      return {
+        done: false,
+        state: service ? `${service.status ?? "unknown"} runningCount=${service.runningCount ?? 0} pendingCount=${service.pendingCount ?? 0}` : "unknown"
+      };
+    },
+    { operation: "service.delete", resource: locator, deadlineMs, intervalMs: options.deleteObservation?.intervalMs ?? defaultDeleteObservationIntervalMs }
+  );
+}
+
 async function observeServiceDeletion(
   client: ECSClientLike,
   options: ECSAdapterOptions,
   serviceId: string,
-  locator: ResourceLocator
+  locator: ResourceLocator,
+  deadlineMs: number
 ): Promise<ObservedServiceDeletion> {
   return observeUntilTerminal<ObservedServiceDeletion>(
     async ({ attempt, signal }) => {
@@ -356,7 +410,7 @@ async function observeServiceDeletion(
     {
       operation: "service.delete",
       resource: locator,
-      deadlineMs: options.deleteObservation?.deadlineMs ?? defaultDeleteObservationDeadlineMs,
+      deadlineMs,
       intervalMs: options.deleteObservation?.intervalMs ?? defaultDeleteObservationIntervalMs
     }
   );
@@ -560,6 +614,19 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
         const startedAt = new Date();
         const client = getClient();
         const scale = await client.send(new UpdateServiceCommand({ cluster: options.cluster, service: spec.id, desiredCount: 0 }));
+        const observationDeadlineMs = options.deleteObservation?.deadlineMs ?? defaultDeleteObservationDeadlineMs;
+        const observationStartedAt = Date.now();
+        const remainingObservationMs = () => Math.max(1, observationDeadlineMs - (Date.now() - observationStartedAt));
+        const locatorFor = (nativeId: string) =>
+          resourceLocator({ provider, kind: "service", nativeId, scope: { cluster: options.cluster, region: options.region } });
+        if (!spec.force && activeTaskCount(scale.service) > 0) {
+          // Without force, wait for the scale-down to finish instead of racing DeleteService against
+          // running tasks. force=true keeps the documented ECS behavior of deleting with tasks running.
+          const serviceId = scale.service?.serviceArn ?? spec.id;
+          await withDeleteBudget(observationDeadlineMs, () =>
+            observeScaleDownDrained(client, options, serviceId, locatorFor(serviceId), remainingObservationMs())
+          );
+        }
         const response = await client.send(new DeleteServiceCommand({ cluster: options.cluster, service: spec.id, force: spec.force }));
         const acknowledged: Service | undefined = response.service;
         const acknowledgedId = acknowledged?.serviceArn ?? scale.service?.serviceArn ?? spec.id;
@@ -568,11 +635,8 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
         const observed: ObservedServiceDeletion =
           acknowledged?.status === "INACTIVE"
             ? { terminal: "INACTIVE", service: acknowledged, observations: 0 }
-            : await observeServiceDeletion(
-                client,
-                options,
-                acknowledgedId,
-                resourceLocator({ provider, kind: "service", nativeId: acknowledgedId, scope: { cluster: options.cluster, region: options.region } })
+            : await withDeleteBudget(observationDeadlineMs, () =>
+                observeServiceDeletion(client, options, acknowledgedId, locatorFor(acknowledgedId), remainingObservationMs())
               );
         const service = observed.service ?? acknowledged ?? scale.service;
         const id = service?.serviceArn ?? spec.id;
@@ -592,6 +656,7 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
                 applied: context.policy,
                 notes: [
                   "ECS service deletion first scales desiredCount to zero, then calls DeleteService.",
+                  "Without force, DeleteService is sent only after DescribeServices shows no running or pending tasks.",
                   "The service is reported deleted only after DescribeServices shows it INACTIVE or no longer present."
                 ]
               },
