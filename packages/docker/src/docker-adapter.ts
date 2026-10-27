@@ -1,4 +1,5 @@
-import { lstat, mkdir, mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
+import { lstatSync, mkdirSync } from "node:fs";
+import { mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, posix } from "node:path";
@@ -254,12 +255,13 @@ async function collectSandboxArtifacts(runner: DockerRunner, containerId: string
       // A path inside another requested path copies into a tree an earlier copy creates, so the order of
       // copies matters: keep them strictly sequential, and never follow a symbolic link that tree holds.
       for (const placement of placements) {
-        await copyArtifact(runner, containerId, placement, await realTargetDirectory(dir, placement));
+        await copyArtifact(runner, containerId, placement, realTargetDirectory(dir, placement));
       }
     } else {
       // Disjoint paths land in disjoint subtrees, so the copies can overlap (PERF-14). It is still one
-      // `docker cp` per path with the same arguments; only the waiting overlaps.
-      for (const placement of placements) await mkdir(join(dir, placement.targetDir), { recursive: true });
+      // `docker cp` per path with the same arguments; only the waiting overlaps. The tree is fresh, so each
+      // distinct target directory is created once, synchronously, with no thread pool round trip per path.
+      for (const targetDir of new Set(placements.map((placement) => placement.targetDir))) mkdirSync(join(dir, targetDir), { recursive: true });
       await copyConcurrently(runner, containerId, dir, placements);
     }
     return collectFileArtifacts(dir).artifacts;
@@ -307,24 +309,23 @@ async function copyConcurrently(runner: DockerRunner, containerId: string, dir: 
 // can be a symbolic link the container planted (for example /out/logs -> a host directory): mkdir -p and
 // docker cp, which resolves a symbolic link in its destination, would follow it and write on the host
 // outside the temp dir. Copies here run one at a time and only they write the tree, so nothing changes it
-// between this check and the copy. mkdir of an existing symbolic link fails with EEXIST without following it.
-async function realTargetDirectory(dir: string, placement: ArtifactPlacement): Promise<string> {
+// between this check and the copy. lstat does not follow the component it names, and every component
+// before it is already known to be a real directory. Synchronous calls with no exception on a missing
+// component keep the check to one lstat per existing component, with no thread pool round trip.
+function realTargetDirectory(dir: string, placement: ArtifactPlacement): string {
   let current = dir;
   let relative = "";
   for (const part of placement.targetDir.split("/")) {
     if (!part) continue;
     current = join(current, part);
     relative = relative ? `${relative}/${part}` : part;
-    try {
-      await mkdir(current);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      const existing = await lstat(current);
-      if (!existing.isDirectory()) {
-        throw new AdapterExecutionError(
-          `Docker artifact path ${placement.path} would be copied through ${relative}, which an earlier artifact copy created as ${existing.isSymbolicLink() ? "a symbolic link" : "a non-directory"}; refusing to follow it.`
-        );
-      }
+    const existing = lstatSync(current, { throwIfNoEntry: false });
+    if (!existing) {
+      mkdirSync(current);
+    } else if (!existing.isDirectory()) {
+      throw new AdapterExecutionError(
+        `Docker artifact path ${placement.path} would be copied through ${relative}, which an earlier artifact copy created as ${existing.isSymbolicLink() ? "a symbolic link" : "a non-directory"}; refusing to follow it.`
+      );
     }
   }
   return current;
