@@ -22,7 +22,7 @@ function fakeWorkspace() {
 }
 
 describe("M1 audit regressions: daytona", () => {
-  it.fails("SB-09: listFiles entries carry the requested directory so they round-trip through readFile", async () => {
+  it("SB-09: listFiles entries carry the requested directory so they round-trip through readFile", async () => {
     const box = await new Capsule({ adapter: fakeWorkspace() }).sandbox.create({});
     const absolute = await box.listFiles("/workspace/build");
     expect(absolute[0]?.path).toBe("/workspace/build/out.txt");

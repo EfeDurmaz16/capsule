@@ -37,7 +37,11 @@ function fakeDaytonaSandbox() {
         files.set(path, data);
       },
       downloadFile: async (path: string) => files.get(path) ?? Buffer.from(""),
-      listFiles: async (path: string) => [{ name: "index.js", path: `${path}/index.js`, type: "file", size: 20 }]
+      // Exact FileInfo shape of the installed @daytona/toolbox-api-client: no path field.
+      listFiles: async () => [
+        { group: "daytona", isDir: false, modTime: "", mode: "-rw-r--r--", name: "index.js", owner: "daytona", permissions: "0644", size: 20 },
+        { group: "daytona", isDir: true, modTime: "", mode: "drwxr-xr-x", name: "lib", owner: "daytona", permissions: "0755", size: 4096 }
+      ]
     },
     delete: async () => {
       if (sandbox.deleteError) {
@@ -107,13 +111,18 @@ describe("daytona adapter", () => {
     await box.writeFile("/workspace/index.js", "console.log('hi')");
     const data = await box.readFile("/workspace/index.js");
     const entries = await box.listFiles("/workspace");
+    const roundTrip = await box.readFile(entries[0]!.path);
     const result = await box.exec({ command: ["node", "/workspace/index.js"] });
     await box.destroy();
 
     expect(createdWith[0]).toMatchObject({ image: "node:22", name: "box", networkBlockAll: true, ephemeral: true });
     expect(createdWith[0]).toMatchObject({ labels: { capsule_operation_scope: "sandbox_create" } });
     expect(new TextDecoder().decode(data)).toBe("console.log('hi')");
-    expect(entries[0]).toMatchObject({ name: "index.js", type: "file" });
+    expect(entries).toEqual([
+      { name: "index.js", path: "/workspace/index.js", type: "file", sizeBytes: 20 },
+      { name: "lib", path: "/workspace/lib", type: "directory", sizeBytes: 4096 }
+    ]);
+    expect(new TextDecoder().decode(roundTrip)).toBe("console.log('hi')");
     expect(result.stdout).toContain("node");
     expect(store.receipts.find((receipt) => receipt.type === "sandbox.create")?.metadata).toMatchObject({
       runtimeVersion: process.version,
@@ -128,6 +137,7 @@ describe("daytona adapter", () => {
       "sandbox.file.write",
       "sandbox.file.read",
       "sandbox.file.list",
+      "sandbox.file.read",
       "sandbox.exec",
       "sandbox.destroy"
     ]);

@@ -1,3 +1,4 @@
+import { posix } from "node:path";
 import { Daytona } from "@daytona/sdk";
 import {
   AdapterExecutionError,
@@ -19,6 +20,19 @@ import {
   type SandboxHandle
 } from "@capsule-sdk/core";
 
+// Shape of FileInfo in the installed @daytona/toolbox-api-client. It carries the entry name only; there
+// is no path field, so entry paths are rebuilt from the requested directory.
+interface DaytonaFileInfo {
+  name: string;
+  isDir: boolean;
+  size: number;
+  group?: string;
+  owner?: string;
+  mode?: string;
+  modTime?: string;
+  permissions?: string;
+}
+
 interface DaytonaSandboxLike {
   id: string;
   name?: string;
@@ -30,7 +44,7 @@ interface DaytonaSandboxLike {
   fs: {
     uploadFile(file: Buffer | string, remotePath: string, timeoutSeconds?: number): Promise<void>;
     downloadFile(remotePath: string, timeoutSeconds?: number): Promise<Buffer>;
-    listFiles(path: string): Promise<Array<Record<string, unknown>>>;
+    listFiles(path: string): Promise<DaytonaFileInfo[]>;
   };
   delete(timeoutSeconds?: number): Promise<void>;
 }
@@ -179,12 +193,6 @@ function policyNotes(context: AdapterContext): string[] {
   return notes;
 }
 
-function fileType(entry: Record<string, unknown>): FileEntry["type"] {
-  if (entry.type === "dir" || entry.type === "directory" || entry.isDir === true) return "directory";
-  if (entry.type === "file" || entry.isDir === false) return "file";
-  return "unknown";
-}
-
 async function deleteSandboxAfterFailure(
   sandbox: DaytonaSandboxLike,
   action: DaytonaSandboxCleanupMetadata["action"],
@@ -258,16 +266,10 @@ class DaytonaCapsuleSandbox implements Sandbox {
   async listFiles(path: string): Promise<FileEntry[]> {
     const entries = await callProvider("Daytona file list failed.", () => this.sandbox.fs.listFiles(path));
     return entries.map((entry) => ({
-      name: String(
-        entry.name ??
-          String(entry.path ?? "")
-            .split("/")
-            .filter(Boolean)
-            .at(-1) ??
-          ""
-      ),
-      path: String(entry.path ?? entry.name ?? ""),
-      type: fileType(entry),
+      name: entry.name,
+      // Join with the requested directory so absolute and relative listings round-trip through readFile.
+      path: posix.join(path, entry.name),
+      type: entry.isDir === true ? "directory" : entry.isDir === false ? "file" : "unknown",
       sizeBytes: typeof entry.size === "number" ? entry.size : undefined
     }));
   }
