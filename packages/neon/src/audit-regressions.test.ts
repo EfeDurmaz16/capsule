@@ -25,7 +25,12 @@ describe("M1 audit regressions: neon", () => {
     expect(branch.status).toBe("creating");
     expect(reset.status).toBe("resetting");
     expect(branch.receipt?.resource?.status).toBe("creating");
-    expect(branch.receipt?.metadata).toMatchObject({ currentState: "init", pendingState: "ready", operationIds: ["op_audit"], pendingOperationIds: ["op_audit"] });
+    expect(branch.receipt?.metadata).toMatchObject({
+      currentState: "init",
+      pendingState: "ready",
+      operationIds: ["op_audit"],
+      pendingOperationIds: ["op_audit"]
+    });
     expect(reset.receipt?.resource?.status).toBe("resetting");
     expect(reset.metadata).toMatchObject({ currentState: "init", pendingState: "ready", pendingOperationIds: ["op_audit"] });
   });
