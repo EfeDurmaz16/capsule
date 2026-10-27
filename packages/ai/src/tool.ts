@@ -1,4 +1,4 @@
-import type { Capsule, ExecResult } from "@capsule-sdk/core";
+import { CleanupFailureError, resourceLocator, UnknownOutcomeError, type Capsule, type ExecResult, type PartialEffects } from "@capsule-sdk/core";
 
 export interface CodeExecutionFile {
   path: string;
@@ -37,6 +37,38 @@ function imageForLanguage(language: string | undefined, fallback: string | undef
   }
 }
 
+/** Cleanup detail carried by the CleanupFailureError thrown when sandbox teardown fails. */
+export interface CodeExecutionCleanupFailure {
+  sandbox: { id: string; provider: string };
+  error: unknown;
+}
+
+function cleanupFailure(
+  handle: { id: string; provider: string },
+  primaryFailed: boolean,
+  primaryError: unknown,
+  result: ExecResult | undefined,
+  cleanupError: unknown
+): CleanupFailureError<CodeExecutionCleanupFailure> {
+  const sandbox = resourceLocator({ provider: handle.provider, kind: "sandbox", nativeId: handle.id });
+  const effects: PartialEffects<ExecResult> = {
+    operation: "sandbox.exec",
+    outcome: primaryFailed ? (primaryError instanceof UnknownOutcomeError ? "unknown" : "failed") : "completed",
+    resources: [sandbox],
+    ...(primaryFailed ? { primaryError } : { result }),
+    cleanup: { status: "failed", resources: [sandbox], residual: [sandbox], error: cleanupError }
+  };
+  const message = primaryFailed
+    ? "Code execution failed and the sandbox could not be destroyed; the sandbox may still exist."
+    : "Code execution completed but the sandbox could not be destroyed; the sandbox may still exist.";
+  return new CleanupFailureError<CodeExecutionCleanupFailure>(
+    message,
+    { sandbox: { id: handle.id, provider: handle.provider }, error: cleanupError },
+    primaryFailed ? primaryError : cleanupError,
+    effects
+  );
+}
+
 export function createCodeExecutionTool(capsule: Capsule, options: CodeExecutionToolOptions = {}): CodeExecutionTool {
   return {
     name: "capsule_code_execution",
@@ -48,19 +80,36 @@ export function createCodeExecutionTool(capsule: Capsule, options: CodeExecution
         timeoutMs: input.timeoutMs
       });
 
+      let result: ExecResult | undefined;
+      let primaryFailed = false;
+      let primaryError: unknown;
       try {
         for (const file of input.files) {
           await sandbox.writeFile(file.path, file.content);
         }
 
-        return await sandbox.exec({
+        result = await sandbox.exec({
           command: input.command,
           cwd: options.cwd,
           timeoutMs: input.timeoutMs
         });
-      } finally {
-        await sandbox.destroy();
+      } catch (error) {
+        primaryFailed = true;
+        primaryError = error;
       }
+
+      try {
+        await sandbox.destroy();
+      } catch (cleanupError) {
+        // Keep the primary outcome and the cleanup failure separate. A completed result is not thrown
+        // away, and a primary failure is not masked, so a caller can tell whether execution happened.
+        throw cleanupFailure(sandbox.handle, primaryFailed, primaryError, result, cleanupError);
+      }
+
+      if (primaryFailed) {
+        throw primaryError;
+      }
+      return result as ExecResult;
     }
   };
 }

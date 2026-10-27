@@ -2,7 +2,7 @@
 // the M1 manifest and is marked it.fails while the defect is present on the baseline (7d3a28a). The owner
 // who fixes an ID flips its it.fails to it in the same commit. The Capsule is an in-memory fake.
 import { describe, expect, it } from "vitest";
-import type { Capsule } from "@capsule-sdk/core";
+import { CleanupFailureError, partialEffectsOf, type Capsule, type ExecResult } from "@capsule-sdk/core";
 import { createCodeExecutionTool } from "./tool.js";
 
 function errorText(value: unknown, seen = new Set<unknown>()): string {
@@ -31,7 +31,7 @@ function fakeCapsule(exec: () => Promise<unknown>): Capsule {
 }
 
 describe("M1 audit regressions: ai tool", () => {
-  it.fails("COMP-03: exec failure plus destroy failure retains both outcomes", async () => {
+  it("COMP-03: exec failure plus destroy failure retains both outcomes", async () => {
     const tool = createCodeExecutionTool(
       fakeCapsule(async () => {
         throw new Error("primary execution failure");
@@ -46,7 +46,7 @@ describe("M1 audit regressions: ai tool", () => {
     expect(text).toContain("cleanup failure");
   });
 
-  it.fails("COMP-03: exec success plus destroy failure retains the completed result and the cleanup failure", async () => {
+  it("COMP-03: exec success plus destroy failure retains the completed result and the cleanup failure", async () => {
     const tool = createCodeExecutionTool(fakeCapsule(async () => ({ exitCode: 0, stdout: "completed-output", stderr: "", logs: [], artifacts: [] })));
     const outcome = await tool.execute({ files: [], command: "x" }).then(
       (value: unknown) => value,
@@ -55,5 +55,30 @@ describe("M1 audit regressions: ai tool", () => {
     const text = errorText(outcome);
     expect(text).toContain("completed-output");
     expect(text).toContain("cleanup failure");
+  });
+
+  it("COMP-03: the structured record separates primary and cleanup outcomes with the sandbox locator", async () => {
+    const failing = await createCodeExecutionTool(
+      fakeCapsule(async () => {
+        throw new Error("primary execution failure");
+      })
+    )
+      .execute({ files: [], command: "x" })
+      .catch((caught: unknown) => caught);
+    expect(failing).toBeInstanceOf(CleanupFailureError);
+    expect((failing as Error).cause).toMatchObject({ message: "primary execution failure" });
+    expect(partialEffectsOf(failing)).toMatchObject({
+      operation: "sandbox.exec",
+      outcome: "failed",
+      resources: [{ provider: "fake", kind: "sandbox", nativeId: "audit-box" }],
+      primaryError: { message: "primary execution failure" },
+      cleanup: { status: "failed", residual: [{ nativeId: "audit-box" }], error: { message: "cleanup failure" } }
+    });
+
+    const completed = await createCodeExecutionTool(fakeCapsule(async () => ({ exitCode: 0, stdout: "completed-output", stderr: "", logs: [], artifacts: [] })))
+      .execute({ files: [], command: "x" })
+      .catch((caught: unknown) => caught);
+    expect(partialEffectsOf(completed)).toMatchObject({ outcome: "completed", cleanup: { status: "failed" } });
+    expect((partialEffectsOf(completed)?.result as ExecResult).stdout).toBe("completed-output");
   });
 });

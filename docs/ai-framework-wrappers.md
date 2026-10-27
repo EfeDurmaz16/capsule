@@ -23,6 +23,8 @@ const capsule = new Capsule({
 const codeExecution = createCodeExecutionTool(capsule);
 ```
 
+Each call creates a sandbox, writes the files, runs the command and destroys the sandbox. If the destroy fails, the tool throws `CleanupFailureError` instead of losing the execution outcome. `partialEffectsOf(error)` returns the record: `outcome` is `completed` with the `ExecResult` in `result`, or `failed`/`unknown` with the original error in `primaryError`; `cleanup.residual` holds the sandbox locator that may still exist. When execution fails but the destroy succeeds, the original execution error is rethrown unchanged. Do not retry a `completed` outcome as if the command never ran.
+
 The base tool input is:
 
 ```ts
