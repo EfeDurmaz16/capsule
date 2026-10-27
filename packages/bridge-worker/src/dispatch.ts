@@ -291,6 +291,8 @@ function outcomeAnswer(
     return errorAnswer(runtime, { code: "unsupported", reason: "action", effect: "none" });
   }
   if (error instanceof AdapterExecutionError) {
+    // Under Capsule's adapter contract this is a definite failure: an adapter reports a timeout or a
+    // lost reply as UnknownOutcomeError (handled above), never as a plain AdapterExecutionError.
     diagnostic(`provider failure: ${error.message}`);
     return errorAnswer(runtime, { code: "provider_failed", reason: providerReason(error), effect: "none" });
   }

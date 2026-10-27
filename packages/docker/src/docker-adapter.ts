@@ -614,6 +614,15 @@ class DockerSandbox implements Sandbox {
   async destroy(): Promise<void> {
     const startedAt = new Date();
     const removed = await this.runner(["rm", "-f", this.handle.id], { timeoutMs: 20_000 });
+    if (removed.timedOut) {
+      // Killing the docker rm client does not stop the removal in the daemon, so the container may be
+      // gone or going. That is not a definite failure: report it as unknown, by id, for the caller to observe.
+      throw new UnknownOutcomeError(
+        `docker rm timed out; container ${this.handle.id} may still be removed.`,
+        { operation: "sandbox.destroy", resource: resourceLocator({ provider, kind: "sandbox", nativeId: this.handle.id }) },
+        dockerCliError(`docker rm timed out: ${removed.stderr}`, removed)
+      );
+    }
     // docker rm -f exits 0 once the container is gone. A container that is already absent is the
     // desired end state, so destroy stays idempotent and records it; any other nonzero exit means the
     // container may still exist, so destroy rejects and writes no deleted receipt.

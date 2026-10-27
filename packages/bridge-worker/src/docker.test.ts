@@ -27,6 +27,8 @@ class FakeEngine {
   readonly images = new Set(["debian:bookworm-slim"]);
   readonly containers = new Map<string, FakeContainer>();
   readonly calls: string[][] = [];
+  /** Makes `docker rm` come back the way runDocker reports its own timeout. */
+  rmTimesOut = false;
   private next = 1;
 
   runner = async (args: string[], _options?: RunDockerOptions): Promise<DockerCommandResult> => {
@@ -99,6 +101,7 @@ class FakeEngine {
         return argv[0] === "echo" ? ok(`${argv.slice(1).join(" ")}\n`) : { exitCode: 2, stdout: "", stderr: "fake: unsupported\n" };
       }
       case "rm": {
+        if (this.rmTimesOut) return { exitCode: 124, stdout: "", stderr: "Command timed out after 20000ms", timedOut: true };
         const container = find(args.at(-1)!);
         if (!container) return fail(`Error: No such container: ${args.at(-1)}`);
         this.containers.delete(container.id);
@@ -199,6 +202,24 @@ describe("docker profile on a fake engine", () => {
     connection.send({ ...request(3, "sandbox.destroy", { target: target(id), params: {} }), approval: { ref: "apr-destroy" } });
     expect(await connection.next()).toMatchObject({ type: "result", state: "completed", output: { status: "destroyed" }, resource: target(id) });
     expect(engine.containers.size).toBe(0);
+  });
+
+  test("a docker rm that timed out is an unknown destroy with the target locator, so Fabric can observe it", async () => {
+    const engine = new FakeEngine();
+    const connection = connect(engine, { approvals: [{ ref: "apr-destroy", action: "sandbox.destroy", native_id: null }] });
+    await handshake(connection);
+    connection.send(create(1));
+    const id = ((await connection.next()).resource as { native_id: string }).native_id;
+    engine.rmTimesOut = true;
+    connection.send({ ...request(2, "sandbox.destroy", { target: target(id), params: {} }), approval: { ref: "apr-destroy" } });
+    const answer = await connection.next();
+    expect(answer).toEqual({
+      type: "error",
+      request_id: "r-2",
+      operation_id: "01K8W3A0000000000000000D02",
+      error: { code: "unknown", reason: "reply_lost", message: expect.any(String), effect: "unknown", resource: target(id) }
+    });
+    expect(checkWorkerMessage(answer, { profile: dockerProfile })).toBeUndefined();
   });
 
   test("a missing image is never pulled: provider_failed not_found with no effect", async () => {
