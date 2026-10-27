@@ -17,6 +17,7 @@ import {
   type DestroyMachineSpec,
   type Machine,
   type MachineLifecycleResult,
+  type MachineStatus,
   type MachineStatusResult,
   type MachineStatusSpec,
   type StartMachineSpec,
@@ -172,12 +173,31 @@ function envDeliveryNotes(options: EC2AdapterOptions, spec: CreateMachineSpec): 
   return ["Environment values are exported only inside the user-data script process; they do not persist into later logins, services or runner processes."];
 }
 
-function capsuleMachineState(state: string | undefined): Machine["status"] {
-  if (state === "running") return "running";
-  if (state === "stopped" || state === "stopping") return "stopped";
-  if (state === "terminated" || state === "shutting-down") return "deleted";
-  if (state === "pending") return "creating";
-  return "failed";
+// EC2 InstanceStateName values (AWS-02). Transitional native states map to transitional Capsule states:
+// stopping is not stopped and shutting-down is not terminated. pending is reported as creating because
+// DescribeInstances does not distinguish a first launch from a restart; the native value stays in
+// metadata.awsState.
+const ec2MachineStates: Readonly<Record<string, MachineStatus>> = Object.freeze({
+  pending: "creating",
+  running: "running",
+  stopping: "stopping",
+  stopped: "stopped",
+  "shutting-down": "destroying",
+  terminated: "deleted"
+});
+
+function capsuleMachineState(instanceId: string, state: string | undefined): MachineStatus {
+  const mapped = state === undefined ? undefined : ec2MachineStates[state];
+  if (!mapped) {
+    // An unrecognized or missing native state is not evidence of failure; refuse to invent one.
+    throw new AdapterExecutionError(
+      state === undefined
+        ? `EC2 DescribeInstances returned no instance state for ${instanceId}.`
+        : `EC2 reported unrecognized instance state ${JSON.stringify(state)} for ${instanceId}.`,
+      { instanceId, awsState: state ?? null }
+    );
+  }
+  return mapped;
 }
 
 function providerBoolean(options: DestroyMachineSpec["providerOptions"], key: string): boolean | undefined {
@@ -293,8 +313,8 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const response = await getClient().send(new DescribeInstancesCommand({ InstanceIds: [spec.id] }));
         const instance = response.Reservations?.flatMap((reservation: any) => reservation.Instances ?? [])?.[0];
-        const stateName = instance?.State?.Name ?? "unknown";
-        const status = capsuleMachineState(stateName);
+        const stateName: string | undefined = instance?.State?.Name;
+        const status = capsuleMachineState(spec.id, stateName);
         const receipt = lifecycleReceipt(context, {
           type: "machine.status",
           capabilityPath: "machine.status",
@@ -316,7 +336,7 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const response = await getClient().send(new StartInstancesCommand({ InstanceIds: [spec.id] }));
         const stateName = response.StartingInstances?.[0]?.CurrentState?.Name ?? "pending";
-        const status = capsuleMachineState(stateName) === "running" ? "running" : "starting";
+        const status = stateName === "running" ? "running" : "starting";
         const receipt = lifecycleReceipt(context, {
           type: "machine.start",
           capabilityPath: "machine.start",

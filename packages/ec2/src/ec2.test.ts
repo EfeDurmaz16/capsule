@@ -200,4 +200,33 @@ describe("ec2 adapter", () => {
     expect(matching.receipt?.metadata).toMatchObject({ region: "us-east-1" });
     expect(sends).toBe(1);
   });
+  it("maps every EC2 instance state to a faithful machine status and keeps the native state", async () => {
+    const expected: Record<string, string> = {
+      pending: "creating",
+      running: "running",
+      stopping: "stopping",
+      stopped: "stopped",
+      "shutting-down": "destroying",
+      terminated: "deleted"
+    };
+    for (const [awsState, status] of Object.entries(expected)) {
+      const capsule = new Capsule({
+        adapter: ec2({ client: { send: async () => ({ Reservations: [{ Instances: [{ InstanceId: "i-map", State: { Name: awsState } }] }] }) } }),
+        receipts: true
+      });
+      const result = await capsule.machine.status({ id: "i-map" });
+      expect(result.status).toBe(status);
+      expect(result.metadata).toMatchObject({ awsState });
+      expect(result.receipt?.resource).toMatchObject({ id: "i-map", status });
+    }
+  });
+
+  it("refuses to invent a status for an unrecognized or missing EC2 instance state", async () => {
+    const unknownState = new Capsule({
+      adapter: ec2({ client: { send: async () => ({ Reservations: [{ Instances: [{ InstanceId: "i-odd", State: { Name: "hibernating" } }] }] }) } })
+    });
+    await expect(unknownState.machine.status({ id: "i-odd" })).rejects.toThrow(/unrecognized instance state "hibernating"/);
+    const missing = new Capsule({ adapter: ec2({ client: { send: async () => ({ Reservations: [] }) } }) });
+    await expect(missing.machine.status({ id: "i-gone" })).rejects.toThrow(/no instance state for i-gone/);
+  });
 });

@@ -58,7 +58,7 @@ describe("M1 audit regressions: ec2", () => {
     expect(sends).toBe(0);
   });
 
-  it.fails("AWS-02: stopping and shutting-down map to transitional statuses, not stopped or deleted", async () => {
+  it("AWS-02: stopping and shutting-down map to transitional statuses, not stopped or deleted", async () => {
     const statusFor = async (awsState: string) => {
       const capsule = new Capsule({
         adapter: ec2({ client: { send: async () => ({ Reservations: [{ Instances: [{ InstanceId: "i-audit", State: { Name: awsState } }] }] }) } as never })
