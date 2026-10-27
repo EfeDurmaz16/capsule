@@ -74,23 +74,26 @@ export class TestConnection {
     this.session.push(bytes);
   }
 
-  /** The next message the worker wrote, waiting a bounded number of event loop turns for it. */
+  /**
+   * The next message the worker wrote. It waits event loop turns first, which is what virtual-clock
+   * answers need, then wall time up to 5 s, for answers behind real I/O such as a receipt file write.
+   */
   async next(): Promise<Record<string, unknown>> {
     for (let turn = 0; turn < 10_000; turn += 1) {
       const message = this.received.shift();
       if (message) return message;
       await new Promise((resolve) => setImmediate(resolve));
     }
-    throw new Error("the worker wrote nothing");
+    return this.nextWithin(5_000);
   }
 
   /** The next message, waiting up to `ms` of wall time: for wall-clock profiles whose answers wait on timers. */
   async nextWithin(ms: number): Promise<Record<string, unknown>> {
-    for (const end = Date.now() + ms; Date.now() < end; await new Promise((resolve) => setTimeout(resolve, 5))) {
+    for (const end = Date.now() + ms; ; await new Promise((resolve) => setTimeout(resolve, 5))) {
       const message = this.received.shift();
       if (message) return message;
+      if (Date.now() >= end) throw new Error("the worker wrote nothing");
     }
-    return this.next();
   }
 
   /** Every message still queued after the worker has had time to settle. */

@@ -72,6 +72,45 @@ export class BridgeUnknownError extends UnknownOutcomeError {
   }
 }
 
+/**
+ * Settles with `work`, unless one of the signals aborts first; then it rejects with that signal's
+ * error. It never cancels `work`: a provider call or read goes on and its result is dropped.
+ */
+export function untilAborted<T>(work: Promise<T>, stops: ReadonlyArray<readonly [AbortSignal, () => Error]>): Promise<T> {
+  work.catch(() => undefined);
+  const first = stops.find(([signal]) => signal.aborted);
+  if (first) return Promise.reject(first[1]());
+  return new Promise<T>((resolve, reject) => {
+    const listeners = stops.map(([signal, error]) => {
+      const listener = () => {
+        detach();
+        reject(error());
+      };
+      signal.addEventListener("abort", listener, { once: true });
+      return [signal, listener] as const;
+    });
+    const detach = () => {
+      for (const [signal, listener] of listeners) signal.removeEventListener("abort", listener);
+    };
+    work.then(
+      (value) => {
+        detach();
+        resolve(value);
+      },
+      (error: unknown) => {
+        detach();
+        reject(error);
+      }
+    );
+  });
+}
+
+class ReadInterrupted extends Error {
+  constructor(readonly reason: PendingReason) {
+    super(`observation read interrupted: ${reason}`);
+  }
+}
+
 export type ObservationStep = { terminal: true } | { terminal: false; state?: string };
 
 export interface BoundedObservation {
@@ -87,6 +126,11 @@ export interface BoundedObservation {
   resource: ResourceLocator;
   /** State to report when no observation has named one yet. */
   initialState?: string;
+  /**
+   * Wall clock only: a read still in flight when the budget or the drain ends is not waited for, so
+   * the answer is not later than the bound. Virtual-clock reads are never interrupted.
+   */
+  interrupts?: { deadline: AbortSignal; drained: AbortSignal };
 }
 
 /**
@@ -113,8 +157,16 @@ export async function observeUntilTerminal(options: BoundedObservation): Promise
     observations += 1;
     let step: ObservationStep;
     try {
-      step = await options.read();
+      const read = options.read();
+      const { interrupts } = options;
+      step = interrupts
+        ? await untilAborted(read, [
+            [interrupts.drained, () => new ReadInterrupted("shutting_down")],
+            [interrupts.deadline, () => new ReadInterrupted("observation_deadline")]
+          ])
+        : await read;
     } catch (error) {
+      if (error instanceof ReadInterrupted) throw pending(error.reason);
       throw new BridgeUnknownError("observation_failed", { operation: options.operation, resource: options.resource }, error);
     }
     if (step.terminal) return { observations };

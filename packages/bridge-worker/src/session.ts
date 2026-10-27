@@ -50,6 +50,8 @@ interface InFlight extends OperationRuntime {
   kind: "request" | "observe";
   cancelController: AbortController;
   drainController: AbortController;
+  /** Ends the deadline signal on a wall clock; cleared once the operation is answered. */
+  deadlineTimer: ReturnType<typeof setTimeout> | undefined;
   drainEnd: number | undefined;
   progressSeq: number;
   resource?: WireLocator;
@@ -224,7 +226,14 @@ export class WorkerSession {
     }
     const capacity = this.capacity();
     if (capacity) return this.answerNow(refusalAnswer(ids.requestId, ids.operationId, capacity));
-    const runtime = this.track(ids.requestId, ids.operationId, request.action, "request", "target" in request ? request.target : undefined);
+    const runtime = this.track(
+      ids.requestId,
+      ids.operationId,
+      request.action,
+      "request",
+      "target" in request ? request.target : undefined,
+      request.deadline_ms
+    );
     this.run(runtime, dispatchRequest(this.context, runtime, request));
   }
 
@@ -242,7 +251,7 @@ export class WorkerSession {
     }
     const capacity = this.capacity();
     if (capacity) return this.answerNow(refusalAnswer(ids.requestId, ids.operationId, capacity));
-    const runtime = this.track(ids.requestId, ids.operationId, observe.action, "observe", observe.resource);
+    const runtime = this.track(ids.requestId, ids.operationId, observe.action, "observe", observe.resource, observe.wait_ms);
     this.run(runtime, dispatchObserve(this.context, runtime, observe));
   }
 
@@ -314,10 +323,22 @@ export class WorkerSession {
     work.then(settled, settled);
   }
 
-  private track(requestId: string, operationId: string, action: BridgeAction, kind: "request" | "observe", resource: WireLocator | undefined): InFlight {
+  private track(
+    requestId: string,
+    operationId: string,
+    action: BridgeAction,
+    kind: "request" | "observe",
+    resource: WireLocator | undefined,
+    budgetMs: number
+  ): InFlight {
     const timer: OperationTimer = this.options.driver.clock.timer();
     const cancelController = new AbortController();
     const drainController = new AbortController();
+    // deadline_ms (wait_ms for an observe) counts from reading the frame. On a wall clock its end
+    // interrupts every wait, so the answer is never later than Fabric's own deadline. Virtual time
+    // never runs out by itself, so the fixture profile has no such timer.
+    const deadlineController = new AbortController();
+    const deadlineTimer = this.options.driver.clock.kind === "wall" ? setTimeout(() => deadlineController.abort(), budgetMs) : undefined;
     const entry: InFlight = {
       requestId,
       operationId,
@@ -326,8 +347,10 @@ export class WorkerSession {
       timer,
       cancelController,
       drainController,
+      deadlineTimer,
       cancel: cancelController.signal,
       drained: drainController.signal,
+      deadline: deadlineController.signal,
       drainEnd: undefined,
       drainAt: () => entry.drainEnd,
       progressSeq: 0,
@@ -370,6 +393,7 @@ export class WorkerSession {
   }
 
   private settle(entry: InFlight, answer: Answer): void {
+    clearTimeout(entry.deadlineTimer);
     this.inFlight.delete(entry.requestId);
     this.answered.add(entry.requestId);
     if (entry.drainEnd !== undefined && answer.type === "error" && (answer.error.code === "pending" || answer.error.code === "unknown")) {

@@ -21,7 +21,7 @@ import {
 import { resolveApproval, type WorkerConfig } from "./config.js";
 import type { BridgeDriver, OperationHooks, ResourceState } from "./driver.js";
 import { ExecCancelledError } from "./fixture.js";
-import { BridgePendingError, BridgeUnknownError, observeUntilTerminal, type OperationTimer } from "./observe.js";
+import { BridgePendingError, BridgeUnknownError, observeUntilTerminal, untilAborted, type OperationTimer } from "./observe.js";
 import { actionCapability } from "./profiles.js";
 import { Refusal } from "./validate.js";
 import type {
@@ -51,6 +51,14 @@ export class DrainInterrupt extends Error {
   }
 }
 
+/** Interrupts an await when the request's deadline_ms (an observe's wait_ms) has passed on a wall clock. */
+class DeadlineInterrupt extends Error {
+  constructor() {
+    super("deadline_ms passed");
+    this.name = "DeadlineInterrupt";
+  }
+}
+
 /** The in-flight state the dispatcher needs from the session. */
 export interface OperationRuntime {
   readonly requestId: string;
@@ -59,6 +67,8 @@ export interface OperationRuntime {
   readonly cancel: AbortSignal;
   /** Aborted when the shutdown drain for this operation ends. */
   readonly drained: AbortSignal;
+  /** Aborted when deadline_ms (wait_ms for an observe) has passed since the frame was read. Never on a virtual clock. */
+  readonly deadline: AbortSignal;
   /** Drain end in the timer's time; undefined while not draining. */
   drainAt(): number | undefined;
   /** Reports provider progress; the session decides whether to send it. */
@@ -168,23 +178,17 @@ export function refusalAnswer(requestId: string, operationId: string, refusal: R
   };
 }
 
+/** Awaits provider work until it settles, the drain ends (DrainInterrupt) or the deadline passes (DeadlineInterrupt). */
 function guarded<T>(runtime: OperationRuntime, promise: Promise<T>): Promise<T> {
-  promise.catch(() => undefined);
-  if (runtime.drained.aborted) return Promise.reject(new DrainInterrupt());
-  return new Promise<T>((resolve, reject) => {
-    const onDrain = () => reject(new DrainInterrupt());
-    runtime.drained.addEventListener("abort", onDrain, { once: true });
-    promise.then(
-      (value) => {
-        runtime.drained.removeEventListener("abort", onDrain);
-        resolve(value);
-      },
-      (error) => {
-        runtime.drained.removeEventListener("abort", onDrain);
-        reject(error);
-      }
-    );
-  });
+  return untilAborted(promise, [
+    [runtime.drained, () => new DrainInterrupt()],
+    [runtime.deadline, () => new DeadlineInterrupt()]
+  ]);
+}
+
+/** Observation reads are interrupted only on a wall clock; on the virtual clock the loop's own bounds decide. */
+function readInterrupts(runtime: OperationRuntime, driver: BridgeDriver): { interrupts?: { deadline: AbortSignal; drained: AbortSignal } } {
+  return driver.clock.kind === "wall" ? { interrupts: { deadline: runtime.deadline, drained: runtime.drained } } : {};
 }
 
 /** Evidence for one operation: receipts written through it, and a write failure kept apart from the outcome. */
@@ -490,6 +494,10 @@ async function dispatchChecked(
   });
   const target = "target" in request ? request.target : undefined;
   let best: WireLocator | undefined = target;
+  // What an interrupt means depends on how far the request got: during "checks" nothing was sent to
+  // the provider; during "effect" a mutating call was sent and has not answered; during "observe"
+  // the call answered and the bounded observation reports pending by itself.
+  let phase: "checks" | "effect" | "observe" = "checks";
   try {
     if (request.action === "sandbox.create") {
       const existing = await guarded(runtime, driver.findCreated(request.operation.id, request.operation.key));
@@ -501,41 +509,52 @@ async function dispatchChecked(
           throw new Refusal("denied", "owner_mismatch", "the deduplicated resource belongs to another job");
         }
         const resource = wireLocator(existing, driver, binding);
+        phase = "observe";
         await observeTerminalOf(context, runtime, "sandbox.create", resource, request.deadline_ms);
         return result(runtime, "completed", resource, { status: "ready" }, undefined, true);
       }
-      const sandbox = await guarded(
-        runtime,
-        capsule.sandbox.create({
-          image: request.params.image,
-          name: driver.resourceName(request.operation.id, request.operation.key),
-          env: { ...request.params.env, ...prepared.secretEnv },
-          ...(prepared.grant ? { approval: prepared.grant } : {}),
-          idempotencyKey: request.operation.key,
-          timeoutMs: request.deadline_ms,
-          // The worker's own labels come last, so a request label can never claim another owner.
-          labels: {
-            ...request.params.labels,
-            "fabric.operation": request.operation.id,
-            "fabric.job": request.scope.job,
-            "fabric.attempt": request.scope.attempt,
-            "fabric.generation": request.scope.generation
-          }
-        })
-      );
+      const name = driver.resourceName(request.operation.id, request.operation.key);
+      // Until the provider returns an id, the best locator is the name this create asked for: the
+      // provider resolves it, and the resource carries this operation's label for an observe to check.
+      best = wireLocator(name, driver, binding);
+      startEffect(runtime);
+      phase = "effect";
+      const creating = capsule.sandbox.create({
+        image: request.params.image,
+        name,
+        env: { ...request.params.env, ...prepared.secretEnv },
+        ...(prepared.grant ? { approval: prepared.grant } : {}),
+        idempotencyKey: request.operation.key,
+        timeoutMs: request.deadline_ms,
+        // The worker's own labels come last, so a request label can never claim another owner.
+        labels: {
+          ...request.params.labels,
+          "fabric.operation": request.operation.id,
+          "fabric.job": request.scope.job,
+          "fabric.attempt": request.scope.attempt,
+          "fabric.generation": request.scope.generation
+        }
+      });
+      const sandbox = await lingering(runtime, creating);
       const resource = wireLocator(sandbox.handle.id, driver, binding);
       best = resource;
+      phase = "observe";
       await observeTerminalOf(context, runtime, "sandbox.create", resource, request.deadline_ms);
       return result(runtime, "completed", resource, { status: "ready" }, evidence);
     }
     const resource = target!;
     const sandbox = await guarded(runtime, capsule.sandbox.attach({ id: resource.native_id }));
     if (request.action === "sandbox.destroy") {
-      await guarded(runtime, sandbox.destroy(prepared.grant ? { approval: prepared.grant } : {}));
+      startEffect(runtime);
+      phase = "effect";
+      await lingering(runtime, sandbox.destroy(prepared.grant ? { approval: prepared.grant } : {}));
+      phase = "observe";
       await observeTerminalOf(context, runtime, "sandbox.destroy", resource, request.deadline_ms);
       return result(runtime, "completed", resource, { status: "destroyed" }, evidence);
     }
     const params = request.params;
+    startEffect(runtime);
+    phase = "effect";
     const exec = sandbox.exec({
       command: params.argv,
       ...(params.cwd === null ? {} : { cwd: params.cwd }),
@@ -546,53 +565,70 @@ async function dispatchChecked(
       idempotencyKey: request.operation.key,
       bounds: { maxBytes: params.max_output_bytes }
     });
-    const outcome = await guarded(runtime, withDeadline(runtime, exec, request.deadline_ms, driver));
-    if (outcome === "deadline") {
+    try {
+      return result(runtime, "completed", resource, execOutput(await guarded(runtime, exec)), evidence);
+    } catch (error) {
+      if (!(error instanceof DeadlineInterrupt)) throw error;
       // Not terminal-only: answer what is known, a running command, and leave it running. It still
       // holds its in-flight slot until it ends. v1 has no observe for exec, so its exit is not reported.
       runtime.linger(exec);
       return result(runtime, "running", resource, { exit_code: null, stdout: emptyStream, stderr: emptyStream }, evidence);
     }
-    return result(runtime, "completed", resource, execOutput(outcome), evidence);
   } catch (error) {
     if (error instanceof ExecCancelledError) {
       return result(runtime, "cancelled", target!, { exit_code: null, stdout: emptyStream, stderr: emptyStream }, evidence);
     }
-    if (error instanceof DrainInterrupt) {
-      // The shutdown drain ended while the provider call was in flight: say what is known, invent nothing.
-      if (best) {
-        return errorAnswer(runtime, {
-          code: "pending",
-          reason: "shutting_down",
-          effect: "pending",
-          resource: best,
-          ...(request.action === "sandbox.exec" ? { state: "running" } : {}),
-          deadline_ms: request.deadline_ms
-        });
-      }
-      return errorAnswer(runtime, { code: "unknown", reason: "reply_lost", effect: "unknown" });
+    if (error instanceof DrainInterrupt || error instanceof DeadlineInterrupt) {
+      return interrupted(runtime, request, phase, error, best);
     }
     return outcomeAnswer(runtime, error, driver, binding, best, context.diagnostic);
   }
 }
 
-/** Races an exec with the request deadline on the profile's clock. Virtual time never runs out by itself. */
-function withDeadline(runtime: OperationRuntime, exec: Promise<ExecResult>, deadlineMs: number, driver: BridgeDriver): Promise<ExecResult | "deadline"> {
-  if (driver.clock.kind === "virtual") return exec;
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => resolve("deadline"), deadlineMs);
-    exec.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (error) => {
-        clearTimeout(timer);
-        reject(error);
-      }
-    );
-    runtime.drained.addEventListener("abort", () => clearTimeout(timer), { once: true });
-  });
+/** The last check before a mutating call: a drain or deadline that already ended stops the request here, before any effect. */
+function startEffect(runtime: OperationRuntime): void {
+  if (runtime.drained.aborted) throw new DrainInterrupt();
+  if (runtime.deadline.aborted) throw new DeadlineInterrupt();
+}
+
+/** Awaits a mutating provider call; if the wait is interrupted the call goes on and keeps its in-flight slot. */
+async function lingering<T>(runtime: OperationRuntime, call: Promise<T>): Promise<T> {
+  try {
+    return await guarded(runtime, call);
+  } catch (error) {
+    if (error instanceof DrainInterrupt || error instanceof DeadlineInterrupt) runtime.linger(call);
+    throw error;
+  }
+}
+
+/** The answer when a drain or the deadline ends a wait: say what is known, invent nothing. */
+function interrupted(
+  runtime: OperationRuntime,
+  request: BridgeRequest,
+  phase: "checks" | "effect" | "observe",
+  error: DrainInterrupt | DeadlineInterrupt,
+  best: WireLocator | undefined
+): Answer {
+  const drain = error instanceof DrainInterrupt;
+  if (phase === "checks") {
+    // Only reads ran, and nothing was sent to the provider: a refusal before effect.
+    const refusal = drain
+      ? new Refusal("unavailable", "shutting_down")
+      : new Refusal("provider_failed", "provider_refused", "the checks did not finish within deadline_ms");
+    return refusalAnswer(runtime.requestId, runtime.operationId, refusal);
+  }
+  if (drain && request.action !== "sandbox.create" && best) {
+    return errorAnswer(runtime, {
+      code: "pending",
+      reason: "shutting_down",
+      effect: "pending",
+      resource: best,
+      ...(request.action === "sandbox.exec" ? { state: "running" } : {}),
+      deadline_ms: request.deadline_ms
+    });
+  }
+  // The call was sent and has not answered: whether the provider applied it cannot be told yet.
+  return errorAnswer(runtime, { code: "unknown", reason: "reply_lost", effect: "unknown", ...(best ? { resource: best } : {}) });
 }
 
 async function observeTerminalOf(context: DispatchContext, runtime: OperationRuntime, action: BridgeAction, resource: WireLocator, budgetMs: number) {
@@ -604,7 +640,8 @@ async function observeTerminalOf(context: DispatchContext, runtime: OperationRun
     drainAt: () => runtime.drainAt(),
     operation: action,
     resource: coreLocator(resource),
-    read: async () => driver.terminal(action, await driver.read(resource.native_id))
+    read: async () => driver.terminal(action, await driver.read(resource.native_id)),
+    ...readInterrupts(runtime, driver)
   });
 }
 
@@ -614,8 +651,11 @@ export async function dispatchObserve(context: DispatchContext, runtime: Operati
   let binding: Record<string, string>;
   try {
     binding = await guarded(runtime, driver.binding());
-  } catch {
-    return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("unavailable", "shutting_down"));
+  } catch (error) {
+    if (error instanceof DrainInterrupt) return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("unavailable", "shutting_down"));
+    // Nothing was read: a refused observe, which changes nothing in Fabric's journal.
+    context.diagnostic(`binding failed: ${error instanceof Error ? error.message : String(error)}`);
+    return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("provider_failed", "provider_refused"));
   }
   if (!sameScope(observe.resource.scope, binding)) {
     return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("denied", "scope_mismatch", "the resource is outside this worker's scope"));
@@ -643,13 +683,14 @@ export async function dispatchObserve(context: DispatchContext, runtime: Operati
       drainAt: () => runtime.drainAt(),
       operation: observe.action,
       resource: coreLocator(resource),
-      read: async () => driver.terminal(observe.action, await driver.read(resource.native_id))
+      read: async () => driver.terminal(observe.action, await driver.read(resource.native_id)),
+      ...readInterrupts(runtime, driver)
     });
     return result(runtime, "completed", resource, observe.action === "sandbox.destroy" ? { status: "destroyed" } : { status: "ready" });
   } catch (error) {
-    if (error instanceof DrainInterrupt) {
-      // The drain ended before the first read answered: nothing was observed.
-      const pending = new BridgePendingError("shutting_down", {
+    if (error instanceof DrainInterrupt || error instanceof DeadlineInterrupt) {
+      // The drain or wait_ms ended before the first read answered: nothing was observed.
+      const pending = new BridgePendingError(error instanceof DrainInterrupt ? "shutting_down" : "observation_deadline", {
         operation: observe.action,
         resource: coreLocator(resource),
         deadlineMs: observe.wait_ms,

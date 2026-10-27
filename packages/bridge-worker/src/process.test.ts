@@ -185,7 +185,7 @@ async function until(check: () => boolean, ms: number): Promise<boolean> {
 
 describe.skipIf(process.platform === "win32")("docker CLI clients when the worker exits", () => {
   for (const ending of ["end of input", "SIGTERM"] as const) {
-    test(`a docker exec client still attached is killed on ${ending}; the answer said running`, async () => {
+    test(`a docker exec client still attached is killed on ${ending}; the exec is answered pending`, async () => {
       const dir = mkdtempSync(join(tmpdir(), "capsule-bridge-fake-docker-"));
       scratch.push(dir);
       writeFileSync(join(dir, "docker"), fakeDocker, { mode: 0o755 });
@@ -200,17 +200,17 @@ describe.skipIf(process.platform === "win32")("docker CLI clients when the worke
           ...exec,
           target: { provider: "docker", scope: { engine: "fake-engine" }, kind: "container", native_id: "c1" },
           params: { argv: ["sleep", "120"], stdin: null, cwd: null, timeout_ms: 60_000, max_output_bytes: 1024, secret_names: [] },
-          deadline_ms: 300
+          deadline_ms: 600_000
         })
       );
-      expect(await worker.next()).toMatchObject({ type: "result", state: "running", output: { exit_code: null } });
       const pidFile = join(dir, "exec.pid");
-      expect(await until(() => existsSync(pidFile), 5_000)).toBe(true);
+      expect(await until(() => existsSync(pidFile) && readFileSync(pidFile, "utf8").trim() !== "", 15_000)).toBe(true);
       const pid = Number(readFileSync(pidFile, "utf8"));
       strays.push(pid);
       expect(alive(pid)).toBe(true);
       if (ending === "SIGTERM") worker.child.kill("SIGTERM");
       else worker.child.stdin.end();
+      expect(await worker.next()).toMatchObject({ type: "error", request_id: "r-2", error: { code: "pending", reason: "shutting_down", state: "running" } });
       expect(await worker.exit).toBe(0);
       // Killing the client does not stop the command in a real daemon; it only frees the host process.
       expect(await until(() => !alive(pid), 2_000)).toBe(true);

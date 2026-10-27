@@ -33,6 +33,8 @@ class FakeEngine {
   current = "fake-engine";
   /** Makes `docker rm` come back the way runDocker reports its own timeout. */
   rmTimesOut = false;
+  /** Milliseconds each docker subcommand takes before it answers, by subcommand. */
+  delays: Partial<Record<string, number>> = {};
   /** While set, docker exec runs until it settles: a long command. */
   execGate: Promise<void> | undefined;
   /** docker exec commands running now, and the most that ran at once. */
@@ -45,6 +47,8 @@ class FakeEngine {
     const args = route === undefined ? given : given.slice(1);
     this.calls.push(args);
     this.routed.push(route);
+    const delay = this.delays[args[0]!];
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
     const ok = (stdout = ""): DockerCommandResult => ({ exitCode: 0, stdout, stderr: "" });
     const fail = (stderr: string, exitCode = 1): DockerCommandResult => ({ exitCode, stdout: "", stderr });
     const find = (ref: string) => [...this.containers.values()].find((container) => container.id === ref || container.name === ref);
@@ -393,7 +397,7 @@ describe("docker profile on a fake engine", () => {
         target: target(id),
         params: { argv: ["echo", `run-${n}`], stdin: null, cwd: null, timeout_ms: 600_000, max_output_bytes: 64, secret_names: [] }
       }),
-      deadline_ms: 50
+      deadline_ms: 250
     });
     connection.send(execRequest(2));
     expect(await connection.nextWithin(2_000)).toMatchObject({ type: "result", request_id: "r-2", state: "running" });
@@ -405,6 +409,67 @@ describe("docker profile on a fake engine", () => {
     await connection.drain();
     connection.send(execRequest(4));
     expect(await connection.nextWithin(2_000)).toMatchObject({ type: "result", request_id: "r-4", state: "completed" });
+  });
+
+  test("a create still in the docker CLI at deadline_ms is answered unknown with the name it was given, in time", async () => {
+    const engine = new FakeEngine();
+    const connection = connect(engine);
+    await handshake(connection);
+    engine.delays.create = 600;
+    const started = Date.now();
+    connection.send({ ...create(1), deadline_ms: 150 });
+    const answer = await connection.nextWithin(2_000);
+    expect(Date.now() - started).toBeLessThan(500);
+    const named = { provider: "docker", scope: engineScope, kind: "container", native_id: "capsule-fabric-01k8w3a0000000000000000d01" };
+    expect(answer).toEqual({
+      type: "error",
+      request_id: "r-1",
+      operation_id: "01K8W3A0000000000000000D01",
+      error: { code: "unknown", reason: "reply_lost", message: expect.any(String), effect: "unknown", resource: named }
+    });
+    expect(checkWorkerMessage(answer, { profile: dockerProfile })).toBeUndefined();
+    expect(engine.containers.size).toBe(0);
+    // The create goes on in the background; Fabric reconciles it by observe with the original id.
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(engine.containers.size).toBe(1);
+    connection.send({
+      type: "observe",
+      request_id: "r-2",
+      operation_id: "01K8W3A0000000000000000D01",
+      action: "sandbox.create",
+      resource: named,
+      wait_ms: 2_000
+    });
+    expect(await connection.nextWithin(2_000)).toMatchObject({ type: "result", request_id: "r-2", state: "completed", resource: named });
+  });
+
+  test("an observation read still in the docker CLI at deadline_ms is answered pending with the locator, in time", async () => {
+    const engine = new FakeEngine();
+    const connection = connect(engine);
+    await handshake(connection);
+    engine.delays.inspect = 1_000;
+    const started = Date.now();
+    connection.send({ ...create(1), deadline_ms: 200 });
+    const answer = await connection.nextWithin(2_000);
+    expect(Date.now() - started).toBeLessThan(800);
+    const id = [...engine.containers.keys()][0]!;
+    expect(answer).toMatchObject({
+      type: "error",
+      error: { code: "pending", reason: "observation_deadline", effect: "pending", resource: target(id), observations: 1, deadline_ms: 200 }
+    });
+  });
+
+  test("a check still reading at deadline_ms is refused before any effect, and no create follows it", async () => {
+    const engine = new FakeEngine();
+    const connection = connect(engine);
+    await handshake(connection);
+    engine.delays.ps = 400;
+    const started = Date.now();
+    connection.send({ ...create(1), deadline_ms: 100 });
+    expect(await connection.nextWithin(2_000)).toMatchObject({ type: "error", error: { code: "provider_failed", reason: "provider_refused", effect: "none" } });
+    expect(Date.now() - started).toBeLessThan(350);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(engine.calls.some((call) => call[0] === "create")).toBe(false);
   });
 
   test("a locator in another engine scope is refused before any docker call", async () => {
