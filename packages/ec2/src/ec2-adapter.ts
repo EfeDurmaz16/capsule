@@ -131,15 +131,45 @@ function tags(name: string, labels?: Record<string, string>, idempotencyKey?: st
   ];
 }
 
+const shellIdentifier = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** Wraps a value in POSIX single quotes so the shell performs no expansion of any kind. */
+function shellLiteral(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function validateEnv(env: Record<string, string> | undefined): void {
+  for (const [key, value] of Object.entries(env ?? {})) {
+    if (!shellIdentifier.test(key)) {
+      throw new AdapterExecutionError(`EC2 machine.create env name ${JSON.stringify(key)} is not a valid shell variable name.`);
+    }
+    if (typeof value !== "string" || value.includes("\0")) {
+      throw new AdapterExecutionError(`EC2 machine.create env value for ${key} must be a string without NUL characters.`);
+    }
+  }
+}
+
+/**
+ * Generated user data exports each env entry as a single-quoted shell literal, so dollars, backticks,
+ * quotes and newlines reach the variable unchanged. The exports exist only inside the user-data script
+ * process; they do not configure the environment of later logins, services or runner processes.
+ * `options.userData` replaces the generated script entirely.
+ */
 function userData(options: EC2AdapterOptions, spec: CreateMachineSpec): string | undefined {
   const payload = options.userData
     ? options.userData
-    : spec.env
+    : spec.env && Object.keys(spec.env).length > 0
       ? `#!/bin/sh\n${Object.entries(spec.env)
-          .map(([key, value]) => `export ${key}=${JSON.stringify(value)}`)
+          .map(([key, value]) => `export ${key}=${shellLiteral(value)}`)
           .join("\n")}\n`
       : undefined;
   return payload ? Buffer.from(payload).toString("base64") : undefined;
+}
+
+function envDeliveryNotes(options: EC2AdapterOptions, spec: CreateMachineSpec): string[] {
+  if (!spec.env || Object.keys(spec.env).length === 0) return [];
+  if (options.userData) return ["Adapter userData replaces the generated script, so spec.env is not delivered to the instance."];
+  return ["Environment values are exported only inside the user-data script process; they do not persist into later logins, services or runner processes."];
 }
 
 function capsuleMachineState(state: string | undefined): Machine["status"] {
@@ -204,6 +234,7 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
       create: async (spec: CreateMachineSpec, context: AdapterContext): Promise<Machine> => {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env });
+        validateEnv(spec.env);
         const imageId = spec.image ?? options.imageId;
         const instanceType = spec.size ?? options.instanceType;
         if (!imageId) {
@@ -241,7 +272,8 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
                   ...policy.notes,
                   "EC2 RunInstances is native.",
                   "EC2 is a low-level machine primitive; networking, IAM, SSH access, patching, and runtime hardening are not abstracted away by Capsule.",
-                  "Environment values are only encoded into user data when provided; this is not a secret manager."
+                  "Environment values are only encoded into user data when provided; this is not a secret manager.",
+                  ...envDeliveryNotes(options, spec)
                 ]
               },
               resource: { id, name: spec.name, status: state },

@@ -13,7 +13,7 @@ import { Capsule } from "@capsule-sdk/core";
 import { ec2 } from "./index.js";
 
 describe("M1 audit regressions: ec2", () => {
-  it.fails("AWS-01: generated env user-data preserves dollars, backticks, quotes and newlines literally", async () => {
+  it("AWS-01: generated env user-data preserves dollars, backticks, quotes and newlines literally", async () => {
     let userData = "";
     const client = {
       send: async (command: { input: { UserData?: string } }) => {
@@ -38,7 +38,7 @@ describe("M1 audit regressions: ec2", () => {
     }
   });
 
-  it.fails("AWS-01: an invalid environment variable identifier is rejected before any AWS request", async () => {
+  it("AWS-01: an invalid environment variable identifier is rejected before any AWS request", async () => {
     let sends = 0;
     const capsule = new Capsule({
       adapter: ec2({

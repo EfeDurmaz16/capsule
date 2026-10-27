@@ -159,4 +159,27 @@ describe("ec2 adapter", () => {
       "EC2 machine.destroy did not return termination state for i-missing."
     );
   });
+  it("records that generated env exports do not persist and that adapter userData drops spec.env", async () => {
+    const userDataSent: Array<string | undefined> = [];
+    const client = {
+      send: async (command: any) => {
+        userDataSent.push(command.input.UserData);
+        return { Instances: [{ InstanceId: "i-env", State: { Name: "pending" } }] };
+      }
+    };
+    const generated = new Capsule({ adapter: ec2({ client }), receipts: true });
+    const created = await generated.machine.create({ name: "env", image: "ami-x", size: "t3.micro", env: { A: "1" } });
+    expect(created.receipt?.policy.notes).toContain(
+      "Environment values are exported only inside the user-data script process; they do not persist into later logins, services or runner processes."
+    );
+    expect(Buffer.from(userDataSent[0] ?? "", "base64").toString("utf8")).toBe("#!/bin/sh\nexport A='1'\n");
+
+    const overridden = new Capsule({ adapter: ec2({ client, userData: "#!/bin/sh\ntrue\n" }), receipts: true });
+    const replaced = await overridden.machine.create({ name: "env", image: "ami-x", size: "t3.micro", env: { A: "1" } });
+    expect(replaced.receipt?.policy.notes).toContain("Adapter userData replaces the generated script, so spec.env is not delivered to the instance.");
+
+    const none = new Capsule({ adapter: ec2({ client }), receipts: true });
+    await none.machine.create({ name: "env", image: "ami-x", size: "t3.micro", env: {} });
+    expect(userDataSent[2]).toBeUndefined();
+  });
 });
