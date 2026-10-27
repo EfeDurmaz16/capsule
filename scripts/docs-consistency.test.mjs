@@ -117,3 +117,17 @@ test("DOC-05: release docs separate a green release run from publication", () =>
   assert.match(read("docs/release-rollback.md"), /green `Release` run therefore is not evidence that anything was published/);
   assert.match(read(".changeset/README.md"), /A green workflow run is not publication proof/);
 });
+
+test("DOC-06: receipt claims match the off-by-default capture in core and the raw() bypass", () => {
+  const capsuleSource = read("packages/core/src/capsule.ts");
+  assert.match(capsuleSource, /this\.options\.receipts \?\? false/, "core still defaults receipt capture to off");
+  const readme = read("README.md");
+  assert.doesNotMatch(readme, /Every call through it is capability-checked, policy-checked, and recorded as a receipt/);
+  assert.doesNotMatch(readme, /Every action produces a normalized record/);
+  assert.match(readme, /`receipts: true`; it is off by default/);
+  assert.match(readme, /`raw\(\)` returns the native provider client[^\n]*Calls through it skip Capsule's checks and receipts by design/);
+  const receiptsDoc = read("docs/execution-receipts.md");
+  assert.match(receiptsDoc, /Receipt capture is off by default/);
+  assert.match(receiptsDoc, /Read-only coverage is uneven/);
+  assert.match(receiptsDoc, /`raw\(\)` returns the native provider client and bypasses/);
+});

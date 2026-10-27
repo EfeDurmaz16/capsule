@@ -2,6 +2,14 @@
 
 Receipts record runtime actions across sandboxes, jobs, services, edge deployments, database branches, previews, and machines.
 
+## When a receipt is created
+
+- Receipt capture is off by default. A `Capsule` records receipts only when constructed with `receipts: true`, and only for calls made through the Capsule facade. A `receiptStore` persists receipts; it does not turn capture on by itself.
+- Governed actions that create, run, change or delete something (sandbox create/exec/destroy, job run, service deploy/delete, edge deploy, database branch create/delete, machine lifecycle) return a receipt on their result when capture is enabled.
+- Read-only coverage is uneven across adapters. Some record `job.status`, `service.status`, `edge.status`, `machine.status` or log reads as receipts (for example Azure and ECS job status, Cloud Run, ECS, Kubernetes and Azure service status, Vercel edge status and logs); others return status, logs and file reads without one. Do not treat a missing read receipt as a missing read.
+- `raw()` returns the native provider client and bypasses capability checks, policy, redaction and receipts entirely. Nothing done through it is recorded.
+- A receipt is Capsule's observation of a call. It does not prove provider state, and a failed or interrupted operation may have provider effects without a receipt (see `PartialEffectsError`, `UnknownOutcomeError` and `PendingOperationError` in the errors reference).
+
 The schema includes:
 
 - receipt id
