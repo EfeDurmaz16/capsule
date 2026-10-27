@@ -230,8 +230,8 @@ describe("CLI capability explanations", () => {
     });
   });
 
-  test("ranks comparable providers for a built-in recipe", () => {
-    const report = selectProvidersForRecipe("service-api");
+  test("ranks comparable providers for a built-in recipe", async () => {
+    const report = await selectProvidersForRecipe("service-api");
 
     expect(report.recipe.id).toBe("service-api");
     expect(report.results[0]).toMatchObject({
@@ -246,7 +246,7 @@ describe("CLI capability explanations", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     try {
       await main(["select", "provider", "--recipe", "sandbox", "--json"]);
-      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as ReturnType<typeof selectProvidersForRecipe>;
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as Awaited<ReturnType<typeof selectProvidersForRecipe>>;
 
       expect(output.recipe.id).toBe("sandbox");
       expect(output.results[0]?.provider).toBe("docker");
@@ -274,8 +274,8 @@ describe("CLI capability explanations", () => {
     });
   });
 
-  test("compares provider capabilities with diff and compatibility scores", () => {
-    const report = compareProviderCapabilities("docker", "e2b");
+  test("compares provider capabilities with diff and compatibility scores", async () => {
+    const report = await compareProviderCapabilities("docker", "e2b");
 
     expect(report.left.provider).toBe("docker");
     expect(report.right.provider).toBe("e2b");
@@ -318,12 +318,12 @@ describe("CLI capability explanations", () => {
     expect(output.diff).toEqual(expect.arrayContaining([expect.objectContaining({ path: "sandbox.exposePort" })]));
   });
 
-  test("rejects unknown provider comparison names", () => {
-    expect(() => compareProviderCapabilities("dockre", "e2b")).toThrow('Unknown provider "dockre"');
+  test("rejects unknown provider comparison names", async () => {
+    await expect(compareProviderCapabilities("dockre", "e2b")).rejects.toThrow('Unknown provider "dockre"');
   });
 
-  test("compares ECS capabilities without requiring deployment options", () => {
-    expect(() => compareProviderCapabilities("ecs", "e2b")).not.toThrow();
+  test("compares ECS capabilities without requiring deployment options", async () => {
+    await expect(compareProviderCapabilities("ecs", "e2b")).resolves.toMatchObject({ left: { provider: "ecs" } });
   });
 
   test("prints remediation hints for unsupported CLI capabilities", async () => {
