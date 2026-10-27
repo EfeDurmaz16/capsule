@@ -203,8 +203,9 @@ describe("preview create failing part-way (GAP-06 CLI half)", () => {
     });
     expect(errors.join("\n")).toContain(cleanupFile);
 
-    const file = JSON.parse(await readFile(cleanupFile, "utf8")) as CleanupFile & {
-      resources: Array<{ residual?: { locator: { nativeId: string; scope?: Record<string, string> } }; cleanup?: { adapter: string } }>;
+    const file = JSON.parse(await readFile(cleanupFile, "utf8")) as {
+      actions: unknown[];
+      resources: Array<{ id: string; residual?: { locator: { nativeId: string; scope?: Record<string, string> } }; cleanup?: { adapter: string } }>;
     };
     expect(file.resources.map((resource) => [resource.id, resource.cleanup?.adapter, resource.residual?.locator.scope])).toEqual([
       ["neon_branch_pr-72-db", "mock-neon", undefined],
