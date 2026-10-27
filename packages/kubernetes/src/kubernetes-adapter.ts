@@ -4,7 +4,6 @@ import {
   AdapterExecutionError,
   asProviderError,
   capsuleOperationTags,
-  logsFromOutput,
   providerRuntimeMetadata,
   CaptureBudget,
   CaptureLimitError,
@@ -889,11 +888,12 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
               metadata: kubernetesReceiptMetadata("batch/v1", { namespace, kubernetesName: created.metadata?.name ?? name, uid: created.metadata?.uid })
             })
           : undefined;
+        // The Job was only created; no exit code exists yet. Omit result until job.status observes a
+        // terminal state instead of returning a placeholder that looks like a passed workload.
         return {
           id: created.metadata?.name ?? name,
           provider,
           status: "running",
-          result: { exitCode: 0, stdout: "", stderr: "", logs: logsFromOutput("", ""), artifacts: [], receipt },
           receipt
         };
       },

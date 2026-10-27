@@ -212,4 +212,19 @@ describe("M1 audit regressions: kubernetes", () => {
     await capsule.service.deploy({ name: "app", image: "i", scale: { min: 2, max: 2 }, healthcheck: { path: "/healthz" } });
     expect(deployments).toBe(1);
   });
+
+  it("GAP-15: job.run on a just-created Job reports no exit code or result", async () => {
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        clients: {
+          batch: { createNamespacedJob: async () => ({ metadata: { name: "build" } }) } as never,
+          apps: {} as never,
+          core: {} as never
+        }
+      })
+    });
+    const run = await capsule.job.run({ name: "build", image: "i" });
+    expect(run.status).toBe("running");
+    expect(run.result).toBeUndefined();
+  });
 });
