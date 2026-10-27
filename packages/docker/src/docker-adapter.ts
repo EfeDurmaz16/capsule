@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, posix } from "node:path";
@@ -252,11 +252,9 @@ async function collectSandboxArtifacts(runner: DockerRunner, containerId: string
   try {
     if (hasNestedPlacement(placements)) {
       // A path inside another requested path copies into a tree an earlier copy creates, so the order of
-      // copies matters: keep them strictly sequential.
+      // copies matters: keep them strictly sequential, and never follow a symbolic link that tree holds.
       for (const placement of placements) {
-        const target = join(dir, placement.targetDir);
-        await mkdir(target, { recursive: true });
-        await copyArtifact(runner, containerId, placement, target);
+        await copyArtifact(runner, containerId, placement, await realTargetDirectory(dir, placement));
       }
     } else {
       // Disjoint paths land in disjoint subtrees, so the copies can overlap (PERF-14). It is still one
@@ -304,15 +302,52 @@ async function copyConcurrently(runner: DockerRunner, containerId: string, dir: 
   }
 }
 
-// True when one requested path is below another requested path (duplicates are already rejected).
+// Creates the placement's target directory one component at a time and refuses a component that is not a
+// real directory. An earlier copy has written container-controlled entries into this tree, so a component
+// can be a symbolic link the container planted (for example /out/logs -> a host directory): mkdir -p and
+// docker cp, which resolves a symbolic link in its destination, would follow it and write on the host
+// outside the temp dir. Copies here run one at a time and only they write the tree, so nothing changes it
+// between this check and the copy. mkdir of an existing symbolic link fails with EEXIST without following it.
+async function realTargetDirectory(dir: string, placement: ArtifactPlacement): Promise<string> {
+  let current = dir;
+  let relative = "";
+  for (const part of placement.targetDir.split("/")) {
+    if (!part) continue;
+    current = join(current, part);
+    relative = relative ? `${relative}/${part}` : part;
+    try {
+      await mkdir(current);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      const existing = await lstat(current);
+      if (!existing.isDirectory()) {
+        throw new AdapterExecutionError(
+          `Docker artifact path ${placement.path} would be copied through ${relative}, which an earlier artifact copy created as ${existing.isSymbolicLink() ? "a symbolic link" : "a non-directory"}; refusing to follow it.`
+        );
+      }
+    }
+  }
+  return current;
+}
+
+// True when one requested path is below another requested path or names the same host path (exact
+// duplicates are already rejected). The copies land on the host file system, which can be case- and
+// Unicode-normalization-insensitive (macOS, Windows), where /c/out and /c/OUT/logs/run.txt share one tree;
+// copying those concurrently would let one copy race a symbolic link written by the other. The key folds
+// conservatively: a false match only makes the copies sequential.
 function hasNestedPlacement(placements: ArtifactPlacement[]): boolean {
-  const paths = new Set(placements.map((placement) => posix.resolve("/", placement.path)));
+  const paths = new Set(placements.map((placement) => hostPathKey(posix.resolve("/", placement.path))));
+  if (paths.size < placements.length) return true;
   for (const path of paths) {
     for (let parent = posix.dirname(path); parent !== "/"; parent = posix.dirname(parent)) {
       if (paths.has(parent)) return true;
     }
   }
   return false;
+}
+
+function hostPathKey(path: string): string {
+  return path.normalize("NFKC").toLowerCase().toUpperCase().toLowerCase();
 }
 
 interface ArtifactPlacement {

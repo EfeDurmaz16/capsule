@@ -86,7 +86,11 @@ boundary, not in a provider-native artifact store. `job.artifacts` is declared `
   root itself, is rejected before any `docker cp`.
 
 - Each path is one `docker cp` call. Paths where none lies inside another are copied up to four at a time;
-  when one requested path is inside another, the copies run one after another in request order. After a
+  when one requested path is inside another, or two paths could name one host path on a case- or
+  Unicode-insensitive file system (`/c/out` and `/c/OUT/x`), the copies run one after another in request
+  order. Before each of those copies every directory on the way to its destination is checked: if an earlier
+  copy put a symbolic link or a file there (the container can plant `/out/logs -> /host/dir`), the exec
+  rejects instead of letting `mkdir -p` or `docker cp` follow it and write on the host. After a
   failed copy no further copy starts, the running ones finish, and the error of the earliest failed path is
   raised. Copying through one tar stream was measured and not used: it needs `tar` in the container, runs
   as the container user and extracts a container-controlled archive on the host, so it cannot match

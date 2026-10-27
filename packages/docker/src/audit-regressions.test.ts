@@ -3,7 +3,7 @@
 // who fixes an ID flips its it.fails to it in the same commit. The runner is an injected fake; no
 // Docker daemon is used. SB-02 runs the generated shell locally with a harmless fake `find`.
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -276,6 +276,52 @@ describe("PERF-14: docker cp of several artifact paths", () => {
     expect(fake.maxInFlight()).toBe(1);
     expect(fake.copies.map((copy) => copy.path)).toEqual(["/a/x.txt", "/a", "/a-b/y.txt", "/a/sub/z.txt"]);
   });
+
+  it.each([[["/out", "/out/logs/run.log"]], [["/out", "/out/logs/sub/run.log"]]])(
+    "refuses to copy %j through a symbolic link an earlier copy planted, so nothing lands outside the temp dir",
+    async (paths) => {
+      // The container planted /out/logs -> a host directory. docker cp copies the link itself into the temp
+      // tree; a later copy into out/logs then followed it, through mkdir -p and through docker cp, which
+      // resolves a symbolic link in its destination, and wrote run.log on the host.
+      const outside = mkdtempSync(join(tmpdir(), "capsule-artifact-outside-"));
+      try {
+        const copied: string[] = [];
+        const fake = fakeDocker((args) => {
+          if (args[0] !== "cp") return undefined;
+          const source = args[1]!.slice(args[1]!.indexOf(":") + 1);
+          copied.push(source);
+          if (source === "/out") {
+            mkdirSync(join(args[2]!, "out"));
+            writeFileSync(join(args[2]!, "out", "top.txt"), "top");
+            symlinkSync(outside, join(args[2]!, "out", "logs"));
+          } else {
+            writeFileSync(join(args[2]!, basename(source)), `content of ${source}`);
+          }
+          return undefined;
+        });
+        const box = await new Capsule({ adapter: fake.adapter }).sandbox.create({});
+        await expect(box.exec({ command: "true", artifactPaths: paths })).rejects.toThrow(
+          "out/logs, which an earlier artifact copy created as a symbolic link"
+        );
+        expect(readdirSync(outside)).toEqual([]);
+        expect(copied).toEqual(["/out"]);
+      } finally {
+        rmSync(outside, { recursive: true, force: true });
+      }
+    }
+  );
+
+  it.each([[["/c/out", "/c/OUT/logs/run.txt"]], [["/c/caf\u00e9", "/c/cafe\u0301/x.txt"]], [["/c/a.txt", "/c/A.txt"]]])(
+    "copies %j one at a time because a case- or normalization-insensitive host merges them",
+    async (paths) => {
+      // On macOS and Windows these land in one host tree, so a concurrent copy could race another copy's
+      // symbolic link; they take the sequential branch and its symbolic link check.
+      const fake = timedDocker({ delayMs: 5 });
+      const box = await new Capsule({ adapter: fake.adapter }).sandbox.create({});
+      await box.exec({ command: "true", artifactPaths: paths });
+      expect(fake.maxInFlight()).toBe(1);
+    }
+  );
 
   it("reports the earliest failed path, starts no copy after a failure and lets running copies finish first", async () => {
     const fake = timedDocker({ delayMs: 15, failFor: ["/work/d1/out.txt", "/work/d3/out.txt"] });
