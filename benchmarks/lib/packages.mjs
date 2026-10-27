@@ -1,13 +1,15 @@
 // Loads the built workspace packages (packages/*/dist). Run `pnpm build` before benchmarking so the
 // harness measures the same artifacts that are packed and published.
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 // CAPSULE_BENCH_PACKAGES_ROOT points the same workloads at another build of packages/ (for example the
 // pre-campaign anchor in benchmarks/ab.mjs). Unset, the harness measures this checkout's packages.
+// The root is resolved with realpath: a CLI started through a symlinked path (macOS /tmp is one) did not
+// run its command before c09b0c0, and the anchor still has that check.
 const packagesRoot = process.env.CAPSULE_BENCH_PACKAGES_ROOT
-  ? pathToFileURL(`${process.env.CAPSULE_BENCH_PACKAGES_ROOT.replace(/\/+$/, "")}/`)
+  ? pathToFileURL(`${realpathSync(process.env.CAPSULE_BENCH_PACKAGES_ROOT)}/`)
   : new URL("../../packages/", import.meta.url);
 
 export function packageDir(name) {
