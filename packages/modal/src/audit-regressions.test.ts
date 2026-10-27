@@ -89,7 +89,7 @@ describe("M1 audit regressions: modal", () => {
     expect(store.receipts.at(-1)?.resource?.status).toBe("deleted");
   });
 
-  it.fails("SB-10c: sandbox.artifacts is not claimed unless artifactPaths are actually collected", async () => {
+  it("SB-10c: sandbox.artifacts is not claimed unless artifactPaths are actually collected", async () => {
     const capsule = new Capsule({ adapter: fakeModal().adapter });
     if (!capsule.supports("sandbox.artifacts")) return;
     const box = await capsule.sandbox.create({});

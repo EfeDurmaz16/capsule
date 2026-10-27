@@ -83,14 +83,16 @@ export const modalCapabilities: CapabilityMap = {
     fileWrite: "native",
     fileList: "unsupported",
     destroy: "native",
-    snapshot: "experimental",
+    // Declarations describe what Capsule can invoke today, not provider potential: the Capsule Sandbox
+    // has no snapshot or streaming API, exposedPorts is not mapped and artifactPaths is not collected.
+    snapshot: "unsupported",
     restore: "unsupported",
-    exposePort: "experimental",
+    exposePort: "unsupported",
     networkPolicy: "native",
     filesystemPolicy: "emulated",
     secretMounting: "experimental",
-    streamingLogs: "native",
-    artifacts: "emulated"
+    streamingLogs: "unsupported",
+    artifacts: "unsupported"
   },
   job: {
     run: "unsupported",

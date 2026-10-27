@@ -110,6 +110,13 @@ describe("modal adapter", () => {
     expect(modalCapabilities.sandbox?.fileList).toBe("unsupported");
   });
 
+  it("declares no capability that has no invocable Capsule surface", () => {
+    expect(modalCapabilities.sandbox?.artifacts).toBe("unsupported");
+    expect(modalCapabilities.sandbox?.streamingLogs).toBe("unsupported");
+    expect(modalCapabilities.sandbox?.snapshot).toBe("unsupported");
+    expect(modalCapabilities.sandbox?.exposePort).toBe("unsupported");
+  });
+
   it("creates a sandbox and maps exec/read/write/destroy", async () => {
     const created: any[] = [];
     const { sandbox } = fakeModalSandbox();
