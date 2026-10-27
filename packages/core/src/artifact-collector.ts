@@ -37,6 +37,9 @@ export function collectFileArtifacts(dir: string, options: CollectFileArtifactsO
   const maxBytes = options.maxBytes ?? defaultMaxBytes;
   const artifacts: Artifact[] = [];
   const state = { bytes: 0 };
+  // One read buffer for the whole walk: a buffer per file made many small files slower than reading each
+  // whole file (PERF-02 A/B against 7d3a28a).
+  const buffer = Buffer.allocUnsafe(Math.max(1, Math.min(hashChunkBytes, maxBytes + 1)));
   let truncation: CollectFileArtifactsTruncation | undefined;
 
   const walk = (current: string, relative: string): boolean => {
@@ -60,7 +63,7 @@ export function collectFileArtifacts(dir: string, options: CollectFileArtifactsO
         truncation = { reason: "maxFiles", collectedFiles: artifacts.length, collectedBytes: state.bytes };
         return false;
       }
-      const hashed = hashFileWithinBudget(childPath, maxBytes - state.bytes);
+      const hashed = hashFileWithinBudget(childPath, maxBytes - state.bytes, buffer);
       if (!hashed) {
         truncation = { reason: "maxBytes", collectedFiles: artifacts.length, collectedBytes: state.bytes };
         return false;
@@ -80,28 +83,29 @@ export function collectFileArtifacts(dir: string, options: CollectFileArtifactsO
   return truncation ? { artifacts, truncated: true, truncation } : { artifacts, truncated: false };
 }
 
-// Hash one whole file through a fixed-size buffer. Returns undefined, without reading content, when the
-// opened file is already larger than the remaining budget, and stops reading as soon as a file that grew
-// after the size check exceeds it. A file is either hashed whole or not collected at all.
-function hashFileWithinBudget(path: string, remainingBytes: number): { sizeBytes: number; sha256: string } | undefined {
+// Hash one whole file through the shared fixed-size buffer. Returns undefined, without reading content,
+// when the opened file is already larger than the remaining budget, and stops reading as soon as a file
+// that grew after the size check exceeds it. A file is either hashed whole or not collected at all. A read
+// shorter than requested is the end of a regular file, so a small file takes one read, as readFileSync did.
+function hashFileWithinBudget(path: string, remainingBytes: number, buffer: Buffer): { sizeBytes: number; sha256: string } | undefined {
   const fd = openSync(path, "r");
   try {
     if (fstatSync(fd).size > remainingBytes) {
       return undefined;
     }
     const hash = createHash("sha256");
-    const buffer = Buffer.allocUnsafe(Math.max(1, Math.min(hashChunkBytes, remainingBytes + 1)));
     let sizeBytes = 0;
     for (;;) {
-      const read = readSync(fd, buffer, 0, Math.min(buffer.byteLength, remainingBytes - sizeBytes + 1), null);
-      if (read === 0) {
-        return { sizeBytes, sha256: hash.digest("hex") };
-      }
+      const requested = Math.min(buffer.byteLength, remainingBytes - sizeBytes + 1);
+      const read = readSync(fd, buffer, 0, requested, null);
       sizeBytes += read;
       if (sizeBytes > remainingBytes) {
         return undefined;
       }
-      hash.update(buffer.subarray(0, read));
+      if (read > 0) hash.update(buffer.subarray(0, read));
+      if (read < requested) {
+        return { sizeBytes, sha256: hash.digest("hex") };
+      }
     }
   } finally {
     closeSync(fd);

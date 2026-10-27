@@ -1,4 +1,5 @@
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import fs, { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
@@ -14,6 +15,34 @@ describe("collectFileArtifacts", () => {
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("PERF-02: hashes each small file with one read through one buffer shared by the walk", () => {
+    // Before, every file got its own 64 KiB buffer and a second read to see end of file, which made many
+    // small files slower than readFileSync at 7d3a28a. Hashes and sizes are unchanged.
+    const contents = Array.from({ length: 25 }, (_, index) => `file ${index} `.repeat(index + 1));
+    contents.forEach((content, index) => writeFileSync(join(dir, `f${String(index).padStart(2, "0")}.txt`), content));
+    writeFileSync(join(dir, "empty.txt"), "");
+    const originalReadSync = fs.readSync;
+    const buffers: unknown[] = [];
+    fs.readSync = function (this: unknown, ...args: Parameters<typeof fs.readSync>) {
+      buffers.push(args[1]);
+      return originalReadSync.apply(this, args);
+    } as typeof fs.readSync;
+    syncBuiltinESMExports();
+    let artifacts;
+    try {
+      ({ artifacts } = collectFileArtifacts(dir));
+    } finally {
+      fs.readSync = originalReadSync;
+      syncBuiltinESMExports();
+    }
+    expect(buffers).toHaveLength(26);
+    expect(new Set(buffers).size).toBe(1);
+    expect(artifacts.map((artifact) => [artifact.path, artifact.sizeBytes, artifact.sha256])).toEqual([
+      ["empty.txt", 0, sha256("")],
+      ...contents.map((content, index) => [`f${String(index).padStart(2, "0")}.txt`, Buffer.byteLength(content), sha256(content)])
+    ]);
   });
 
   test("walks nested files, hashes each, and uses posix relative paths", () => {

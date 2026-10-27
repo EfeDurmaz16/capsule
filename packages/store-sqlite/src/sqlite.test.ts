@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { createReceipt } from "@capsule-sdk/core";
 import { sqliteReceiptStore } from "./index.js";
 
@@ -125,13 +125,58 @@ describe("sqliteReceiptStore", () => {
   });
 });
 
-describe("deferred M1 items (visible skips with reason and dependency)", () => {
-  // PERF-12 deferred: the manifest reuses prepared statements only if a benchmark shows prepare cost
-  // matters separately from the synchronous commit. The M1 harness has no SQLite workload, so there is no
-  // such measurement. Dependency: a store-sqlite workload separating prepare from commit cost, then reuse
-  // that preserves insert/read ordering, INSERT OR REPLACE semantics and closed-store errors.
-  test.skip("PERF-12 (deferred): reused prepared statements keep ordering, replacement and closed-store errors", () => {
-    // Intended assertion once implemented: the same sequence of writes and reads returns identical rows and
-    // errors with statement reuse as without it.
+describe("PERF-12: prepared statements are reused", () => {
+  test("many writes and reads prepare one INSERT and one SELECT", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "capsule-sqlite-test-"));
+    const prepare = vi.spyOn(DatabaseSync.prototype, "prepare");
+    try {
+      const store = sqliteReceiptStore(join(dir, "receipts.sqlite"));
+      prepare.mockClear();
+      for (let index = 0; index < 50; index += 1) store.write(receiptAt(index));
+      for (let index = 0; index < 5; index += 1) expect(store.readAll()).toHaveLength(50);
+      expect(prepare).toHaveBeenCalledTimes(2);
+      store.close();
+    } finally {
+      prepare.mockRestore();
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("reused statements keep ordering, INSERT OR REPLACE, failed-write recovery and closed-store errors", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "capsule-sqlite-test-"));
+    try {
+      const store = sqliteReceiptStore(join(dir, "receipts.sqlite"));
+      const late = receiptAt(30);
+      const early = receiptAt(10);
+      store.write(late);
+      store.write(early);
+      expect(store.readAll().map((receipt) => receipt.id)).toEqual([early.id, late.id]);
+
+      // Same id again: the row is replaced, not duplicated, and the order follows the new startedAt.
+      const replaced = { ...early, startedAt: new Date(Date.UTC(2026, 0, 1, 0, 0, 1)).toISOString(), stdoutHash: "replaced" };
+      store.write(replaced);
+      expect(store.readAll().map((receipt) => [receipt.id, receipt.stdoutHash])).toEqual([
+        [late.id, late.stdoutHash],
+        [early.id, "replaced"]
+      ]);
+
+      // A write that SQLite rejects (NOT NULL type) leaves the reused statement usable.
+      expect(() => store.write({ ...receiptAt(40), type: null } as never)).toThrow();
+      const after = receiptAt(50);
+      store.write(after);
+      expect(store.readAll().map((receipt) => receipt.id)).toEqual([late.id, after.id, early.id]);
+
+      store.close();
+      expect(() => store.write(receiptAt(60))).toThrow("SQLite receipt store is closed");
+      expect(() => store.readAll()).toThrow("SQLite receipt store is closed");
+      expect(() => store.close()).not.toThrow();
+
+      // The rows written through reused statements are what a new handle reads.
+      const reader = sqliteReceiptStore(join(dir, "receipts.sqlite"));
+      expect(reader.readAll().map((receipt) => receipt.id)).toEqual([late.id, after.id, early.id]);
+      reader.close();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

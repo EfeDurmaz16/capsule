@@ -85,6 +85,13 @@ boundary, not in a provider-native artifact store. `job.artifacts` is declared `
   `a/out.txt` and `b/out.txt` instead of overwriting each other. A path requested twice, or the container
   root itself, is rejected before any `docker cp`.
 
+- Each path is one `docker cp` call. Paths where none lies inside another are copied up to four at a time;
+  when one requested path is inside another, the copies run one after another in request order. After a
+  failed copy no further copy starts, the running ones finish, and the error of the earliest failed path is
+  raised. Copying through one tar stream was measured and not used: it needs `tar` in the container, runs
+  as the container user and extracts a container-controlled archive on the host, so it cannot match
+  `docker cp` exactly.
+
 - `job.run` returns no artifacts. Docker jobs run with `docker run --rm`, so the container is removed the
   moment the process exits, before any `docker cp` could reach it. Collecting job artifacts would require
   restructuring job execution into a create/start/wait/cp/rm lifecycle; until that exists, job artifacts

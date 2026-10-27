@@ -4,7 +4,14 @@
 import { describe, expect, it } from "vitest";
 import { CleanupFailureError, partialEffectsOf, type Capsule } from "@capsule-sdk/core";
 import { createCodeExecutionTool } from "./tool.js";
-import { createLangChainTool, createVercelAiSdkTool } from "./wrappers.js";
+import {
+  codeExecutionInputJsonSchema,
+  codeExecutionInputStrictJsonSchema,
+  createLangChainTool,
+  createOpenAIResponsesFunctionTool,
+  createVercelAiSdkTool,
+  toOpenAIStrictJsonSchema
+} from "./wrappers.js";
 
 function errorText(value: unknown, seen = new Set<unknown>()): string {
   if (value === null || value === undefined || seen.has(value)) return "";
@@ -90,14 +97,109 @@ describe("M1 audit regressions: ai tool", () => {
   });
 });
 
-describe("deferred M1 items (visible skips with reason and dependency)", () => {
-  // GAP-20 deferred: createOpenAIResponsesFunctionTool sets strict: true on a schema with optional
-  // properties outside `required` and a `oneOf`. Whether the Responses API rejects it is a pending candidate:
-  // the current official OpenAI strict function-calling rules were not reverified in M1. Dependency: reverify
-  // the official docs, then isolate a strict-normalized schema (nullable optionals listed in required,
-  // anyOf instead of oneOf) in packages/ai with offline tests. No external model call is needed.
-  it.skip("GAP-20 (deferred): the strict Responses tool schema follows the official strict-mode rules", () => {
-    // Intended assertion: every property is listed in `required`, optional ones are nullable, and no `oneOf`
-    // appears in the strict schema, while the generic schema stays unchanged.
+// GAP-20: the OpenAI strict function-calling rules were reverified on 27 Oct 2026 against the official
+// docs (developers.openai.com/api/docs/guides/function-calling, "Strict mode", and
+// developers.openai.com/api/docs/guides/structured-outputs, "Supported schemas"): additionalProperties must
+// be false on every object, every property must be listed in required, an optional field is emulated with a
+// union that includes null, anyOf is the supported union keyword (oneOf is not listed), and allOf, not,
+// dependentRequired, dependentSchemas, if, then and else are not supported. No model is called here.
+type SchemaNode = Record<string, unknown>;
+
+function strictViolations(node: unknown, at = "#"): string[] {
+  if (typeof node !== "object" || node === null) return [];
+  if (Array.isArray(node)) return node.flatMap((child, index) => strictViolations(child, `${at}/${index}`));
+  const schema = node as SchemaNode;
+  const problems: string[] = [];
+  for (const keyword of ["oneOf", "allOf", "not", "if", "then", "else", "dependentRequired", "dependentSchemas"]) {
+    if (keyword in schema) problems.push(`${at}: ${keyword}`);
+  }
+  if (schema.type === "object" || "properties" in schema) {
+    if (schema.additionalProperties !== false) problems.push(`${at}: additionalProperties is not false`);
+    const keys = Object.keys((schema.properties as SchemaNode | undefined) ?? {}).sort();
+    const required = [...((schema.required as string[] | undefined) ?? [])].sort();
+    if (JSON.stringify(keys) !== JSON.stringify(required)) problems.push(`${at}: required ${JSON.stringify(required)} != properties ${JSON.stringify(keys)}`);
+  }
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === "properties") {
+      for (const [name, child] of Object.entries(value as SchemaNode)) problems.push(...strictViolations(child, `${at}/properties/${name}`));
+    } else if (key === "items" || key === "anyOf" || key === "$defs") {
+      problems.push(...strictViolations(value, `${at}/${key}`));
+    }
+  }
+  return problems;
+}
+
+function acceptsNull(schema: SchemaNode): boolean {
+  if (Array.isArray(schema.type)) return schema.type.includes("null");
+  if (Array.isArray(schema.anyOf)) return schema.anyOf.some((branch) => (branch as SchemaNode).type === "null");
+  return schema.type === "null";
+}
+
+describe("GAP-20: the strict Responses tool schema follows the official strict-mode rules", () => {
+  it("emits a strict-valid schema: all properties required, optional ones nullable, anyOf instead of oneOf", () => {
+    const { tool } = createOpenAIResponsesFunctionTool({ name: "capsule_code_execution", description: "Run code", execute: async () => ({}) as never });
+    expect(tool.strict).toBe(true);
+    expect(strictViolations(tool.parameters)).toEqual([]);
+    expect(tool.parameters.type).toBe("object");
+    expect("anyOf" in tool.parameters).toBe(false);
+    const optional = Object.keys(codeExecutionInputJsonSchema.properties).filter(
+      (name) => !(codeExecutionInputJsonSchema.required as readonly string[]).includes(name)
+    );
+    expect(optional).toEqual(["language", "timeoutMs"]);
+    for (const name of optional) expect(acceptsNull((tool.parameters.properties as SchemaNode)[name] as SchemaNode)).toBe(true);
+    for (const name of codeExecutionInputJsonSchema.required) expect(acceptsNull((tool.parameters.properties as SchemaNode)[name] as SchemaNode)).toBe(false);
+  });
+
+  it("derives the strict schema from the generic schema and leaves the generic schema unchanged", () => {
+    const before = JSON.stringify(codeExecutionInputJsonSchema);
+    expect(toOpenAIStrictJsonSchema(codeExecutionInputJsonSchema)).toEqual(codeExecutionInputStrictJsonSchema);
+    expect(JSON.stringify(codeExecutionInputJsonSchema)).toBe(before);
+    expect(strictViolations(codeExecutionInputJsonSchema)).not.toEqual([]);
+  });
+
+  it("passes omitted optional fields to the tool as absent, not null", async () => {
+    const seen: unknown[] = [];
+    const descriptor = createOpenAIResponsesFunctionTool({
+      name: "capsule_code_execution",
+      description: "Run code",
+      execute: async (input) => {
+        seen.push(input);
+        return {} as never;
+      }
+    });
+    await descriptor.execute({ language: null, files: [{ path: "a.js", content: "1" }], command: ["node", "a.js"], timeoutMs: null });
+    await descriptor.execute({ language: "python", files: [], command: "true", timeoutMs: 5 });
+    expect(seen[0]).toEqual({ files: [{ path: "a.js", content: "1" }], command: ["node", "a.js"] });
+    expect(seen[0]).not.toHaveProperty("language");
+    expect(seen[0]).not.toHaveProperty("timeoutMs");
+    expect(seen[1]).toEqual({ language: "python", files: [], command: "true", timeoutMs: 5 });
+  });
+
+  it("normalizes nested objects, enums and untyped optionals and rejects keywords strict mode lacks", () => {
+    expect(
+      toOpenAIStrictJsonSchema({
+        type: "object",
+        properties: {
+          mode: { type: "string", enum: ["a", "b"] },
+          ref: { $ref: "#/$defs/step", description: "d" },
+          nested: { type: "object", properties: { x: { type: "integer" } } }
+        },
+        $defs: { step: { type: "object", properties: { y: { oneOf: [{ type: "string" }, { type: "number" }] } }, required: ["y"] } }
+      })
+    ).toEqual({
+      type: "object",
+      additionalProperties: false,
+      required: ["mode", "ref", "nested"],
+      properties: {
+        mode: { type: ["string", "null"], enum: ["a", "b", null] },
+        ref: { anyOf: [{ $ref: "#/$defs/step" }, { type: "null" }], description: "d" },
+        nested: { type: ["object", "null"], additionalProperties: false, required: ["x"], properties: { x: { type: ["integer", "null"] } } }
+      },
+      $defs: {
+        step: { type: "object", additionalProperties: false, required: ["y"], properties: { y: { anyOf: [{ type: "string" }, { type: "number" }] } } }
+      }
+    });
+    expect(() => toOpenAIStrictJsonSchema({ type: "object", properties: { a: { allOf: [] } } })).toThrow("does not support allOf");
+    expect(() => toOpenAIStrictJsonSchema({ type: "object", additionalProperties: true, properties: {} })).toThrow("additionalProperties: false");
   });
 });

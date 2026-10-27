@@ -593,23 +593,98 @@ function parseTimestamp(value: string): number {
   return Date.parse(normalized);
 }
 
+// /^(\d{4}-\d{2}-\d{2}T\S+)\s(.*)$/ without the capture groups: test() and search() return a boolean
+// and an index, so a line costs no match array (PERF-05). The prefix has no whitespace, so the first
+// whitespace in a matching line ends the timestamp, exactly where the capturing form split it.
+const timestampedLine = /^\d{4}-\d{2}-\d{2}T\S+\s.*$/;
+const whitespace = /\s/;
+
 function parseKubernetesLog(text: string, stream: LogEntry["stream"], fallbackTimestamp: string, source?: string): LogEntry[] {
-  return text
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .map((line) => {
-      const match = line.match(/^(\d{4}-\d{2}-\d{2}T\S+)\s(.*)$/);
-      const base =
-        match && !Number.isNaN(parseTimestamp(match[1]))
-          ? { timestamp: match[1], stream, message: match[2] }
-          : { timestamp: fallbackTimestamp, stream, message: line };
-      return source ? { ...base, source } : base;
-    });
+  const entries: LogEntry[] = [];
+  const lines = text.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!;
+    if (!line) continue;
+    let timestamp = fallbackTimestamp;
+    let message = line;
+    if (timestampedLine.test(line)) {
+      const end = line.search(whitespace);
+      const candidate = line.slice(0, end);
+      if (!Number.isNaN(parseTimestamp(candidate))) {
+        timestamp = candidate;
+        message = line.slice(end + 1);
+      }
+    }
+    entries.push(source ? { timestamp, stream, message, source } : { timestamp, stream, message });
+  }
+  return entries;
 }
 
 // Comparable instant with nanosecond precision. Kubernetes log timestamps are RFC3339 with up to nine
 // fractional digits, which Date.parse would round to milliseconds and so misorder close entries.
-function timestampKey(value: string): { seconds: number; nanos: number } | undefined {
+// Builds the ordering record for one entry; seconds is NaN when the timestamp has no comparable instant.
+function orderedLog(entry: LogEntry, target: number, line: number): OrderedLog {
+  const seconds = utcTimestampSeconds(entry.timestamp);
+  if (seconds !== undefined) return { entry, seconds, nanos: utcNanos, target, line };
+  const key = generalTimestampKey(entry.timestamp);
+  return { entry, seconds: key ? key.seconds : Number.NaN, nanos: key ? key.nanos : 0, target, line };
+}
+
+// The whole second ("YYYY-MM-DDTHH:MM:SSZ") of the last UTC timestamp and its Date.parse value; log lines
+// of one source often share it. Built by concatenation, so it holds no reference into a log body.
+let lastSecond = "";
+let lastSecondMillis = Number.NaN;
+// Fraction of the last timestamp utcTimestampSeconds accepted, in nanoseconds (kept out of a return
+// object so that ordering thousands of lines allocates nothing per line).
+let utcNanos = 0;
+
+const maxTimerDelayMs = 2_147_483_647;
+
+const utcDigitPositions = [0, 1, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17, 18];
+
+const digitAt = (value: string, index: number): boolean => {
+  const code = value.charCodeAt(index);
+  return code >= 48 && code <= 57;
+};
+
+// Fast path for the form the kubelet writes, "YYYY-MM-DDTHH:MM:SS[.fraction]Z", with no regular
+// expression match objects (PERF-05). It gives exactly what generalTimestampKey gives for that form and
+// undefined for anything else, which then takes the general path.
+function utcTimestampSeconds(value: string): number | undefined {
+  const zone = value.length - 1;
+  if (zone < 19 || value.charCodeAt(zone) !== 90 /* Z */) return undefined;
+  for (let position = 0; position < utcDigitPositions.length; position += 1) {
+    if (!digitAt(value, utcDigitPositions[position]!)) return undefined;
+  }
+  if (value[4] !== "-" || value[7] !== "-" || value[10] !== "T" || value[13] !== ":" || value[16] !== ":") return undefined;
+  let nanos = 0;
+  if (zone > 19) {
+    const digits = zone - 20;
+    if (value[19] !== "." || digits < 1 || digits > 9) return undefined;
+    for (let index = 20; index < zone; index += 1) {
+      if (!digitAt(value, index)) return undefined;
+      nanos = nanos * 10 + (value.charCodeAt(index) - 48);
+    }
+    nanos *= 10 ** (9 - digits);
+  }
+  if (!sameSecond(value, lastSecond)) {
+    lastSecond = `${value.slice(0, 19)}Z`;
+    lastSecondMillis = Date.parse(lastSecond);
+  }
+  if (Number.isNaN(lastSecondMillis)) return undefined;
+  utcNanos = nanos;
+  return lastSecondMillis / 1000;
+}
+
+function sameSecond(value: string, second: string): boolean {
+  if (second.length !== 20) return false;
+  for (let index = 0; index < 19; index += 1) {
+    if (value.charCodeAt(index) !== second.charCodeAt(index)) return false;
+  }
+  return true;
+}
+
+function generalTimestampKey(value: string): { seconds: number; nanos: number } | undefined {
   const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$/.exec(value);
   if (!match) {
     const millis = Date.parse(value);
@@ -626,17 +701,19 @@ function timestampKey(value: string): { seconds: number; nanos: number } | undef
 // deterministic.
 interface OrderedLog {
   entry: LogEntry;
-  key: { seconds: number; nanos: number } | undefined;
+  /** NaN when the timestamp has no comparable instant; such entries sort before all others. */
+  seconds: number;
+  nanos: number;
   target: number;
   line: number;
 }
 
 function compareOrderedLogs(left: OrderedLog, right: OrderedLog): number {
-  const a = left.key;
-  const b = right.key;
+  const a = !Number.isNaN(left.seconds);
+  const b = !Number.isNaN(right.seconds);
   if (a && b) {
-    if (a.seconds !== b.seconds) return a.seconds - b.seconds;
-    if (a.nanos !== b.nanos) return a.nanos - b.nanos;
+    if (left.seconds !== right.seconds) return left.seconds - right.seconds;
+    if (left.nanos !== right.nanos) return left.nanos - right.nanos;
   } else if (a || b) {
     return a ? 1 : -1;
   }
@@ -662,10 +739,21 @@ function redactLiteralEnvValues(logs: LogEntry[], values: Set<string>, context: 
   // Longest first so a value that contains another value is replaced whole.
   const secrets = [...values].sort((left, right) => right.length - left.length);
   if (secrets.length === 0) return logs;
-  return logs.map((entry) => ({
-    ...entry,
-    message: secrets.reduce((message, secret) => message.split(secret).join("[REDACTED]"), entry.message)
-  }));
+  // The entries were parsed by this collection and nothing else holds them yet, so the redacted message
+  // replaces the original in place instead of in a copy of every entry.
+  for (let entryIndex = 0; entryIndex < logs.length; entryIndex += 1) {
+    const entry = logs[entryIndex]!;
+    let message = entry.message;
+    // Same replacements in the same order as splitting and joining on every value (a literal
+    // replaceAll); a value that does not occur in the message as it stands is skipped. Index loops:
+    // this runs entries x values times, mostly before the code is optimized, where for...of allocates.
+    for (let index = 0; index < secrets.length; index += 1) {
+      const secret = secrets[index]!;
+      if (message.includes(secret)) message = message.replaceAll(secret, "[REDACTED]");
+    }
+    entry.message = message;
+  }
+  return logs;
 }
 
 function validateLogLimit(limit: number | undefined): void {
@@ -674,12 +762,33 @@ function validateLogLimit(limit: number | undefined): void {
   }
 }
 
-const textEncoder = new TextEncoder();
+// Keeps the `cap` newest entries of everything added. With a total order (compareOrderedLogs is one:
+// target and line are unique), trimming once the buffer passes twice the cap keeps exactly the entries a
+// sort after every source kept, with about one sort per `cap` entries instead of one per source of a
+// growing array (PERF-05). Exported for its unit test only.
+export class NewestWindow<T> {
+  private entries: T[] = [];
 
-// Merges a new source into the kept window and keeps only the `cap` newest entries.
-function mergeNewest(kept: OrderedLog[], incoming: OrderedLog[], cap: number): OrderedLog[] {
-  const merged = [...kept, ...incoming].sort(compareOrderedLogs);
-  return merged.length > cap ? merged.slice(-cap) : merged;
+  constructor(
+    private readonly cap: number,
+    private readonly compare: (left: T, right: T) => number
+  ) {}
+
+  add(incoming: T[]): void {
+    for (let index = 0; index < incoming.length; index += 1) this.entries.push(incoming[index]!);
+    if (this.entries.length > 2 * this.cap) this.trim();
+  }
+
+  /** The kept entries, oldest first. */
+  result(): T[] {
+    this.trim();
+    return this.entries;
+  }
+
+  private trim(): void {
+    this.entries.sort(this.compare);
+    if (this.entries.length > this.cap) this.entries = this.entries.slice(this.entries.length - this.cap);
+  }
 }
 
 async function collectPodLogs(
@@ -733,7 +842,7 @@ async function collectPodLogs(
     return (podContainers.length > 0 ? podContainers : [undefined]).map((container) => ({ podName, container }));
   });
 
-  let kept: OrderedLog[] = [];
+  const newest = new NewestWindow<OrderedLog>(cap, compareOrderedLogs);
   let candidates = 0;
   let sourceAtTailCap = false;
   let sourceAtByteCap = false;
@@ -753,60 +862,63 @@ async function collectPodLogs(
       limitBytes: bounds.maxBytes,
       timestamps: true
     });
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const expired = new Promise<undefined>((resolve) => {
-      timer = setTimeout(() => resolve(undefined), remainingMs);
-    });
     // A read that outlives the deadline is abandoned, not cancelled: the injected API has no abort hook.
     read.catch(() => undefined);
-    return await Promise.race([read, expired]).finally(() => clearTimeout(timer));
+    return await Promise.race([read, deadlineReached]);
   };
-  await mapWithConcurrency(targets, bounds.concurrency, async ({ podName, container }, target) => {
-    if (cap === 0) return;
-    // Kubelet seeks to the start of the tail and then counts limitBytes forward, so a tail larger than
-    // maxBytes comes back as its OLDEST part. When that happens, read again with a shorter tail (the
-    // number of complete lines that fitted, halving after a few attempts) until the newest lines fit.
-    // Every read stays bounded by maxBytes and the attempt count is logarithmic in the tail length.
-    let tailLines = cap;
-    let body: string | undefined;
-    for (let attempt = 0; ; attempt += 1) {
-      const text = await readTail(podName, container, tailLines);
-      if (text === undefined) {
-        deadlineHit = true;
-        return;
-      }
-      if (textEncoder.encode(text).byteLength < bounds.maxBytes) {
-        body = text;
-        break;
-      }
-      // limitBytes stopped the stream; the last line may be cut mid-way, so drop it.
-      sourceAtByteCap = true;
-      const lastNewline = text.lastIndexOf("\n");
-      const complete = lastNewline === -1 ? "" : text.slice(0, lastNewline + 1);
-      const completeLines = complete === "" ? 0 : complete.split("\n").length - 1;
-      if (tailLines <= 1) {
-        // Even the newest single line does not fit in maxBytes; keep only what arrived complete.
-        body = complete;
-        break;
-      }
-      const shorter = attempt < 3 && completeLines > 0 ? Math.min(completeLines, tailLines - 1) : Math.floor(tailLines / 2);
-      tailLines = Math.max(1, completeLines > 0 ? Math.min(shorter, completeLines) : shorter);
-    }
-    const raw = parseKubernetesLog(body, "stdout", fallbackTimestamp, podName);
-    const entries = filterUntil(raw, input.until);
-    // The tail was full, so older lines exist that were not read. With `until`, those older lines may be
-    // exactly the ones the caller asked for, so a window that filters down below the cap is incomplete
-    // whatever the caller's limit was.
-    const fullTail = raw.length >= tailLines;
-    if (fullTail) sourceAtTailCap = true;
-    if (fullTail && input.until !== undefined && entries.length < cap) untilWindowShort = true;
-    candidates += entries.length;
-    kept = mergeNewest(
-      kept,
-      entries.map((entry, line) => ({ entry, key: timestampKey(entry.timestamp), target, line })),
-      cap
-    );
+  // One deadline timer for every read instead of one per read (PERF-05). Node caps timer delays at
+  // 2^31 - 1 ms and fires a longer one after 1 ms, so a longer deadline waits for the largest delay.
+  let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+  const deadlineReached = new Promise<undefined>((resolve) => {
+    deadlineTimer = setTimeout(() => resolve(undefined), Math.min(Math.max(0, deadlineAt - Date.now()), maxTimerDelayMs));
   });
+  try {
+    await mapWithConcurrency(targets, bounds.concurrency, async ({ podName, container }, target) => {
+      if (cap === 0) return;
+      // Kubelet seeks to the start of the tail and then counts limitBytes forward, so a tail larger than
+      // maxBytes comes back as its OLDEST part. When that happens, read again with a shorter tail (the
+      // number of complete lines that fitted, halving after a few attempts) until the newest lines fit.
+      // Every read stays bounded by maxBytes and the attempt count is logarithmic in the tail length.
+      let tailLines = cap;
+      let body: string | undefined;
+      for (let attempt = 0; ; attempt += 1) {
+        const text = await readTail(podName, container, tailLines);
+        if (text === undefined) {
+          deadlineHit = true;
+          return;
+        }
+        if (Buffer.byteLength(text, "utf8") < bounds.maxBytes) {
+          body = text;
+          break;
+        }
+        // limitBytes stopped the stream; the last line may be cut mid-way, so drop it.
+        sourceAtByteCap = true;
+        const lastNewline = text.lastIndexOf("\n");
+        const complete = lastNewline === -1 ? "" : text.slice(0, lastNewline + 1);
+        const completeLines = complete === "" ? 0 : complete.split("\n").length - 1;
+        if (tailLines <= 1) {
+          // Even the newest single line does not fit in maxBytes; keep only what arrived complete.
+          body = complete;
+          break;
+        }
+        const shorter = attempt < 3 && completeLines > 0 ? Math.min(completeLines, tailLines - 1) : Math.floor(tailLines / 2);
+        tailLines = Math.max(1, completeLines > 0 ? Math.min(shorter, completeLines) : shorter);
+      }
+      const raw = parseKubernetesLog(body, "stdout", fallbackTimestamp, podName);
+      const entries = filterUntil(raw, input.until);
+      // The tail was full, so older lines exist that were not read. With `until`, those older lines may be
+      // exactly the ones the caller asked for, so a window that filters down below the cap is incomplete
+      // whatever the caller's limit was.
+      const fullTail = raw.length >= tailLines;
+      if (fullTail) sourceAtTailCap = true;
+      if (fullTail && input.until !== undefined && entries.length < cap) untilWindowShort = true;
+      candidates += entries.length;
+      newest.add(entries.map((entry, line) => orderedLog(entry, target, line)));
+    });
+  } finally {
+    clearTimeout(deadlineTimer);
+  }
+  const kept = newest.result();
 
   const redactionValues = literalEnvValues(pods);
   const redacted = redactLiteralEnvValues(
@@ -818,7 +930,7 @@ async function collectPodLogs(
   const selected: LogEntry[] = [];
   for (let index = redacted.length - 1; index >= 0; index -= 1) {
     const entry = redacted[index]!;
-    if (!budget.takeRecord(textEncoder.encode(entry.message).byteLength)) break;
+    if (!budget.takeRecord(Buffer.byteLength(entry.message, "utf8"))) break;
     selected.push(entry);
   }
   selected.reverse();

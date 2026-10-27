@@ -106,6 +106,8 @@ for (const file of workloadFiles) {
   mkdirSync(join(rawRoot, workload.id), { recursive: true });
   for (const benchCase of workload.cases) {
     if (benchCase.large && !args.large) continue;
+    // Opt-in cases that need local setup (for example a local Docker image) run only when it is named.
+    if (benchCase.requiresEnv && !process.env[benchCase.requiresEnv]) continue;
     const reps = repsOverride ?? benchCase.reps ?? workload.reps ?? 5;
     const runs = [];
     for (let rep = 0; rep < reps; rep += 1) {

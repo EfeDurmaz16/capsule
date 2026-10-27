@@ -69,19 +69,9 @@ Vercel AI SDK, OpenAI Agents, LangChain, Claude tools, Mastra, CrewAI, CI system
 
 Provider-maintained adapters with explicit capability maps, changelog tracking, and compatibility tests.
 
-## Known Gaps Carried Forward
+## Known Limits
 
-These items were found in the M1 correctness audit and deliberately left open. Each has a visible skipped test named after its id, so the gap stays in the test output until it is fixed.
-
-| Id      | Current behavior                                                                                                                                                                                                                          | What it waits for                                                                                                                                                                          |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| GAP-14  | ECS service status can report `failed` when an older deployment shows `rolloutState: FAILED` while a newer PRIMARY deployment is still in progress. The SDK types do not separate a circuit-breaker rollback from a superseding redeploy. | Recorded `DescribeServices` responses for both cases from an opt-in live ECS run. Skipped test: `packages/ecs/src/audit-regressions.test.ts`.                                              |
-| GAP-20  | `createOpenAIResponsesFunctionTool` sets `strict: true` on a schema with optional properties and `oneOf`, which OpenAI strict mode may reject. Not confirmed against the API.                                                             | Reverify the official strict-mode rules, then emit a strict-normalized schema with offline tests. Skipped test: `packages/ai/src/audit-regressions.test.ts`.                               |
-| PERF-11 | `@capsule-sdk/store-jsonl` `readAll` reads the whole file into memory (about 87 MB RSS growth for 50k receipts in the harness).                                                                                                           | Review of an additive incremental iterator with a bounded line size and a compatible `readAll`, then a before/after `perf-11` run. Skipped test: `packages/store-jsonl/src/jsonl.test.ts`. |
-| PERF-12 | `@capsule-sdk/store-sqlite` prepares statements per call.                                                                                                                                                                                 | A SQLite benchmark that separates prepare cost from commit cost; reuse only if it shows a win. Skipped test: `packages/store-sqlite/src/sqlite.test.ts`.                                   |
-| PERF-14 | Docker sandbox artifact collection runs one `docker cp` per path.                                                                                                                                                                         | A spawn-count, bytes and time profile for 1, 10 and 100 paths; any batch must keep the current artifact layout. Skipped test: `packages/docker/src/audit-regressions.test.ts`.             |
-
-Other limits that stay visible:
+The deferred items of the M1 correctness audit (GAP-14, GAP-20, PERF-11, PERF-12, PERF-14) are closed; each has a regression test named after its id. These limits stay visible:
 
 - Sandbox file operations have no per-call approval override yet; fresh approval covers exec and destroy (see [policy model](policy-model.md)).
 - Preview resources and cleanup plans live in process memory; a crash before cleanup loses them.

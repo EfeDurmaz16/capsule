@@ -84,6 +84,8 @@ async function handleFunctionCall(args: unknown) {
 }
 ```
 
+The Responses tool sets `strict: true`, so its `parameters` are `codeExecutionInputStrictJsonSchema`, the generic schema normalized to the OpenAI strict function-calling rules: every property is listed in `required`, the optional `language` and `timeoutMs` accept `null`, and `command` uses `anyOf` over the same two branches instead of `oneOf`. `descriptor.execute` treats a `null` optional field as absent. The other wrappers keep `codeExecutionInputJsonSchema`. `toOpenAIStrictJsonSchema(schema)` applies the same normalization to your own schemas; it throws on keywords strict mode does not support (`allOf`, `not`, `if`/`then`/`else`, `dependentRequired`, `dependentSchemas`) and on objects that allow additional properties. Turning `oneOf` into `anyOf` keeps the accepted values only when the branches are disjoint.
+
 ## LangChain
 
 ```ts

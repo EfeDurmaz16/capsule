@@ -162,23 +162,35 @@ test("DOC-08: the documented typecheck command is the one package.json runs", ()
   assert.doesNotMatch(decisions, /`tsc -b`/);
 });
 
-test("DOC-09: every visibly skipped deferred item is documented with its test file", async () => {
+test("DOC-09: a deferred item is either skipped visibly and documented, or closed with a regression test", async () => {
   const { readdirSync, existsSync } = await import("node:fs");
   const roadmap = read("docs/roadmap.md");
   const deferred = [];
+  const tests = [];
   for (const dir of readdirSync(join(root, "packages"))) {
     const src = join(root, "packages", dir, "src");
     if (!existsSync(src)) continue;
     for (const file of readdirSync(src).filter((name) => name.endsWith(".test.ts"))) {
       const path = `packages/${dir}/src/${file}`;
-      for (const match of read(path).matchAll(/(?:it|test)\.skip\("([A-Z]+-\d+) \(deferred\)/g)) deferred.push({ id: match[1], path });
+      const text = read(path);
+      tests.push({ path, text });
+      for (const match of text.matchAll(/(?:it|test)\.skip\("([A-Z]+-\d+) \(deferred\)/g)) deferred.push({ id: match[1], path });
     }
   }
-  assert.ok(deferred.length > 0);
   for (const { id, path } of deferred) {
     const row = roadmap.split("\n").find((line) => new RegExp(`^\\|\\s*${id}\\s*\\|`).test(line));
     assert.ok(row, `${id} is skipped in ${path} but not listed in docs/roadmap.md`);
     assert.ok(row.includes(path), `${id} row must name ${path}`);
+  }
+  // Items the roadmap reports closed must each have a regression test named after them and no skip.
+  const closed = /deferred items of the M1 correctness audit \(([^)]+)\) are closed/.exec(roadmap);
+  assert.ok(closed, "docs/roadmap.md must list the closed deferred items");
+  const ids = closed[1].split(",").map((id) => id.trim());
+  assert.deepEqual(ids, ["GAP-14", "GAP-20", "PERF-11", "PERF-12", "PERF-14"]);
+  for (const id of ids) {
+    assert.ok(!deferred.some((entry) => entry.id === id), `${id} is reported closed but still skipped`);
+    const named = tests.filter(({ text }) => new RegExp(`(?:describe|it|test)(?:\\.each\\([^)]*\\))?\\(\\s*"${id}[:\\s]`).test(text));
+    assert.ok(named.length > 0, `${id} is reported closed but no test is named after it`);
   }
 });
 

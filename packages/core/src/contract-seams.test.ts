@@ -160,6 +160,19 @@ describe("observeUntilTerminal", () => {
     expect(calls).toBe(3);
   });
 
+  it("waits through a deadline of 2^31 ms or more instead of expiring after 1 ms", async () => {
+    // Node fires a setTimeout longer than 2^31 - 1 ms after 1 ms.
+    let calls = 0;
+    const value = await observeUntilTerminal(
+      async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return ++calls < 2 ? { done: false, state: "Deleting" } : { done: true, value: "deleted" as const };
+      },
+      { operation: "service.delete", resource: locator, deadlineMs: 2 ** 31, intervalMs: 5 }
+    );
+    expect(value).toBe("deleted");
+  });
+
   it("throws PendingOperationError with the last state when the deadline expires, never a terminal value", async () => {
     vi.useFakeTimers();
     const outcome = observeUntilTerminal(async () => ({ done: false, state: "Deleting" }), {
@@ -287,6 +300,14 @@ describe("capture bounds", () => {
     expect(truncation).toMatchObject({ truncated: true, reason: "bytes", capturedBytes: 25 });
     expect(cancelled).toBe(true);
     expect(pulls).toBeLessThan(10);
+  });
+
+  it("readBoundedText leaves the finished body locked instead of releasing the reader", async () => {
+    // releaseLock in Node builds an "invalid state" error whose first use creates a vm context (about 1 ms
+    // per process); a body that is closed or cancelled has no other reader to release it for.
+    const response = new Response("complete body");
+    await expect(readBoundedText(response, 1024)).resolves.toMatchObject({ text: "complete body", truncation: { truncated: false } });
+    expect(response.body?.locked).toBe(true);
   });
 
   it("maps with bounded concurrency, keeps input order and stops scheduling after a failure", async () => {

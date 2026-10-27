@@ -317,7 +317,7 @@ The selected policy (`--policy-file`, or `policyFile` from the config) is enforc
 - Capsule is not a sandbox by itself; isolation comes from the provider. Local Docker is not safe for hostile untrusted code by default.
 - Policy enforcement depends on adapter and provider support; unsupported enforcement is reported, not silently assumed.
 - Receipts are not signed attestations yet unless you configure a signer.
-- Gaps found in the M1 audit and left open (GAP-14, GAP-20, PERF-11, PERF-12, PERF-14) and the evidence class of each test layer are listed in the [roadmap](docs/roadmap.md#known-gaps-carried-forward).
+- Known limits and the evidence class of each test layer are listed in the [roadmap](docs/roadmap.md#known-limits).
 - Hosted persistence, auth, dashboards, queues, and server APIs are intentionally outside core.
 
 ## Docs

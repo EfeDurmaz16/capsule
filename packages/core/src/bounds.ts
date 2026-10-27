@@ -212,19 +212,18 @@ export async function readBoundedText(response: Response, maxBytes: number): Pro
   const reader = body.getReader();
   const streamDecoder = new TextDecoder();
   let text = "";
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const accepted = budget.takeBytes(value);
-      text += streamDecoder.decode(accepted, { stream: true });
-      if (budget.exhausted) {
-        await reader.cancel().catch(() => undefined);
-        break;
-      }
+  // The reader is not released afterwards: the body ends closed, cancelled or errored and nothing reads it
+  // again. In Node, releaseLock builds an "invalid state" error whose first use creates a vm context (about
+  // 1 ms per process), which made the first read slower than response.text() at 7d3a28a.
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const accepted = budget.takeBytes(value);
+    text += streamDecoder.decode(accepted, { stream: true });
+    if (budget.exhausted) {
+      await reader.cancel().catch(() => undefined);
+      break;
     }
-  } finally {
-    reader.releaseLock();
   }
   text += streamDecoder.decode();
   return { text, truncation: budget.truncation() };

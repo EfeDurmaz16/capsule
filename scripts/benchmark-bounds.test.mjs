@@ -7,9 +7,10 @@ import { checkBenchmarkBounds } from "../benchmarks/check-bounds.mjs";
 const root = join(import.meta.dirname, "..");
 const readSummary = (path) => JSON.parse(readFileSync(join(root, path), "utf8"));
 const baseline = readSummary("benchmarks/raw/baseline-7d3a28a/summary.json");
-const after = readSummary("benchmarks/after/raw/after-85506c1/summary.json");
+// The latest archived run on the M1 branch, which includes every bounded workload.
+const after = readSummary("benchmarks/after/raw/after-1f6518e/summary.json");
 
-test("CI-07: the archived M1 after run meets every deterministic bound", () => {
+test("CI-07: the latest archived M1 run meets every deterministic bound", () => {
   const report = checkBenchmarkBounds(after);
   assert.equal(
     report.failed,

@@ -1,6 +1,7 @@
 import {
   CreateServiceCommand,
   DeleteServiceCommand,
+  DescribeServiceDeploymentsCommand,
   DescribeServicesCommand,
   DescribeTasksCommand,
   ECSClient,
@@ -8,6 +9,7 @@ import {
   StopTaskCommand,
   UpdateServiceCommand,
   type Service,
+  type ServiceDeployment as EcsServiceDeployment,
   type Task
 } from "@aws-sdk/client-ecs";
 import {
@@ -43,7 +45,14 @@ import {
 interface ECSClientLike {
   send(
     command:
-      RunTaskCommand | CreateServiceCommand | DescribeTasksCommand | StopTaskCommand | DescribeServicesCommand | UpdateServiceCommand | DeleteServiceCommand,
+      | RunTaskCommand
+      | CreateServiceCommand
+      | DescribeTasksCommand
+      | StopTaskCommand
+      | DescribeServicesCommand
+      | DescribeServiceDeploymentsCommand
+      | UpdateServiceCommand
+      | DeleteServiceCommand,
     options?: { abortSignal?: AbortSignal }
   ): Promise<any>;
 }
@@ -235,10 +244,98 @@ function taskMetadata(task: Task | undefined, extra: Record<string, unknown> = {
   };
 }
 
-function serviceStatus(service?: Service): ServiceStatus {
+/**
+ * An older deployment with rolloutState FAILED next to a PRIMARY deployment that did not fail is
+ * ambiguous in DescribeServices alone (GAP-14): a circuit-breaker rollback and a user's superseding
+ * redeploy both look like that. The service deployment that `currentServiceDeployment` names separates
+ * them: a rollback moves that same service deployment to ROLLBACK_*, a new deployment started by the
+ * user is a new service deployment that is PENDING, IN_PROGRESS or SUCCESSFUL.
+ */
+function hasSupersededFailedDeployment(service: Service | undefined): boolean {
+  const deployments = service?.deployments ?? [];
+  const primary = deployments.find((deployment) => deployment.status === "PRIMARY");
+  if (!primary || primary.rolloutState === "FAILED") return false;
+  return deployments.some((deployment) => deployment !== primary && deployment.rolloutState === "FAILED");
+}
+
+/** How the ambiguous FAILED deployment was resolved, kept in status metadata. */
+interface ServiceDeploymentResolution {
+  source: "describe-service-deployments" | "unavailable";
+  /** ARN from DescribeServices currentServiceDeployment, when ECS returned one. */
+  serviceDeploymentArn?: string;
+  status?: string;
+  statusReason?: string;
+  rollback?: { reason?: string; startedAt?: string; serviceRevisionArn?: string };
+  /** Why the current service deployment could not be read; the status then stays failed. */
+  reason?: string;
+}
+
+// Service deployment states in which the user's most recent deployment has not failed. Every other state
+// (ROLLBACK_*, STOP_REQUESTED, STOPPED, or a value this adapter does not know) keeps the conservative failed.
+const currentDeploymentNotFailed = new Set(["PENDING", "IN_PROGRESS", "SUCCESSFUL"]);
+
+async function resolveCurrentServiceDeployment(client: ECSClientLike, service: Service): Promise<ServiceDeploymentResolution> {
+  const serviceDeploymentArn = service.currentServiceDeployment;
+  if (!serviceDeploymentArn) {
+    return { source: "unavailable", reason: "DescribeServices returned no currentServiceDeployment." };
+  }
+  let current: EcsServiceDeployment | undefined;
+  try {
+    const response: { serviceDeployments?: EcsServiceDeployment[] } = await client.send(
+      new DescribeServiceDeploymentsCommand({ serviceDeploymentArns: [serviceDeploymentArn] })
+    );
+    current = response.serviceDeployments?.find((deployment) => deployment.serviceDeploymentArn === serviceDeploymentArn);
+  } catch (error) {
+    // For example AccessDeniedException without ecs:DescribeServiceDeployments. The status stays failed,
+    // which is what DescribeServices alone supports.
+    return { source: "unavailable", serviceDeploymentArn, reason: `DescribeServiceDeployments failed: ${errorName(error)}` };
+  }
+  if (!current) {
+    return { source: "unavailable", serviceDeploymentArn, reason: "DescribeServiceDeployments did not return the current service deployment." };
+  }
+  if (current.serviceArn !== undefined && service.serviceArn !== undefined && current.serviceArn !== service.serviceArn) {
+    return { source: "unavailable", serviceDeploymentArn, reason: "The current service deployment belongs to a different service." };
+  }
+  return {
+    source: "describe-service-deployments",
+    serviceDeploymentArn,
+    status: current.status,
+    statusReason: current.statusReason,
+    ...(current.rollback
+      ? {
+          rollback: {
+            reason: current.rollback.reason,
+            startedAt: current.rollback.startedAt?.toISOString(),
+            serviceRevisionArn: current.rollback.serviceRevisionArn
+          }
+        }
+      : {})
+  };
+}
+
+// Name of the provider error under Capsule's AdapterExecutionError wrapper, for example AccessDeniedException.
+function errorName(error: unknown): string {
+  let name = error instanceof Error ? error.name : typeof error;
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && typeof current === "object" && current !== null; depth += 1) {
+    const candidate = (current as { name?: unknown }).name;
+    if (typeof candidate === "string" && candidate !== "") name = candidate;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return name;
+}
+
+function serviceStatus(service?: Service, resolution?: ServiceDeploymentResolution): ServiceStatus {
   if (!service) return "failed";
   if (service.status === "INACTIVE") return "deleted";
-  if (service.deployments?.some((deployment) => deployment.rolloutState === "FAILED")) return "failed";
+  if (service.deployments?.some((deployment) => deployment.rolloutState === "FAILED")) {
+    // Only an older FAILED deployment that the current service deployment superseded is ignored.
+    const superseded =
+      hasSupersededFailedDeployment(service) &&
+      resolution?.source === "describe-service-deployments" &&
+      currentDeploymentNotFailed.has(resolution.status ?? "");
+    if (!superseded) return "failed";
+  }
   if (service.status === "DRAINING") return "deploying";
 
   const desired = service.desiredCount ?? 0;
@@ -254,6 +351,7 @@ function serviceMetadata(service: Service | undefined, extra: Record<string, unk
     serviceArn: service?.serviceArn,
     serviceName: service?.serviceName,
     status: service?.status,
+    currentServiceDeployment: service?.currentServiceDeployment,
     desiredCount: service?.desiredCount,
     runningCount: service?.runningCount,
     pendingCount: service?.pendingCount,
@@ -607,12 +705,20 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
       },
       status: async (spec: ServiceStatusSpec, context: AdapterContext): Promise<ServiceStatusResult> => {
         const startedAt = new Date();
-        const response = await getClient().send(new DescribeServicesCommand({ cluster: options.cluster, services: [spec.id] }));
-        const service = response.services?.[0];
+        const client = getClient();
+        const response = await client.send(new DescribeServicesCommand({ cluster: options.cluster, services: [spec.id] }));
+        const service: Service | undefined = response.services?.[0];
         const failure = response.failures?.[0];
-        const status = serviceStatus(service);
+        // A second read happens only for the ambiguous rollout shape (GAP-14).
+        const deploymentResolution = service && hasSupersededFailedDeployment(service) ? await resolveCurrentServiceDeployment(client, service) : undefined;
+        const status = serviceStatus(service, deploymentResolution);
         const id = service?.serviceArn ?? failure?.arn ?? spec.id;
         const name = service?.serviceName ?? spec.id;
+        const statusMetadata = serviceMetadata(service, {
+          cluster: options.cluster,
+          failures: response.failures,
+          ...(deploymentResolution ? { serviceDeployment: deploymentResolution } : {})
+        });
         const receipt = context.receipts
           ? context.createReceipt({
               type: "service.status",
@@ -621,10 +727,17 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
               policy: {
                 decision: "allowed",
                 applied: context.policy,
-                notes: ["ECS service status is read from DescribeServices rollout and count fields."]
+                notes: [
+                  "ECS service status is read from DescribeServices rollout and count fields.",
+                  ...(deploymentResolution
+                    ? [
+                        "An older FAILED deployment next to a PRIMARY deployment that did not fail is resolved with DescribeServiceDeployments on currentServiceDeployment: a rollback reports failed, a newer deployment reports its own progress."
+                      ]
+                    : [])
+                ]
               },
               resource: { id, name, status },
-              metadata: serviceMetadata(service, { cluster: options.cluster, failures: response.failures })
+              metadata: statusMetadata
             })
           : undefined;
         return {
@@ -633,7 +746,7 @@ export function ecs(options: ECSAdapterOptions): CapsuleAdapter {
           name,
           status,
           receipt,
-          metadata: serviceMetadata(service, { cluster: options.cluster, failures: response.failures })
+          metadata: statusMetadata
         };
       },
       delete: async (spec: DeleteServiceSpec, context: AdapterContext): Promise<DeletedService> => {

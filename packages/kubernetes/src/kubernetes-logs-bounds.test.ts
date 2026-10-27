@@ -149,3 +149,110 @@ describe("kubernetes bounded log capture (PERF-05)", () => {
     expect(reads.length).toBeLessThanOrEqual(20);
   });
 });
+
+describe("kubernetes log ordering and redaction cost (PERF-05 A/B against 7d3a28a)", () => {
+  // Reference instant for an RFC3339 timestamp in nanoseconds, written independently of the adapter.
+  function referenceNanos(timestamp: string): bigint | undefined {
+    const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$/.exec(timestamp);
+    if (!match) {
+      // Other forms Date.parse accepts compare at millisecond precision.
+      const millis = Date.parse(timestamp);
+      return Number.isNaN(millis) ? undefined : BigInt(millis) * 1_000_000n;
+    }
+    const millis = Date.parse(`${match[1]}${match[3]}`);
+    return Number.isNaN(millis) ? undefined : BigInt(millis) * 1_000_000n + BigInt((match[2] ?? "").padEnd(9, "0"));
+  }
+
+  it("orders every timestamp form by its instant: fraction lengths 0 to 9, Z and offsets, longer fractions", async () => {
+    const stamps = [
+      "2026-10-25T10:00:00Z",
+      "2026-10-25T10:00:00.5Z",
+      "2026-10-25T10:00:00.45Z",
+      "2026-10-25T10:00:00.450000001Z",
+      "2026-10-25T10:00:00.000000001Z",
+      "2026-10-25T12:00:00.1+02:00",
+      "2026-10-25T09:59:59.999999999Z",
+      "2026-10-25T10:00:01Z",
+      "2026-10-25T10:00:00.123456789-01:00",
+      "2026-10-25T10:00:00.1234567891Z",
+      "2026-02-30T10:00:00Z"
+    ];
+    const capsule = podsCapsule(stamps.length, async ({ name }) => {
+      const index = Number(name.slice(4));
+      return `${stamps[index]} line-${index}\n`;
+    });
+    const { logs } = await capsule.service.logs({ id: "svc" });
+    const expected = stamps
+      .map((stamp, index) => ({ index, nanos: referenceNanos(stamp) }))
+      .sort((left, right) =>
+        left.nanos === undefined || right.nanos === undefined
+          ? left.nanos === right.nanos
+            ? left.index - right.index
+            : left.nanos === undefined
+              ? -1
+              : 1
+          : left.nanos < right.nanos
+            ? -1
+            : left.nanos > right.nanos
+              ? 1
+              : left.index - right.index
+      )
+      .map(({ index }) => `line-${index}`);
+    expect(logs.map((entry) => entry.message)).toEqual(expected);
+  });
+
+  it("redacts every pod's own value from its lines", async () => {
+    const capsule = podsCapsule(120, async ({ name }) => {
+      const index = Number(name.slice(4));
+      return Array.from(
+        { length: 25 },
+        (_, line) =>
+          `2026-10-25T10:${String(line).padStart(2, "0")}:${String(index % 60).padStart(2, "0")}.${String(index).padStart(9, "0")}Z ${name} token=synthetic-secret-${index}`
+      ).join("\n");
+    });
+    const { logs } = await capsule.service.logs({ id: "svc" });
+    expect(logs).toHaveLength(3000);
+    expect(logs.some((entry) => entry.message.includes("synthetic-secret-"))).toBe(false);
+    expect(logs.every((entry) => entry.message.endsWith("token=[REDACTED]"))).toBe(true);
+  });
+});
+
+describe("kubernetes log deadline longer than a timer can wait", () => {
+  it("does not expire after 1 ms when bounds.deadlineMs is 2^31 ms or more", async () => {
+    // Node fires a setTimeout longer than 2^31 - 1 ms after 1 ms; the deadline must wait instead.
+    const capsule = podsCapsule(3, async ({ name }) => {
+      await delay(20);
+      return `2026-10-25T10:00:00.00000000${name.slice(-1)}Z ${name}\n`;
+    });
+    const result = await capsule.service.logs({ id: "svc", bounds: { deadlineMs: 2 ** 31 } });
+    expect(result.logs.map((entry) => entry.message)).toEqual(["pod-00", "pod-01", "pod-02"]);
+    expect(result.truncation?.truncated).toBe(false);
+  });
+});
+
+describe("kubernetes log line parsing without match arrays (PERF-05)", () => {
+  it("splits timestamp and message exactly as the capturing pattern did", async () => {
+    const lines = [
+      "2026-10-25T10:00:00.000000001Z plain message",
+      "2026-10-25T10:00:00.000000002Z\ttab separated",
+      "2026-10-25T10:00:00.000000003Z no-break space",
+      "2026-10-25T10:00:00.000000004Z line separator as the gap",
+      "2026-10-25T10:00:00.000000005Z message with   inside",
+      "2026-10-25T10:00:00.000000006Z message with \r inside",
+      "2026-10-25T10:00:00.000000007Z",
+      "2026-10-25T not-a-time message",
+      "2026-1-25T10:00:00Z short month",
+      "no timestamp at all",
+      "2026-10-25T10:00:00.000000008Z  two spaces"
+    ];
+    const capsule = podsCapsule(1, async () => lines.join("\n"));
+    const { logs } = await capsule.service.logs({ id: "svc" });
+    const reference = lines.map((line) => {
+      const match = /^(\d{4}-\d{2}-\d{2}T\S+)\s(.*)$/.exec(line);
+      return match && !Number.isNaN(Date.parse(match[1]!.replace(/(\.\d{3})\d+(Z|[+-]\d{2}:\d{2})$/, "$1$2"))) ? match[2]! : line;
+    });
+    expect([...logs.map((entry) => entry.message)].sort()).toEqual([...reference].sort());
+    const timestamped = logs.filter((entry) => entry.timestamp.startsWith("2026-10-25T10:00:00.00000000"));
+    expect(timestamped.map((entry) => entry.message)).toEqual(["plain message", "tab separated", "no-break space", "line separator as the gap", " two spaces"]);
+  });
+});

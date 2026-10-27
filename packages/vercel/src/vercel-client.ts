@@ -194,11 +194,14 @@ export class VercelClient {
     });
     const controller = new AbortController();
     let deadlineHit = false;
-    const timer = setTimeout(() => {
-      deadlineHit = true;
-      controller.abort(new Error(`Vercel runtime log read deadline of ${bounds.deadlineMs}ms expired.`));
-    }, bounds.deadlineMs);
-    const encoder = new TextEncoder();
+    const timer = setTimeout(
+      () => {
+        deadlineHit = true;
+        controller.abort(new Error(`Vercel runtime log read deadline of ${bounds.deadlineMs}ms expired.`));
+        // Node fires a setTimeout longer than 2^31 - 1 ms after 1 ms; a longer deadline uses the largest delay.
+      },
+      Math.min(bounds.deadlineMs, 2_147_483_647)
+    );
     const logs: VercelRuntimeLog[] = [];
     let capturedBytes = 0;
     let malformedRecords = 0;
@@ -217,7 +220,6 @@ export class VercelClient {
       }
       // Older or proxied responses may carry a JSON array of records on one line.
       const items = Array.isArray(parsed) ? parsed : [parsed];
-      const lineBytes = encoder.encode(trimmed).byteLength;
       for (const item of items) {
         if (stopped || providerLimit) return;
         const log = record(item) as VercelRuntimeLog | undefined;
@@ -229,7 +231,8 @@ export class VercelClient {
           providerLimit = true;
           return;
         }
-        const size = items.length === 1 ? lineBytes : encoder.encode(JSON.stringify(item)).byteLength;
+        // UTF-8 size without encoding a copy: the line for one record, the record itself inside an array.
+        const size = Buffer.byteLength(items.length === 1 ? trimmed : JSON.stringify(item), "utf8");
         if (capturedBytes + size > bounds.maxBytes) {
           stopped = { reason: "bytes", limit: bounds.maxBytes };
           return;
@@ -285,7 +288,7 @@ export class VercelClient {
                 newline = pending.indexOf("\n");
               }
               // The remainder is at most the tail of this chunk, so re-measuring it stays linear overall.
-              pendingBytes = encoder.encode(pending).byteLength;
+              pendingBytes = Buffer.byteLength(pending, "utf8");
             } else {
               pendingBytes += chunk.value.byteLength;
             }
@@ -298,7 +301,9 @@ export class VercelClient {
         } finally {
           controller.signal.removeEventListener("abort", onAbort);
           if (stopped || providerLimit) await reader.cancel().catch(() => undefined);
-          reader.releaseLock();
+          // No releaseLock: the body is closed, cancelled or errored here and nothing reads it again. In
+          // Node, releaseLock builds an "invalid state" error whose first use creates a vm context (about
+          // 1 ms per process), which made the first runtime log read slower than at 7d3a28a.
         }
       } else if (deadlineHit) {
         stopped = { reason: "deadline", limit: bounds.deadlineMs };

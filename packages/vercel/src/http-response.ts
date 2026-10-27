@@ -64,14 +64,20 @@ export interface BoundedFetchInput {
   limits: HttpLimits;
 }
 
+// Node fires a setTimeout longer than 2^31 - 1 ms after 1 ms; a longer wait uses the largest delay.
+const maxTimerDelayMs = 2_147_483_647;
+
 export async function fetchWithinLimits(input: BoundedFetchInput): Promise<BoundedHttpResponse> {
   const method = (input.init.method ?? "GET").toUpperCase();
   const controller = new AbortController();
   let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    controller.abort(new Error(`${input.provider} API request deadline of ${input.limits.requestTimeoutMs}ms expired.`));
-  }, input.limits.requestTimeoutMs);
+  const timer = setTimeout(
+    () => {
+      timedOut = true;
+      controller.abort(new Error(`${input.provider} API request deadline of ${input.limits.requestTimeoutMs}ms expired.`));
+    },
+    Math.min(input.limits.requestTimeoutMs, maxTimerDelayMs)
+  );
   try {
     const response = await untilAborted(input.fetchImpl(input.url, { ...input.init, signal: controller.signal }), controller.signal);
     const declared = Number(response.headers.get("content-length"));
@@ -179,7 +185,9 @@ export async function readCapped(response: Response, maxBytes: number, signal: A
     }
   } finally {
     signal.removeEventListener("abort", onAbort);
-    reader.releaseLock();
+    // No releaseLock: the body is closed, cancelled or errored here and nothing reads it again. In Node,
+    // releaseLock builds an "invalid state" error whose first use creates a vm context (about 1 ms per
+    // process), which made the first request slower than response.text() at 7d3a28a.
   }
   return { text: text + decoder.decode(), bytes, overflowed };
 }
