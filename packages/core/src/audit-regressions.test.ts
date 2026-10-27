@@ -100,7 +100,7 @@ describe("M1 audit regressions: core", () => {
     expect(outcome).toBe("resolved");
   });
 
-  it.fails("CORE-01: a non-retaining store lets completed receipts be collected while the sandbox stays live", async () => {
+  it("CORE-01: a non-retaining store lets completed receipts be collected while the sandbox stays live", async () => {
     const capsule = new Capsule({ adapter: sandboxAdapter(async () => okResult()), receipts: true, receiptStore: { write() {} } });
     const box = await capsule.sandbox.create({});
     const refs: WeakRef<object>[] = [];

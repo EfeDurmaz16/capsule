@@ -72,7 +72,6 @@ interface ContextRuntime {
   context: AdapterContext;
   defaultOptions: ContextOptions;
   pendingWrites: Promise<void>[];
-  receipts: CapsuleReceipt[];
 }
 
 function receiptScope(type: CapsuleReceipt["type"], capabilityPath: CapabilityPath): ReceiptScope {
@@ -626,8 +625,7 @@ export class Capsule {
     const runtime: ContextRuntime = {
       context: undefined as unknown as AdapterContext,
       defaultOptions: normalizedOptions,
-      pendingWrites: [],
-      receipts: []
+      pendingWrites: []
     };
     runtime.context = this.context(runtime);
     return runtime;
@@ -848,7 +846,6 @@ export class Capsule {
           },
           this.options.receiptSigner
         );
-        runtime.receipts.push(receipt);
         if (options.receiptCounter) {
           options.receiptCounter.count += 1;
         }
