@@ -192,7 +192,9 @@ const higherIsBetter = (metric) => /opsPerSecond|throughput/i.test(metric);
 // leaks. Every other numeric metric is a count of what the workload did (entries returned, requests in
 // flight, ...), so a difference there is reported as "changed", never as better or worse.
 const isCost = (metric) =>
-  /(Ms|ms)($|\.)|Rss|rss|heap|Heap|bytesRead|bytesEmitted|Spawns|PrepareCalls|PrepareMs|readCalls|uniqueSdkClients|leakedSecrets|receiptsStillReachable|bRejectedWithAError/.test(metric);
+  /(Ms|ms)($|\.)|Rss|rss|heap|Heap|bytesRead|bytesEmitted|Spawns|PrepareCalls|PrepareMs|readCalls|uniqueSdkClients|leakedSecrets|receiptsStillReachable|bRejectedWithAError/.test(
+    metric
+  );
 
 function bootstrapMedianInterval(ratios, random) {
   const medians = [];
