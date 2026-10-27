@@ -75,7 +75,6 @@ These items were found in the M1 correctness audit and deliberately left open. E
 
 | Id      | Current behavior                                                  | What it waits for                                                                                                                                                              |
 | ------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| PERF-12 | `@capsule-sdk/store-sqlite` prepares statements per call.         | A SQLite benchmark that separates prepare cost from commit cost; reuse only if it shows a win. Skipped test: `packages/store-sqlite/src/sqlite.test.ts`.                       |
 | PERF-14 | Docker sandbox artifact collection runs one `docker cp` per path. | A spawn-count, bytes and time profile for 1, 10 and 100 paths; any batch must keep the current artifact layout. Skipped test: `packages/docker/src/audit-regressions.test.ts`. |
 
 Other limits that stay visible:
