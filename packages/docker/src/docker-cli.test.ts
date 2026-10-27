@@ -32,4 +32,19 @@ describe.skipIf(process.platform === "win32")("runDocker", () => {
     await expect(runDocker(["exec", "-i", "c", "cat"], { input: "hello\n", timeoutMs: 5_000 })).resolves.toMatchObject({ exitCode: 0, stdout: "hello\n" });
     await expect(runDocker(["exec", "-i", "c", "cat"], { input: "", timeoutMs: 5_000 })).resolves.toMatchObject({ exitCode: 0, stdout: "" });
   });
+
+  it("GAP-01: a timeout kills the local CLI and marks the result as timed out", async () => {
+    fakeDocker("sleep 5");
+    const started = Date.now();
+    const result = await runDocker(["run", "image"], { timeoutMs: 100 });
+    expect(result).toMatchObject({ exitCode: 124, timedOut: true });
+    expect(Date.now() - started).toBeLessThan(4_000);
+  });
+
+  it("GAP-01: a command that exits 124 by itself is not a timeout", async () => {
+    fakeDocker("exit 124");
+    const result = await runDocker(["run", "image"], { timeoutMs: 5_000 });
+    expect(result.exitCode).toBe(124);
+    expect(result.timedOut).toBeUndefined();
+  });
 });

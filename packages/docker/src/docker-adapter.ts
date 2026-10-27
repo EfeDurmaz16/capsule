@@ -1,10 +1,12 @@
 import { mkdir, mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, posix } from "node:path";
 import {
   AdapterExecutionError,
   CleanupFailureError,
   PartialEffectsError,
+  UnknownOutcomeError,
   providerExecutionError,
   resourceLocator,
   type AdapterContext,
@@ -356,6 +358,65 @@ async function rollbackCreatedContainer(runner: DockerRunner, locator: ResourceL
   });
 }
 
+const dockerRunLabelKey = "capsule_docker_run";
+
+interface ReapedJob {
+  termination: "removed" | "not-created";
+  containers: string[];
+  note: string;
+}
+
+// runDocker's timeout only kills the local docker CLI. The container keeps running in the daemon, and
+// --rm removes it only when it exits on its own. Find it by its run label and remove it with docker
+// rm -f, which kills and removes it and exits 0 only once the daemon has done so. If that cannot be
+// confirmed the job's outcome is unknown and the container is reported as a residual resource.
+async function reapTimedOutJob(
+  runner: DockerRunner,
+  runLabel: string,
+  timedOut: DockerCommandResult,
+  env: Record<string, string> | undefined,
+  context: AdapterContext
+): Promise<ReapedJob> {
+  const labelLocator = resourceLocator({ provider, kind: "job-container", nativeId: runLabel, scope: { label: runLabel } });
+  const primaryError = providerExecutionError(
+    "Docker job timed out; the docker CLI was killed.",
+    { category: "retryable", retryable: true },
+    { exitCode: timedOut.exitCode, stderr: redactSecrets(timedOut.stderr, env, context.policy) }
+  );
+  const fail = (cleanupError: unknown, residual: ResourceLocator[]): never => {
+    throw new CleanupFailureError(
+      `Docker job timed out and its container could not be confirmed removed: ${errorMessage(cleanupError)}`,
+      { action: "remove-timed-out-job-container", runLabel, status: "failed", error: errorMessage(cleanupError) },
+      primaryError,
+      { operation: "job.run", outcome: "unknown", resources: residual, primaryError, cleanup: { status: "failed", resources: residual, residual, error: cleanupError } }
+    );
+  };
+  let listed: DockerCommandResult;
+  try {
+    listed = await runner(["ps", "-a", "-q", "--no-trunc", "--filter", `label=${runLabel}`], { timeoutMs: 20_000 });
+  } catch (error) {
+    return fail(error, [labelLocator]);
+  }
+  if (listed.exitCode !== 0) {
+    return fail(dockerCliError(`docker ps failed while reaping a timed-out job: ${listed.stderr}`, listed), [labelLocator]);
+  }
+  const containers = listed.stdout.split("\n").map((line) => line.trim()).filter(Boolean);
+  if (containers.length === 0) {
+    return { termination: "not-created", containers, note: "No container was created for this job before the timeout." };
+  }
+  const residual = containers.map((id) => resourceLocator({ provider, kind: "job-container", nativeId: id, scope: { label: runLabel } }));
+  let removed: DockerCommandResult;
+  try {
+    removed = await runner(["rm", "-f", ...containers], { timeoutMs: 20_000 });
+  } catch (error) {
+    return fail(error, residual);
+  }
+  if (removed.exitCode !== 0 && !isNoSuchContainer(removed.stderr)) {
+    return fail(dockerCliError(`docker rm failed while reaping a timed-out job: ${removed.stderr}`, removed), residual);
+  }
+  return { termination: "removed", containers, note: `Removed timed-out job container ${containers.join(", ")}.` };
+}
+
 async function ensureDocker(checkAvailable: () => Promise<boolean>): Promise<void> {
   if (!(await checkAvailable())) {
     throw providerExecutionError("Docker CLI is not available or the Docker daemon is not reachable.", { category: "retryable", retryable: true });
@@ -383,6 +444,22 @@ class DockerSandbox implements Sandbox {
       timeoutMs: spec.timeoutMs,
       input: spec.input
     });
+    if (result.timedOut) {
+      // Killing the docker exec client does not stop the process inside the container, so a timeout
+      // proves nothing about the command. Report the outcome as unknown instead of an exit code.
+      throw new UnknownOutcomeError(
+        `Docker exec timed out after ${spec.timeoutMs}ms; the command may still be running in container ${this.handle.id}.`,
+        { operation: "sandbox.exec", resource: resourceLocator({ provider, kind: "sandbox", nativeId: this.handle.id }) },
+        providerExecutionError(
+          "Docker exec timed out; the docker CLI was killed.",
+          { category: "retryable", retryable: true },
+          {
+            exitCode: result.exitCode,
+            stderr: redactSecrets(result.stderr, spec.env, this.context.policy)
+          }
+        )
+      );
+    }
     const stdout = redactSecrets(result.stdout, spec.env, this.context.policy);
     const stderr = redactSecrets(result.stderr, spec.env, this.context.policy);
     const artifacts = placements ? await collectSandboxArtifacts(this.runner, this.handle.id, placements) : [];
@@ -500,6 +577,15 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
           }),
           { timeoutMs: spec.timeoutMs }
         );
+        if (create.timedOut) {
+          // The daemon may have created the container after the CLI was killed. Its id is unknown, so it is
+          // reported by name and not removed here: the name could also belong to an unrelated container.
+          throw new UnknownOutcomeError(
+            `docker create timed out after ${spec.timeoutMs}ms; container ${name} may exist.`,
+            { operation: "sandbox.create", resource: resourceLocator({ provider, kind: "sandbox", nativeId: name, scope: { name } }) },
+            dockerCliError(`docker create timed out: ${create.stderr}`, create)
+          );
+        }
         if (create.exitCode !== 0) {
           throw dockerCliError(`docker create failed: ${create.stderr}`, create);
         }
@@ -540,11 +626,16 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
         const command = spec.command ? normalizeCommand(spec.command) : [];
+        // A per-run label gives the container an identity Capsule can find again even if the CLI is
+        // killed before it reports the container id.
+        const runLabel = `${dockerRunLabelKey}=${randomUUID()}`;
         const result = await runner(
           [
             "run",
             "--rm",
             ...(context.policy.network?.mode === "none" ? ["--network", "none"] : []),
+            "--label",
+            runLabel,
             ...labelArgs({ ...(spec.labels ?? {}), ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "job.run" }) ?? {}) }),
             ...envArgs(spec.env),
             ...resourceArgs(spec.resources),
@@ -553,8 +644,9 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
           ],
           { timeoutMs: spec.timeoutMs }
         );
+        const reaped = result.timedOut ? await reapTimedOutJob(runner, runLabel, result, spec.env, context) : undefined;
         const stdout = redactSecrets(result.stdout, spec.env, context.policy);
-        const stderr = redactSecrets(result.stderr, spec.env, context.policy);
+        const stderr = redactSecrets(reaped ? `${result.stderr}\n${reaped.note}` : result.stderr, spec.env, context.policy);
         const receipt = context.receipts
           ? context.createReceipt({
               type: "job.run",
@@ -566,7 +658,8 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
               stdout,
               stderr,
               policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
-              resource: { id: spec.name, name: spec.name, status: result.exitCode === 0 ? "succeeded" : "failed" }
+              resource: { id: spec.name, name: spec.name, status: result.exitCode === 0 ? "succeeded" : "failed" },
+              metadata: { runLabel, ...(reaped ? { timedOut: true, termination: reaped.termination, containers: reaped.containers } : {}) }
             })
           : undefined;
         return {

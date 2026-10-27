@@ -4,6 +4,11 @@ export interface DockerCommandResult {
   exitCode: number;
   stdout: string;
   stderr: string;
+  /**
+   * True when runDocker gave up after timeoutMs and killed the local docker CLI process. Killing the
+   * client does not stop the container or exec'd process in the daemon; callers must reconcile.
+   */
+  timedOut?: boolean;
 }
 
 export interface RunDockerOptions {
@@ -29,6 +34,7 @@ export function runDocker(args: string[], options: RunDockerOptions = {}): Promi
             child.kill("SIGKILL");
             resolve({
               exitCode: 124,
+              timedOut: true,
               stdout,
               stderr: stderr ? `${stderr}\nCommand timed out after ${options.timeoutMs}ms` : `Command timed out after ${options.timeoutMs}ms`
             });
