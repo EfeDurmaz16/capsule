@@ -9,6 +9,10 @@
 // Engine measurement of about 28 ms median per single-file `docker cp` on the benchmark host; it is not a
 // claim about any other Docker host.
 //
+// The nested cases request /work and then each /work/d<i>/out.txt inside it, so every copy takes the
+// sequential branch that checks each destination directory for planted symbolic links; they measure that
+// check against the same number of docker cp spawns.
+//
 // The opt-in real-docker cases run the same collection against a real local Docker Engine with a local
 // image named by CAPSULE_BENCH_REAL_DOCKER_IMAGE (never pulled; the container has --network none and is
 // removed afterwards). They are skipped unless that variable is set.
@@ -32,12 +36,12 @@ function measured(result, error, params, elapsedMs, rssBefore, before, spawns) {
   const artifacts = result?.artifacts ?? [];
   const layout = artifacts.map((artifact) => `${artifact.path}\t${artifact.sha256}\t${artifact.sizeBytes ?? ""}`).sort();
   // One path keeps the plain basename; several keep their location below the deepest shared directory.
-  const expected = Array.from(
-    { length: params.paths },
-    (_, index) => `${params.paths === 1 ? "" : `d${index}/`}out.txt\t${sha256(contentFor(index))}\t${fileBytes}`
-  ).sort();
+  // Nested requests share the root, so files keep work/d<i>/out.txt and each is collected once.
+  const prefix = (index) => (params.nested ? `work/d${index}/` : params.paths === 1 ? "" : `d${index}/`);
+  const expected = Array.from({ length: params.paths }, (_, index) => `${prefix(index)}out.txt\t${sha256(contentFor(index))}\t${fileBytes}`).sort();
   return {
     paths: params.paths,
+    requestedPaths: requestedPaths(params).length,
     outcome: error ? "rejected" : "resolved",
     error: describeError(error),
     elapsedMs,
@@ -50,6 +54,11 @@ function measured(result, error, params, elapsedMs, rssBefore, before, spawns) {
     peakRssGrowthBytes: maxRssBytes() - rssBefore,
     heapUsedDeltaBytes: after.heapUsed - before.heapUsed
   };
+}
+
+function requestedPaths(params) {
+  const files = Array.from({ length: params.paths }, (_, index) => `/work/d${index}/out.txt`);
+  return params.nested ? ["/work", ...files] : files;
 }
 
 async function runFake(params) {
@@ -69,7 +78,7 @@ async function runFake(params) {
     const { Capsule } = await loadPackage("core");
     const { docker } = await loadPackage("docker");
     const box = await new Capsule({ adapter: docker() }).sandbox.create({ image: "bench-fake-image" });
-    const artifactPaths = Array.from({ length: params.paths }, (_, index) => `/work/d${index}/out.txt`);
+    const artifactPaths = requestedPaths(params);
     writeFileSync(log, "");
     await settleGc();
     const before = memory();
@@ -151,6 +160,13 @@ export const workload = {
       name: `paths-${paths}-latency-25ms`,
       params: { paths, latencySeconds: 0.025 },
       description: `${paths} artifact paths, fake docker cp with a modelled 25 ms CLI round trip per call.`,
+      headline,
+      run: ({ params }) => runFake(params)
+    })),
+    ...[10, 100].map((paths) => ({
+      name: `nested-${paths}`,
+      params: { paths, nested: true },
+      description: `/work plus the ${paths} files inside it, fake docker cp without added latency: sequential copies with the destination check.`,
       headline,
       run: ({ params }) => runFake(params)
     })),
