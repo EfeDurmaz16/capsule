@@ -1,0 +1,237 @@
+# Capsule gate record
+commit: a69ab10f85925ad45d5b7501f709c83f9bef9f06
+date: 2026-10-27T21:50:10.242Z
+host: darwin 25.6.0 arm64, cpus=18 (Apple M5 Pro), mem=48GiB
+node: v22.23.2
+pnpm: 10.32.1
+gates: same commands as the .github/workflows/ci.yml jobs (verify, Node compatibility, benchmark bounds), run locally in order
+
+## summary
+PASS           install                  1.7s  $ pnpm install --frozen-lockfile
+PASS           provider-matrix-check    1.2s  $ pnpm capsule:gap:check
+PASS           format                   5.9s  $ pnpm format:check
+PASS           typecheck                6.9s  $ pnpm typecheck
+PASS           test                     17.6s  $ pnpm test  [Test Files  80 passed | 11 skipped (91) | Tests  1017 passed | 25 skipped (1042) | Duration  10.27s (transform 14.20s, setup 0ms, import 35.05s, tests 37.20s, environment 8ms) | ℹ tests 62 | ℹ pass 62 | ℹ fail 0 | ℹ skipped 0 | ℹ todo 0]
+PASS           build                    27.0s  $ pnpm build
+PASS           release-audit            70.5s  $ pnpm release:audit
+PASS           api-reference-current    6.0s  $ pnpm docs:api:check
+PASS           package-exports          10.1s  $ pnpm test:package-exports  [Test Files  1 passed (1) | Tests  3 passed (3) | Duration  8.19s (transform 45ms, setup 0ms, import 59ms, tests 7.88s, environment 0ms)]
+PASS           pack-smoke-compatible    75.1s  $ pnpm release:pack-smoke:compatible
+PASS           benchmark-bounds         15.1s  $ pnpm bench:bounds
+
+## install: PASS in 1.7s
+$ pnpm install --frozen-lockfile
+  Scope: all 33 workspace projects
+  Lockfile is up to date, resolution step is skipped
+  Already up to date
+  
+  Done in 1s using pnpm v10.32.1
+
+## provider-matrix-check: PASS in 1.2s
+$ pnpm capsule:gap:check
+  | @capsule-sdk/kubernetes | 12 | 0 | 2 | 26 |
+  | @capsule-sdk/lambda | 1 | 1 | 0 | 35 |
+  | @capsule-sdk/ecs | 8 | 1 | 0 | 31 |
+  | @capsule-sdk/ec2 | 5 | 0 | 1 | 34 |
+  | @capsule-sdk/fly | 7 | 0 | 2 | 8 |
+  | @capsule-sdk/azure | 10 | 0 | 1 | 7 |
+  
+  ## Mock-First Example References
+  - examples/agent-code-execution/package.json
+  - examples/agent-code-execution/src/index.ts
+  - examples/agent-preview-environment/package.json
+  - examples/agent-preview-environment/src/index.ts
+  - examples/capability-check/package.json
+  - examples/capability-check/src/index.ts
+  - examples/policy-receipts/package.json
+  - examples/policy-receipts/src/index.ts
+  - examples/preview-environment-model/package.json
+  - examples/preview-environment-model/src/index.ts
+  - examples/stripe-projects-provisioning/package.json
+  - examples/stripe-projects-provisioning/src/index.ts
+  
+  ## Recommended Next Work
+  - Reduce unsupported counts by implementing explicit lifecycle operations, not by pretending support exists.
+  - Move examples to env-gated real adapters while preserving mock mode for credential-free docs.
+  - Add live tests behind CAPSULE_LIVE_TESTS=1 and provider-specific credentials.
+
+## format: PASS in 5.9s
+$ pnpm format:check
+  
+  > capsule@0.1.0 format:check /private/tmp/capsule-wt/m3
+  > prettier --check .
+  
+  Checking formatting...
+  All matched files use Prettier code style!
+
+## typecheck: PASS in 6.9s
+$ pnpm typecheck
+  
+  > capsule@0.1.0 typecheck /private/tmp/capsule-wt/m3
+  > tsc -p tsconfig.typecheck.json --noEmit
+
+## test: PASS in 17.6s
+$ pnpm test
+counts: Test Files  80 passed | 11 skipped (91) | Tests  1017 passed | 25 skipped (1042) | Duration  10.27s (transform 14.20s, setup 0ms, import 35.05s, tests 37.20s, environment 8ms) | ℹ tests 62 | ℹ pass 62 | ℹ fail 0 | ℹ skipped 0 | ℹ todo 0
+  ✔ live test matrix blocks billable providers without cost acknowledgement (0.41525ms)
+  ✔ live test matrix blocks billable providers when max resource count is too low (0.189209ms)
+  ✔ live test matrix reports quarantined flaky providers with revalidation metadata (0.320125ms)
+  ✔ live test matrix lets explicitly revalidated flaky providers become ready (0.297333ms)
+  ✔ live test matrix dry-run command emits JSON and exits without credentials (129.894708ms)
+  ✔ engine-aware package pack smoke excludes Node 24-only packages on Node 22 (151.455708ms)
+  ✔ engine-aware package pack smoke includes every public package on Node 24 (66.490709ms)
+  ✔ CI-06: packed contents allow package metadata and dist output only (2.047708ms)
+  ✔ dry-run passes for publishable package metadata (101.987333ms)
+  ✔ dry-run rejects missing metadata, private publish access, and dist test artifacts (89.009125ms)
+  ✔ dry-run rejects public examples and private packages missing Changesets ignore (304.239542ms)
+  ✔ dry-run lists public packages without shelling out to npm (101.577083ms)
+  ✔ real mode checks published dist provenance metadata with npm view (750.812625ms)
+  ✔ REL-01: registry signatures alone are not provenance (0.26275ms)
+  ✔ REL-01: malformed attestation metadata is rejected (0.938375ms)
+  ✔ REL-01: SLSA provenance attestation metadata passes as presence only, in object or single-element array form (0.371791ms)
+  ✔ REL-01: real mode fails a signature-only package with a named reason (779.576917ms)
+  ℹ tests 62
+  ℹ suites 2
+  ℹ pass 62
+  ℹ fail 0
+  ℹ cancelled 0
+  ℹ skipped 0
+  ℹ todo 0
+  ℹ duration_ms 5682.563708
+
+## build: PASS in 27.0s
+$ pnpm build
+  packages/vercel build: ESM ⚡️ Build success in 29ms
+  packages/vercel build: Done
+  packages/cli build$ tsup src/index.ts --format esm && tsc -p tsconfig.json --emitDeclarationOnly
+  packages/bridge-worker build$ tsup src/index.ts src/bin.ts --format esm && tsc -p tsconfig.json --emitDeclarationOnly
+  packages/cli build: CLI Building entry: src/index.ts
+  packages/cli build: CLI Using tsconfig: tsconfig.json
+  packages/cli build: CLI tsup v8.5.1
+  packages/cli build: CLI Target: es2022
+  packages/cli build: ESM Build start
+  packages/cli build: ESM dist/index.js 110.12 KB
+  packages/cli build: ESM ⚡️ Build success in 42ms
+  packages/bridge-worker build: CLI Building entry: src/bin.ts, src/index.ts
+  packages/bridge-worker build: CLI Using tsconfig: tsconfig.json
+  packages/bridge-worker build: CLI tsup v8.5.1
+  packages/bridge-worker build: CLI Target: es2022
+  packages/bridge-worker build: ESM Build start
+  packages/bridge-worker build: ESM dist/bin.js            2.18 KB
+  packages/bridge-worker build: ESM dist/index.js          11.64 KB
+  packages/bridge-worker build: ESM dist/chunk-BIPM2CT3.js 82.57 KB
+  packages/bridge-worker build: ESM ⚡️ Build success in 35ms
+  packages/bridge-worker build: Done
+  packages/cli build: Done
+  
+  > capsule@0.1.0 prune:build /private/tmp/capsule-wt/m3
+  > node scripts/prune-package-artifacts.mjs
+
+## release-audit: PASS in 70.5s
+$ pnpm release:audit
+  + @capsule-sdk/cli 0.1.1
+  + @capsule-sdk/cloud-run 0.1.1
+  + @capsule-sdk/cloudflare 0.1.1
+  + @capsule-sdk/core 0.1.1
+  + @capsule-sdk/daytona 0.1.1
+  + @capsule-sdk/docker 0.1.1
+  + @capsule-sdk/e2b 0.1.1
+  + @capsule-sdk/ec2 0.1.1
+  + @capsule-sdk/ecs 0.1.1
+  + @capsule-sdk/fly 0.1.1
+  + @capsule-sdk/kubernetes 0.1.1
+  + @capsule-sdk/lambda 0.1.1
+  + @capsule-sdk/mock 0.1.1
+  + @capsule-sdk/modal 0.1.1
+  + @capsule-sdk/neon 0.1.1
+  + @capsule-sdk/presets 0.1.1
+  + @capsule-sdk/preview 0.2.0
+  + @capsule-sdk/store-jsonl 0.1.1
+  + @capsule-sdk/store-sqlite 0.1.0
+  + @capsule-sdk/vercel 0.1.1
+  
+  Done in 16.4s using pnpm v10.32.1
+  Imported 23 Capsule packages from packed artifacts.
+  Packed capsule-bridge-worker passed the fixture round trip, a refusal before effect and an oversize hello.
+  Package pack smoke passed for 23 packages in capsule-pack-smoke-sH5QuV.
+
+## api-reference-current: PASS in 6.0s
+$ pnpm docs:api:check
+  
+  > capsule@0.1.0 docs:api:check /private/tmp/capsule-wt/m3
+  > node scripts/generate-api-reference.mjs --check
+  
+  docs/api-reference.md is current.
+
+## package-exports: PASS in 10.1s
+$ pnpm test:package-exports
+counts: Test Files  1 passed (1) | Tests  3 passed (3) | Duration  8.19s (transform 45ms, setup 0ms, import 59ms, tests 7.88s, environment 0ms)
+  
+  > capsule@0.1.0 test:package-exports /private/tmp/capsule-wt/m3
+  > vitest run packages/core/src/package-exports.test.ts
+  
+  
+   RUN  v4.1.6 /private/tmp/capsule-wt/m3
+  
+  
+   Test Files  1 passed (1)
+        Tests  3 passed (3)
+     Start at  00:52:29
+     Duration  8.19s (transform 45ms, setup 0ms, import 59ms, tests 7.88s, environment 0ms)
+
+## pack-smoke-compatible: PASS in 75.1s
+$ pnpm release:pack-smoke:compatible
+  + @capsule-sdk/cli 0.1.1
+  + @capsule-sdk/cloud-run 0.1.1
+  + @capsule-sdk/cloudflare 0.1.1
+  + @capsule-sdk/core 0.1.1
+  + @capsule-sdk/daytona 0.1.1
+  + @capsule-sdk/docker 0.1.1
+  + @capsule-sdk/e2b 0.1.1
+  + @capsule-sdk/ec2 0.1.1
+  + @capsule-sdk/ecs 0.1.1
+  + @capsule-sdk/fly 0.1.1
+  + @capsule-sdk/kubernetes 0.1.1
+  + @capsule-sdk/lambda 0.1.1
+  + @capsule-sdk/mock 0.1.1
+  + @capsule-sdk/modal 0.1.1
+  + @capsule-sdk/neon 0.1.1
+  + @capsule-sdk/presets 0.1.1
+  + @capsule-sdk/preview 0.2.0
+  + @capsule-sdk/store-jsonl 0.1.1
+  + @capsule-sdk/store-sqlite 0.1.0
+  + @capsule-sdk/vercel 0.1.1
+  
+  Done in 26.3s using pnpm v10.32.1
+  Imported 23 Capsule packages from packed artifacts.
+  Packed capsule-bridge-worker passed the fixture round trip, a refusal before effect and an oversize hello.
+  Package pack smoke passed for 23 packages in capsule-pack-smoke-9Fyzqd.
+
+## benchmark-bounds: PASS in 15.1s
+$ pnpm bench:bounds
+    ]
+  }
+  perf-01-core-receipts/long-lived-best-effort rep 1/1: ok
+  perf-01-core-receipts/long-lived-required rep 1/1: ok
+  perf-01-core-receipts/parallel-required-delayed-a rep 1/1: ok
+  perf-01-core-receipts/parallel-required-failing-a rep 1/1: ok
+  perf-01-core-receipts/required-inflight-bookkeeping rep 1/1: ok
+  perf-02-artifact-collection/large-file-tiny-limit rep 1/1: ok
+  perf-02-artifact-collection/large-file-within-budget rep 1/1: ok
+  perf-02-artifact-collection/many-small-files rep 1/1: ok
+  perf-03-aws-client-reuse/ec2-owned-client rep 1/1: ok
+  perf-03-aws-client-reuse/ec2-injected-client rep 1/1: ok
+  perf-03-aws-client-reuse/ecs-owned-client rep 1/1: ok
+  perf-03-aws-client-reuse/ecs-injected-client rep 1/1: ok
+  perf-03-aws-client-reuse/lambda-owned-client rep 1/1: ok
+  perf-03-aws-client-reuse/lambda-injected-client rep 1/1: ok
+  perf-04-vercel-log-streams/finite-array rep 1/1: ok
+  perf-04-vercel-log-streams/ndjson-fragmented rep 1/1: ok
+  perf-04-vercel-log-streams/ndjson-malformed rep 1/1: ok
+  perf-04-vercel-log-streams/endless-limit-10 rep 1/1: ok
+  perf-04-vercel-log-streams/idle-limit-10 rep 1/1: ok
+  perf-05-kubernetes-logs/40-pods-3-containers-all rep 1/1: ok
+  perf-05-kubernetes-logs/40-pods-3-containers-limit-20 rep 1/1: ok
+  perf-10-docker-output/stdout-10MiB rep 1/1: ok
+  perf-10-docker-output/stdout-100MiB rep 1/1: ok
+
