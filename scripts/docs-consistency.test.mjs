@@ -131,3 +131,25 @@ test("DOC-06: receipt claims match the off-by-default capture in core and the ra
   assert.match(receiptsDoc, /Read-only coverage is uneven/);
   assert.match(receiptsDoc, /`raw\(\)` returns the native provider client and bypasses/);
 });
+
+test("DOC-07: golden live receipt samples use declared capability paths and stay labeled placeholders", async () => {
+  const { loadAdapters } = await import("./capsule-gap-report.mjs");
+  const adapters = new Map(loadAdapters(root).map((adapter) => [adapter.packageDir, adapter.capabilities]));
+  const packageDirByProvider = { "azure-container-apps": "azure" };
+  const fixture = JSON.parse(read("docs/live-receipt-samples/golden-live-receipts.json"));
+  assert.match(fixture.description, /placeholder/i);
+  assert.match(fixture.description, /not captured provider outputs/);
+  assert.ok(fixture.samples.length > 0);
+
+  for (const sample of fixture.samples) {
+    assert.match(sample.id, /^receipt-sample-/, `${sample.id} must stay an unmistakable sample id`);
+    assert.equal(sample.metadata?.sampleSanitized, true, `${sample.id} must be marked sampleSanitized`);
+    const capabilities = adapters.get(packageDirByProvider[sample.provider] ?? sample.provider);
+    assert.ok(capabilities, `${sample.id}: unknown provider ${sample.provider}`);
+    const [domain, operation, ...rest] = sample.capabilityPath.split(".");
+    assert.equal(rest.length, 0, `${sample.id}: ${sample.capabilityPath} is not a domain.operation capability path`);
+    const declared = capabilities[domain]?.[operation];
+    assert.ok(declared && declared !== "unsupported", `${sample.id}: ${sample.capabilityPath} is not a supported ${sample.provider} capability`);
+    assert.equal(sample.supportLevel, declared, `${sample.id}: support level differs from the adapter declaration`);
+  }
+});
