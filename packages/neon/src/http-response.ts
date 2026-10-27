@@ -148,7 +148,8 @@ function untilAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
   });
 }
 
-async function readCapped(response: Response, maxBytes: number, signal: AbortSignal): Promise<{ text: string; bytes: number; overflowed: boolean }> {
+/** Reads at most maxBytes of a body, cancelling the rest, and cancels the read when signal aborts. */
+export async function readCapped(response: Response, maxBytes: number, signal: AbortSignal): Promise<{ text: string; bytes: number; overflowed: boolean }> {
   const stream = response.body;
   if (!stream) return { text: "", bytes: 0, overflowed: false };
   const reader = stream.getReader();
