@@ -16,14 +16,13 @@ const tailLines = 25;
 
 const gates = [
   ["install", "pnpm install --frozen-lockfile"],
-  ["gap-report", "pnpm capsule:gap"],
-  ["provider-matrix-check", "node scripts/capsule-gap-report.mjs --check"],
+  ["provider-matrix-check", "pnpm capsule:gap:check"],
   ["format", "pnpm format:check"],
   ["typecheck", "pnpm typecheck"],
   ["test", "pnpm test"],
   ["build", "pnpm build"],
   ["release-audit", "pnpm release:audit"],
-  ["api-reference-current", "pnpm docs:api && git diff --exit-code docs/api-reference.md"],
+  ["api-reference-current", "pnpm docs:api:check"],
   ["package-exports", "pnpm test:package-exports"],
   ["pack-smoke-compatible", "pnpm release:pack-smoke:compatible"]
 ];

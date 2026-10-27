@@ -1,3 +1,7 @@
+import { execFileSync, spawnSync } from "node:child_process";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { domainSupportLevel, policySupportLevel, renderProviderMatrix } from "./capsule-gap-report.mjs";
@@ -58,5 +62,47 @@ describe("capsule gap report", () => {
       markdown,
       /\| Example \| `@capsule-sdk\/example` \| native \| unsupported \| unsupported \| unsupported \| unsupported \| unsupported \| unsupported \| native \| emulated \| experimental \| Example adapter notes\. \|/
     );
+  });
+});
+
+describe("capsule gap report --check (CI-02)", () => {
+  const repoRoot = join(import.meta.dirname, "..");
+  const scriptPath = join(repoRoot, "scripts", "capsule-gap-report.mjs");
+
+  function fixtureRoot() {
+    const root = mkdtempSync(join(tmpdir(), "capsule-gap-check-"));
+    for (const dir of readdirSync(join(repoRoot, "packages"))) {
+      const source = join(repoRoot, "packages", dir);
+      if (!existsSync(join(source, "package.json"))) continue;
+      mkdirSync(join(root, "packages", dir), { recursive: true });
+      cpSync(join(source, "package.json"), join(root, "packages", dir, "package.json"));
+      cpSync(join(source, "src"), join(root, "packages", dir, "src"), { recursive: true });
+    }
+    mkdirSync(join(root, "docs"), { recursive: true });
+    return root;
+  }
+
+  it("fails on a deliberately stale provider matrix without rewriting it", () => {
+    const root = fixtureRoot();
+    try {
+      execFileSync(process.execPath, [scriptPath, "--root", root], { encoding: "utf8" });
+      const matrixPath = join(root, "docs", "provider-matrix.md");
+      execFileSync(process.execPath, [scriptPath, "--root", root, "--check"], { encoding: "utf8" });
+
+      const stale = readFileSync(matrixPath, "utf8").replace("| Docker |", "| Docker (stale) |");
+      writeFileSync(matrixPath, stale);
+      const result = spawnSync(process.execPath, [scriptPath, "--root", root, "--check"], { encoding: "utf8" });
+
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /docs\/provider-matrix\.md is stale/);
+      assert.equal(readFileSync(matrixPath, "utf8"), stale);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("the committed provider matrix matches the adapter declarations", () => {
+    const result = spawnSync(process.execPath, [scriptPath, "--check"], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
   });
 });

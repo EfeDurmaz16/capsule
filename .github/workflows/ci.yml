@@ -28,8 +28,9 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Gap report
-        run: pnpm capsule:gap
+      # Generated files are checked, never rewritten in CI: regeneration stays an explicit developer action.
+      - name: Provider matrix is current
+        run: pnpm capsule:gap:check
 
       - name: Format check
         run: pnpm format:check
@@ -47,9 +48,7 @@ jobs:
         run: pnpm release:audit
 
       - name: API reference is current
-        run: |
-          pnpm docs:api
-          git diff --exit-code docs/api-reference.md
+        run: pnpm docs:api:check
 
   package-exports:
     name: Package exports on Node ${{ matrix.node }}
