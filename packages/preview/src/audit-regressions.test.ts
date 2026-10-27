@@ -2,10 +2,11 @@
 // from the M1 manifest and is marked it.fails while the defect is present on the baseline (7d3a28a). The
 // owner who fixes an ID flips its it.fails to it in the same commit. All adapters are in-memory fakes.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Capsule } from "@capsule-sdk/core";
+import { Capsule, type CapsuleApprovalGrant, type CleanupApprovalRequest } from "@capsule-sdk/core";
 import {
   aggregatePreviewStatus,
   cleanupPreviewEnvironment,
+  createPreviewEnvironmentWithCleanup,
   createPreviewGraph,
   createPreviewId,
   PreviewCreationError,
@@ -221,6 +222,28 @@ describe("M1 audit regressions: preview", () => {
     });
   }
 
+  function approvalDatabase(calls: DeleteCall[]) {
+    return new Capsule({
+      adapter: {
+        name: "approval-db",
+        provider: "fake-db",
+        capabilities: { database: { branchCreate: "native", branchDelete: "native" } } as never,
+        database: {
+          branch: {
+            create: async (spec) => ({ id: "branch-1", provider: "fake-db", project: spec.project, name: spec.name, status: "ready" }),
+            delete: async (spec) => {
+              calls.push({ owner: "approval-db", provider: "fake-db", project: spec.project, branchId: spec.branchId });
+              return { id: spec.branchId, provider: "fake-db", project: spec.project, status: "deleted" };
+            }
+          }
+        }
+      },
+      policy: { approvals: { required: true, reason: "test" } }
+    });
+  }
+
+  const createGrant: CapsuleApprovalGrant = { approved: true, id: "create-only", capabilities: ["database.branchCreate"] };
+
   it("GAP-06: a basic create failure exposes the created resources, cleanup plan and receipts for recovery", async () => {
     const calls: DeleteCall[] = [];
     const error = await createPreviewGraph({
@@ -243,5 +266,48 @@ describe("M1 audit regressions: preview", () => {
     const cleanup = await cleanupPreviewEnvironment(failure.preview, failure.resources, { cleanupPlan: failure.cleanupPlan });
     expect(cleanup.status).toBe("cleaned");
     expect(calls).toEqual([{ owner: "project-one", provider: "fake", project: "project-one", branchId: "provider-local-id" }]);
+  });
+
+  it("CD-APPROVAL: a create-only grant never authorizes compensation cleanup", async () => {
+    const calls: DeleteCall[] = [];
+    const error = (await createPreviewEnvironmentWithCleanup({
+      name: "approval",
+      databases: [{ capsule: approvalDatabase(calls), spec: { project: "p", name: "db", approval: createGrant } }],
+      services: [{ capsule: failingService(), spec: { name: "api", image: "api:1" } }]
+    }).catch((caught: unknown) => caught)) as PreviewCreationError;
+    expect(error.cleanup?.dispositions.map((entry) => entry.disposition)).toEqual(["leaked"]);
+    expect(error.cleanup?.dispositions[0]?.error).toMatch(/Approval required/);
+    expect(calls).toEqual([]);
+  });
+
+  it("CD-APPROVAL: a fresh resolver grant authorizes cleanup and a denied resolver leaves a residual without a delete", async () => {
+    const requests: CleanupApprovalRequest[] = [];
+    const calls: DeleteCall[] = [];
+    const plan = () => ({
+      name: "approval",
+      databases: [{ capsule: approvalDatabase(calls), spec: { project: "p", name: "db", approval: createGrant } }],
+      services: [{ capsule: failingService(), spec: { name: "api", image: "api:1" } }]
+    });
+
+    const approved = (await createPreviewEnvironmentWithCleanup(plan(), {
+      cleanupApproval: (request) => {
+        requests.push(request);
+        return { approved: true, id: "fresh-delete", capabilities: [request.capabilityPath], resources: [request.resource] };
+      }
+    }).catch((caught: unknown) => caught)) as PreviewCreationError;
+    expect(approved.cleanup?.status).toBe("cleaned");
+    expect(requests).toEqual([
+      { capabilityPath: "database.branchDelete", resource: { type: "database", project: "p", id: "branch-1" }, reason: expect.any(String) }
+    ]);
+    expect(calls).toHaveLength(1);
+
+    calls.length = 0;
+    const denied = (await createPreviewEnvironmentWithCleanup(plan(), { cleanupApproval: async () => undefined }).catch(
+      (caught: unknown) => caught
+    )) as PreviewCreationError;
+    expect(denied.cleanup?.status).toBe("partial");
+    expect(denied.cleanup?.dispositions.map((entry) => entry.disposition)).toEqual(["leaked"]);
+    expect(denied.cleanup?.dispositions[0]?.error).toMatch(/approval was not granted/);
+    expect(calls).toEqual([]);
   });
 });

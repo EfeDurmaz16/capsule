@@ -1,9 +1,11 @@
 import type {
   Capsule,
+  CapsuleApprovalResourceScope,
   CapsuleDomain,
   CapsuleReceipt,
   CapabilityPath,
   CapabilityRequirementResult,
+  CleanupApprovalResolver,
   CreateDatabaseBranchSpec,
   CreatePreviewSpec,
   DatabaseBranch,
@@ -213,6 +215,18 @@ export interface PreviewCleanupResult {
 export interface CleanupPreviewEnvironmentOptions {
   cleanupPlan?: PreviewCleanupPlan;
   startedAt?: Date;
+  /**
+   * Resolves a fresh approval grant for each cleanup action right before it runs. The grant is passed
+   * on that delete spec only. Returning undefined denies that cleanup: no delete is sent and the
+   * resource is reported as leaked (residual). A create grant is never reused for cleanup. When this
+   * option is omitted, deletes are sent without an approval grant, as before.
+   */
+  approval?: CleanupApprovalResolver;
+}
+
+export interface CreatePreviewEnvironmentWithCleanupOptions {
+  /** Fresh approval resolver for the compensation cleanup that runs when creation fails. */
+  cleanupApproval?: CleanupApprovalResolver;
 }
 
 export interface PreviewOrchestrationResult {
@@ -648,6 +662,15 @@ function cleanupScope(cleanup: PreviewCleanupAction): Record<string, string> | u
   return undefined;
 }
 
+function cleanupApprovalScope(cleanup: PreviewCleanupAction): CapsuleApprovalResourceScope {
+  // Exactly the resource hint Capsule core evaluates for database.branchDelete and service.delete, so a
+  // resolver can scope its grant to this request's resource and have it match.
+  if (cleanup.kind === "database") {
+    return { type: "database", project: String(cleanup.spec.project), id: String(cleanup.spec.branchId) };
+  }
+  return { type: "service", id: String(cleanup.spec.id) };
+}
+
 function sameCleanupIdentity(spec: Record<string, unknown>, cleanup: PreviewCleanupAction): boolean {
   return cleanupIdentityFields[cleanup.kind].every((field) => spec[field] === cleanup.spec[field]);
 }
@@ -1037,7 +1060,27 @@ export async function cleanupPreviewEnvironment(
     }
     try {
       let receipt: CapsuleReceipt | undefined;
-      const cleanupSpec: Record<string, unknown> = bindings.get(resource)?.spec ?? resource.cleanup.spec;
+      let cleanupSpec: Record<string, unknown> = bindings.get(resource)?.spec ?? resource.cleanup.spec;
+      if (options.approval) {
+        const grant = await options.approval({
+          capabilityPath: resource.cleanup.capabilityPath,
+          resource: cleanupApprovalScope(resource.cleanup),
+          reason: `Cleanup of preview ${preview.id}`
+        });
+        if (!grant) {
+          const deniedResource = cloneWithDisposition(resource, "leaked");
+          const error = new Error(`Cleanup approval was not granted for ${resource.kind} resource ${resource.id}.`);
+          failed.push({ resource: deniedResource, error });
+          dispositions.push({
+            resource: deniedResource,
+            disposition: "leaked",
+            error: error.message,
+            notes: ["Cleanup was not attempted because no fresh cleanup approval was granted; the resource still exists at the provider."]
+          });
+          continue;
+        }
+        cleanupSpec = { ...cleanupSpec, approval: grant };
+      }
       if (resource.cleanup.kind === "database") {
         const result = await resource.cleanup.capsule.database.branch.delete(cleanupSpec as { project: string; branchId: string; hardDelete?: boolean });
         receipt = result.receipt;
@@ -1080,7 +1123,10 @@ export async function cleanupPreviewEnvironment(
  * far before rethrowing. A preview that is created but aggregates to `failed` (for example a failed or
  * cancelled check job) is returned, not cleaned up; callers decide whether to clean it up.
  */
-export async function createPreviewEnvironmentWithCleanup(plan: PreviewPlan): Promise<PreviewEnvironment> {
+export async function createPreviewEnvironmentWithCleanup(
+  plan: PreviewPlan,
+  options: CreatePreviewEnvironmentWithCleanupOptions = {}
+): Promise<PreviewEnvironment> {
   assertRealProviders(plan);
   const id = createPreviewId(plan.name);
   const resources: PreviewResourceRecord[] = [];
@@ -1090,7 +1136,7 @@ export async function createPreviewEnvironmentWithCleanup(plan: PreviewPlan): Pr
   } catch (error) {
     const failedPreview = previewFromResources(id, plan, "failed", resources);
     const cleanupPlan = createPreviewCleanupPlan(failedPreview, resources, { operationId: plan.operationId });
-    const cleanup = await cleanupPreviewEnvironment(failedPreview, resources, { cleanupPlan });
+    const cleanup = await cleanupPreviewEnvironment(failedPreview, resources, { cleanupPlan, approval: options.cleanupApproval });
     throw new PreviewCreationError("Preview environment creation failed and cleanup was attempted.", {
       preview: failedPreview,
       cleanup,

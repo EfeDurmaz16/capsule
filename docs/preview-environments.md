@@ -35,13 +35,17 @@ Cleanup evidence is explicit. Every resource gets a cleanup disposition:
 - `cleaned`: Capsule invoked a cleanup action and the provider receipt reported deletion or did not expose a conflicting status.
 - `partial`: Capsule invoked cleanup, but the provider receipt did not confirm a deleted terminal state.
 - `unsupported`: the resource has no cleanup action in the current preview graph. Edge and job resources are unsupported by design because Capsule does not register a delete action for them.
-- `leaked`: Capsule attempted cleanup and the provider operation failed, so the resource may still exist.
+- `leaked`: Capsule attempted cleanup and the provider operation failed, so the resource may still exist; or a cleanup approval resolver denied the cleanup, so no delete was sent and the resource still exists.
 
 The cleanup result also carries an overall `status` derived from those dispositions:
 
 - `cleaned`: every disposition is `cleaned`.
 - `unsupported`: nothing failed, but at least one resource was left behind because its kind has no cleanup action by design (edge, job). This is not a failure.
 - `partial`: at least one disposition is `partial` or `leaked`, meaning a real cleanup failure occurred.
+
+### Cleanup approval
+
+When a Capsule policy requires approvals, the grant used to create a resource never authorizes its deletion; preview cleanup does not copy create grants into delete specs. Pass a resolver to obtain a fresh grant per cleanup action: `cleanupPreviewEnvironment(preview, resources, { approval })` or `createPreviewEnvironmentWithCleanup(plan, { cleanupApproval })`. The resolver receives `{ capabilityPath, resource, reason }`, where `resource` is exactly the scope Capsule core checks for that delete (`{ type: "database", project, id }` or `{ type: "service", id }`). Return a grant to send the delete with it, or `undefined` to deny; a denied cleanup sends no delete and is reported as `leaked` with an explanatory note. Without a resolver, deletes are sent without a grant, as before, and a policy that requires approval rejects them.
 
 ### Creation failures and the two create variants
 
