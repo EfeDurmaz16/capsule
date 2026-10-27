@@ -8,7 +8,7 @@ import { FlyClient, fly } from "./index.js";
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
 
 describe("M1 audit regressions: fly", () => {
-  it.fails("EDGE-01: job.run sends config.auto_destroy, not a top-level auto_destroy", async () => {
+  it("EDGE-01: job.run sends config.auto_destroy, not a top-level auto_destroy", async () => {
     let body: { auto_destroy?: unknown; config?: { auto_destroy?: unknown } } = {};
     const capsule = new Capsule({
       adapter: fly({

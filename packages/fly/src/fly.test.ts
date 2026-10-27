@@ -60,6 +60,9 @@ describe("fly adapter", () => {
         guest: { cpu_kind: "shared", cpus: 1, memory_mb: 512 }
       }
     });
+    const createBody = JSON.parse(String(calls[0]?.init.body));
+    expect(createBody.auto_destroy).toBeUndefined();
+    expect(createBody.config.auto_destroy).toBeUndefined();
     expect(machine.receipt?.metadata).toMatchObject({
       providerApiVersion: "machines/v1",
       providerRegion: "iad",
@@ -83,13 +86,14 @@ describe("fly adapter", () => {
     expect(run.receipt?.type).toBe("job.run");
     expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
       name: "smoke",
-      auto_destroy: true,
       config: {
+        auto_destroy: true,
         image: "node:22",
         restart: { policy: "no" },
         processes: [{ cmd: ["node", "smoke.js"] }]
       }
     });
+    expect(JSON.parse(String(calls[0]?.init.body))).not.toHaveProperty("auto_destroy");
   });
 
   test("gets, starts, stops, and destroys Fly Machines", async () => {

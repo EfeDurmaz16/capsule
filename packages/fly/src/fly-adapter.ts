@@ -101,9 +101,10 @@ function machineBody(spec: CreateMachineSpec | RunJobSpec, options: FlyAdapterOp
         memory_mb: "resources" in spec ? (spec.resources?.memoryMb ?? options.memoryMb) : options.memoryMb
       },
       restart: job ? { policy: "no" } : undefined,
-      processes: command ? [{ cmd: Array.isArray(command) ? command : ["sh", "-lc", command] }] : undefined
-    },
-    auto_destroy: job
+      processes: command ? [{ cmd: Array.isArray(command) ? command : ["sh", "-lc", command] }] : undefined,
+      // Fly reads auto_destroy from the Machine config, not the top-level create body.
+      auto_destroy: job ? true : undefined
+    }
   };
 }
 
