@@ -198,6 +198,23 @@ async function sweepKubernetes(options) {
   });
 }
 
+// The single guard for the sweep mode, shared by the CLI parser and the exported function so an
+// imported caller cannot reach DELETE by omitting or mixing modes. Exactly one of dryRun/delete must be
+// true, and delete also needs yes. The CAPSULE_LIVE_CLEANUP_ACK environment check stays per provider.
+export function resolveSweepMode(options = {}) {
+  for (const key of ["dryRun", "delete", "yes"]) {
+    if (options[key] !== undefined && typeof options[key] !== "boolean") {
+      throw new Error(`Cleanup sweep option "${key}" must be a boolean.`);
+    }
+  }
+  const dryRun = options.dryRun === true;
+  const deleteMode = options.delete === true;
+  if (dryRun && deleteMode) throw new Error("Use either dryRun or delete (--dry-run or --delete), not both.");
+  if (!dryRun && !deleteMode) throw new Error("Refusing to sweep live resources without dryRun or delete (--dry-run or --delete).");
+  if (deleteMode && options.yes !== true) throw new Error("Refusing to delete live resources without yes (--yes) and CAPSULE_LIVE_CLEANUP_ACK=1.");
+  return { dryRun, delete: deleteMode };
+}
+
 async function applyDeletes(resources, options, deleteResource) {
   const result = [];
   for (const resource of resources) {
@@ -205,7 +222,8 @@ async function applyDeletes(resources, options, deleteResource) {
       result.push(resource);
       continue;
     }
-    if (options.dryRun) {
+    // Fail closed: anything other than an explicit, already validated delete mode is a dry run.
+    if (options.delete !== true || options.dryRun !== false) {
       result.push(resourceWithAction(resource, "would-delete"));
       continue;
     }
@@ -238,9 +256,8 @@ function providerSummary(provider, status, input = {}) {
 }
 
 export async function createLiveCleanupSweep(options = {}) {
+  const { dryRun, delete: deleteMode } = resolveSweepMode(options);
   const env = options.env ?? process.env;
-  const dryRun = Boolean(options.dryRun);
-  const deleteMode = Boolean(options.delete);
   const nowSeconds = Math.floor((options.now ?? new Date()).getTime() / 1000);
   const providers = [];
 
@@ -304,9 +321,7 @@ function parseArgs(argv) {
     }
     throw new Error(`Unknown argument "${arg}". Use --dry-run [--provider <provider>] or --delete --yes [--provider <provider>].`);
   }
-  if (parsed.dryRun && parsed.delete) throw new Error("Use either --dry-run or --delete, not both.");
-  if (!parsed.dryRun && !parsed.delete) throw new Error("Refusing to sweep live resources without --dry-run or --delete.");
-  if (parsed.delete && !parsed.yes) throw new Error("Refusing to delete live resources without --yes and CAPSULE_LIVE_CLEANUP_ACK=1.");
+  resolveSweepMode(parsed);
   return parsed;
 }
 
