@@ -61,9 +61,11 @@ import {
   cleanupPreviewEnvironment,
   createPreviewDryRunReceiptBundle,
   createPreviewGraph,
+  PreviewCreationError,
   previewCleanupPlanSchema,
   type PreviewCleanupPlan,
   type PreviewCleanupDisposition,
+  type PreviewResidualEffect,
   type PreviewDryRunReceiptBundle,
   type PreviewPlan,
   type PreviewResourceKind,
@@ -310,6 +312,8 @@ interface SerializedPreviewResourceRecord {
   cleanupOrder?: number;
   cleanup?: SerializedPreviewCleanupAction;
   cleanupDisposition?: PreviewCleanupDisposition;
+  /** Set when a failed create step may have left this resource behind (see @capsule-sdk/preview). */
+  residual?: PreviewResidualEffect;
 }
 
 interface PreviewCleanupPlanFile {
@@ -1646,7 +1650,8 @@ function serializePreviewResourceRecord(resource: PreviewResourceRecord, cleanup
     cleanupActionId: cleanup?.actionId,
     cleanupOrder: cleanup?.cleanupOrder,
     cleanup,
-    cleanupDisposition: resource.cleanupDisposition
+    cleanupDisposition: resource.cleanupDisposition,
+    ...(resource.residual === undefined ? {} : { residual: resource.residual })
   };
 }
 
@@ -1691,23 +1696,61 @@ function createPreviewCleanupPlanFile(
     unsupportedCleanupCount: cleanupPlan.unsupportedCleanupCount,
     actions: cleanupPlan.actions,
     preview,
+    // A residual record comes from the failed step at residual.order; every other record's index is its
+    // plan order, because records are appended in plan order.
     resources: resources.map((resource, index) =>
       serializePreviewResourceRecord(
         resource,
-        serializeCleanupAction(resource, configs[index]?.config, resource.ref === undefined ? undefined : actionByRef.get(resource.ref))
+        serializeCleanupAction(
+          resource,
+          configs[resource.residual?.order ?? index]?.config,
+          resource.ref === undefined ? undefined : actionByRef.get(resource.ref)
+        )
       )
     )
   };
 }
 
+async function writePreviewCleanupPlanFile(path: string, cleanupPlan: PreviewCleanupPlanFile): Promise<void> {
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, `${JSON.stringify(cleanupPlan, null, 2)}\n`, "utf8");
+}
+
+// A failure part-way still leaves real provider resources. Their cleanup bindings (and any residual
+// locators from the failed step) are written to --cleanup-file so `preview destroy` can remove them, or
+// printed to stderr when no file was given, before the original error is rethrown.
+async function recordFailedPreviewCreate(error: unknown, parsed: ParsedArgs, config: PreviewConfigFile): Promise<void> {
+  if (!(error instanceof PreviewCreationError) || error.resources.length === 0 || !error.cleanupPlan) {
+    return;
+  }
+  const cleanupPlan = createPreviewCleanupPlanFile(error.preview, error.resources, config, error.cleanupPlan);
+  const count = error.resources.length;
+  if (parsed.cleanupFile) {
+    await writePreviewCleanupPlanFile(parsed.cleanupFile, cleanupPlan);
+    console.error(
+      `Preview creation failed after ${count} resource(s) were created or left behind. Recovery bindings were written to ${parsed.cleanupFile}; run capsule preview destroy --cleanup-file ${parsed.cleanupFile} to remove them.`
+    );
+    return;
+  }
+  console.error(
+    `Preview creation failed after ${count} resource(s) were created or left behind, and no --cleanup-file was given. Save the recovery bindings below to a file and run capsule preview destroy --cleanup-file <file>:`
+  );
+  console.error(JSON.stringify(cleanupPlan, null, 2));
+}
+
 async function createPreviewCreateReport(parsed: ParsedArgs): Promise<PreviewCreateReport> {
   const policy = await loadEffectivePolicy(parsed);
   const config = await readPreviewConfigFile(parsed.configFile);
-  const result = await createPreviewGraph(await createPreviewPlanFromConfig(config, policy));
+  let result: Awaited<ReturnType<typeof createPreviewGraph>>;
+  try {
+    result = await createPreviewGraph(await createPreviewPlanFromConfig(config, policy));
+  } catch (error) {
+    await recordFailedPreviewCreate(error, parsed, config);
+    throw error;
+  }
   const cleanupPlan = createPreviewCleanupPlanFile(result.preview, result.resources, config, result.cleanupPlan);
   if (parsed.cleanupFile) {
-    await mkdir(dirname(parsed.cleanupFile), { recursive: true });
-    await writeFile(parsed.cleanupFile, `${JSON.stringify(cleanupPlan, null, 2)}\n`, "utf8");
+    await writePreviewCleanupPlanFile(parsed.cleanupFile, cleanupPlan);
   }
   const cleanupActionCount = cleanupPlan.resources.filter((resource) => resource.cleanup).length;
   return {
@@ -1836,9 +1879,39 @@ function validatePreviewCleanupPlan(record: Record<string, unknown>, label: stri
         cleanupActionId: typeof entry.cleanupActionId === "string" ? entry.cleanupActionId : undefined,
         cleanupOrder: typeof entry.cleanupOrder === "number" ? entry.cleanupOrder : undefined,
         cleanup,
-        cleanupDisposition: entry.cleanupDisposition as PreviewCleanupDisposition | undefined
+        cleanupDisposition: entry.cleanupDisposition as PreviewCleanupDisposition | undefined,
+        ...(entry.residual === undefined ? {} : { residual: validatePreviewResidual(entry.residual, `${label}.resources[${index}].residual`) })
       };
     })
+  };
+}
+
+const previewResidualOutcomes = new Set(["not-started", "pending", "completed", "failed", "unknown"]);
+
+function validatePreviewResidual(value: unknown, label: string): PreviewResidualEffect {
+  const residual = assertRecordValue(value, label);
+  const locator = assertRecordValue(residual.locator, `${label}.locator`);
+  const order = optionalNumberValue(residual.order, `${label}.order`);
+  if (order === undefined) {
+    throw new Error(`${label}.order must be a number.`);
+  }
+  const outcome = assertStringValue(residual.outcome, `${label}.outcome`);
+  if (!previewResidualOutcomes.has(outcome)) {
+    throw new Error(`${label}.outcome must be one of ${[...previewResidualOutcomes].join(", ")}.`);
+  }
+  const scope = optionalStringRecord(locator.scope, `${label}.locator.scope`);
+  const nativeOperationId = optionalStringValue(locator.nativeOperationId, `${label}.locator.nativeOperationId`);
+  return {
+    order,
+    operation: assertStringValue(residual.operation, `${label}.operation`) as CapabilityPath,
+    outcome: outcome as PreviewResidualEffect["outcome"],
+    locator: {
+      provider: assertStringValue(locator.provider, `${label}.locator.provider`),
+      kind: assertStringValue(locator.kind, `${label}.locator.kind`),
+      nativeId: assertStringValue(locator.nativeId, `${label}.locator.nativeId`),
+      ...(scope === undefined ? {} : { scope }),
+      ...(nativeOperationId === undefined ? {} : { nativeOperationId })
+    }
   };
 }
 
@@ -1889,7 +1962,8 @@ async function hydratePreviewCleanupResource(
           spec: hydratedCleanupSpec(resource.cleanup, parsed)
         }
       : undefined,
-    cleanupDisposition: resource.cleanupDisposition
+    cleanupDisposition: resource.cleanupDisposition,
+    ...(resource.residual === undefined ? {} : { residual: resource.residual })
   };
 }
 
