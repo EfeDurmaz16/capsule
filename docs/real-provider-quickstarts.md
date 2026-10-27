@@ -237,7 +237,7 @@ Caveat: routes, versions, and rollback use real Workers APIs. Rollback needs the
 
 ## Cloud Run
 
-Status badges: [credentials: Google Cloud project, location, and auth] [cost risk: jobs, services, logs, and networking] [capabilities: job native, service native] [cleanup: gcloud delete job/service or future lifecycle APIs]
+Status badges: [credentials: Google Cloud project, location, and auth] [cost risk: jobs, services, logs, and networking] [capabilities: job native, service native] [cleanup: `service.delete` for services, Google Cloud tooling for jobs]
 
 Set one Google credential path:
 
@@ -295,7 +295,7 @@ export CAPSULE_LIVE_TESTS=1
 Inspect the declared capabilities:
 
 ```bash
-pnpm --filter @capsule-sdk/cli exec node dist/index.js capabilities --adapter cloudflare
+pnpm --filter @capsule-sdk/cli exec node dist/index.js capabilities --adapter vercel
 ```
 
 Credentials: `VERCEL_TOKEN`; optional team/project scoping through `VERCEL_TEAM_ID` and `VERCEL_PROJECT`.
@@ -496,7 +496,7 @@ export AZURE_ACCESS_TOKEN=...
 export AZURE_SUBSCRIPTION_ID=...
 export AZURE_RESOURCE_GROUP=...
 export AZURE_LOCATION=eastus
-export AZURE_CONTAINER_APP_ENVIRONMENT_ID=...
+export AZURE_CONTAINERAPPS_ENVIRONMENT_ID=...
 export CAPSULE_LIVE_TESTS=1
 ```
 
@@ -509,7 +509,7 @@ import { azureContainerApps } from "@capsule-sdk/azure";
 const capsule = new Capsule({
   adapter: azureContainerApps({
     location: process.env.AZURE_LOCATION,
-    environmentId: process.env.AZURE_CONTAINER_APP_ENVIRONMENT_ID
+    environmentId: process.env.AZURE_CONTAINERAPPS_ENVIRONMENT_ID
   }),
   receipts: true
 });
@@ -521,7 +521,7 @@ const job = await capsule.job.run({
 console.log(job.status, job.receipt);
 ```
 
-Credentials: Azure management access token, subscription id, resource group, location, and Container Apps environment id.
+Credentials: Azure management access token, subscription id, resource group, location, and Container Apps environment id. `AZURE_CONTAINERAPPS_ENVIRONMENT_ID` is the canonical name: the adapter reads it when `environmentId` is omitted, and the live-test gate requires it. Earlier versions of this guide exported `AZURE_CONTAINER_APP_ENVIRONMENT_ID`; that snippet still worked because it passed `environmentId` explicitly, but the adapter default and live tests never read that name.
 
 Cleanup: generated one-shot jobs are cleaned up on start failure; if that cleanup is still pending or fails, the error is a `PartialEffectsError` or `CleanupFailureError` naming the job. `job.cancel` stops a running execution only; it does not delete the Container Apps Job resource. `service.delete` treats ARM 202 as pending: it polls the same-origin operation URL (or the resource until 404) and reports `deleted` only on completion, otherwise `PendingOperationError` after `operationDeadlineMs` (default 300000). Successful jobs and services should be deleted through Azure tooling or supported Capsule lifecycle calls.
 
