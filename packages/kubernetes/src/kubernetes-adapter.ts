@@ -9,8 +9,16 @@ import {
   CaptureLimitError,
   mapWithConcurrency,
   resolveCaptureBounds,
+  CleanupFailureError,
+  PartialEffectsError,
+  PendingOperationError,
+  observeUntilTerminal,
+  providerErrorStatus,
+  resourceLocator,
   type AdapterContext,
   type CaptureBounds,
+  type CleanupOutcome,
+  type ResourceLocator,
   type CaptureTruncation,
   type CapsuleAdapter,
   type CapabilityMap,
@@ -110,6 +118,14 @@ export interface KubernetesAdapterOptions {
   kubeconfigPath?: string;
   context?: string;
   clients?: KubernetesClients;
+  /**
+   * Client-side budget in milliseconds for observing that an accepted foreground DELETE has finished
+   * (the object is gone, after finalizers ran). Default 120000. When it expires, service.delete throws
+   * PendingOperationError instead of reporting deleted.
+   */
+  operationDeadlineMs?: number;
+  /** Delay between deletion observations in milliseconds. Default 1000. */
+  operationPollIntervalMs?: number;
 }
 
 const provider = "kubernetes";
@@ -387,15 +403,36 @@ function foregroundDeleteOptions() {
   };
 }
 
-async function deleteDeploymentForeground(apps: AppsApi, namespace: string, name: string): Promise<void> {
-  const deleteNamespacedDeployment = requireAppsMethod(apps, "deleteNamespacedDeployment");
-  await deleteNamespacedDeployment.call(apps, {
-    namespace,
-    name,
-    gracePeriodSeconds: 0,
-    propagationPolicy: "Foreground",
-    body: foregroundDeleteOptions()
-  });
+type ResourceKind = "deployment" | "service";
+
+interface DeleteAttempt {
+  kind: ResourceKind;
+  /** absent: already gone or deleted immediately; accepted: DELETE accepted, object still terminating; failed: request failed. */
+  state: "absent" | "accepted" | "failed";
+  response?: KubernetesObject;
+  error?: unknown;
+}
+
+// A DELETE that removed the object at once returns a Status object. A foreground DELETE that still has
+// finalizers or dependents to process returns the object itself with a deletionTimestamp: it is
+// accepted, not finished.
+function deletedImmediately(response: KubernetesObject | undefined): boolean {
+  const value = record(response);
+  return value?.kind === "Status" && value.status === "Success";
+}
+
+async function requestForegroundDelete(kind: ResourceKind, remove: () => Promise<KubernetesObject>): Promise<DeleteAttempt> {
+  try {
+    const response = await remove();
+    return { kind, state: deletedImmediately(response) ? "absent" : "accepted", response };
+  } catch (error) {
+    if (providerErrorStatus(error) === 404) return { kind, state: "absent" };
+    return { kind, state: "failed", error };
+  }
+}
+
+function deleteRequest(namespace: string, name: string) {
+  return { namespace, name, gracePeriodSeconds: 0, propagationPolicy: "Foreground", body: foregroundDeleteOptions() };
 }
 
 function conditionIsTrue(condition: unknown, type: string): boolean {
@@ -821,6 +858,10 @@ function defaultClients(options: KubernetesAdapterOptions): KubernetesClients {
   };
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function rethrowKubernetesError(error: unknown): never {
   throw asProviderError(error, "Kubernetes API request failed.");
 }
@@ -857,6 +898,76 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
       core: classifyKubernetesErrors(clients.core)
     };
   };
+  const operationDeadlineMs = options.operationDeadlineMs ?? 120_000;
+  const operationPollIntervalMs = options.operationPollIntervalMs ?? 1_000;
+  const locate = (kind: ResourceKind, name: string): ResourceLocator =>
+    resourceLocator({ provider, kind, nativeId: name, scope: { namespace, context: options.context } });
+
+  // Observes accepted foreground deletions until every object is gone (GET returns 404). Finalizers and
+  // dependents can keep an object terminating for a long time, so this is bounded; on expiry the
+  // caller gets PendingOperationError with the last observed state, never a fabricated deleted.
+  const observeAbsence = async (clients: KubernetesClients, name: string, kinds: ResourceKind[]): Promise<void> => {
+    const readers: Record<ResourceKind, (() => Promise<KubernetesObject>) | undefined> = {
+      deployment: clients.apps.readNamespacedDeployment ? () => clients.apps.readNamespacedDeployment!({ namespace, name }) : undefined,
+      service: clients.core.readNamespacedService ? () => clients.core.readNamespacedService!({ namespace, name }) : undefined
+    };
+    const resource = locate("service", name);
+    const unobservable = kinds.filter((kind) => !readers[kind]);
+    if (unobservable.length > 0) {
+      throw new PendingOperationError(
+        `Kubernetes service.delete was accepted for ${kinds.join(" and ")} ${name}, but the client cannot read ${unobservable.join(" and ")} to confirm deletion.`,
+        { operation: "service.delete", resource, state: kinds.map((kind) => `${kind}=terminating`).join(",") }
+      );
+    }
+    let remaining = [...kinds];
+    await observeUntilTerminal<void>(
+      async () => {
+        const states: string[] = [];
+        const stillPresent: ResourceKind[] = [];
+        for (const kind of remaining) {
+          try {
+            const object = await readers[kind]!();
+            stillPresent.push(kind);
+            states.push(`${kind}=${object.metadata?.deletionTimestamp ? "terminating" : "present"}`);
+          } catch (error) {
+            if (providerErrorStatus(error) !== 404) throw error;
+          }
+        }
+        remaining = stillPresent;
+        return remaining.length === 0 ? { done: true, value: undefined } : { done: false, state: states.join(",") };
+      },
+      { operation: "service.delete", resource, deadlineMs: operationDeadlineMs, intervalMs: operationPollIntervalMs }
+    );
+  };
+
+  // Compensates a Deployment created by a deploy whose Service step failed. The original error stays
+  // the primary error; the cleanup outcome and any residual resources are reported beside it instead
+  // of being swallowed.
+  const rollbackDeployment = async (apps: AppsApi, deploymentName: string, serviceName: string, error: unknown): Promise<Error> => {
+    const deployment = locate("deployment", deploymentName);
+    const status = providerErrorStatus(error);
+    // A 4xx means the API server rejected the Service, so it was not created. Anything else leaves its
+    // existence unknown.
+    const serviceRejected = status !== undefined && status >= 400 && status < 500;
+    const service = locate("service", serviceName);
+    const attempt = await requestForegroundDelete("deployment", () => requireAppsMethod(apps, "deleteNamespacedDeployment").call(apps, deleteRequest(namespace, deploymentName)));
+    const cleanup: CleanupOutcome =
+      attempt.state === "failed"
+        ? { status: "failed", resources: [deployment], residual: [deployment], error: attempt.error }
+        : attempt.state === "accepted"
+          ? { status: "pending", resources: [deployment], residual: [deployment] }
+          : { status: "succeeded", resources: [deployment] };
+    const effects = {
+      operation: "service.deploy",
+      outcome: serviceRejected ? ("failed" as const) : ("unknown" as const),
+      resources: serviceRejected ? [deployment] : [deployment, service],
+      primaryError: error,
+      cleanup
+    };
+    const message = `Kubernetes service.deploy failed after creating Deployment ${deploymentName}: ${errorMessage(error)}`;
+    return cleanup.status === "failed" ? new CleanupFailureError(message, cleanup, error, effects) : new PartialEffectsError(message, effects);
+  };
+
   return {
     name: adapter,
     provider,
@@ -996,8 +1107,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
         try {
           service = await clients.core.createNamespacedService({ namespace, body: serviceManifest });
         } catch (error) {
-          await deleteDeploymentForeground(clients.apps, namespace, deploymentName).catch(() => undefined);
-          throw error;
+          throw await rollbackDeployment(clients.apps, deploymentName, name, error);
         }
         const serviceName = service.metadata?.name ?? name;
         const url = serviceUrl(service, serviceName, namespace, spec.ports?.[0]?.port);
@@ -1070,33 +1180,53 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
         const deleteNamespacedDeployment = requireAppsMethod(clients.apps, "deleteNamespacedDeployment");
         const deleteNamespacedService = requireCoreMethod(clients.core, "deleteNamespacedService");
         const name = spec.id;
-        const deleteOptions = foregroundDeleteOptions();
-        const deployment = await deleteNamespacedDeployment.call(clients.apps, {
-          namespace,
-          name,
-          gracePeriodSeconds: 0,
-          propagationPolicy: "Foreground",
-          body: deleteOptions
-        });
-        const service = await deleteNamespacedService.call(clients.core, {
-          namespace,
-          name,
-          gracePeriodSeconds: 0,
-          propagationPolicy: "Foreground",
-          body: deleteOptions
-        });
-        const resolvedName = deployment.metadata?.name ?? service.metadata?.name ?? name;
+        // Each resource is deleted independently. A Deployment that is already gone (for example after
+        // an earlier attempt that failed on the Service) never stops the Service delete from running.
+        const attempts = [
+          await requestForegroundDelete("deployment", () => deleteNamespacedDeployment.call(clients.apps, deleteRequest(namespace, name))),
+          await requestForegroundDelete("service", () => deleteNamespacedService.call(clients.core, deleteRequest(namespace, name)))
+        ];
+        const failed = attempts.filter((attempt) => attempt.state === "failed");
+        const accepted = attempts.filter((attempt) => attempt.state === "accepted");
+        if (failed.length > 0) {
+          const primary = failed[0]!;
+          if (accepted.length === 0) throw primary.error;
+          throw new PartialEffectsError(
+            `Kubernetes service.delete accepted the ${accepted.map((attempt) => attempt.kind).join(" and ")} delete but the ${failed
+              .map((attempt) => attempt.kind)
+              .join(" and ")} delete failed: ${errorMessage(primary.error)}`,
+            {
+              operation: "service.delete",
+              outcome: "failed",
+              resources: [...failed, ...accepted].map((attempt) => locate(attempt.kind, name)),
+              primaryError: primary.error,
+              cleanup: { status: "not-attempted" }
+            }
+          );
+        }
+        if (accepted.length > 0) {
+          await observeAbsence(clients, name, accepted.map((attempt) => attempt.kind));
+        }
+        const deployment = attempts[0]!.response;
+        const service = attempts[1]!.response;
+        const observed = Object.fromEntries(attempts.map((attempt) => [attempt.kind, attempt.state === "absent" ? "already-absent" : "deleted"]));
+        const resolvedName = deployment?.metadata?.name ?? service?.metadata?.name ?? name;
+        const policy = context.evaluatePolicy();
         const receipt = context.receipts
           ? context.createReceipt({
               type: "service.delete",
               capabilityPath: "service.delete",
               startedAt,
-              policy: context.evaluatePolicy(),
+              policy: {
+                ...policy,
+                notes: [...policy.notes, "Kubernetes service.delete reports deleted only after the Deployment and Service are observed absent."]
+              },
               resource: { id: resolvedName, name: resolvedName, status: "deleted" },
               metadata: kubernetesReceiptMetadata("apps/v1+v1", {
                 namespace,
-                deploymentName: deployment.metadata?.name ?? name,
-                serviceName: service.metadata?.name ?? name,
+                deploymentName: deployment?.metadata?.name ?? name,
+                serviceName: service?.metadata?.name ?? name,
+                observed,
                 reason: spec.reason
               })
             })
@@ -1106,7 +1236,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
           provider,
           name: resolvedName,
           status: "deleted",
-          metadata: { namespace, deployment, service, reason: spec.reason },
+          metadata: { namespace, deployment, service, observed, reason: spec.reason },
           receipt
         };
       },

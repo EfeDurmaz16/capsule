@@ -464,23 +464,26 @@ describe("kubernetes adapter", () => {
           apps: {
             createNamespacedDeployment: async () => ({ metadata: { uid: "deployment-uid", name: "api" } }),
             readNamespacedDeployment: async (input) => {
+              // A foreground delete is finished once the object can no longer be read.
+              if (deletions.deployments.length > 0) throw k8sError(404, "NotFound");
               reads.push(input);
               return { metadata: { uid: "deployment-uid", name: input.name }, spec: { replicas: 1 }, status: { readyReplicas: 1, availableReplicas: 1 } };
             },
             deleteNamespacedDeployment: async (input) => {
               deletions.deployments.push(input);
-              return { metadata: { uid: "deployment-uid", name: input.name } };
+              return { metadata: { uid: "deployment-uid", name: input.name, deletionTimestamp: "2026-10-27T00:00:00Z" } };
             }
           },
           core: {
             createNamespacedService: async () => ({ metadata: { uid: "service-uid", name: "api" } }),
             readNamespacedService: async (input) => {
+              if (deletions.services.length > 0) throw k8sError(404, "NotFound");
               reads.push(input);
               return { metadata: { uid: "service-uid", name: input.name }, spec: { ports: [{ port: 8080 }] } };
             },
             deleteNamespacedService: async (input) => {
               deletions.services.push(input);
-              return { metadata: { uid: "service-uid", name: input.name } };
+              return { metadata: { uid: "service-uid", name: input.name, deletionTimestamp: "2026-10-27T00:00:00Z" } };
             }
           }
         }
@@ -640,14 +643,18 @@ describe("kubernetes adapter", () => {
             createNamespacedDeployment: async () => ({}),
             deleteNamespacedDeployment: async (input) => {
               deletions.deployments.push(input);
-              return { metadata: { name: input.name, uid: "deployment-uid" } };
+              return { metadata: { name: input.name, uid: "deployment-uid", deletionTimestamp: "2026-10-27T00:00:00Z" } };
+            },
+            readNamespacedDeployment: async () => {
+              throw k8sError(404, "NotFound");
             }
           },
           core: {
             createNamespacedService: async () => ({}),
             deleteNamespacedService: async (input) => {
               deletions.services.push(input);
-              return { metadata: { name: input.name, uid: "service-uid" } };
+              // A Service with nothing left to finalize is removed at once and the API returns a Status.
+              return { kind: "Status", apiVersion: "v1", status: "Success", details: { name: input.name, kind: "services" } } as never;
             }
           }
         }

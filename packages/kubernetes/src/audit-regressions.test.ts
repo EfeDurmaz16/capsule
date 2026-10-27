@@ -2,7 +2,7 @@
 // manifest and is marked it.fails while the defect is present on the baseline (7d3a28a). The owner who
 // fixes an ID flips its it.fails to it in the same commit. Clients are injected fakes; no cluster.
 import { describe, expect, it } from "vitest";
-import { Capsule } from "@capsule-sdk/core";
+import { Capsule, CleanupFailureError, PartialEffectsError, PendingOperationError, ProviderRetryableError, partialEffectsOf } from "@capsule-sdk/core";
 import { kubernetes } from "./index.js";
 
 type Pod = { metadata: { name: string }; spec: { containers: Array<{ name: string; env: Array<{ name: string; value: string }> }> } };
@@ -59,7 +59,7 @@ describe("M1 audit regressions: kubernetes", () => {
     expect((await capsule.service.logs({ id: "svc", limit: 1 })).logs.map((entry) => entry.message)).toEqual(["later-in-same-ms"]);
   });
 
-  it.fails("SVC-06: Deployment and Service cleanup are independent and a retry converges on the Service", async () => {
+  it("SVC-06: Deployment and Service cleanup are independent and a retry converges on the Service", async () => {
     let deploymentGone = false;
     let serviceCalls = 0;
     const notFound = () => Object.assign(new Error("NotFound"), { statusCode: 404, code: 404 });
@@ -89,6 +89,115 @@ describe("M1 audit regressions: kubernetes", () => {
     await expect(capsule.service.delete({ id: "app" })).rejects.toThrow();
     await capsule.service.delete({ id: "app" }).catch(() => undefined);
     expect(serviceCalls).toBe(2);
+  });
+
+  it("SVC-06/GAP-08: a partial failure keeps both resource ids and a retry converges to observed deletion", async () => {
+    const deleted = { deployment: false, service: false };
+    let serviceCalls = 0;
+    const notFound = () => Object.assign(new Error("NotFound"), { statusCode: 404, code: 404 });
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        namespace: "preview",
+        operationPollIntervalMs: 1,
+        clients: {
+          batch: {} as never,
+          apps: {
+            createNamespacedDeployment: async () => ({}),
+            deleteNamespacedDeployment: async () => {
+              if (deleted.deployment) throw notFound();
+              deleted.deployment = true;
+              return { metadata: { name: "app", deletionTimestamp: "2026-10-27T00:00:00Z" } };
+            },
+            readNamespacedDeployment: async () => {
+              if (deleted.deployment) throw notFound();
+              return { metadata: { name: "app" } };
+            }
+          } as never,
+          core: {
+            createNamespacedService: async () => ({}),
+            deleteNamespacedService: async () => {
+              serviceCalls += 1;
+              if (serviceCalls === 1) throw Object.assign(new Error("ServiceUnavailable"), { statusCode: 503, code: 503 });
+              deleted.service = true;
+              return { metadata: { name: "app", deletionTimestamp: "2026-10-27T00:00:00Z" } };
+            },
+            readNamespacedService: async () => {
+              if (deleted.service) throw notFound();
+              return { metadata: { name: "app" } };
+            }
+          } as never
+        }
+      })
+    });
+    const first = await capsule.service.delete({ id: "app" }).catch((error: unknown) => error);
+    expect(first).toBeInstanceOf(PartialEffectsError);
+    const effects = partialEffectsOf(first)!;
+    expect(effects).toMatchObject({ operation: "service.delete", outcome: "failed", cleanup: { status: "not-attempted" } });
+    expect(effects.resources.map((resource) => `${resource.kind}:${resource.nativeId}:${resource.scope?.namespace}`).sort()).toEqual([
+      "deployment:app:preview",
+      "service:app:preview"
+    ]);
+    expect(effects.primaryError).toBeInstanceOf(ProviderRetryableError);
+
+    const second = await capsule.service.delete({ id: "app" });
+    expect(second.status).toBe("deleted");
+    expect(second.metadata).toMatchObject({ observed: { deployment: "already-absent", service: "deleted" } });
+  });
+
+  it("GAP-08: an accepted foreground delete whose object is still terminating is pending, never deleted", async () => {
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        operationDeadlineMs: 50,
+        operationPollIntervalMs: 5,
+        clients: {
+          batch: {} as never,
+          apps: {
+            createNamespacedDeployment: async () => ({}),
+            deleteNamespacedDeployment: async () => ({ metadata: { name: "app", deletionTimestamp: "2026-10-27T00:00:00Z" } }),
+            readNamespacedDeployment: async () => ({ metadata: { name: "app", deletionTimestamp: "2026-10-27T00:00:00Z" } })
+          } as never,
+          core: {
+            createNamespacedService: async () => ({}),
+            deleteNamespacedService: async () => ({ kind: "Status", status: "Success" }),
+            readNamespacedService: async () => {
+              throw Object.assign(new Error("NotFound"), { statusCode: 404, code: 404 });
+            }
+          } as never
+        }
+      })
+    });
+    const error = await capsule.service.delete({ id: "app" }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(PendingOperationError);
+    expect(error).toMatchObject({ operation: "service.delete", state: "deployment=terminating", resource: { kind: "service", nativeId: "app" } });
+  });
+
+  it("GAP-08: a failed deploy reports the Deployment rollback outcome instead of swallowing it", async () => {
+    const capsule = new Capsule({
+      adapter: kubernetes({
+        clients: {
+          batch: {} as never,
+          apps: {
+            createNamespacedDeployment: async () => ({ metadata: { name: "app" } }),
+            deleteNamespacedDeployment: async () => {
+              throw Object.assign(new Error("Forbidden"), { statusCode: 403, code: 403 });
+            }
+          } as never,
+          core: {
+            createNamespacedService: async () => {
+              throw Object.assign(new Error("Invalid"), { statusCode: 422, code: 422 });
+            }
+          } as never
+        }
+      })
+    });
+    const error = await capsule.service.deploy({ name: "app", image: "i" }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(CleanupFailureError);
+    expect(partialEffectsOf(error)).toMatchObject({
+      operation: "service.deploy",
+      outcome: "failed",
+      resources: [{ kind: "deployment", nativeId: "app" }],
+      cleanup: { status: "failed", residual: [{ kind: "deployment", nativeId: "app" }] }
+    });
   });
 
   it("SVC-08: every multi-port Service entry has a unique valid name", async () => {
