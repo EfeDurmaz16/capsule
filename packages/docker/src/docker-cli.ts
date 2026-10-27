@@ -61,7 +61,9 @@ export function runDocker(args: string[], options: RunDockerOptions = {}): Promi
       }
     });
 
-    if (options.input) {
+    // Write the input (possibly empty) and always end stdin so the command sees EOF.
+    child.stdin.on("error", () => undefined);
+    if (options.input !== undefined && options.input.length > 0) {
       child.stdin.write(options.input);
     }
     child.stdin.end();

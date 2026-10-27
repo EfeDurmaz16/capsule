@@ -189,12 +189,28 @@ describe("M1 audit regressions: docker", () => {
     expect(fake.calls.some((args) => args[0] === "cp" || args[0] === "exec")).toBe(false);
   });
 
-  it.fails("SB-08: exec input implies an interactive docker exec so stdin reaches the process", async () => {
+  it("SB-08: exec input implies an interactive docker exec so stdin reaches the process", async () => {
     const fake = fakeDocker();
     const box = await new Capsule({ adapter: fake.adapter }).sandbox.create({});
     await box.exec({ command: "cat", input: "hello" });
     const execArgs = fake.calls.find((args) => args[0] === "exec")!;
     expect(execArgs.includes("-i") || execArgs.includes("--interactive")).toBe(true);
+  });
+
+  it("SB-08: empty input still attaches stdin for an explicit EOF and absent input does not", async () => {
+    const seen: Array<RunDockerOptions | undefined> = [];
+    const fake = fakeDocker((args, options) => {
+      if (args[0] === "exec") seen.push(options);
+      return undefined;
+    });
+    const box = await new Capsule({ adapter: fake.adapter }).sandbox.create({});
+    await box.exec({ command: ["cat"], input: "" });
+    await box.exec({ command: ["true"] });
+    const execs = fake.calls.filter((args) => args[0] === "exec");
+    expect(execs[0]).toEqual(["exec", "-i", "audit-container", "cat"]);
+    expect(seen[0]?.input).toBe("");
+    expect(execs[1]).toEqual(["exec", "audit-container", "true"]);
+    expect(seen[1]?.input).toBeUndefined();
   });
 
   it.fails("SB-10d: job.artifacts is not declared while job.run never collects artifacts", () => {

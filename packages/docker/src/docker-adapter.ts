@@ -375,7 +375,11 @@ class DockerSandbox implements Sandbox {
     const command = normalizeCommand(spec.command);
     // Plan artifact copies before running the command so an invalid request has no effects.
     const placements = spec.artifactPaths?.length ? artifactPlacements(spec.artifactPaths) : undefined;
-    const result = await this.runner(["exec", ...(spec.cwd ? ["--workdir", spec.cwd] : []), ...envArgs(spec.env), this.handle.id, ...command], {
+    // docker exec only attaches the process stdin with -i. With input the CLI writes it and then
+    // closes its stdin, so the process sees EOF (immediately for empty input). Without input stdin is
+    // not attached, as before.
+    const interactive = spec.input !== undefined ? ["-i"] : [];
+    const result = await this.runner(["exec", ...interactive, ...(spec.cwd ? ["--workdir", spec.cwd] : []), ...envArgs(spec.env), this.handle.id, ...command], {
       timeoutMs: spec.timeoutMs,
       input: spec.input
     });
