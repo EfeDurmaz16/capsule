@@ -438,6 +438,7 @@ Exports:
 - `dockerAvailable` (function)
 - `dockerCapabilities` (const)
 - `DockerCommandResult` (interface)
+- `DockerOutputBounds` (interface)
 - `runDocker` (function)
 - `RunDockerOptions` (interface)
 
@@ -698,8 +699,11 @@ Exports:
 - Source: `packages/vercel/src/index.ts`
 
 Exports:
+- `ReadRuntimeLogsInput` (interface)
 - `vercel` (function)
 - `VercelAdapterOptions` (interface)
 - `vercelCapabilities` (const)
 - `VercelClient` (class)
 - `VercelClientOptions` (interface)
+- `VercelRuntimeLog` (interface)
+- `VercelRuntimeLogRead` (interface)
