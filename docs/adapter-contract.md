@@ -131,7 +131,7 @@ Log and output specs accept `bounds?: CaptureBounds` (`maxBytes`, `maxRecords`, 
 
 ## Minimal Contract Test Template
 
-Use the core contract helpers first. They verify that declared public capabilities match implemented public methods, unsupported capabilities throw `UnsupportedCapabilityError`, and supported mutating capabilities fail closed under an approval-required policy before adapter code runs.
+Use the core contract helpers first. They are guard-only checks: they run no successful lifecycle, so passing them is not lifecycle evidence. They verify that declared public capabilities match implemented public methods, unsupported capabilities throw `UnsupportedCapabilityError`, and supported mutating capabilities fail closed under an approval-required policy before adapter code runs.
 
 ```ts
 import { describe, expect, test } from "vitest";
@@ -139,7 +139,7 @@ import { Capsule, runCapsuleAdapterContract } from "@capsule-sdk/core";
 import { exampleAdapter } from "./example-adapter.js";
 
 describe("example adapter", () => {
-  test("satisfies the public adapter contract", async () => {
+  test("passes the guard-only adapter contract checks", async () => {
     await runCapsuleAdapterContract(exampleAdapter({ fakeClient: true }), {
       domains: ["sandbox", "job"]
     });

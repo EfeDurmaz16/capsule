@@ -2432,7 +2432,7 @@ import { Capsule, runCapsuleAdapterContract } from "@capsule-sdk/core";
 import { ${factoryName}, ${factoryName}Capabilities } from "./index.js";
 
 describe("${segment} adapter", () => {
-  test("satisfies the public adapter contract for declared unsupported capabilities", async () => {
+  test("passes the guard-only adapter contract checks for declared unsupported capabilities", async () => {
     await runCapsuleAdapterContract(${factoryName}(), { domains: ${JSON.stringify(domains)} });
   });
 
