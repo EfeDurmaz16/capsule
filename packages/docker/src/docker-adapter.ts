@@ -76,6 +76,10 @@ export function classifyDockerCliError(exitCode: number, stderr: string): Provid
   return { category: "unknown", retryable: false };
 }
 
+function isNoSuchContainer(stderr: string): boolean {
+  return stderr.toLowerCase().includes("no such container");
+}
+
 function dockerCliError(message: string, result: DockerCommandResult): AdapterExecutionError {
   return providerExecutionError(message, classifyDockerCliError(result.exitCode, result.stderr), { exitCode: result.exitCode, stderr: result.stderr });
 }
@@ -358,14 +362,22 @@ class DockerSandbox implements Sandbox {
 
   async destroy(): Promise<void> {
     const startedAt = new Date();
-    await this.runner(["rm", "-f", this.handle.id], { timeoutMs: 20_000 });
+    const removed = await this.runner(["rm", "-f", this.handle.id], { timeoutMs: 20_000 });
+    // docker rm -f exits 0 once the container is gone. A container that is already absent is the
+    // desired end state, so destroy stays idempotent and records it; any other nonzero exit means the
+    // container may still exist, so destroy rejects and writes no deleted receipt.
+    const alreadyAbsent = removed.exitCode !== 0 && isNoSuchContainer(removed.stderr);
+    if (removed.exitCode !== 0 && !alreadyAbsent) {
+      throw dockerCliError(`docker rm failed: ${removed.stderr}`, removed);
+    }
     if (this.context.receipts) {
       this.context.createReceipt({
         type: "sandbox.destroy",
         capabilityPath: "sandbox.destroy",
         startedAt,
         policy: { decision: "allowed", applied: this.context.policy, notes: policyNotes(this.context) },
-        resource: { id: this.handle.id, status: "deleted" }
+        resource: { id: this.handle.id, status: "deleted" },
+        ...(alreadyAbsent ? { metadata: { alreadyAbsent: true } } : {})
       });
     }
   }

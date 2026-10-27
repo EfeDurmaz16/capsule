@@ -26,7 +26,7 @@ function fakeDocker(handler: (args: string[], options?: RunDockerOptions) => Doc
 }
 
 describe("M1 audit regressions: docker", () => {
-  it.fails("SB-03: a nonzero docker rm rejects destroy and writes no deleted receipt", async () => {
+  it("SB-03: a nonzero docker rm rejects destroy and writes no deleted receipt", async () => {
     const fake = fakeDocker((args) => (args[0] === "rm" ? { exitCode: 1, stdout: "", stderr: "permission denied" } : undefined));
     const store = new MemoryReceiptStore();
     const box = await new Capsule({ adapter: fake.adapter, receipts: true, receiptStore: store }).sandbox.create({});
@@ -36,6 +36,16 @@ describe("M1 audit regressions: docker", () => {
     );
     expect(outcome).toBe("rejected");
     expect(store.receipts.some((receipt) => receipt.type === "sandbox.destroy" && receipt.resource?.status === "deleted")).toBe(false);
+  });
+
+  it("SB-03: an already absent container is an explicit idempotent destroy", async () => {
+    const fake = fakeDocker((args) => (args[0] === "rm" ? { exitCode: 1, stdout: "", stderr: "Error response from daemon: No such container: audit-container" } : undefined));
+    const store = new MemoryReceiptStore();
+    const box = await new Capsule({ adapter: fake.adapter, receipts: true, receiptStore: store }).sandbox.create({});
+    await box.destroy();
+    const deleted = store.receipts.find((receipt) => receipt.type === "sandbox.destroy");
+    expect(deleted?.resource?.status).toBe("deleted");
+    expect(deleted?.metadata).toMatchObject({ alreadyAbsent: true });
   });
 
   it("SB-02: listFiles treats dollar and backtick paths as literals", async () => {
