@@ -1,5 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
@@ -17,7 +17,16 @@ const state = readFixture<{ provider_state: Record<string, unknown> }>("scenario
 const scratch: string[] = [];
 const children: ChildProcessWithoutNullStreams[] = [];
 
+const strays: number[] = [];
+
 afterEach(() => {
+  for (const pid of strays.splice(0)) {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
+      // already gone
+    }
+  }
   for (const child of children.splice(0)) child.kill("SIGKILL");
   for (const dir of scratch.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
@@ -30,14 +39,14 @@ interface Worker {
   stderr(): string;
 }
 
-function spawnWorker(config: Record<string, unknown>): Worker {
+function spawnWorker(config: Record<string, unknown>, options: { profile?: string; path?: string; env?: Record<string, string> } = {}): Worker {
   const dir = mkdtempSync(join(tmpdir(), "capsule-bridge-proc-"));
   scratch.push(dir);
   const configPath = join(dir, "config.json");
   writeFileSync(configPath, JSON.stringify(config));
-  const child = spawn(process.execPath, ["--import", "tsx", bin, "--profile", "fixture", "--config", configPath], {
+  const child = spawn(process.execPath, ["--import", "tsx", bin, "--profile", options.profile ?? "fixture", "--config", configPath], {
     cwd: repoRoot,
-    env: { PATH: process.env.PATH ?? "", TSX_TSCONFIG_PATH: join(repoRoot, "tsconfig.typecheck.json") },
+    env: { PATH: options.path ?? process.env.PATH ?? "", TSX_TSCONFIG_PATH: join(repoRoot, "tsconfig.typecheck.json"), ...options.env },
     stdio: ["pipe", "pipe", "pipe"]
   });
   children.push(child);
@@ -140,4 +149,71 @@ describe("worker process on stdio", () => {
     expect(worker.stdoutBytes()).toBe(0);
     expect(worker.stderr()).toContain("binding keys");
   }, 30_000);
+});
+
+// A stand-in docker CLI for the Docker profile: enough of context, version, inspect and exec for one
+// governed exec. Its exec records its pid and then runs for two minutes, like a long command whose
+// docker exec client stays attached.
+const fakeDocker = `#!/bin/sh
+case "$1" in --context=*) shift ;; esac
+case "$1" in
+  context) echo fake-engine ;;
+  version) echo 29.0.0 ;;
+  inspect)
+    case "$*" in
+      *Created*) echo 2026-10-27T10:00:00Z ;;
+      *) printf '%s\\t%s\\n' '{"Status":"running","Running":true}' '{"fabric.job":"01K8W3A00000000000000000J1"}' ;;
+    esac ;;
+  exec) echo $$ > "$FAKE_DOCKER_PIDS/exec.pid"; exec sleep 120 ;;
+  *) echo "fake docker: unexpected $*" >&2; exit 1 ;;
+esac
+`;
+
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function until(check: () => boolean, ms: number): Promise<boolean> {
+  for (const end = Date.now() + ms; Date.now() < end; await new Promise((resolve) => setTimeout(resolve, 20))) if (check()) return true;
+  return check();
+}
+
+describe.skipIf(process.platform === "win32")("docker CLI clients when the worker exits", () => {
+  for (const ending of ["end of input", "SIGTERM"] as const) {
+    test(`a docker exec client still attached is killed on ${ending}; the answer said running`, async () => {
+      const dir = mkdtempSync(join(tmpdir(), "capsule-bridge-fake-docker-"));
+      scratch.push(dir);
+      writeFileSync(join(dir, "docker"), fakeDocker, { mode: 0o755 });
+      const worker = spawnWorker(
+        { binding: { engine: "fake-engine" }, policy: {}, approvals: [] },
+        { profile: "docker", path: `${dir}:${process.env.PATH ?? ""}`, env: { FAKE_DOCKER_PIDS: dir } }
+      );
+      worker.child.stdin.write(frameOf({ ...hello, profile: "docker" }));
+      expect(await worker.next()).toMatchObject({ type: "hello_ack" });
+      worker.child.stdin.write(
+        frameOf({
+          ...exec,
+          target: { provider: "docker", scope: { engine: "fake-engine" }, kind: "container", native_id: "c1" },
+          params: { argv: ["sleep", "120"], stdin: null, cwd: null, timeout_ms: 60_000, max_output_bytes: 1024, secret_names: [] },
+          deadline_ms: 300
+        })
+      );
+      expect(await worker.next()).toMatchObject({ type: "result", state: "running", output: { exit_code: null } });
+      const pidFile = join(dir, "exec.pid");
+      expect(await until(() => existsSync(pidFile), 5_000)).toBe(true);
+      const pid = Number(readFileSync(pidFile, "utf8"));
+      strays.push(pid);
+      expect(alive(pid)).toBe(true);
+      if (ending === "SIGTERM") worker.child.kill("SIGTERM");
+      else worker.child.stdin.end();
+      expect(await worker.exit).toBe(0);
+      // Killing the client does not stop the command in a real daemon; it only frees the host process.
+      expect(await until(() => !alive(pid), 2_000)).toBe(true);
+    }, 30_000);
+  }
 });

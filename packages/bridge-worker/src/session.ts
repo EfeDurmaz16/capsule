@@ -405,6 +405,8 @@ export class WorkerSession {
     if (this.exitCode !== undefined) return;
     this.exitCode = code;
     this.phase = "closed";
+    // Local helpers (a docker exec client) go with the worker; provider work is not cancelled.
+    this.options.driver.close?.();
     this.options.io.close();
     this.options.io.exit(code);
     this.resolveExit(code);

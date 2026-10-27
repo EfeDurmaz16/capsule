@@ -52,9 +52,14 @@ export function dockerDriver(options: DockerDriverOptions = {}): BridgeDriver {
   // engine a locator names is the engine the command reaches. Without --context the CLI would follow
   // DOCKER_CONTEXT or its current context, which can differ from a configured binding or change under
   // a running worker. The = form keeps the name one argument whatever it holds.
+  // A docker exec client stays attached for as long as the command runs, and only runDocker's timer in
+  // this process would end it, so it would outlive the worker. Killing that client does not stop the
+  // command in the daemon, so it is killed when the session ends. Clients of create, start and rm are
+  // left alone: killing one could abort the daemon's work, and they end when the daemon answers.
+  const lifetime = new AbortController();
   const runner: DockerRunner = async (args, runOptions) => {
     const { engine } = await binding();
-    return cli([`--context=${engine}`, ...args], runOptions);
+    return cli([`--context=${engine}`, ...args], args[0] === "exec" ? { ...runOptions, signal: lifetime.signal } : runOptions);
   };
   const checkAvailable =
     options.checkAvailable ??
@@ -118,6 +123,7 @@ export function dockerDriver(options: DockerDriverOptions = {}): BridgeDriver {
     },
     resourceName: (operationId) => `capsule-fabric-${operationId.toLowerCase()}`,
     secret: options.secret ?? (() => undefined),
-    now: () => new Date()
+    now: () => new Date(),
+    close: () => lifetime.abort()
   };
 }

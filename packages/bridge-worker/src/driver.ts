@@ -50,4 +50,9 @@ export interface BridgeDriver {
   secret(name: string): string | undefined;
   /** Wall time for approval expiry. */
   now(): Date;
+  /**
+   * Called once when the session ends, before the worker exits. Stops local helper processes that
+   * would otherwise outlive the worker. It must not cancel provider work: worker loss is not cancellation.
+   */
+  close?(): void;
 }
