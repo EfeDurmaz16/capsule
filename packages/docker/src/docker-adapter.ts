@@ -3,7 +3,10 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import {
   AdapterExecutionError,
+  CleanupFailureError,
+  PartialEffectsError,
   providerExecutionError,
+  resourceLocator,
   type AdapterContext,
   type Artifact,
   type CapsuleAdapter,
@@ -12,7 +15,9 @@ import {
   type ExecResult,
   type ExecSpec,
   type FileEntry,
+  type PartialEffects,
   type ProviderErrorClassification,
+  type ResourceLocator,
   type RunJobSpec,
   type Sandbox,
   type SandboxHandle
@@ -272,6 +277,48 @@ function parseDockerListFiles(stdout: string): FileEntry[] {
   return entries;
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+// Removes a container this create call allocated but could not hand back. The primary error and the
+// cleanup outcome stay separate: a failed removal throws CleanupFailureError with the container as a
+// residual resource, a successful one throws PartialEffectsError whose cause is the primary error.
+async function rollbackCreatedContainer(runner: DockerRunner, locator: ResourceLocator, primaryError: unknown): Promise<never> {
+  let cleanupError: unknown;
+  try {
+    const removed = await runner(["rm", "-f", locator.nativeId], { timeoutMs: 20_000 });
+    if (removed.exitCode !== 0 && !isNoSuchContainer(removed.stderr)) {
+      cleanupError = dockerCliError(`docker rm failed during create rollback: ${removed.stderr}`, removed);
+    }
+  } catch (error) {
+    cleanupError = error;
+  }
+  const resources = [locator];
+  if (cleanupError !== undefined) {
+    const effects: PartialEffects = {
+      operation: "sandbox.create",
+      outcome: "failed",
+      resources,
+      primaryError,
+      cleanup: { status: "failed", resources, residual: resources, error: cleanupError }
+    };
+    throw new CleanupFailureError(
+      `Docker sandbox cleanup failed after container allocation: ${errorMessage(primaryError)}`,
+      { action: "remove-created-container", containerId: locator.nativeId, status: "failed", error: errorMessage(cleanupError) },
+      primaryError,
+      effects
+    );
+  }
+  throw new PartialEffectsError(`Docker sandbox creation failed after container allocation; the container was removed: ${errorMessage(primaryError)}`, {
+    operation: "sandbox.create",
+    outcome: "failed",
+    resources,
+    primaryError,
+    cleanup: { status: "succeeded", resources }
+  });
+}
+
 async function ensureDocker(checkAvailable: () => Promise<boolean>): Promise<void> {
   if (!(await checkAvailable())) {
     throw providerExecutionError("Docker CLI is not available or the Docker daemon is not reachable.", { category: "retryable", retryable: true });
@@ -414,28 +461,34 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
           throw dockerCliError(`docker create failed: ${create.stderr}`, create);
         }
         const id = create.stdout.trim();
-        const start = await runner(["start", id], { timeoutMs: spec.timeoutMs });
-        if (start.exitCode !== 0) {
-          await runner(["rm", "-f", id]);
-          throw dockerCliError(`docker start failed: ${start.stderr}`, start);
+        const locator = resourceLocator({ provider, kind: "sandbox", nativeId: id, scope: { name } });
+        // From here a container exists. Any failure before the handle is returned (start, receipt
+        // signing or persistence) removes it, so no live container is left without an owner.
+        try {
+          const start = await runner(["start", id], { timeoutMs: spec.timeoutMs });
+          if (start.exitCode !== 0) {
+            throw dockerCliError(`docker start failed: ${start.stderr}`, start);
+          }
+          const handle: SandboxHandle = {
+            id,
+            provider,
+            createdAt: startedAt.toISOString(),
+            metadata: { image, name, exposedPorts: spec.exposedPorts ?? [] }
+          };
+          if (context.receipts) {
+            context.createReceipt({
+              type: "sandbox.create",
+              capabilityPath: "sandbox.create",
+              startedAt,
+              image,
+              policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
+              resource: { id, name, status: "running" }
+            });
+          }
+          return new DockerSandbox(handle, context, runner);
+        } catch (error) {
+          return await rollbackCreatedContainer(runner, locator, error);
         }
-        const handle: SandboxHandle = {
-          id,
-          provider,
-          createdAt: startedAt.toISOString(),
-          metadata: { image, name, exposedPorts: spec.exposedPorts ?? [] }
-        };
-        if (context.receipts) {
-          context.createReceipt({
-            type: "sandbox.create",
-            capabilityPath: "sandbox.create",
-            startedAt,
-            image,
-            policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
-            resource: { id, name, status: "running" }
-          });
-        }
-        return new DockerSandbox(handle, context, runner);
       }
     },
     job: {

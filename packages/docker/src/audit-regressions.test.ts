@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } f
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { Capsule, MemoryReceiptStore } from "@capsule-sdk/core";
+import { Capsule, CleanupFailureError, MemoryReceiptStore, PartialEffectsError, partialEffectsOf } from "@capsule-sdk/core";
 import type { DockerCommandResult, RunDockerOptions } from "./docker-cli.js";
 import { docker } from "./index.js";
 
@@ -87,7 +87,7 @@ describe("M1 audit regressions: docker", () => {
     expect(fake.calls.at(-1)?.[3]).toBe("./-delete");
   });
 
-  it.fails("SB-04: a receipt signer failure after allocation attempts container removal and keeps the original error", async () => {
+  it("SB-04: a receipt signer failure after allocation attempts container removal and keeps the original error", async () => {
     const fake = fakeDocker();
     const capsule = new Capsule({
       adapter: fake.adapter,
@@ -106,6 +106,36 @@ describe("M1 audit regressions: docker", () => {
     expect(error).toBeInstanceOf(Error);
     expect(`${error?.message} ${String((error as { cause?: unknown } | undefined)?.cause)}`).toContain("sign failed");
     expect(fake.calls.some((args) => args[0] === "rm")).toBe(true);
+  });
+
+  it("SB-04: a start failure removes the created container and keeps the start error as the cause", async () => {
+    const fake = fakeDocker((args) => (args[0] === "start" ? { exitCode: 1, stdout: "", stderr: "port is already allocated" } : undefined));
+    const error = await new Capsule({ adapter: fake.adapter }).sandbox.create({}).then(
+      () => undefined,
+      (caught: unknown) => caught
+    );
+    expect(error).toBeInstanceOf(PartialEffectsError);
+    const effects = partialEffectsOf(error)!;
+    expect(effects).toMatchObject({ operation: "sandbox.create", outcome: "failed", cleanup: { status: "succeeded" } });
+    expect(effects.resources[0]).toMatchObject({ provider: "docker", kind: "sandbox", nativeId: "audit-container" });
+    expect((effects.primaryError as Error).message).toContain("port is already allocated");
+    expect(fake.calls.filter((args) => args[0] === "rm")).toEqual([["rm", "-f", "audit-container"]]);
+  });
+
+  it("SB-04: a failed rollback reports the residual container and both errors separately", async () => {
+    const fake = fakeDocker((args) =>
+      args[0] === "start" ? { exitCode: 1, stdout: "", stderr: "start boom" } : args[0] === "rm" ? { exitCode: 1, stdout: "", stderr: "rm boom" } : undefined
+    );
+    const error = await new Capsule({ adapter: fake.adapter }).sandbox.create({}).then(
+      () => undefined,
+      (caught: unknown) => caught
+    );
+    expect(error).toBeInstanceOf(CleanupFailureError);
+    const effects = partialEffectsOf(error)!;
+    expect((effects.primaryError as Error).message).toContain("start boom");
+    expect(effects.cleanup.status).toBe("failed");
+    expect((effects.cleanup.error as Error).message).toContain("rm boom");
+    expect(effects.cleanup.residual?.[0]?.nativeId).toBe("audit-container");
   });
 
   it.fails("SB-07: artifacts with equal basenames from different directories are both preserved or rejected before copying", async () => {
