@@ -1,4 +1,5 @@
 import type {
+  ActionOutcome,
   Capsule,
   CapsuleApprovalResourceScope,
   CapsuleDomain,
@@ -16,11 +17,21 @@ import type {
   JobRun,
   PreviewEnvironment,
   PreviewUrlEntry,
+  PolicyInput,
+  ResourceLocator,
   RunJobSpec,
   ServiceDeployment
 } from "@capsule-sdk/core";
 import { randomBytes } from "node:crypto";
-import { createReceipt, evaluateCapabilityRequirements, UnsupportedCapabilityError } from "@capsule-sdk/core";
+import {
+  createReceipt,
+  evaluateCapabilityRequirements,
+  evaluatePolicy,
+  partialEffectsOf,
+  PendingOperationError,
+  UnknownOutcomeError,
+  UnsupportedCapabilityError
+} from "@capsule-sdk/core";
 
 export type PreviewResourceKind = "database" | "service" | "edge" | "job";
 export type PreviewCleanupDisposition = "cleaned" | "partial" | "unsupported" | "leaked";
@@ -90,6 +101,23 @@ export interface PreviewCleanupDispositionRecord {
   notes?: string[];
 }
 
+/**
+ * A provider resource that a failed create step may have left behind. The adapter reported it through
+ * its structured partial-effects record (or an unknown or pending outcome) instead of returning a
+ * result, so the preview never received a normal resource for it. It is kept so cleanup and recovery do
+ * not report "cleaned" while it may still exist.
+ */
+export interface PreviewResidualEffect {
+  /** Position of the failed step in plan order (databases, services, edges, then jobs). */
+  order: number;
+  /** Capability path of the failed step, for example "database.branchCreate". */
+  operation: CapabilityPath;
+  /** What the adapter knew about the failed step's primary action. */
+  outcome: ActionOutcome;
+  /** Safe provider locator of the resource that may still exist. */
+  locator: ResourceLocator;
+}
+
 export interface PreviewResourceRecord {
   /**
    * Graph-local resource reference assigned at creation, unique within one preview graph. It is the
@@ -107,6 +135,11 @@ export interface PreviewResourceRecord {
   receipt?: CapsuleReceipt;
   cleanup?: PreviewCleanupAction;
   cleanupDisposition?: PreviewCleanupDisposition;
+  /**
+   * Set when this record stands for a resource that a failed create step may have left behind. When
+   * Capsule cannot build a cleanup action for it, cleanup reports it as leaked rather than cleaned.
+   */
+  residual?: PreviewResidualEffect;
 }
 
 export interface PreviewCleanupAction {
@@ -249,7 +282,10 @@ export interface PreviewOrchestrationResult {
  * Thrown when preview creation fails part-way. It keeps everything needed to clean up the resources
  * that were created before the failure: `resources` with their cleanup bindings (each bound to the
  * Capsule that created it), a `cleanupPlan` for exactly those resources, and their provider
- * `receipts`. Pass them to `cleanupPreviewEnvironment(error.preview, error.resources, { cleanupPlan:
+ * `receipts`. When the failing step itself reported resources it may have left behind (a structured
+ * partial-effects record, or an unknown or pending outcome with a locator), they are appended to
+ * `resources` with `residual` set, so they are never lost. A policy or capability refusal found before
+ * the first provider call is also reported as this error, with no resources. Pass them to `cleanupPreviewEnvironment(error.preview, error.resources, { cleanupPlan:
  * error.cleanupPlan })`. `createPreviewEnvironmentWithCleanup` has already attempted that cleanup and
  * reports it on `cleanup`.
  */
@@ -892,7 +928,8 @@ function createCleanupReceipt(
         disposition: entry.disposition,
         receiptId: entry.receipt?.id,
         error: entry.error,
-        notes: entry.notes
+        notes: entry.notes,
+        ...(entry.resource.residual === undefined ? {} : { residual: entry.resource.residual })
       }))
     },
     policy: {
@@ -1019,20 +1056,155 @@ export async function createPreviewEnvironment(plan: PreviewPlan): Promise<Previ
   return (await createPreviewGraph(plan)).preview;
 }
 
+// The policy input Capsule core evaluates for each preview create capability, built from the same spec
+// fields. Used only for the preflight below; each operation still runs its own check when it starts.
+function createPolicyInput(kind: PreviewResourceKind, spec: PreviewPlannedResourceSpec): Omit<PolicyInput, "capabilityPath" | "supportLevel"> {
+  const scope = (fields: CapsuleApprovalResourceScope): CapsuleApprovalResourceScope =>
+    Object.fromEntries(Object.entries(fields).filter((entry) => entry[1] !== undefined)) as CapsuleApprovalResourceScope;
+  switch (kind) {
+    case "database": {
+      const database = spec as CreateDatabaseBranchSpec;
+      return { ttlMs: database.ttlMs, approval: database.approval, resource: scope({ type: "database", project: database.project, name: database.name }) };
+    }
+    case "service": {
+      const service = spec as DeployServiceSpec;
+      return { env: service.env, approval: service.approval, resource: scope({ type: "service", name: service.name }) };
+    }
+    case "edge": {
+      const edge = spec as DeployEdgeSpec;
+      return { env: edge.env, approval: edge.approval, resource: scope({ type: "edge", name: edge.name }) };
+    }
+    case "job": {
+      const job = spec as RunJobSpec;
+      return { env: job.env, timeoutMs: job.timeoutMs, approval: job.approval, resource: scope({ type: "job", name: job.name }) };
+    }
+  }
+}
+
+// Checks capability support and policy for every child before the first provider call. Without this,
+// a denial of child N (for example a secret its env names) is found only after children 0..N-1 already
+// exist at the provider.
+function assertPreviewChildrenAllowed(plan: PreviewPlan): void {
+  for (const entry of resourceGroups(plan)) {
+    const path = previewResourceCapabilities[entry.kind].create;
+    if (!entry.capsule.supports(path)) {
+      throw new UnsupportedCapabilityError(path);
+    }
+    evaluatePolicy(entry.capsule.policy(), {
+      ...createPolicyInput(entry.kind, entry.spec),
+      capabilityPath: path,
+      supportLevel: entry.capsule.supportLevel(path),
+      networkPolicySupport: entry.capsule.capabilities().sandbox?.networkPolicy
+    });
+  }
+}
+
+const residualCleanupStatuses = new Set(["not-attempted", "failed", "pending", "unknown"]);
+
+function locatorKey(locator: ResourceLocator): string {
+  return JSON.stringify([locator.provider, locator.kind, locator.nativeId, locator.scope ?? {}]);
+}
+
+// Resources a failed step reported it may have left behind. A partial-effects record names them
+// explicitly (cleanup.residual), or implicitly when its own compensation did not succeed. Resources the
+// compensation never targeted (for example a Kubernetes Service whose create outcome is unknown) may
+// exist whatever the cleanup status. An unknown or pending outcome carries the one locator Capsule knows.
+function residualEffectsOf(error: unknown): { outcome: ActionOutcome; locators: readonly ResourceLocator[] } | undefined {
+  const effects = partialEffectsOf(error);
+  if (effects) {
+    const { cleanup } = effects;
+    const targeted = new Set((cleanup.resources ?? []).map(locatorKey));
+    const untargeted = cleanup.resources === undefined ? [] : effects.resources.filter((locator) => !targeted.has(locatorKey(locator)));
+    const residual = cleanup.residual ?? (residualCleanupStatuses.has(cleanup.status) ? effects.resources : []);
+    const unique = new Map([...residual, ...untargeted].map((locator) => [locatorKey(locator), locator]));
+    return { outcome: effects.outcome, locators: [...unique.values()] };
+  }
+  if (error instanceof UnknownOutcomeError && error.resource) {
+    return { outcome: "unknown", locators: [error.resource] };
+  }
+  if (error instanceof PendingOperationError) {
+    return { outcome: "pending", locators: [error.resource] };
+  }
+  return undefined;
+}
+
+function residualRecord(
+  kind: PreviewResourceKind,
+  capsule: Capsule,
+  spec: PreviewPlannedResourceSpec,
+  residual: PreviewResidualEffect
+): PreviewResourceRecord {
+  const { locator } = residual;
+  const project = locator.scope?.project;
+  // Only a Neon-shaped database branch locator maps onto the preview's own cleanup action
+  // (database.branchDelete with project and branchId). Other locators (Kubernetes Deployments,
+  // Cloudflare Workers and routes) have no matching preview cleanup action, so they are reported as
+  // leaked with their locator instead of guessing a delete.
+  const cleanup: PreviewCleanupAction | undefined =
+    kind === "database" && locator.kind === "branch" && typeof project === "string"
+      ? { kind: "database", capsule, capabilityPath: "database.branchDelete", spec: Object.freeze({ project, branchId: locator.nativeId }) }
+      : undefined;
+  return {
+    type: kind,
+    kind,
+    id: locator.nativeId,
+    provider: locator.provider,
+    name: resourceName(spec),
+    ...(cleanup ? { cleanup } : {}),
+    residual
+  };
+}
+
 // Provisions the plan in its fixed order (databases, services, edges, jobs) and appends each created
 // resource to `resources` as soon as it exists, so a failure part-way leaves the created prefix intact.
+// When the failing step reports resources it may have left behind, they are appended as residual
+// records before the error is rethrown.
 async function provisionPreviewResources(plan: PreviewPlan, resources: PreviewResourceRecord[]): Promise<void> {
-  for (const entry of plan.databases ?? []) {
-    resources.push(withRef(databaseRecord(await entry.capsule.database.branch.create(entry.spec), entry.capsule), resources.length));
+  let order = 0;
+  for (const entry of resourceGroups(plan)) {
+    let record: PreviewResourceRecord;
+    try {
+      record = await createPreviewChild(entry.kind, entry.capsule, entry.spec);
+    } catch (error) {
+      const residual = residualEffectsOf(error);
+      for (const locator of residual?.locators ?? []) {
+        const effect: PreviewResidualEffect = { order, operation: previewResourceCapabilities[entry.kind].create, outcome: residual!.outcome, locator };
+        resources.push(withRef(residualRecord(entry.kind, entry.capsule, entry.spec, effect), resources.length));
+      }
+      throw error;
+    }
+    resources.push(withRef(record, resources.length));
+    order += 1;
   }
-  for (const entry of plan.services ?? []) {
-    resources.push(withRef(serviceRecord(await entry.capsule.service.deploy(entry.spec), entry.capsule), resources.length));
+}
+
+async function createPreviewChild(kind: PreviewResourceKind, capsule: Capsule, spec: PreviewPlannedResourceSpec): Promise<PreviewResourceRecord> {
+  switch (kind) {
+    case "database":
+      return databaseRecord(await capsule.database.branch.create(spec as CreateDatabaseBranchSpec), capsule);
+    case "service":
+      return serviceRecord(await capsule.service.deploy(spec as DeployServiceSpec), capsule);
+    case "edge":
+      return edgeRecord(await capsule.edge.deploy(spec as DeployEdgeSpec));
+    case "job":
+      return jobRecord(await capsule.job.run(spec as RunJobSpec));
   }
-  for (const entry of plan.edges ?? []) {
-    resources.push(withRef(edgeRecord(await entry.capsule.edge.deploy(entry.spec)), resources.length));
-  }
-  for (const entry of plan.jobs ?? []) {
-    resources.push(withRef(jobRecord(await entry.capsule.job.run(entry.spec)), resources.length));
+}
+
+// Runs the preflight and reports a refusal as PreviewCreationError with no resources, the same error
+// type callers already handle for a failure part-way.
+function preflightPreviewChildren(plan: PreviewPlan, id: string): void {
+  try {
+    assertPreviewChildrenAllowed(plan);
+  } catch (error) {
+    const refusedPreview = previewFromResources(id, plan, "failed", []);
+    throw new PreviewCreationError("Preview environment creation was refused before any provider call.", {
+      preview: refusedPreview,
+      cause: error,
+      resources: [],
+      cleanupPlan: createPreviewCleanupPlan(refusedPreview, [], { operationId: plan.operationId }),
+      receipts: []
+    });
   }
 }
 
@@ -1048,6 +1220,7 @@ export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrch
   const startedAt = new Date();
   const id = createPreviewId(plan.name);
   const resources: PreviewResourceRecord[] = [];
+  preflightPreviewChildren(plan, id);
 
   try {
     await provisionPreviewResources(plan, resources);
@@ -1094,6 +1267,21 @@ export async function cleanupPreviewEnvironment(
   const dispositions: PreviewCleanupDispositionRecord[] = [];
 
   for (const resource of [...resources].reverse()) {
+    if (!resource.cleanup && resource.residual) {
+      const leakedResource = cloneWithDisposition(resource, "leaked");
+      const { locator } = resource.residual;
+      const error = new Error(
+        `A failed ${resource.residual.operation} step may have left ${locator.provider} ${locator.kind} ${locator.nativeId} behind, and Capsule has no cleanup action for it.`
+      );
+      failed.push({ resource: leakedResource, error });
+      dispositions.push({
+        resource: leakedResource,
+        disposition: "leaked",
+        error: error.message,
+        notes: ["Residual from a failed create step; remove it at the provider using its locator."]
+      });
+      continue;
+    }
     if (!resource.cleanup) {
       const unsupported = cloneWithDisposition(resource, "unsupported");
       dispositions.push({
@@ -1187,6 +1375,7 @@ export async function createPreviewEnvironmentWithCleanup(
   assertTtlEnforcementSupported(plan);
   const id = createPreviewId(plan.name);
   const resources: PreviewResourceRecord[] = [];
+  preflightPreviewChildren(plan, id);
 
   try {
     await provisionPreviewResources(plan, resources);

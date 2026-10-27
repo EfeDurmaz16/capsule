@@ -2,7 +2,18 @@
 // from the M1 manifest and is marked it.fails while the defect is present on the baseline (7d3a28a). The
 // owner who fixes an ID flips its it.fails to it in the same commit. All adapters are in-memory fakes.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Capsule, UnsupportedCapabilityError, type CapsuleApprovalGrant, type CleanupApprovalRequest } from "@capsule-sdk/core";
+import {
+  Capsule,
+  CleanupFailureError,
+  PartialEffectsError,
+  PolicyViolationError,
+  resourceLocator,
+  UnsupportedCapabilityError,
+  type CapsuleApprovalGrant,
+  type CleanupApprovalRequest,
+  type CleanupOutcome,
+  type PartialEffects
+} from "@capsule-sdk/core";
 import {
   aggregatePreviewStatus,
   cleanupPreviewEnvironment,
@@ -359,6 +370,145 @@ describe("M1 audit regressions: preview", () => {
     });
     expect(graph.receipts.at(-1)?.metadata?.ttl).toMatchObject({ requestedMs: 60_000, enforcement: "record-only" });
   });
+  // Throws exactly what @capsule-sdk/neon's cleanupCreatedBranch throws when the compensating DELETE
+  // fails (neon-adapter.ts): CleanupFailureError with a branch locator scoped by project as residual.
+  function residualNeonDatabase(deletes: string[], deleteFails: boolean) {
+    return new Capsule({
+      adapter: {
+        name: "neon-residual",
+        provider: "neon",
+        capabilities: { database: { branchCreate: "native", branchDelete: "native" } } as never,
+        database: {
+          branch: {
+            create: async (spec) => {
+              const branch = resourceLocator({ provider: "neon", kind: "branch", nativeId: "br-leak-1", scope: { project: spec.project } });
+              const primaryError = new Error("connection_uri returned 500");
+              const cleanupError = new Error("Neon returned 423: project has running operations");
+              const effects: PartialEffects = {
+                operation: "database.branchCreate",
+                outcome: "failed",
+                resources: [branch],
+                primaryError,
+                cleanup: { status: "failed", resources: [branch], residual: [branch], error: cleanupError }
+              };
+              throw new CleanupFailureError("Neon branch cleanup failed", effects.cleanup, primaryError, effects);
+            },
+            delete: async (spec) => {
+              deletes.push(`${spec.project}/${spec.branchId}`);
+              if (deleteFails) throw new Error("Neon returned 423: project has running operations");
+              return { id: spec.branchId, provider: "neon", project: spec.project, status: "deleted" };
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Mirrors @capsule-sdk/kubernetes rollbackDeployment: the Service create outcome is unknown, the
+  // Deployment rollback either failed (CleanupFailureError) or succeeded (PartialEffectsError).
+  function residualKubernetesService(rollbackFails: boolean) {
+    return new Capsule({
+      adapter: {
+        name: "kubernetes",
+        provider: "kubernetes",
+        capabilities: { service: { deploy: "native", delete: "native" } } as never,
+        service: {
+          deploy: async (spec) => {
+            const scope = { namespace: "preview" };
+            const deployment = resourceLocator({ provider: "kubernetes", kind: "deployment", nativeId: spec.name, scope });
+            const service = resourceLocator({ provider: "kubernetes", kind: "service", nativeId: spec.name, scope });
+            const primaryError = new Error("createNamespacedService: socket hang up");
+            const cleanup: CleanupOutcome = rollbackFails
+              ? { status: "failed", resources: [deployment], residual: [deployment], error: new Error("403 Forbidden") }
+              : { status: "succeeded", resources: [deployment] };
+            const effects: PartialEffects = { operation: "service.deploy", outcome: "unknown", resources: [deployment, service], primaryError, cleanup };
+            throw rollbackFails ? new CleanupFailureError("rollback failed", cleanup, primaryError, effects) : new PartialEffectsError("deploy failed", effects);
+          }
+        }
+      }
+    });
+  }
+
+  it("GAP-06: a failing step's residual resources are kept and cleanup never reports cleaned while they may exist", async () => {
+    const deletes: string[] = [];
+    const neon = (await createPreviewEnvironmentWithCleanup({
+      name: "residual",
+      databases: [{ capsule: residualNeonDatabase(deletes, true), spec: { project: "p1", name: "db" } }]
+    }).catch((caught: unknown) => caught)) as PreviewCreationError;
+    expect(neon).toBeInstanceOf(PreviewCreationError);
+    expect(neon.resources.map((resource) => [resource.kind, resource.provider, resource.id, resource.residual?.locator.scope])).toEqual([
+      ["database", "neon", "br-leak-1", { project: "p1" }]
+    ]);
+    expect(neon.cleanupPlan?.actions.map((action) => [action.resourceId, action.spec.project])).toEqual([["br-leak-1", "p1"]]);
+    expect(deletes).toEqual(["p1/br-leak-1"]);
+    expect(neon.cleanup?.status).toBe("partial");
+    expect(neon.cleanup?.dispositions.map((entry) => entry.disposition)).toEqual(["leaked"]);
+    expect(neon.cleanup?.receipt.resource?.status).toBe("partial");
+
+    for (const rollbackFails of [true, false]) {
+      const k8s = (await createPreviewEnvironmentWithCleanup({
+        name: "residual",
+        services: [{ capsule: residualKubernetesService(rollbackFails), spec: { name: "web", image: "img" } }]
+      }).catch((caught: unknown) => caught)) as PreviewCreationError;
+      const expected = rollbackFails ? ["deployment:web", "service:web"] : ["service:web"];
+      expect(k8s.resources.map((resource) => `${resource.residual?.locator.kind}:${resource.id}`).sort()).toEqual(expected);
+      expect(k8s.resources.every((resource) => resource.cleanup === undefined)).toBe(true);
+      expect(k8s.cleanup?.status).toBe("partial");
+      expect(k8s.cleanup?.dispositions.every((entry) => entry.disposition === "leaked")).toBe(true);
+    }
+  });
+
+  it("GAP-06: the basic create path also returns the failing step's residual for later cleanup", async () => {
+    const deletes: string[] = [];
+    const error = (await createPreviewGraph({
+      name: "residual",
+      databases: [{ capsule: residualNeonDatabase(deletes, false), spec: { project: "p1", name: "db" } }]
+    }).catch((caught: unknown) => caught)) as PreviewCreationError;
+    expect(error.resources.map((resource) => resource.residual?.locator.nativeId)).toEqual(["br-leak-1"]);
+    expect(deletes).toEqual([]);
+    const cleanup = await cleanupPreviewEnvironment(error.preview, error.resources, { cleanupPlan: error.cleanupPlan });
+    expect(cleanup.status).toBe("cleaned");
+    expect(deletes).toEqual(["p1/br-leak-1"]);
+  });
+
+  it("CD-SECRETS: a policy denial of a later child is found before any child is created", async () => {
+    const calls: DeleteCall[] = [];
+    let deploys = 0;
+    const service = new Capsule({
+      adapter: {
+        name: "fake-service",
+        provider: "fake-service",
+        capabilities: { service: { deploy: "native", delete: "native" } } as never,
+        service: {
+          deploy: async (spec) => {
+            deploys += 1;
+            return { id: spec.name, provider: "fake-service", name: spec.name, status: "ready" };
+          }
+        }
+      },
+      policy: { secrets: { allowed: [] } }
+    });
+    let creates = 0;
+    const database = fakeDatabase("fake", "app", calls);
+    const create = database.database.branch.create.bind(database.database.branch);
+    database.database.branch.create = async (spec) => {
+      creates += 1;
+      return create(spec);
+    };
+    const plan = {
+      name: "preflight",
+      databases: [{ capsule: database, spec: { project: "app", name: "audit-db" } }],
+      services: [{ capsule: service, spec: { name: "web", image: "img", env: { API_TOKEN: "fixture" } } }]
+    };
+    for (const run of [() => createPreviewGraph(plan), () => createPreviewEnvironmentWithCleanup(plan)]) {
+      const error = (await run().catch((caught: unknown) => caught)) as PreviewCreationError;
+      expect(error).toBeInstanceOf(PreviewCreationError);
+      expect(error.cause).toBeInstanceOf(PolicyViolationError);
+      expect(error.resources).toEqual([]);
+    }
+    expect(creates).toBe(0);
+    expect(deploys).toBe(0);
+  });
 
   function namespacedService(namespace: string, deletes: string[], provider = "kubernetes") {
     return new Capsule({
@@ -398,5 +548,40 @@ describe("M1 audit regressions: preview", () => {
     const withPlan = await cleanupPreviewEnvironment(graph.preview, refless, { cleanupPlan: plan, approval });
     expect(withPlan.status).toBe("cleaned");
     expect(deletes.sort()).toEqual(["ns-a/web", "ns-b/web"]);
+  });
+
+  it("CD-APPROVAL: same-id cleanup requests are distinguishable and a provider-scoped grant matches only its provider", async () => {
+    const deletes: string[] = [];
+    const graph = await createPreviewGraph({
+      name: "same-id",
+      services: [
+        { capsule: namespacedService("preview-a", deletes), spec: { name: "web", image: "img", approval: { approved: true, id: "deploy" } } },
+        { capsule: namespacedService("other", deletes, "other-cloud"), spec: { name: "web", image: "img", approval: { approved: true, id: "deploy" } } }
+      ]
+    });
+    const requests: CleanupApprovalRequest[] = [];
+    const cleanup = await cleanupPreviewEnvironment(graph.preview, graph.resources, {
+      cleanupPlan: graph.cleanupPlan,
+      approval: (request) => {
+        requests.push(request);
+        return request.context?.adapter === "kubernetes-preview-a"
+          ? { approved: true, id: "only-preview-a", capabilities: ["service.delete"], resources: [request.resource] }
+          : undefined;
+      }
+    });
+    expect(new Set(requests.map((request) => JSON.stringify(request))).size).toBe(2);
+    expect(requests.map((request) => [request.resource.provider, request.context?.resourceRef]).sort()).toEqual([
+      ["kubernetes", "resource-0"],
+      ["other-cloud", "resource-1"]
+    ]);
+    expect(deletes).toEqual(["preview-a/web"]);
+    expect(cleanup.status).toBe("partial");
+
+    // The same provider-scoped grant handed to the other provider's delete is refused by core policy.
+    const grant: CapsuleApprovalGrant = { approved: true, id: "kubernetes-only", resources: [{ type: "service", id: "web", provider: "kubernetes" }] };
+    await expect(namespacedService("other", deletes, "other-cloud").service.delete({ id: "web", approval: grant })).rejects.toBeInstanceOf(
+      PolicyViolationError
+    );
+    await expect(namespacedService("preview-a", deletes).service.delete({ id: "web", approval: grant })).resolves.toMatchObject({ status: "deleted" });
   });
 });
