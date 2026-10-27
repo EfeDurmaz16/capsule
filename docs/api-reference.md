@@ -13,6 +13,7 @@ This is a lightweight reference for maintainers and adapter authors. It lists pa
 - Source: `packages/ai/src/index.ts`
 
 Exports:
+- `CodeExecutionCleanupFailure` (interface)
 - `CodeExecutionFile` (interface)
 - `CodeExecutionInput` (interface)
 - `codeExecutionInputJsonSchema` (const)
@@ -632,6 +633,7 @@ Exports:
 - `CreatePreviewDryRunReceiptBundleOptions` (interface)
 - `createPreviewEnvironment` (function)
 - `createPreviewEnvironmentWithCleanup` (function)
+- `CreatePreviewEnvironmentWithCleanupOptions` (interface)
 - `createPreviewGraph` (function)
 - `createPreviewId` (function)
 - `MockProviderNotAllowedError` (class)
@@ -643,6 +645,7 @@ Exports:
 - `PreviewCleanupDispositionRecord` (interface)
 - `PreviewCleanupPlan` (interface)
 - `PreviewCleanupPlanAction` (interface)
+- `PreviewCleanupPlanError` (class)
 - `PreviewCleanupPlanResource` (interface)
 - `previewCleanupPlanSchema` (const)
 - `PreviewCleanupResult` (interface)
@@ -656,6 +659,7 @@ Exports:
 - `PreviewResourceGroup` (interface)
 - `PreviewResourceKind` (type)
 - `PreviewResourceRecord` (interface)
+- `PreviewTtlEnforcement` (type)
 - `previewUrlRegistry` (function)
 - `validatePreviewPlanCapabilities` (function)
 
