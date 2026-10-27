@@ -114,8 +114,18 @@ describe("M1 audit regressions: preview", () => {
     expect(calls).toEqual([]);
   });
 
-  it.fails("COMP-02: a cancelled required check never aggregates to ready", () => {
+  it("COMP-02: a cancelled required check never aggregates to ready", () => {
     expect(aggregatePreviewStatus([{ type: "job", kind: "job", id: "check", provider: "fake", status: "cancelled" } as never])).not.toBe("ready");
+    expect(
+      aggregatePreviewStatus([
+        { type: "service", kind: "service", id: "api", provider: "fake", status: "running" },
+        { type: "job", kind: "job", id: "check", provider: "fake", status: "cancelled" }
+      ])
+    ).toBe("failed");
+  });
+
+  it("COMP-02: running services keep ready semantics", () => {
+    expect(aggregatePreviewStatus([{ type: "service", kind: "service", id: "api", provider: "fake", status: "running" }])).toBe("ready");
   });
 
   it.fails("COMP-05: the aggregate preview receipt duration covers provisioning time", async () => {

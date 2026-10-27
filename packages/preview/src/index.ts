@@ -860,7 +860,10 @@ function jobRecord(resource: JobRun): PreviewResourceRecord {
   };
 }
 
-const failedResourceStatuses = new Set(["failed", "error", "errored", "crashed"]);
+// A cancelled required check never passed, so it cannot make a preview ready. Running services stay
+// ready-eligible. Running jobs and unknown statuses keep the existing behavior (they do not block
+// ready); callers that need passed checks should require a terminal "succeeded" job status.
+const failedResourceStatuses = new Set(["failed", "error", "errored", "crashed", "cancelled", "canceled"]);
 const pendingResourceStatuses = new Set(["creating", "pending", "provisioning", "queued", "deploying"]);
 
 export function aggregatePreviewStatus(resources: PreviewResourceRecord[]): PreviewEnvironment["status"] {
