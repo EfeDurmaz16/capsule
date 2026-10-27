@@ -109,6 +109,7 @@ for (const file of readdirSync(workloadDir)
   if (only && !only.has(workload.id)) continue;
   for (const benchCase of workload.cases) {
     if (benchCase.large) continue;
+    if (benchCase.requiresEnv && !process.env[benchCase.requiresEnv]) continue;
     if (onlyCases && !onlyCases.has(`${workload.id}/${benchCase.name}`)) continue;
     selected.push({ file, workload, benchCase });
   }
@@ -187,6 +188,11 @@ function otherLeaves(record) {
 }
 
 const higherIsBetter = (metric) => /opsPerSecond|throughput/i.test(metric);
+// Costs: time, memory, bytes read or emitted, process spawns, statement preparations, SDK clients and
+// leaks. Every other numeric metric is a count of what the workload did (entries returned, requests in
+// flight, ...), so a difference there is reported as "changed", never as better or worse.
+const isCost = (metric) =>
+  /(Ms|ms)($|\.)|Rss|rss|heap|Heap|bytesRead|bytesEmitted|Spawns|PrepareCalls|PrepareMs|readCalls|uniqueSdkClients|leakedSecrets|receiptsStillReachable|bRejectedWithAError/.test(metric);
 
 function bootstrapMedianInterval(ratios, random) {
   const medians = [];
@@ -209,6 +215,7 @@ function verdict(metric, interval) {
   if (!interval) return "n/a";
   const [low, high] = interval;
   if (low === 1 && high === 1) return "equal";
+  if (!isCost(metric) && !higherIsBetter(metric)) return low > 1 || high < 1 ? "changed" : "same";
   const better = higherIsBetter(metric) ? low > 1 : high < 1;
   const worse = higherIsBetter(metric) ? high < 1 : low > 1;
   return better ? "better" : worse ? "worse" : "no difference";
@@ -224,7 +231,7 @@ const report = [
   "",
   `Host ${meta.host.platform} ${meta.host.release} ${meta.host.arch}, ${meta.host.cpus} CPUs (${meta.host.cpuModel}), node ${meta.runtime.node}; load average at start ${meta.host.loadAverageAtStart.map((value) => value.toFixed(1)).join("/")}, at end ${summary.meta.loadAverageAtEnd.map((value) => value.toFixed(1)).join("/")}.`,
   "",
-  `Statistic: ${meta.statistic}. Verdict "worse"/"better" only when the whole interval is on one side of 1.`,
+  `Statistic: ${meta.statistic}. Verdict "worse"/"better" only for cost or throughput metrics and only when the whole interval is on one side of 1; other counts say "changed" or "same".`,
   "",
   "| Workload | Case | Metric | A median | B median | B/A median | 95% CI | Verdict |",
   "| --- | --- | --- | --- | --- | --- | --- | --- |"
