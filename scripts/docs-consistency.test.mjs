@@ -91,3 +91,29 @@ test("DOC-04: roadmap current-adapter lines claim no domain the generated matrix
   }
   assert.ok(checked > 0);
 });
+
+test("DOC-05: release docs name the @capsule-sdk scope and every public package", async () => {
+  const { readdirSync, existsSync } = await import("node:fs");
+  const publicPackages = readdirSync(join(root, "packages"))
+    .map((dir) => join("packages", dir, "package.json"))
+    .filter((path) => existsSync(join(root, path)))
+    .map((path) => JSON.parse(read(path)))
+    .filter((pkg) => pkg.private !== true)
+    .map((pkg) => pkg.name)
+    .sort();
+  assert.ok(publicPackages.every((name) => name.startsWith("@capsule-sdk/")));
+
+  for (const path of ["docs/release-rollback.md", ".changeset/README.md"]) {
+    assert.doesNotMatch(read(path), /`@capsule`|@capsule scope|@capsule\b(?!-sdk)/, `${path} names the wrong npm scope`);
+  }
+  const listed = /package name \(([^)]+)\) is available/
+    .exec(read("docs/release-rollback.md"))?.[1]
+    .split(",")
+    .map((name) => `@capsule-sdk/${name.trim()}`);
+  assert.deepEqual(listed?.sort(), publicPackages);
+});
+
+test("DOC-05: release docs separate a green release run from publication", () => {
+  assert.match(read("docs/release-rollback.md"), /green `Release` run therefore is not evidence that anything was published/);
+  assert.match(read(".changeset/README.md"), /A green workflow run is not publication proof/);
+});

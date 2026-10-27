@@ -17,21 +17,25 @@ pnpm release:audit
 
 1. package metadata audit for every public `@capsule-sdk/*` package;
 2. unfinished marker gate over shipped source;
-3. `pnpm pack` dry run for every public package;
+3. `pnpm pack` for every public package, with a packed size budget and a tarball contents check (package metadata and `dist` output only; no tests, fixtures, sources or env files);
 4. install smoke in a temporary fixture using the packed tarballs;
 5. package-name import smoke for every packed package;
 6. `@capsule-sdk/cli` bin smoke through `pnpm exec capsule capabilities`.
 
 Before the first publish, verify manually with the npm account that will publish Capsule:
 
-1. The npm organization `@capsule` exists or is intentionally unavailable and a final namespace decision has been made.
-2. The publishing account has owner or maintainer permission for the chosen namespace.
-3. Every intended public `@capsule-sdk/*` package name (core, docker, mock, e2b, daytona, modal, cloud-run, cloudflare, vercel, neon, kubernetes, lambda, ecs, ec2, fly, azure, ai, cli, preview, store-jsonl, store-sqlite) is available under it.
+1. The npm organization for the `@capsule-sdk` scope, which every package manifest uses, exists and is controlled by the publishing team. The repository audit only checks that names use this scope; it cannot prove account ownership or registry availability.
+2. The publishing account has owner or maintainer permission for `@capsule-sdk`.
+3. Every intended public `@capsule-sdk/*` package name (ai, azure, cli, cloud-run, cloudflare, core, daytona, docker, e2b, ec2, ecs, fly, kubernetes, lambda, mock, modal, neon, presets, preview, store-jsonl, store-sqlite, vercel) is available under it.
 4. Two-factor authentication and npm provenance requirements match the release workflow.
 5. `NPM_TOKEN` is an automation token scoped to the organization/packages and stored only in GitHub Actions secrets.
 6. The first release PR from Changesets is reviewed before publishing.
 
 After publication, update README badges and install text to reflect actual npm availability.
+
+### What a green release job proves
+
+The `Release` workflow runs on every push to `main`. While unreleased changesets exist, `changesets/action` only opens or updates the "chore: version packages" pull request; nothing is published. Publication runs only after that version PR is merged and no changesets remain, through `pnpm release` (`changeset publish`). A green `Release` run therefore is not evidence that anything was published. Confirm publication on the registry for each package and version (`npm view @capsule-sdk/<package>@<version> version dist.attestations`), then run `pnpm release:provenance` for the presence check below.
 
 ### Provenance check limits
 
@@ -117,8 +121,8 @@ pnpm typecheck
 pnpm test
 pnpm build
 pnpm release:audit
-pnpm docs:api
-git diff --exit-code docs/api-reference.md
+pnpm capsule:gap:check
+pnpm docs:api:check
 find packages -path '*/dist/*' -type f \( -name '*.test.*' -o -name '*.live.test.*' \) -print
 ```
 
