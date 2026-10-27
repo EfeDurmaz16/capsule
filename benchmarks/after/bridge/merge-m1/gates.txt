@@ -31,3 +31,24 @@ PASS  Fabric 0b6b3a3, cargo test -p fabric-bridge --test capsule_worker -- --ign
       8 of 8 pass with CAPSULE_BRIDGE_DOCKER_IMAGE=debian:bookworm-slim, the Docker profile test included (fabric-interop.log)
       every_shared_scenario_over_the_workers_stdio repeated: 100 of 100 pass with Fabric's one-write replay,
       against 39 of 40 with the replay before 0b6b3a3 (one failure at shutdown_reports_unresolved step 5, 4 observations against 2)
+
+# Second merge, after M1 moved to ff0b42a
+
+commit: 9e8013536c471bf1f56677da0cf8d7de33d80572 (merge of c5ff306 and origin/m1/correctness-perf-ci ff0b42a)
+host: as above, load average 18 to 21
+
+## Node 22.23.2
+PASS  pnpm install --frozen-lockfile, capsule:gap:check, format:check, typecheck, build
+FAIL  pnpm test                              1074 passed, 20 skipped, 1 failed: store-sqlite PERF-12 "many writes and reads prepare one INSERT and one SELECT" timed out at 5 s (12 s of fsync at this load)
+      The test is M1's and this branch does not change store-sqlite. It fails the same way on a fresh clone of M1 ff0b42a on this host,
+      and passes with --testTimeout=60000 (7 of 7). GitHub CI runs it on ubuntu.
+PASS  pnpm release:audit                     pack smoke passed for 23 packages, packed worker round trip, refusal before effect and oversize hello
+PASS  pnpm docs:api:check
+PASS  pnpm test:package-exports              3 of 3
+PASS  pnpm release:pack-smoke:compatible     22 packages
+PASS  pnpm bench:bounds
+PASS  pnpm bridge:docker-smoke               all 11 checks true (docker-smoke-node22-merge2.json); exec p50 388 ms at this load
+
+## Fabric's client against this worker
+PASS  fresh clone of 9e80135 built with the bridge-interop CI steps; Fabric 25a6130 capsule_worker.rs: 8 of 8 with and without
+      CAPSULE_BRIDGE_DOCKER_IMAGE=debian:bookworm-slim (fabric-interop-merge2.log); every_shared_scenario 30 of 30
