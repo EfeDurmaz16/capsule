@@ -7,6 +7,7 @@ import {
   ProviderAuthError,
   ProviderRateLimitError,
   UnknownOutcomeError,
+  UnsupportedCapabilityError,
   runAdapterContract
 } from "@capsule-sdk/core";
 import { CommandExitError } from "e2b";
@@ -251,5 +252,19 @@ describe("e2b adapter", () => {
     expect(result.receipt).toMatchObject({ type: "sandbox.exec", exitCode: 2, metadata: expect.objectContaining({ error: "exit status 2" }) });
     expect(allocated.killed).toBe(false);
     expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create", "sandbox.exec"]);
+  });
+  it("GAP-04: rejects exec input before any provider call instead of dropping it", async () => {
+    const allocated = resetFakeSandbox();
+    let runs = 0;
+    const run = allocated.commands.run;
+    allocated.commands.run = async (...args) => {
+      runs += 1;
+      return run(...args);
+    };
+    const sandbox = await new Capsule({ adapter: e2b({ sandboxClass: FakeE2BSandbox }) }).sandbox.create({});
+
+    await expect(sandbox.exec({ command: "cat", input: "hello" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(sandbox.exec({ command: "cat", input: "" })).rejects.toThrow("ExecSpec.input");
+    expect(runs).toBe(0);
   });
 });

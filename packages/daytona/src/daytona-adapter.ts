@@ -9,6 +9,7 @@ import {
   ProviderRateLimitError,
   ProviderValidationError,
   UnknownOutcomeError,
+  UnsupportedCapabilityError,
   asProviderError,
   callProvider,
   capsuleOperationTags,
@@ -288,6 +289,13 @@ class DaytonaCapsuleSandbox implements Sandbox {
   ) {}
 
   async exec(spec: ExecSpec): Promise<ExecResult> {
+    if (spec.input !== undefined) {
+      // Rejected before any provider call rather than silently dropped: the installed Daytona SDK executeCommand has no stdin parameter.
+      throw new UnsupportedCapabilityError(
+        "sandbox.exec.input",
+        "Daytona exec does not support ExecSpec.input (the installed Daytona SDK executeCommand has no stdin parameter). Write the data to a file with writeFile and read it from the command instead."
+      );
+    }
     const startedAt = new Date();
     const policy = this.context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
     let response: { exitCode: number; result: string };

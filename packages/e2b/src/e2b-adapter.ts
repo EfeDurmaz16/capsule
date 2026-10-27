@@ -6,6 +6,7 @@ import {
   ProviderRateLimitError,
   ProviderValidationError,
   UnknownOutcomeError,
+  UnsupportedCapabilityError,
   asProviderError,
   callProvider,
   capsuleOperationTags,
@@ -272,6 +273,13 @@ class E2BCapsuleSandbox implements Sandbox {
   ) {}
 
   async exec(spec: ExecSpec): Promise<ExecResult> {
+    if (spec.input !== undefined) {
+      // Rejected before any provider call rather than silently dropped: the installed e2b SDK has no public way to close a command's stdin, so EOF cannot be delivered.
+      throw new UnsupportedCapabilityError(
+        "sandbox.exec.input",
+        "E2B exec does not support ExecSpec.input (the installed e2b SDK has no public way to close a command's stdin, so EOF cannot be delivered). Write the data to a file with writeFile and read it from the command instead."
+      );
+    }
     const startedAt = new Date();
     const policy = this.context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
     const command = commandToString(spec.command);

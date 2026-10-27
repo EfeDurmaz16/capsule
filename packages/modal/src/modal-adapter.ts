@@ -6,6 +6,7 @@ import {
   PartialEffectsError,
   PendingOperationError,
   PolicyViolationError,
+  UnknownOutcomeError,
   asProviderError,
   callProvider,
   observeUntilTerminal,
@@ -30,7 +31,13 @@ interface ModalReadStreamLike {
   readText(): Promise<string>;
 }
 
+interface ModalWriteStreamLike {
+  writeText(text: string): Promise<void>;
+  close(): Promise<void>;
+}
+
 interface ModalProcessLike {
+  stdin: ModalWriteStreamLike;
   stdout: ModalReadStreamLike;
   stderr: ModalReadStreamLike;
   wait(): Promise<number>;
@@ -256,6 +263,20 @@ async function rollbackCreatedSandbox(sandbox: ModalSandboxLike, primaryError: u
   throw new PartialEffectsError(`Modal sandbox creation failed after sandbox allocation; ${suffix}: ${errorMessage(primaryError)}`, effects);
 }
 
+async function writeStdinAndClose(proc: ModalProcessLike, input: string, sandboxId: string): Promise<void> {
+  try {
+    if (input.length > 0) await proc.stdin.writeText(input);
+    await proc.stdin.close();
+  } catch (error) {
+    // The command already started; without confirmed stdin delivery its outcome is unknown.
+    throw new UnknownOutcomeError(
+      `Modal command stdin could not be delivered; the command outcome is unknown: ${errorMessage(error)}`,
+      { operation: "sandbox.exec", resource: sandboxLocator(sandboxId) },
+      asProviderError(error, "Modal stdin write failed.")
+    );
+  }
+}
+
 class ModalCapsuleSandbox implements Sandbox {
   constructor(
     private readonly sandbox: ModalSandboxLike,
@@ -270,6 +291,11 @@ class ModalCapsuleSandbox implements Sandbox {
     const proc = await callProvider("Modal command execution failed.", () =>
       this.sandbox.exec(command(spec.command), { workdir: spec.cwd, env: spec.env, timeoutMs: spec.timeoutMs, mode: "text" })
     );
+    if (spec.input !== undefined) {
+      // The installed SDK's ContainerProcess.stdin is a WritableStream: writeText sends the data and
+      // close() sends EOF. Without input stdin is left open, as before.
+      await writeStdinAndClose(proc, spec.input, this.handle.id);
+    }
     const [exitCode, stdoutRaw, stderrRaw] = await callProvider("Modal command execution failed.", () =>
       Promise.all([proc.wait(), proc.stdout.readText(), proc.stderr.readText()])
     );

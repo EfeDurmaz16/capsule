@@ -10,6 +10,7 @@ import {
   ProviderRetryableError,
   partialEffectsOf,
   runAdapterContract,
+  UnknownOutcomeError,
   UnsupportedCapabilityError
 } from "@capsule-sdk/core";
 import { modal, modalCapabilities } from "./index.js";
@@ -266,5 +267,50 @@ describe("modal adapter", () => {
     expect(created[0][2].blockNetwork).toBeUndefined();
     expect(created[1][2]).toMatchObject({ blockNetwork: true });
     expect(created[1][2].cidrAllowlist).toBeUndefined();
+  });
+  it("GAP-04: writes exec input to the process stdin and closes it for EOF", async () => {
+    const { sandbox } = fakeModalSandbox();
+    const stdinEvents: string[] = [];
+    sandbox.exec = async () => ({
+      stdin: {
+        writeText: async (text: string) => {
+          stdinEvents.push(`write:${text}`);
+        },
+        close: async () => {
+          stdinEvents.push("close");
+        }
+      },
+      wait: async () => 0,
+      stdout: { readText: async () => stdinEvents.join(",") },
+      stderr: { readText: async () => "" }
+    });
+    const box = await new Capsule({ adapter: modal({ client: fakeModalClient(sandbox) }) }).sandbox.create({});
+
+    const withInput = await box.exec({ command: ["cat"], input: "hello" });
+    expect(withInput.stdout).toBe("write:hello,close");
+    stdinEvents.length = 0;
+    const emptyInput = await box.exec({ command: ["cat"], input: "" });
+    expect(emptyInput.stdout).toBe("close");
+    stdinEvents.length = 0;
+    const noInput = await box.exec({ command: ["true"] });
+    expect(noInput.stdout).toBe("");
+  });
+
+  it("GAP-04: a failed stdin delivery reports an unknown command outcome", async () => {
+    const { sandbox } = fakeModalSandbox();
+    sandbox.exec = async () => ({
+      stdin: {
+        writeText: async () => {
+          throw new Error("stream reset");
+        },
+        close: async () => undefined
+      },
+      wait: async () => 0,
+      stdout: { readText: async () => "" },
+      stderr: { readText: async () => "" }
+    });
+    const box = await new Capsule({ adapter: modal({ client: fakeModalClient(sandbox) }) }).sandbox.create({});
+
+    await expect(box.exec({ command: ["cat"], input: "hello" })).rejects.toBeInstanceOf(UnknownOutcomeError);
   });
 });

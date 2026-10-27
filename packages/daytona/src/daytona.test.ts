@@ -8,6 +8,7 @@ import {
   ProviderRetryableError,
   ProviderValidationError,
   UnknownOutcomeError,
+  UnsupportedCapabilityError,
   runAdapterContract
 } from "@capsule-sdk/core";
 import { daytona, daytonaCapabilities } from "./index.js";
@@ -245,5 +246,17 @@ describe("daytona adapter", () => {
     expect(created[0]).not.toHaveProperty("networkBlockAll");
     expect(created[1]).toMatchObject({ networkBlockAll: true });
     expect(created[1]).not.toHaveProperty("networkAllowList");
+  });
+  it("GAP-04: rejects exec input before any provider call instead of dropping it", async () => {
+    const { sandbox } = fakeDaytonaSandbox();
+    let runs = 0;
+    sandbox.process.executeCommand = async () => {
+      runs += 1;
+      return { exitCode: 0, result: "" };
+    };
+    const box = await new Capsule({ adapter: daytona({ client: { create: async () => sandbox } }) }).sandbox.create({});
+
+    await expect(box.exec({ command: "cat", input: "hello" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    expect(runs).toBe(0);
   });
 });
