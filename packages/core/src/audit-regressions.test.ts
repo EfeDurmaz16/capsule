@@ -47,7 +47,7 @@ function firstCommand(spec: ExecSpec): string {
 }
 
 describe("M1 audit regressions: core", () => {
-  it.fails("CORE-02: a sibling's failed required receipt write rejects only that sibling", async () => {
+  it("CORE-02: a sibling's failed required receipt write rejects only that sibling", async () => {
     const release = new Map<string, () => void>();
     const capsule = new Capsule({
       adapter: sandboxAdapter((spec) => new Promise((resolve) => release.set(firstCommand(spec), () => resolve(okResult())))),
@@ -75,7 +75,7 @@ describe("M1 audit regressions: core", () => {
     expect(await b).toBe("resolved");
   });
 
-  it.fails("CORE-02: B resolves on its own write while A's required write is still stalled", async () => {
+  it("CORE-02: B resolves on its own write while A's required write is still stalled", async () => {
     let releaseA!: () => void;
     const aWrite = new Promise<void>((resolve) => (releaseA = resolve));
     const capsule = new Capsule({
@@ -98,6 +98,51 @@ describe("M1 audit regressions: core", () => {
     releaseA();
     await a;
     expect(outcome).toBe("resolved");
+  });
+
+  it("CORE-02: completed required writes are not retained by a live sandbox", async () => {
+    const writes: WeakRef<Promise<void>>[] = [];
+    const capsule = new Capsule({
+      adapter: sandboxAdapter(async () => okResult()),
+      receipts: true,
+      receiptPersistence: "required",
+      receiptStore: {
+        write() {
+          const write = Promise.resolve();
+          writes.push(new WeakRef(write));
+          return write;
+        }
+      }
+    });
+    const box = await capsule.sandbox.create({});
+    for (let i = 0; i < 200; i += 1) {
+      await box.exec({ command: ["noop", String(i)] });
+    }
+    for (let i = 0; i < 3; i += 1) {
+      await tick();
+      gc();
+    }
+    expect(box.handle.id).toBe("audit-box");
+    expect(writes.length).toBe(200);
+    expect(writes.filter((ref) => ref.deref() !== undefined).length).toBeLessThan(10);
+  });
+
+  it("CORE-02: each sequential operation still awaits its own required write", async () => {
+    const capsule = new Capsule({
+      adapter: sandboxAdapter(async () => okResult()),
+      receipts: true,
+      receiptPersistence: "required",
+      receiptStore: {
+        async write(receipt) {
+          await sleep(1);
+          if (receipt.command?.[0] === "fail") throw new Error("own-write-failed");
+        }
+      }
+    });
+    const box = await capsule.sandbox.create({});
+    await expect(box.exec({ command: ["ok"] })).resolves.toMatchObject({ exitCode: 0 });
+    await expect(box.exec({ command: ["fail"] })).rejects.toThrow("own-write-failed");
+    await expect(box.exec({ command: ["ok"] })).resolves.toMatchObject({ exitCode: 0 });
   });
 
   it("CORE-01: a non-retaining store lets completed receipts be collected while the sandbox stays live", async () => {
