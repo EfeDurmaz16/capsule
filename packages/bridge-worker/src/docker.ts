@@ -3,6 +3,7 @@ import { docker, dockerAvailable, runDocker, type DockerCommandResult, type RunD
 import type { BridgeDriver, ResourceState } from "./driver.js";
 import { wallClock } from "./observe.js";
 import { dockerProfile } from "./profiles.js";
+import { Refusal } from "./validate.js";
 
 // The local Docker profile (draft P12 layer L3). Effects go through Capsule's Docker adapter with
 // pull: never, so a create never reaches a registry. The bridge's reads are `docker inspect` and a
@@ -49,8 +50,20 @@ export function dockerDriver(options: DockerDriverOptions = {}): BridgeDriver {
       return binding;
     },
     adapter: () => adapter,
+    admit: (request) => {
+      // Values here become docker CLI arguments. A leading dash would read as an option, and an = in a
+      // label key would shift where docker splits the key from the value.
+      const refuse = (detail: string) => new Refusal("provider_failed", "provider_refused", detail);
+      if ("target" in request && request.target.native_id.startsWith("-")) return refuse("a container id cannot start with a dash");
+      if (request.action === "sandbox.create") {
+        if (request.params.image.startsWith("-")) return refuse("an image reference cannot start with a dash");
+        if (Object.keys(request.params.labels).some((key) => key.includes("="))) return refuse("a label key cannot hold =");
+      }
+      return undefined;
+    },
     ...(options.receipts ? { receipts: options.receipts } : {}),
     read: async (nativeId): Promise<ResourceState> => {
+      if (nativeId.startsWith("-")) return { exists: false };
       const inspected = await runner(["inspect", "--type", "container", "--format", "{{json .State}}\t{{json .Config.Labels}}", nativeId], {
         timeoutMs: 20_000
       });

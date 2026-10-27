@@ -1,6 +1,7 @@
 import type { CapsuleAdapter, ReceiptStore } from "@capsule-sdk/core";
 import type { Clock } from "./observe.js";
-import type { BridgeAction, CapabilityProfile } from "./wire.js";
+import type { Refusal } from "./validate.js";
+import type { BridgeAction, BridgeRequest, CapabilityProfile } from "./wire.js";
 
 // A driver maps one capability profile onto a Capsule adapter plus the few read-only provider calls
 // the bridge needs around it (read a resource, find what an operation created). Every effect goes
@@ -32,6 +33,11 @@ export interface BridgeDriver {
   adapter(hooks: OperationHooks): CapsuleAdapter;
   /** Where receipts go, and whether a written receipt can be referenced after this process ends. */
   receipts?: { store: ReceiptStore; durable: boolean };
+  /**
+   * Provider-specific refusals of a request the protocol accepts, for values this provider cannot
+   * take safely (for example one that would read as a CLI option). Runs before any provider call.
+   */
+  admit?(request: BridgeRequest): Refusal | undefined;
   /** Reads a resource. Never changes provider state. */
   read(nativeId: string): Promise<ResourceState>;
   /** The resource an earlier create of this operation made, found by the profile's dedupe rule. */

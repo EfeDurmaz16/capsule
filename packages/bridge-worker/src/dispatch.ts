@@ -318,6 +318,8 @@ interface Prepared {
 async function prepare(context: DispatchContext, runtime: OperationRuntime, request: BridgeRequest, binding: Record<string, string>): Promise<Prepared> {
   const { driver, config } = context;
   const capability = actionCapability(driver.profile, request.action)!;
+  const refused = driver.admit?.(request);
+  if (refused) throw refused;
   if ("target" in request) {
     const state: ResourceState = await guarded(runtime, driver.read(request.target.native_id));
     if (!state.exists) throw new Refusal("provider_failed", "not_found", "the target does not exist in this scope");
@@ -462,6 +464,7 @@ async function dispatchChecked(
           ...(prepared.grant ? { approval: prepared.grant } : {}),
           idempotencyKey: request.operation.key,
           timeoutMs: request.deadline_ms,
+          // The worker's own labels come last, so a request label can never claim another owner.
           labels: {
             ...request.params.labels,
             "fabric.operation": request.operation.id,

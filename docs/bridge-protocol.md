@@ -47,6 +47,7 @@ How the worker applies the protocol:
 - A grant resolved from an approval ref is scoped to exactly that action, and to that resource when the grant names one. The ref never reaches receipts or logs.
 - Secret values are read only for names the worker's own policy allows, at the execution boundary. Docker reads them from the worker's environment; nothing else does.
 - The fixture profile runs on a virtual clock: each observation advances 1000 ms, so deadlines and observation counts are exact on any host. Docker uses the wall clock with 250 ms between observations.
+- The parser refuses exactly what the specification refuses. A request label in the `fabric.` namespace is overwritten by the worker's own labels, so it cannot claim another owner. Values a provider cannot take safely are refused by that profile before any call: the Docker profile refuses an image or container id that starts with a dash and a label key that holds `=`, because each becomes a docker CLI argument.
 - The Docker profile creates with `--pull never`, labels each container `fabric.operation`, `fabric.job`, `fabric.attempt` and `fabric.generation`, refuses a container without this job's label, and finds an earlier create of the same operation by label after a worker restart instead of creating another.
 - Losing stdin is a shutdown with a 0 ms drain and SIGTERM one with 5 s; open requests are answered pending or unknown, nothing is cancelled at the provider, and the process exits 0. A framing error or a refused hello exits 2.
 

@@ -58,11 +58,11 @@ describe("admission", () => {
     expect(world.provider.providerCalls).toBe(1);
   });
 
-  test("labels in the reserved fabric. namespace are refused before any effect", async () => {
-    const { world, connection } = await started();
-    connection.send({ ...createRequest, params: { ...(createRequest.params as object), labels: { "fabric.job": "someone-else" } } });
-    expect(await connection.next()).toMatchObject({ error: { code: "invalid", reason: "bad_string", effect: "none" } });
-    expect(world.provider.effects).toEqual([]);
+  test("request labels cannot claim the worker's fabric. labels", async () => {
+    const { world, connection } = await started({ sandboxes: [] });
+    connection.send({ ...createRequest, params: { ...(createRequest.params as object), labels: { "fabric.job": "01K8W3A00000000000000000J9" } } });
+    expect(await connection.next()).toMatchObject({ type: "result", state: "completed" });
+    expect(world.provider.sandbox("fx-key-create-1")?.owner_job).toBe("01K8W3A00000000000000000J1");
   });
 
   test("a same-key request while the first is in flight is an idempotency conflict", async () => {

@@ -270,6 +270,20 @@ describe("docker profile on a fake engine", () => {
     expect([...engine.containers.values()][0]!.env).toContain("API_TOKEN=value-of-API_TOKEN");
   });
 
+  test("values that would read as docker CLI options are refused before any docker call", async () => {
+    const engine = new FakeEngine();
+    const connection = connect(engine, { approvals: [{ ref: "apr-destroy", action: "sandbox.destroy", native_id: null }] });
+    await handshake(connection);
+    engine.images.add("--privileged");
+    connection.send({ ...create(1), params: { image: "--privileged", env: {}, secret_names: [], labels: {} } });
+    expect(await connection.next()).toMatchObject({ error: { code: "provider_failed", reason: "provider_refused", effect: "none" } });
+    connection.send({ ...create(2), params: { image: "debian:bookworm-slim", env: {}, secret_names: [], labels: { "a=fabric.job": "x" } } });
+    expect(await connection.next()).toMatchObject({ error: { code: "provider_failed", reason: "provider_refused", effect: "none" } });
+    connection.send({ ...request(3, "sandbox.destroy", { target: target("--help"), params: {} }), approval: { ref: "apr-destroy" } });
+    expect(await connection.next()).toMatchObject({ error: { code: "provider_failed", effect: "none" } });
+    expect(engine.calls.map((call) => call[0])).toEqual(["context"]);
+  });
+
   test("a locator in another engine scope is refused before any docker call", async () => {
     const engine = new FakeEngine();
     const connection = connect(engine);

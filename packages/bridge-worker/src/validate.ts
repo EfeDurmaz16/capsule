@@ -267,9 +267,6 @@ export function parseRequest(message: Json, profile: CapabilityProfile): BridgeR
       secret_names: names(p.secret_names, "params.secret_names"),
       labels: stringMap(p.labels, "params.labels")
     };
-    if (Object.keys(params.labels).some((key) => key.startsWith("fabric."))) {
-      throw invalid("bad_string", "params.labels may not use the fabric. prefix the worker reserves");
-    }
   } else if (action === "sandbox.exec") {
     const p = fields(
       body.params,
