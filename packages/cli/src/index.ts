@@ -1363,14 +1363,16 @@ async function createReceiptVerifyReport(parsed: ParsedArgs): Promise<ReceiptVer
   }
   const verifier = parsed.publicKey ? createPublicKeyVerifier(await resolvePublicKeyPem(parsed.publicKey)) : undefined;
   try {
-    const receipts = await jsonlReceiptStore(parsed.receiptFile).readAll();
-    const verified = receipts.map((receipt) => {
+    // Receipts are verified as they are read; only the per-receipt reports are kept (PERF-11). A read
+    // error part-way still discards every report, exactly as reading the whole file first did.
+    const verified = [];
+    for await (const receipt of jsonlReceiptStore(parsed.receiptFile).iterate()) {
       const report = verifyReceipt(receipt, { verifier, requireSignature: parsed.requireSignature });
       // Without a verifier, a signature can only be confirmed present, not authentic. Under
       // --require-signature that must fail unless the caller downgrades to a presence check.
       const rejectUnverified =
         parsed.requireSignature === true && parsed.allowUnverifiedSignatures !== true && report.signature.status === "present-unverified";
-      return {
+      verified.push({
         id: receipt.id,
         type: receipt.type,
         capabilityPath: receipt.capabilityPath,
@@ -1379,11 +1381,11 @@ async function createReceiptVerifyReport(parsed: ParsedArgs): Promise<ReceiptVer
         ...(rejectUnverified
           ? { notes: ["Signature is present but unverified; supply --public-key or pass --allow-unverified-signatures to accept presence only."] }
           : {})
-      };
-    });
+      });
+    }
     const failed = verified.filter((entry) => !entry.valid).length;
     const notes: string[] = [];
-    const emptyStore = receipts.length === 0;
+    const emptyStore = verified.length === 0;
     if (emptyStore) {
       notes.push("receipts: 0 (store is readable but contains no receipts; nothing to verify).");
     }
@@ -1393,7 +1395,7 @@ async function createReceiptVerifyReport(parsed: ParsedArgs): Promise<ReceiptVer
       store: {
         path: parsed.receiptFile,
         readable: true,
-        receiptCount: receipts.length
+        receiptCount: verified.length
       },
       summary: {
         valid: failed === 0 && !emptyStoreUnderRequireSignature,
@@ -1432,13 +1434,18 @@ async function createReceiptInspectReport(parsed: ParsedArgs): Promise<ReceiptIn
   if (!parsed.receiptFile) {
     throw new Error("Missing --receipt-file for receipt inspect.");
   }
-  const receipts = await jsonlReceiptStore(parsed.receiptFile).readAll();
-  const selected = parsed.id ? receipts.filter((receipt) => receipt.id === parsed.id) : receipts;
+  // Streamed so that --id keeps only the matching receipts in memory.
+  let receiptCount = 0;
+  const selected: CapsuleReceipt[] = [];
+  for await (const receipt of jsonlReceiptStore(parsed.receiptFile).iterate()) {
+    receiptCount += 1;
+    if (!parsed.id || receipt.id === parsed.id) selected.push(receipt);
+  }
   if (parsed.id && selected.length === 0) {
     throw new Error(`No receipt with id "${parsed.id}" in ${parsed.receiptFile}.`);
   }
   return {
-    store: { path: parsed.receiptFile, receiptCount: receipts.length },
+    store: { path: parsed.receiptFile, receiptCount },
     receipts: selected
   };
 }

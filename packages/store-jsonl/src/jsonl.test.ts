@@ -1,7 +1,8 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { appendFile, mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { createReceipt } from "@capsule-sdk/core";
 import { jsonlReceiptStore } from "./index.js";
 
@@ -151,14 +152,165 @@ describe("jsonlReceiptStore", () => {
   });
 });
 
-describe("deferred M1 items (visible skips with reason and dependency)", () => {
-  // PERF-11 deferred: an incremental receipt iterator with a bounded line size and a compatible readAll
-  // wrapper is an additive API that needs review. The M1 harness (perf-11-jsonl-read) records readAll
-  // memory and time before and after M1 with this package unchanged. Dependency: additive API review for
-  // the iterator, then a before/after run of perf-11 showing bounded reader memory with the same verify
-  // semantics and corruption line locations.
-  test.skip("PERF-11 (deferred): an incremental reader keeps memory bounded with readAll semantics unchanged", () => {
-    // Intended assertion: iterating 50k receipts holds at most one bounded line in memory, reports the same
-    // corrupt line number as readAll, and closes the file on early exit.
+// The pre-M1 readAll algorithm (whole file, split on "\n"), kept as the reference the iterator must match.
+function referenceRead(text: string, path: string): { receipts: unknown[]; error?: string } {
+  const receipts: unknown[] = [];
+  for (const [index, line] of text.split("\n").entries()) {
+    if (line.trim() === "") continue;
+    try {
+      receipts.push(JSON.parse(line));
+    } catch {
+      return { receipts, error: `Invalid JSONL receipt at ${path}:${index + 1}.` };
+    }
+  }
+  return { receipts };
+}
+
+async function withFile<T>(content: string, body: (path: string) => Promise<T>): Promise<T> {
+  const dir = await mkdtemp(join(tmpdir(), "capsule-jsonl-iter-"));
+  try {
+    const path = join(dir, "receipts.jsonl");
+    await writeFile(path, content, "utf8");
+    return await body(path);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+async function collect(iterable: AsyncIterable<unknown>): Promise<unknown[]> {
+  const out: unknown[] = [];
+  for await (const value of iterable) out.push(value);
+  return out;
+}
+
+describe("PERF-11: incremental reader with a bounded line size", () => {
+  // Lines longer than the 1 MiB read chunk, multi-byte characters across chunk edges, CRLF, blank
+  // lines and a final line without a line break.
+  const big = "\u00e9\u4e2d\ud83d\ude00".repeat(150_000);
+  const lines = [
+    JSON.stringify({ id: "a", note: "plain" }),
+    "",
+    `${JSON.stringify({ id: "b", note: big })}\r`,
+    "   ",
+    JSON.stringify({ id: "c", note: big.slice(3) }),
+    ...Array.from({ length: 3000 }, (_, index) => JSON.stringify({ id: `n${index}`, pad: "x".repeat(index % 97) })),
+    JSON.stringify({ id: "last" })
+  ];
+
+  test("iterate and readAll return exactly what the whole-file reader returned", async () => {
+    await withFile(lines.join("\n"), async (path) => {
+      const expected = referenceRead(lines.join("\n"), path);
+      const store = jsonlReceiptStore(path);
+      expect(await collect(store.iterate())).toEqual(expected.receipts);
+      expect(await store.readAll()).toEqual(expected.receipts);
+    });
+    await withFile(`${lines.join("\n")}\n`, async (path) => {
+      expect(await jsonlReceiptStore(path).readAll()).toEqual(referenceRead(`${lines.join("\n")}\n`, path).receipts);
+    });
+  });
+
+  test("a multi-byte character cut by the 1 MiB chunk edge decodes as in the whole file", async () => {
+    for (const offset of [1, 2, 3]) {
+      // {"id":"<pad>😀"} with the 4-byte emoji starting `offset` bytes before the chunk edge.
+      const pad = "p".repeat(1024 * 1024 - 7 - offset);
+      const content = `${JSON.stringify({ id: `${pad}\ud83d\ude00` })}\n${JSON.stringify({ id: "\u00e9" })}\n`;
+      await withFile(content, async (path) => {
+        expect(await jsonlReceiptStore(path).readAll()).toEqual(referenceRead(content, path).receipts);
+      });
+    }
+  });
+
+  test("a corrupt line is reported at the same line number as before, after the earlier receipts", async () => {
+    for (const corruptAt of [1, 4, 2500, lines.length]) {
+      const content = lines.map((line, index) => (index + 1 === corruptAt ? '{"id":"truncated' : line)).join("\n");
+      await withFile(content, async (path) => {
+        const expected = referenceRead(content, path);
+        expect(expected.error).toBeDefined();
+        const store = jsonlReceiptStore(path);
+        await expect(store.readAll()).rejects.toThrow(expected.error!);
+        const seen: unknown[] = [];
+        await expect(
+          (async () => {
+            for await (const receipt of store.iterate()) seen.push(receipt);
+          })()
+        ).rejects.toThrow(expected.error!);
+        expect(seen).toEqual(expected.receipts);
+      });
+    }
+  });
+
+  test("a line longer than maxLineBytes fails with its line number; one at the limit passes", async () => {
+    const content = ['{"id":"a"}', `{"id":"${"x".repeat(100)}"}`, '{"id":"c"}'].join("\n");
+    await withFile(content, async (path) => {
+      const limit = Buffer.byteLength(`{"id":"${"x".repeat(100)}"}`);
+      await expect(jsonlReceiptStore(path, { maxLineBytes: limit }).readAll()).resolves.toHaveLength(3);
+      await expect(jsonlReceiptStore(path, { maxLineBytes: limit - 1 }).readAll()).rejects.toThrow(
+        `${path}:2 is longer than maxLineBytes (${limit - 1} bytes)`
+      );
+      await expect(jsonlReceiptStore(path).readAll({ maxLineBytes: limit - 1 })).rejects.toThrow(`${path}:2 is longer`);
+    });
+    // A line spanning many read chunks is cut off once it passes the limit, not after it is complete.
+    await withFile(`{"id":"${"y".repeat(8 * 1024 * 1024)}"}\n`, async (path) => {
+      const reads: number[] = [];
+      const probe = await open(path, "r");
+      const proto = Object.getPrototypeOf(probe) as { read: (...args: unknown[]) => Promise<{ bytesRead: number }> };
+      await probe.close();
+      const original = proto.read;
+      const spy = vi.spyOn(proto, "read").mockImplementation(async function (this: unknown, ...args: unknown[]) {
+        const result = await original.apply(this, args);
+        reads.push(result.bytesRead);
+        return result;
+      });
+      try {
+        await expect(jsonlReceiptStore(path, { maxLineBytes: 1024 * 1024 }).readAll()).rejects.toThrow(`${path}:1 is longer`);
+      } finally {
+        spy.mockRestore();
+      }
+      // At most the limit plus the 1 MiB chunk being read, and one more chunk in flight: not the 8 MiB line.
+      expect(reads.reduce((sum, bytes) => sum + bytes, 0)).toBeLessThanOrEqual(3 * 1024 * 1024);
+      expect(Math.max(...reads)).toBeLessThanOrEqual(1024 * 1024);
+    });
+    expect(() => jsonlReceiptStore("unused.jsonl", { maxLineBytes: 0 })).toThrow("maxLineBytes must be a positive integer");
+  });
+
+  test("stopping early closes the file and lines appended during iteration are not returned", async () => {
+    // Open descriptors of this process (/dev/fd on macOS and Linux). FileHandle.close is an instance field,
+    // so the count is the observable signal that the reader closed its file.
+    const openDescriptors = () => readdirSync("/dev/fd").length;
+    await withFile(lines.join("\n"), async (path) => {
+      const store = jsonlReceiptStore(path);
+      const before = openDescriptors();
+      const firstTwo: unknown[] = [];
+      for await (const receipt of store.iterate()) {
+        firstTwo.push(receipt);
+        if (firstTwo.length === 2) {
+          expect(openDescriptors()).toBe(before + 1);
+          break;
+        }
+      }
+      expect(firstTwo).toHaveLength(2);
+      expect(openDescriptors()).toBe(before);
+
+      const expectedCount = referenceRead(lines.join("\n"), path).receipts.length;
+      let count = 0;
+      for await (const _receipt of store.iterate()) {
+        if (count === 0) await appendFile(path, `\n${JSON.stringify({ id: "appended" })}\n`);
+        count += 1;
+      }
+      expect(count).toBe(expectedCount);
+      expect(openDescriptors()).toBe(before);
+    });
+  });
+
+  test("a missing file yields nothing and a closed store rejects iteration", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "capsule-jsonl-iter-"));
+    try {
+      const store = jsonlReceiptStore(join(dir, "missing.jsonl"));
+      expect(await collect(store.iterate())).toEqual([]);
+      await store.close();
+      await expect(collect(store.iterate())).rejects.toThrow("JSONL receipt store is closed");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

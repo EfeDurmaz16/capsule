@@ -73,11 +73,10 @@ Provider-maintained adapters with explicit capability maps, changelog tracking, 
 
 These items were found in the M1 correctness audit and deliberately left open. Each has a visible skipped test named after its id, so the gap stays in the test output until it is fixed.
 
-| Id      | Current behavior                                                                                                                | What it waits for                                                                                                                                                                          |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| PERF-11 | `@capsule-sdk/store-jsonl` `readAll` reads the whole file into memory (about 87 MB RSS growth for 50k receipts in the harness). | Review of an additive incremental iterator with a bounded line size and a compatible `readAll`, then a before/after `perf-11` run. Skipped test: `packages/store-jsonl/src/jsonl.test.ts`. |
-| PERF-12 | `@capsule-sdk/store-sqlite` prepares statements per call.                                                                       | A SQLite benchmark that separates prepare cost from commit cost; reuse only if it shows a win. Skipped test: `packages/store-sqlite/src/sqlite.test.ts`.                                   |
-| PERF-14 | Docker sandbox artifact collection runs one `docker cp` per path.                                                               | A spawn-count, bytes and time profile for 1, 10 and 100 paths; any batch must keep the current artifact layout. Skipped test: `packages/docker/src/audit-regressions.test.ts`.             |
+| Id      | Current behavior                                                  | What it waits for                                                                                                                                                              |
+| ------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| PERF-12 | `@capsule-sdk/store-sqlite` prepares statements per call.         | A SQLite benchmark that separates prepare cost from commit cost; reuse only if it shows a win. Skipped test: `packages/store-sqlite/src/sqlite.test.ts`.                       |
+| PERF-14 | Docker sandbox artifact collection runs one `docker cp` per path. | A spawn-count, bytes and time profile for 1, 10 and 100 paths; any batch must keep the current artifact layout. Skipped test: `packages/docker/src/audit-regressions.test.ts`. |
 
 Other limits that stay visible:
 
