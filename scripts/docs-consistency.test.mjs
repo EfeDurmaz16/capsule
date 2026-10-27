@@ -60,3 +60,34 @@ test("DOC-03: quickstarts use the Azure environment variable the adapter and liv
   assert.match(azure, /environmentId: process\.env\.AZURE_CONTAINERAPPS_ENVIRONMENT_ID/);
   assert.doesNotMatch(azure, /export AZURE_CONTAINER_APP_ENVIRONMENT_ID=/);
 });
+
+test("DOC-04: roadmap current-adapter lines claim no domain the generated matrix marks unsupported", () => {
+  const matrix = read("docs/provider-matrix.md");
+  const header = matrix.split("\n").find((line) => line.startsWith("| Provider | Package |"));
+  const columns = header.split("|").map((cell) => cell.trim());
+  const rows = matrix
+    .split("\n")
+    .filter((line) => /^\| [A-Z].* \| `@capsule-sdk\//.test(line))
+    .map((line) => line.split("|").map((cell) => cell.trim()));
+  const domainWords = { Sandbox: /\bsandbox/i, Job: /\bjobs?\b/i, Service: /\bservices?\b/i, Machine: /\bmachines?\b(?! lifecycle)|machine lifecycle/i };
+  const roadmap = read("docs/roadmap.md");
+  const current = roadmap.slice(roadmap.indexOf("Current real adapters"), roadmap.indexOf("Next real adapters"));
+  const bullets = current.split("\n").filter((line) => line.startsWith("- "));
+  let checked = 0;
+  for (const row of rows) {
+    const provider = row[1];
+    const shortName = provider.split(" ")[0];
+    const bullet = bullets.find((line) => line.includes(provider) || line.includes(`${shortName} `));
+    if (!bullet) continue;
+    // Only the first sentence states current support; later sentences may name future targets.
+    const claimed = bullet.split(/\.(\s|$)/)[0];
+    for (const [domain, pattern] of Object.entries(domainWords)) {
+      const level = row[columns.indexOf(domain)];
+      if (level !== "unsupported") continue;
+      const providerClause = claimed.slice(claimed.indexOf(shortName)).split(/,|\band\b (?=[A-Z])/)[0];
+      assert.doesNotMatch(providerClause, pattern, `roadmap claims ${domain.toLowerCase()} support for ${provider}: ${bullet}`);
+      checked += 1;
+    }
+  }
+  assert.ok(checked > 0);
+});

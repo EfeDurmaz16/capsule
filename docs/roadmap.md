@@ -8,18 +8,18 @@ Core types, capability negotiation, support levels, errors, policy decisions, re
 
 Docker, E2B, Daytona, Modal Sandboxes, Cloudflare Sandbox, Microsandbox, and future Firecracker or microVM adapters.
 
-Current real adapters:
+Current real adapters (the generated [provider matrix](provider-matrix.md) is the source of truth for per-capability support levels):
 
 - Docker sandbox/job.
 - E2B, Daytona, and Modal sandbox execution.
 - Neon database/resource.
 - Cloud Run jobs/services.
 - Kubernetes jobs/services.
-- AWS Lambda functions, ECS/Fargate jobs/services, and EC2 machines.
-- Fly Machines jobs/services/machine lifecycle.
+- AWS Lambda invocation of an existing function as a job, ECS/Fargate jobs/services, and EC2 machines.
+- Fly Machines jobs and machine lifecycle. Fly services are a future target, not current support.
 - Azure Container Apps jobs/services.
 - Vercel edge/deployment runtime operations.
-- Cloudflare Workers edge deployment, version, and rollback operations.
+- Cloudflare Workers edge deployment, version, route, and rollback operations.
 
 Next real adapters:
 
@@ -43,7 +43,9 @@ Neon branch create/delete/reset and connection URI retrieval are implemented. Mi
 
 ## Preview Orchestration
 
-Compose services, edge deployments, database branches, jobs, checks, TTL cleanup, logs, artifacts, and preview receipts.
+Compose services, edge deployments, database branches, jobs, checks, logs, artifacts, and preview receipts.
+
+Implemented today: sequential creation, reverse-order cleanup of services and database branches, `PreviewCreationError` with the resources created before a failure, and graph-local cleanup plans. Edge and job resources have no cleanup action. Preview TTL is recorded only (`ttl.enforcement: "record-only"`); a TTL cleanup controller, durable resource tracking and parallel provisioning are future work.
 
 ## Machine Adapters
 
@@ -53,9 +55,11 @@ EC2, Compute Engine, Azure VM, bare metal, Firecracker, Nomad, and low-level Fly
 
 Reusable adapter tests for capability declarations, domain behavior, policy propagation, receipts, and unsupported paths.
 
+The current `runAdapterContract` runner is guard-only: it checks declarations and that unsupported paths fail closed, and it passes even when lifecycle calls such as destroy always throw. Lifecycle and domain behavior checks are future work.
+
 ## Signed Receipts
 
-Optional signatures, key IDs, FIDES-style attestations, and tamper-evident evidence logs.
+Optional caller-configured receipt signatures with key metadata and signature verification exist today. FIDES-style attestations, provider attestation, the evidence-grade profile and tamper-evident evidence logs remain future work.
 
 ## Framework Integrations
 
