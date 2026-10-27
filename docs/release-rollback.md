@@ -33,6 +33,10 @@ Before the first publish, verify manually with the npm account that will publish
 
 After publication, update README badges and install text to reflect actual npm availability.
 
+### Provenance check limits
+
+`pnpm release:provenance` (`scripts/verify-published-provenance.mjs`) is a presence-only check. A package passes only when its registry `dist.attestations` names the npm attestations URL for the exact `name@version` and a SLSA provenance predicate type. Registry signatures are reported separately and never pass on their own. The script does not verify the attestation cryptographically and does not check the source repository or ref identity. Use `npm audit signatures` and the attestation bundle itself for that verification.
+
 ## Rollback
 
 This section is for a bad Capsule npm release after packages have been published.

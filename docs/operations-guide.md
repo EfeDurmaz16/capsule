@@ -11,6 +11,8 @@ pnpm --filter @capsule-sdk/cli exec node dist/index.js <command>
 
 A `capsule.config.json` in the working directory supplies a default adapter, `receipts.path`, and `policyFile`. Explicit flags (`--adapter`, `--receipt-file`, `--policy-file`) always override the config file.
 
+The selected policy is loaded once and enforced on every execution command (`run`, `sandbox`, `job`, `service`, `machine`, `edge`, `neon` and `preview plan/create/destroy`, including each preview child), not only by `policy explain`. A missing or malformed policy file fails before any provider is created, and a policy that requires approval blocks CLI executions because the CLI cannot supply a grant. An unknown adapter name from `--adapter` or the config fails and lists the valid names; only an omitted adapter uses the Docker default. The `neon` commands select Neon when no adapter is set; a contradictory `--adapter` or config adapter is rejected rather than rerouted, and `--adapter neon` overrides a config adapter.
+
 ## Scaffold a project: `init`
 
 Write a starter Capsule project for one adapter.

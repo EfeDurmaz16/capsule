@@ -297,6 +297,8 @@ capsule preview create --config-file preview.json --cleanup-file .capsule/previe
 
 `capsule init` scaffolds a `capsule.config.json`. Commands read it from the working directory and apply its `adapter`, `receipts.path`, and `policyFile` when the matching flag is not passed; explicit flags always override the config file. The scaffolded policy sets `secrets.allowed` to `[]`, which denies every environment key by default until you add keys to it.
 
+The selected policy (`--policy-file`, or `policyFile` from the config) is enforced on every execution command, including each preview child, not only by `capsule policy explain`. A policy file that is missing or malformed fails before any provider is created. An unknown adapter name from a flag or the config fails and lists the valid names; only an omitted adapter falls back to Docker. The `neon` commands select Neon when no adapter is set and reject a contradictory `--adapter` or config adapter instead of rerouting.
+
 ## Packages
 
 | Package                                                 | What it is                                                                                            |
