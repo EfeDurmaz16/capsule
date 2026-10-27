@@ -111,8 +111,6 @@ export function verifyReceiptSignature(receipt: CapsuleReceipt, verifier: Receip
   return { valid: true };
 }
 
-const receiptTypes = new Set<string>(capsuleReceiptJsonSchema.properties.type.enum);
-const supportLevels = new Set<string>(["native", "emulated", "unsupported", "experimental"]);
 const credentialLikeValue = new RegExp(credentialTokenPatternSource, "i");
 
 export function verifyReceipt(receipt: unknown, options: VerifyReceiptOptions = {}): ReceiptVerificationReport {
@@ -135,54 +133,106 @@ function receiptSchemaErrors(receipt: unknown): string[] {
     return ["receipt must be an object."];
   }
   const errors: string[] = [];
-  const required = ["id", "type", "provider", "adapter", "capabilityPath", "supportLevel", "startedAt", "finishedAt", "durationMs", "policy"];
-  for (const key of required) {
-    if (!(key in receipt)) {
-      errors.push(`${key} is required.`);
-    }
-  }
-  for (const key of ["id", "provider", "adapter", "capabilityPath", "startedAt", "finishedAt"]) {
-    if (key in receipt && typeof receipt[key] !== "string") {
-      errors.push(`${key} must be a string.`);
-    }
-  }
-  if ("type" in receipt && (typeof receipt.type !== "string" || !receiptTypes.has(receipt.type))) {
-    errors.push("type must be a known Capsule receipt type.");
-  }
-  if ("supportLevel" in receipt && (typeof receipt.supportLevel !== "string" || !supportLevels.has(receipt.supportLevel))) {
-    errors.push("supportLevel must be one of native, emulated, unsupported, experimental.");
-  }
-  if ("durationMs" in receipt && typeof receipt.durationMs !== "number") {
-    errors.push("durationMs must be a number.");
-  }
-  if ("policy" in receipt) {
-    if (!isPlainObject(receipt.policy)) {
-      errors.push("policy must be an object.");
-    } else {
-      if (receipt.policy.decision !== "allowed" && receipt.policy.decision !== "denied") {
-        errors.push("policy.decision must be allowed or denied.");
-      }
-      if (!isPlainObject(receipt.policy.applied)) {
-        errors.push("policy.applied must be an object.");
-      }
-    }
-  }
-  if ("signature" in receipt && receipt.signature !== undefined) {
-    if (!isPlainObject(receipt.signature)) {
-      errors.push("signature must be an object.");
-    } else {
-      if (typeof receipt.signature.algorithm !== "string") {
-        errors.push("signature.algorithm must be a string.");
-      }
-      if (typeof receipt.signature.value !== "string") {
-        errors.push("signature.value must be a string.");
-      }
-      if ("keyId" in receipt.signature && typeof receipt.signature.keyId !== "string") {
-        errors.push("signature.keyId must be a string.");
-      }
-    }
-  }
+  validateSchemaNode(capsuleReceiptJsonSchema, receipt, "", errors);
   return errors;
+}
+
+/**
+ * The subset of JSON Schema vocabulary that the exported receipt schema uses: type, const, enum,
+ * required, properties, boolean additionalProperties and items. The runtime verdict is derived from
+ * the exported schema object itself, so the two cannot drift. Annotation keywords such as
+ * description are ignored. A schema keyword outside this subset fails loudly instead of being
+ * silently accepted.
+ */
+interface ReceiptSchemaNode {
+  readonly type?: string;
+  readonly const?: unknown;
+  readonly enum?: readonly unknown[];
+  readonly required?: readonly string[];
+  readonly properties?: Readonly<Record<string, ReceiptSchemaNode>>;
+  readonly additionalProperties?: boolean;
+  readonly items?: ReceiptSchemaNode;
+}
+
+const supportedSchemaKeywords = new Set([
+  "$schema",
+  "$id",
+  "title",
+  "description",
+  "type",
+  "const",
+  "enum",
+  "required",
+  "properties",
+  "additionalProperties",
+  "items"
+]);
+
+function validateSchemaNode(schema: ReceiptSchemaNode, value: unknown, path: string, errors: string[]): void {
+  for (const keyword of Object.keys(schema)) {
+    if (!supportedSchemaKeywords.has(keyword)) {
+      throw new Error(`Receipt schema keyword ${keyword} at ${path || "receipt"} is not supported by the runtime validator.`);
+    }
+  }
+  const label = path || "receipt";
+  if (schema.type !== undefined && !matchesSchemaType(schema.type, value)) {
+    errors.push(`${label} must be ${schemaTypeLabel(schema.type)}.`);
+    return;
+  }
+  if ("const" in schema && value !== schema.const) {
+    errors.push(`${label} must be ${JSON.stringify(schema.const)}.`);
+  }
+  if (schema.enum !== undefined && !schema.enum.includes(value)) {
+    errors.push(
+      schema.enum.length <= 8 ? `${label} must be one of ${schema.enum.join(", ")}.` : `${label} must be one of the ${schema.enum.length} known values.`
+    );
+  }
+  if (Array.isArray(value) && schema.items !== undefined) {
+    value.forEach((item, index) => validateSchemaNode(schema.items!, item, `${label}[${index}]`, errors));
+  }
+  if (isPlainObject(value)) {
+    const childPath = (key: string) => (path ? `${path}.${key}` : key);
+    for (const key of schema.required ?? []) {
+      // JSON serialization drops undefined members, so an undefined member counts as absent.
+      if (value[key] === undefined) {
+        errors.push(`${childPath(key)} is required.`);
+      }
+    }
+    for (const [key, child] of Object.entries(value)) {
+      if (child === undefined) {
+        continue;
+      }
+      const childSchema = schema.properties?.[key];
+      if (childSchema !== undefined) {
+        validateSchemaNode(childSchema, child, childPath(key), errors);
+      } else if (schema.additionalProperties === false) {
+        errors.push(`${childPath(key)} is not an allowed property.`);
+      }
+    }
+  }
+}
+
+function matchesSchemaType(type: string, value: unknown): boolean {
+  switch (type) {
+    case "object":
+      return isPlainObject(value);
+    case "array":
+      return Array.isArray(value);
+    case "string":
+      return typeof value === "string";
+    case "number":
+      return typeof value === "number" && Number.isFinite(value);
+    case "integer":
+      return Number.isInteger(value);
+    case "boolean":
+      return typeof value === "boolean";
+    default:
+      throw new Error(`Receipt schema type ${type} is not supported by the runtime validator.`);
+  }
+}
+
+function schemaTypeLabel(type: string): string {
+  return /^[aeiou]/.test(type) ? `an ${type}` : `a ${type}`;
 }
 
 function receiptSignatureStatus(receipt: unknown, options: VerifyReceiptOptions): ReceiptVerificationReport["signature"] {

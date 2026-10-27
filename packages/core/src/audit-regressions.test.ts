@@ -272,10 +272,59 @@ describe("M1 audit regressions: core", () => {
       ["invalid enforcement", { policy: { ...receipt.policy, enforcement: "banana" } }]
     ];
     for (const [name, mutation] of mutations) {
-      it.fails(`rejects ${name}`, () => {
+      it(`rejects ${name}`, () => {
         expect(verifyReceipt({ ...receipt, ...mutation } as never).schema.valid).toBe(false);
       });
     }
+    const nested: Array<[string, Record<string, unknown>]> = [
+      ["unknown trace verdict", { policy: { ...receipt.policy, trace: [{ check: "secrets", verdict: "maybe" }] } }],
+      ["trace item with an extra property", { policy: { ...receipt.policy, trace: [{ check: "secrets", verdict: "passed", extra: 1 }] } }],
+      ["network host missing allowed", { policy: { ...receipt.policy, network: { mode: "allowlist", support: "native", hosts: [{ host: "a.example" }] } } }],
+      ["cost without limitUsd", { policy: { ...receipt.policy, cost: { withinLimit: true } } }],
+      ["unknown policy property", { policy: { ...receipt.policy, surprise: true } }],
+      ["string exitCode", { exitCode: "0" }],
+      ["non-finite durationMs", { durationMs: Number.NaN }],
+      ["numeric artifact hash", { artifactHashes: [1] }],
+      ["numeric providerRequestId", { metadata: { providerRequestId: 7 } }],
+      ["resource with an unknown property", { resource: { id: "r", region: "x" } }],
+      ["signature with an unknown property", { signature: { algorithm: "hmac-sha256", value: "v", extra: "x" } }],
+      ["missing required policy", { policy: undefined }]
+    ];
+    for (const [name, mutation] of nested) {
+      it(`rejects ${name}`, () => {
+        const report = verifyReceipt({ ...receipt, ...mutation } as never);
+        expect(report.schema.valid).toBe(false);
+        expect(report.valid).toBe(false);
+      });
+    }
+    it("accepts a receipt that uses every optional schema member correctly", () => {
+      const full = {
+        ...receipt,
+        parentId: "parent",
+        command: ["echo", "ok"],
+        image: "node:22",
+        source: { kind: "git" },
+        cwd: "/work",
+        providerOptions: { region: "x" },
+        exitCode: 0,
+        stdoutHash: "a",
+        stderrHash: "b",
+        artifactHashes: ["c"],
+        policy: {
+          ...receipt.policy,
+          notes: ["n"],
+          enforcement: "advisory",
+          trace: [{ check: "secrets", verdict: "passed" }],
+          cost: { requestedUsd: 1, limitUsd: 2, withinLimit: true },
+          ttl: { limitMs: 10, withinLimit: true },
+          network: { mode: "allowlist", support: "unknown", hosts: [{ host: "a.example", allowed: true }] }
+        },
+        resource: { id: "r", name: "n", url: "https://example.invalid", status: "running" },
+        metadata: { providerRequestId: "req", custom: { nested: true } },
+        signature: { algorithm: "hmac-sha256", value: "v", keyId: "k" }
+      };
+      expect(verifyReceipt(full as never).schema).toEqual({ valid: true, errors: [] });
+    });
     it("keeps accepting a documented legacy receipt that omits schemaVersion", () => {
       const { schemaVersion: _omitted, ...legacy } = receipt;
       expect(verifyReceipt(legacy as never).schema.valid).toBe(true);
