@@ -61,6 +61,7 @@ import {
   cleanupPreviewEnvironment,
   createPreviewDryRunReceiptBundle,
   createPreviewGraph,
+  previewCleanupPlanSchema,
   type PreviewCleanupPlan,
   type PreviewCleanupDisposition,
   type PreviewDryRunReceiptBundle,
@@ -295,6 +296,8 @@ interface SerializedPreviewCleanupAction {
 }
 
 interface SerializedPreviewResourceRecord {
+  /** Graph-local resource reference from @capsule-sdk/preview; the join key to its cleanup action. */
+  ref?: string;
   type: string;
   kind: PreviewResourceKind;
   id: string;
@@ -1573,6 +1576,7 @@ async function createPreviewPlanFromConfig(config: PreviewConfigFile, policy: Ca
 
 function serializePreviewResourceRecord(resource: PreviewResourceRecord, cleanup?: SerializedPreviewCleanupAction): SerializedPreviewResourceRecord {
   return {
+    ref: resource.ref,
     type: resource.type,
     kind: resource.kind,
     id: resource.id,
@@ -1616,7 +1620,9 @@ function createPreviewCleanupPlanFile(
   cleanupPlan: PreviewCleanupPlan
 ): PreviewCleanupPlanFile {
   const configs = previewResourceConfigs(config);
-  const actionByResourceId = new Map(cleanupPlan.actions.map((action) => [action.resourceId, action]));
+  // Join by graph-local ref, never by native id: equal native ids across providers or projects of one
+  // provider must not attach one resource's cleanup action and spec to another (COMP-01, GAP-06).
+  const actionByRef = new Map(cleanupPlan.actions.map((action) => [action.resourceRef, action]));
   return {
     schema: previewCleanupPlanFileSchema,
     id: cleanupPlan.id,
@@ -1628,7 +1634,10 @@ function createPreviewCleanupPlanFile(
     actions: cleanupPlan.actions,
     preview,
     resources: resources.map((resource, index) =>
-      serializePreviewResourceRecord(resource, serializeCleanupAction(resource, configs[index]?.config, actionByResourceId.get(resource.id)))
+      serializePreviewResourceRecord(
+        resource,
+        serializeCleanupAction(resource, configs[index]?.config, resource.ref === undefined ? undefined : actionByRef.get(resource.ref))
+      )
     )
   };
 }
@@ -1660,6 +1669,79 @@ async function createPreviewCreateReport(parsed: ParsedArgs): Promise<PreviewCre
   };
 }
 
+const previewResourceKinds: readonly PreviewResourceKind[] = ["database", "service", "edge", "job"];
+
+function assertPreviewResourceKind(value: unknown, label: string): PreviewResourceKind {
+  if (typeof value !== "string" || !previewResourceKinds.includes(value as PreviewResourceKind)) {
+    throw new Error(`${label} must be one of ${previewResourceKinds.join(", ")}.`);
+  }
+  return value as PreviewResourceKind;
+}
+
+function optionalStringValue(value: unknown, label: string): string | undefined {
+  if (value === undefined) return undefined;
+  return assertStringValue(value, label);
+}
+
+// Each action is validated field by field instead of cast, so a malformed or hand-edited file fails
+// before any Capsule is created. Identity binding against the resources happens in @capsule-sdk/preview.
+function validatePreviewCleanupActions(value: unknown, label: string): PreviewCleanupPlan["actions"] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) {
+    throw new Error(`${label} must be an array.`);
+  }
+  return value.map((item, index) => {
+    const at = `${label}[${index}]`;
+    const action = assertRecordValue(item, at);
+    if (action.reversible !== true) {
+      throw new Error(`${at}.reversible must be true.`);
+    }
+    const resourceScope = optionalStringRecord(action.resourceScope, `${at}.resourceScope`);
+    const resourceRef = optionalStringValue(action.resourceRef, `${at}.resourceRef`);
+    const resourceAdapter = optionalStringValue(action.resourceAdapter, `${at}.resourceAdapter`);
+    const resourceName = optionalStringValue(action.resourceName, `${at}.resourceName`);
+    const cleanupOrder = optionalNumberValue(action.cleanupOrder, `${at}.cleanupOrder`);
+    if (cleanupOrder === undefined) {
+      throw new Error(`${at}.cleanupOrder must be a number.`);
+    }
+    return {
+      actionId: assertStringValue(action.actionId, `${at}.actionId`),
+      cleanupOrder,
+      kind: assertPreviewResourceKind(action.kind, `${at}.kind`),
+      ...(resourceRef === undefined ? {} : { resourceRef }),
+      resourceId: assertStringValue(action.resourceId, `${at}.resourceId`),
+      resourceProvider: assertStringValue(action.resourceProvider, `${at}.resourceProvider`),
+      ...(resourceAdapter === undefined ? {} : { resourceAdapter }),
+      ...(resourceScope === undefined ? {} : { resourceScope }),
+      ...(resourceName === undefined ? {} : { resourceName }),
+      capabilityPath: assertStringValue(action.capabilityPath, `${at}.capabilityPath`) as CapabilityPath,
+      spec: { ...assertRecordValue(action.spec, `${at}.spec`) },
+      idempotencyKey: assertStringValue(action.idempotencyKey, `${at}.idempotencyKey`),
+      reversible: true
+    };
+  });
+}
+
+function validateSerializedCleanup(value: unknown, label: string): SerializedPreviewCleanupAction | undefined {
+  if (value === undefined) return undefined;
+  const cleanup = assertRecordValue(value, label);
+  const options = cleanup.options === undefined ? undefined : assertRecordValue(cleanup.options, `${label}.options`);
+  if (cleanup.reversible !== undefined && cleanup.reversible !== true) {
+    throw new Error(`${label}.reversible must be true when present.`);
+  }
+  return {
+    actionId: optionalStringValue(cleanup.actionId, `${label}.actionId`),
+    cleanupOrder: optionalNumberValue(cleanup.cleanupOrder, `${label}.cleanupOrder`),
+    kind: assertPreviewResourceKind(cleanup.kind, `${label}.kind`),
+    adapter: assertStringValue(cleanup.adapter, `${label}.adapter`),
+    options,
+    capabilityPath: assertStringValue(cleanup.capabilityPath, `${label}.capabilityPath`) as CapabilityPath,
+    spec: { ...assertRecordValue(cleanup.spec, `${label}.spec`) },
+    idempotencyKey: optionalStringValue(cleanup.idempotencyKey, `${label}.idempotencyKey`),
+    reversible: cleanup.reversible === true ? true : undefined
+  };
+}
+
 function validatePreviewCleanupPlan(record: Record<string, unknown>, label: string): PreviewCleanupPlanFile {
   if (record.schema !== previewCleanupPlanFileSchema && record.schema !== legacyPreviewCleanupPlanFileSchema) {
     throw new Error(`${label}.schema must be ${previewCleanupPlanFileSchema}.`);
@@ -1678,17 +1760,15 @@ function validatePreviewCleanupPlan(record: Record<string, unknown>, label: stri
     cleanupOrder: typeof record.cleanupOrder === "string" ? (record.cleanupOrder as "reverse-create-order") : "reverse-create-order",
     cleanupActionCount: typeof record.cleanupActionCount === "number" ? record.cleanupActionCount : 0,
     unsupportedCleanupCount: typeof record.unsupportedCleanupCount === "number" ? record.unsupportedCleanupCount : 0,
-    actions: Array.isArray(record.actions) ? (record.actions as PreviewCleanupPlan["actions"]) : [],
+    actions: validatePreviewCleanupActions(record.actions, `${label}.actions`),
     preview,
     resources: resources.map((resource, index) => {
       const entry = assertRecordValue(resource, `${label}.resources[${index}]`);
-      const cleanup =
-        entry.cleanup === undefined
-          ? undefined
-          : (assertRecordValue(entry.cleanup, `${label}.resources[${index}].cleanup`) as unknown as SerializedPreviewCleanupAction);
+      const cleanup = validateSerializedCleanup(entry.cleanup, `${label}.resources[${index}].cleanup`);
       return {
+        ref: optionalStringValue(entry.ref, `${label}.resources[${index}].ref`),
         type: assertStringValue(entry.type, `${label}.resources[${index}].type`),
-        kind: assertStringValue(entry.kind, `${label}.resources[${index}].kind`) as PreviewResourceKind,
+        kind: assertPreviewResourceKind(entry.kind, `${label}.resources[${index}].kind`),
         id: assertStringValue(entry.id, `${label}.resources[${index}].id`),
         provider: assertStringValue(entry.provider, `${label}.resources[${index}].provider`),
         name: typeof entry.name === "string" ? entry.name : undefined,
@@ -1711,11 +1791,12 @@ async function readPreviewCleanupPlanFile(path: string | undefined): Promise<Pre
   return validatePreviewCleanupPlan(assertJsonObject(JSON.parse(await readFile(path, "utf8")), path), path);
 }
 
-function previewResourceKey(resource: { kind: PreviewResourceKind; id: string }): string {
-  return `${resource.kind}:${resource.id}`;
+// Legacy files have no refs; fall back to kind and native id only for them.
+function previewResourceKey(resource: { ref?: string; kind: PreviewResourceKind; id: string }): string {
+  return resource.ref === undefined ? `id:${resource.kind}:${resource.id}` : `ref:${resource.ref}`;
 }
 
-function hydratedCleanupSpec(cleanup: SerializedPreviewCleanupAction, parsed: ParsedArgs): Record<string, unknown> {
+function hydratedCleanupSpec(cleanup: { kind: PreviewResourceKind; spec: Record<string, unknown> }, parsed: ParsedArgs): Record<string, unknown> {
   const spec = { ...cleanup.spec };
   if (cleanup.kind === "database" && parsed.hardDelete) {
     spec.hardDelete = true;
@@ -1733,6 +1814,7 @@ async function hydratePreviewCleanupResource(
   policy: CapsulePolicy | undefined
 ): Promise<PreviewResourceRecord> {
   return {
+    ...(resource.ref === undefined ? {} : { ref: resource.ref }),
     type: resource.type as CapsuleDomain,
     kind: resource.kind,
     id: resource.id,
@@ -1761,7 +1843,21 @@ async function createPreviewDestroyReport(parsed: ParsedArgs): Promise<PreviewDe
   for (const resource of plan.resources) {
     hydrated.push(await hydratePreviewCleanupResource(resource, parsed, policy));
   }
-  const cleanup = await cleanupPreviewEnvironment(plan.preview, hydrated);
+  // The recorded plan is passed through so @capsule-sdk/preview binds every action to its own resource
+  // (by ref, or by exact unambiguous identity for legacy files) and rejects a foreign or tampered plan
+  // before the first delete. Command flags such as --hard-delete apply to the bound action spec too.
+  const cleanupPlan: PreviewCleanupPlan = {
+    schema: previewCleanupPlanSchema,
+    id: plan.id,
+    previewId: plan.previewId,
+    createdAt: plan.createdAt,
+    cleanupOrder: plan.cleanupOrder,
+    cleanupActionCount: plan.cleanupActionCount,
+    unsupportedCleanupCount: plan.unsupportedCleanupCount,
+    resources: [],
+    actions: plan.actions.map((action) => ({ ...action, spec: hydratedCleanupSpec(action, parsed) }))
+  };
+  const cleanup = await cleanupPreviewEnvironment(plan.preview, hydrated, { cleanupPlan });
   const dispositions = cleanup.dispositions.map((entry) => {
     const source = sourceByKey.get(previewResourceKey(entry.resource));
     return {
