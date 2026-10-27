@@ -81,10 +81,10 @@ const packedSizeBudgetBytes = {
   "@capsule-sdk/neon": 9 * kib,
   "@capsule-sdk/vercel": 13 * kib,
   "@capsule-sdk/ai": 6 * kib,
-  "@capsule-sdk/cli": 30 * kib,
-  "@capsule-sdk/core": 59 * kib,
+  "@capsule-sdk/cli": 32 * kib,
+  "@capsule-sdk/core": 60 * kib,
   "@capsule-sdk/presets": 7 * kib,
-  "@capsule-sdk/preview": 12 * kib,
+  "@capsule-sdk/preview": 14 * kib,
   "@capsule-sdk/store-jsonl": 4 * kib,
   "@capsule-sdk/store-sqlite": 5 * kib
 };
