@@ -10,12 +10,15 @@ export {
 } from "./tool.js";
 export {
   codeExecutionInputJsonSchema,
+  codeExecutionInputStrictJsonSchema,
   createCrewAiTool,
   createLangChainTool,
   createMastraTool,
   createOpenAIAgentsTool,
   createOpenAIResponsesFunctionTool,
   createVercelAiSdkTool,
+  toOpenAIStrictJsonSchema,
+  type CodeExecutionStrictInput,
   type CrewAiToolDescriptor,
   type JsonSchema,
   type LangChainToolDescriptor,

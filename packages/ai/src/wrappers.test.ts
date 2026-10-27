@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from "vitest";
 import type { CodeExecutionTool } from "./tool.js";
 import {
   codeExecutionInputJsonSchema,
+  codeExecutionInputStrictJsonSchema,
   createCrewAiTool,
   createLangChainTool,
   createMastraTool,
@@ -60,7 +61,7 @@ describe("AI framework wrapper descriptors", () => {
     expect(responses.tool).toMatchObject({
       type: "function",
       name: "capsule_code_execution",
-      parameters: codeExecutionInputJsonSchema,
+      parameters: codeExecutionInputStrictJsonSchema,
       strict: true
     });
 
@@ -134,7 +135,7 @@ describe("AI framework wrapper descriptors", () => {
     expect(Object.keys(responses.tool).sort()).toEqual(["description", "name", "parameters", "strict", "type"]);
     expect(responses.tool.type).toBe("function");
     expect(responses.tool.strict).toBe(true);
-    expect(responses.tool.parameters).toBe(codeExecutionInputJsonSchema);
+    expect(responses.tool.parameters).toBe(codeExecutionInputStrictJsonSchema);
 
     expect(Object.keys(createLangChainTool(tool)).sort()).toEqual(["description", "invoke", "name", "schema"]);
     expect(createLangChainTool(tool).schema).toBe(codeExecutionInputJsonSchema);
