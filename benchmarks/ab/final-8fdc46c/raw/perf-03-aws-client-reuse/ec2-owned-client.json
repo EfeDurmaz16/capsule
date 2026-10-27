@@ -1,0 +1,1286 @@
+{
+  "meta": {
+    "label": "final-8fdc46c",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 20,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "8fdc46cb331b811e14950e283d5b825788b5a07e",
+      "packagesTree": "cf7875190d8205697a7a93db8194dc50e04485b3",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "8fdc46cb331b811e14950e283d5b825788b5a07e",
+    "date": "2026-10-27T20:58:14.843Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        25.86279296875,
+        17.724609375,
+        12.79248046875
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)"
+  },
+  "workload": "perf-03-aws-client-reuse",
+  "case": "ec2-owned-client",
+  "params": {
+    "operations": 50
+  },
+  "runs": [
+    {
+      "side": "A",
+      "pair": 0,
+      "childWallMs": 213.70729200000005,
+      "loadAverage1m": 24.01904296875,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.2024590000000046,
+        "warmCallMedianMs": 0.04316700000001106,
+        "warmCallP95Ms": 0.2027089999999987,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 176.71716600000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4824304,
+          "rss": 47005696,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32810256,
+          "rss": 132087808,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 132087808
+      }
+    },
+    {
+      "side": "B",
+      "pair": 0,
+      "childWallMs": 197.38941700000032,
+      "loadAverage1m": 24.01904296875,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.2774589999999932,
+        "warmCallMedianMs": 0.005750000000006139,
+        "warmCallP95Ms": 0.05616700000001629,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 161.466917,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46284800,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 29915472,
+          "rss": 134922240,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 134922240
+      }
+    },
+    {
+      "side": "A",
+      "pair": 1,
+      "childWallMs": 286.84887499999604,
+      "loadAverage1m": 15.0625,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 3.767333000000008,
+        "warmCallMedianMs": 0.047416999999995824,
+        "warmCallP95Ms": 0.6698750000000189,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 204.424334,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4819736,
+          "rss": 47333376,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32634680,
+          "rss": 133169152,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 133185536
+      }
+    },
+    {
+      "side": "B",
+      "pair": 1,
+      "childWallMs": 252.41387499999837,
+      "loadAverage1m": 15.0625,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.8273329999999817,
+        "warmCallMedianMs": 0.006041999999979453,
+        "warmCallP95Ms": 0.09095800000000054,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 204.61849999999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303440,
+          "rss": 46465024,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 29989112,
+          "rss": 135757824,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 135757824
+      }
+    },
+    {
+      "side": "A",
+      "pair": 2,
+      "childWallMs": 236.54958300001454,
+      "loadAverage1m": 19.83447265625,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 3.1929169999999942,
+        "warmCallMedianMs": 0.0670419999999865,
+        "warmCallP95Ms": 0.3734579999999994,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 193.668875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4891424,
+          "rss": 47005696,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32481648,
+          "rss": 136937472,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 136937472
+      }
+    },
+    {
+      "side": "B",
+      "pair": 2,
+      "childWallMs": 202.9579580000136,
+      "loadAverage1m": 19.83447265625,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 3.2180409999999995,
+        "warmCallMedianMs": 0.005875000000003183,
+        "warmCallP95Ms": 0.06099999999997863,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 160.024666,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46383104,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 30069408,
+          "rss": 133316608,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 133316608
+      }
+    },
+    {
+      "side": "A",
+      "pair": 3,
+      "childWallMs": 194.5549170000013,
+      "loadAverage1m": 14.16650390625,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.3146250000000066,
+        "warmCallMedianMs": 0.04466700000000401,
+        "warmCallP95Ms": 0.20537500000000364,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 157.762625,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4846904,
+          "rss": 46940160,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32629640,
+          "rss": 132136960,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 132136960
+      }
+    },
+    {
+      "side": "B",
+      "pair": 3,
+      "childWallMs": 186.39620799999102,
+      "loadAverage1m": 14.16650390625,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.1730830000000196,
+        "warmCallMedianMs": 0.00591700000001083,
+        "warmCallP95Ms": 0.05679200000000151,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 151.52575,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46219264,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 29964496,
+          "rss": 134922240,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 134922240
+      }
+    },
+    {
+      "side": "A",
+      "pair": 4,
+      "childWallMs": 192.29383300000336,
+      "loadAverage1m": 11.197265625,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.191958999999997,
+        "warmCallMedianMs": 0.041416999999995596,
+        "warmCallP95Ms": 0.20349999999999113,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 152.772459,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4846472,
+          "rss": 46874624,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32713352,
+          "rss": 132644864,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 132644864
+      }
+    },
+    {
+      "side": "B",
+      "pair": 4,
+      "childWallMs": 193.02612499997485,
+      "loadAverage1m": 11.197265625,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.093999999999994,
+        "warmCallMedianMs": 0.0058339999999930114,
+        "warmCallP95Ms": 0.05570800000000986,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 156.501417,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46317568,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 29938824,
+          "rss": 135413760,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 135413760
+      }
+    },
+    {
+      "side": "A",
+      "pair": 5,
+      "childWallMs": 217.39791699999478,
+      "loadAverage1m": 12.00048828125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.277124999999984,
+        "warmCallMedianMs": 0.04454100000000949,
+        "warmCallP95Ms": 0.2554580000000044,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 171.23399999999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4853688,
+          "rss": 47235072,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32515224,
+          "rss": 135118848,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 135118848
+      }
+    },
+    {
+      "side": "B",
+      "pair": 5,
+      "childWallMs": 188.91874999995343,
+      "loadAverage1m": 12.00048828125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.2635410000000036,
+        "warmCallMedianMs": 0.00591700000001083,
+        "warmCallP95Ms": 0.058000000000021146,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 149.99729200000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46301184,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 30343256,
+          "rss": 132497408,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 132497408
+      }
+    },
+    {
+      "side": "A",
+      "pair": 6,
+      "childWallMs": 474.42270900000585,
+      "loadAverage1m": 16.14453125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 3.2097500000000423,
+        "warmCallMedianMs": 0.059041999999976724,
+        "warmCallP95Ms": 0.4743750000000091,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 411.94354200000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4856224,
+          "rss": 47431680,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32484576,
+          "rss": 138330112,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 138330112
+      }
+    },
+    {
+      "side": "B",
+      "pair": 6,
+      "childWallMs": 424.1478750000242,
+      "loadAverage1m": 16.14453125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 7.30966699999999,
+        "warmCallMedianMs": 0.00970799999998917,
+        "warmCallP95Ms": 0.3722909999999615,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 350.050833,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303440,
+          "rss": 46399488,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 30233608,
+          "rss": 133611520,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 133611520
+      }
+    },
+    {
+      "side": "A",
+      "pair": 7,
+      "childWallMs": 300.4919579999987,
+      "loadAverage1m": 17.42724609375,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 3.513666999999998,
+        "warmCallMedianMs": 0.04866599999996879,
+        "warmCallP95Ms": 0.3661250000000109,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 245.48366699999997,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4871736,
+          "rss": 47153152,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32516224,
+          "rss": 135380992,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 135380992
+      }
+    },
+    {
+      "side": "B",
+      "pair": 7,
+      "childWallMs": 252.2132500000298,
+      "loadAverage1m": 17.42724609375,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 3.9169169999999838,
+        "warmCallMedianMs": 0.006499999999988404,
+        "warmCallP95Ms": 0.15533300000001304,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 199.667417,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46596096,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 30023016,
+          "rss": 134266880,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 134266880
+      }
+    },
+    {
+      "side": "A",
+      "pair": 8,
+      "childWallMs": 242.18754200008698,
+      "loadAverage1m": 18.6689453125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 3.000333000000012,
+        "warmCallMedianMs": 0.09125000000000227,
+        "warmCallP95Ms": 0.5405000000000086,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 196.53687499999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4824304,
+          "rss": 47022080,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32580616,
+          "rss": 132644864,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 132644864
+      }
+    },
+    {
+      "side": "B",
+      "pair": 8,
+      "childWallMs": 250.21675000002142,
+      "loadAverage1m": 18.6689453125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.5133749999999964,
+        "warmCallMedianMs": 0.005875000000003183,
+        "warmCallP95Ms": 0.06116699999998332,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 199.199458,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46399488,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 30032632,
+          "rss": 133070848,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 133070848
+      }
+    },
+    {
+      "side": "A",
+      "pair": 9,
+      "childWallMs": 1028.4328750000568,
+      "loadAverage1m": 28.47412109375,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 4.775082999999995,
+        "warmCallMedianMs": 0.11333300000001145,
+        "warmCallP95Ms": 0.42737499999998363,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 940.438958,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4857144,
+          "rss": 47431680,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 33245872,
+          "rss": 135397376,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 135413760
+      }
+    },
+    {
+      "side": "B",
+      "pair": 9,
+      "childWallMs": 525.1162079999922,
+      "loadAverage1m": 28.47412109375,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 3.187917000000027,
+        "warmCallMedianMs": 0.005749999999977717,
+        "warmCallP95Ms": 0.06629100000003518,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 435.442125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46727168,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 29945720,
+          "rss": 135528448,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 135528448
+      }
+    },
+    {
+      "side": "A",
+      "pair": 10,
+      "childWallMs": 227.84700000006706,
+      "loadAverage1m": 17.69775390625,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 3.071458000000007,
+        "warmCallMedianMs": 0.044666000000006534,
+        "warmCallP95Ms": 0.2646660000000054,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 187.993,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4824304,
+          "rss": 46972928,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32482728,
+          "rss": 134905856,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 134905856
+      }
+    },
+    {
+      "side": "B",
+      "pair": 10,
+      "childWallMs": 198.61237500002608,
+      "loadAverage1m": 17.69775390625,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.303291999999999,
+        "warmCallMedianMs": 0.0063330000000121345,
+        "warmCallP95Ms": 0.0595000000000141,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 161.930917,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303440,
+          "rss": 46219264,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 29989248,
+          "rss": 135446528,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 135446528
+      }
+    },
+    {
+      "side": "A",
+      "pair": 11,
+      "childWallMs": 340.9666669999715,
+      "loadAverage1m": 21.7861328125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 3.620124999999973,
+        "warmCallMedianMs": 0.05537499999996953,
+        "warmCallP95Ms": 0.28504200000003266,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 277.376,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4879960,
+          "rss": 47202304,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32587392,
+          "rss": 135593984,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 135593984
+      }
+    },
+    {
+      "side": "B",
+      "pair": 11,
+      "childWallMs": 289.9897499999497,
+      "loadAverage1m": 21.7861328125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 4.33295899999996,
+        "warmCallMedianMs": 0.0060409999999819775,
+        "warmCallP95Ms": 0.24587500000001228,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 236.841958,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46563328,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 30013640,
+          "rss": 135659520,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 135659520
+      }
+    },
+    {
+      "side": "A",
+      "pair": 12,
+      "childWallMs": 426.07945799990557,
+      "loadAverage1m": 23.7255859375,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.9163330000000087,
+        "warmCallMedianMs": 0.041333000000008724,
+        "warmCallP95Ms": 0.38641699999999446,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 361.90333300000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4826528,
+          "rss": 47251456,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32540864,
+          "rss": 135282688,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 135282688
+      }
+    },
+    {
+      "side": "B",
+      "pair": 12,
+      "childWallMs": 293.7445000000298,
+      "loadAverage1m": 23.7255859375,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.818042000000048,
+        "warmCallMedianMs": 0.012499999999988631,
+        "warmCallP95Ms": 0.23637500000000955,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 240.60154199999997,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46579712,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 30192064,
+          "rss": 132841472,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 132841472
+      }
+    },
+    {
+      "side": "A",
+      "pair": 13,
+      "childWallMs": 821.09375,
+      "loadAverage1m": 34.61328125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 6.868832999999995,
+        "warmCallMedianMs": 0.09745900000007168,
+        "warmCallP95Ms": 3.850999999999999,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 733.0627499999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4785464,
+          "rss": 47267840,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32768776,
+          "rss": 134905856,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 134905856
+      }
+    },
+    {
+      "side": "B",
+      "pair": 13,
+      "childWallMs": 553.9005420000758,
+      "loadAverage1m": 34.61328125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 7.24208299999998,
+        "warmCallMedianMs": 0.01074999999997317,
+        "warmCallP95Ms": 0.6053329999999733,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 443.357375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46645248,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 30087224,
+          "rss": 133496832,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 133496832
+      }
+    },
+    {
+      "side": "A",
+      "pair": 14,
+      "childWallMs": 604.3097909998614,
+      "loadAverage1m": 16.95751953125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 7.7501250000000255,
+        "warmCallMedianMs": 0.0755420000000413,
+        "warmCallP95Ms": 0.4665419999998903,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 519.5420829999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4790936,
+          "rss": 47185920,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32532096,
+          "rss": 133595136,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 133595136
+      }
+    },
+    {
+      "side": "B",
+      "pair": 14,
+      "childWallMs": 342.3335420000367,
+      "loadAverage1m": 16.80029296875,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 4.0480420000000095,
+        "warmCallMedianMs": 0.00591700000001083,
+        "warmCallP95Ms": 0.10641700000002174,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 283.625083,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46432256,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 29940080,
+          "rss": 136216576,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 136216576
+      }
+    },
+    {
+      "side": "A",
+      "pair": 15,
+      "childWallMs": 1149.5873340000398,
+      "loadAverage1m": 16.59130859375,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 8.126999999999953,
+        "warmCallMedianMs": 0.08204099999989012,
+        "warmCallP95Ms": 1.2745409999999993,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 1070.679625,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4864664,
+          "rss": 47366144,
+          "external": 2026579,
+          "arrayBuffers": 152491
+        },
+        "endMemory": {
+          "heapUsed": 32743104,
+          "rss": 133677056,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 133677056
+      }
+    },
+    {
+      "side": "B",
+      "pair": 15,
+      "childWallMs": 1268.9390410000924,
+      "loadAverage1m": 19.5869140625,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 5.025583999999981,
+        "warmCallMedianMs": 0.010957999999959611,
+        "warmCallP95Ms": 0.10058300000002873,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 823.823209,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46596096,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 30059304,
+          "rss": 133365760,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 133365760
+      }
+    },
+    {
+      "side": "A",
+      "pair": 16,
+      "childWallMs": 214.95804199995473,
+      "loadAverage1m": 18.07080078125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.3234170000000063,
+        "warmCallMedianMs": 0.045290999999991755,
+        "warmCallP95Ms": 0.2442920000000015,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 174.77812500000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4826528,
+          "rss": 46841856,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32626416,
+          "rss": 133644288,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 133644288
+      }
+    },
+    {
+      "side": "B",
+      "pair": 16,
+      "childWallMs": 221.25304200011306,
+      "loadAverage1m": 18.07080078125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.172124999999994,
+        "warmCallMedianMs": 0.006000000000000227,
+        "warmCallP95Ms": 0.0578750000000241,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 179.045875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46186496,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 29977584,
+          "rss": 132907008,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 132907008
+      }
+    },
+    {
+      "side": "A",
+      "pair": 17,
+      "childWallMs": 660.6021660000551,
+      "loadAverage1m": 18.32861328125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 4.03545900000006,
+        "warmCallMedianMs": 0.06595799999990959,
+        "warmCallP95Ms": 0.8726669999999785,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 570.388584,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4835816,
+          "rss": 47120384,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32711808,
+          "rss": 132431872,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 132431872
+      }
+    },
+    {
+      "side": "B",
+      "pair": 17,
+      "childWallMs": 496.9674580001738,
+      "loadAverage1m": 18.32861328125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.7323749999999905,
+        "warmCallMedianMs": 0.005791999999985364,
+        "warmCallP95Ms": 0.05808300000001054,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 394.10045799999995,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46186496,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 30577312,
+          "rss": 133709824,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 133709824
+      }
+    },
+    {
+      "side": "A",
+      "pair": 18,
+      "childWallMs": 232.8731249999255,
+      "loadAverage1m": 15.55908203125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.1408329999999864,
+        "warmCallMedianMs": 0.041209000000009155,
+        "warmCallP95Ms": 0.2414579999999944,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 189.629708,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4824192,
+          "rss": 46907392,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32515032,
+          "rss": 135118848,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 135118848
+      }
+    },
+    {
+      "side": "B",
+      "pair": 18,
+      "childWallMs": 187.49183399998583,
+      "loadAverage1m": 15.55908203125,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 2.1132499999999936,
+        "warmCallMedianMs": 0.005458000000004404,
+        "warmCallP95Ms": 0.058667000000014013,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 149.776084,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303440,
+          "rss": 46219264,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 30201976,
+          "rss": 132857856,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 132857856
+      }
+    },
+    {
+      "side": "A",
+      "pair": 19,
+      "childWallMs": 355.90712500037625,
+      "loadAverage1m": 16.62255859375,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 3.213957999999991,
+        "warmCallMedianMs": 0.05525000000000091,
+        "warmCallP95Ms": 0.3765000000000214,
+        "uniqueSdkClients": 50,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 302.04837499999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4806344,
+          "rss": 47529984,
+          "external": 2026579,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 32688040,
+          "rss": 134987776,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 134987776
+      }
+    },
+    {
+      "side": "B",
+      "pair": 19,
+      "childWallMs": 336.74691699957475,
+      "loadAverage1m": 16.62255859375,
+      "ok": true,
+      "metrics": {
+        "firstCallMs": 3.9792909999999893,
+        "warmCallMedianMs": 0.008209000000022115,
+        "warmCallP95Ms": 0.08408399999996163,
+        "uniqueSdkClients": 1,
+        "sendCalls": 50,
+        "injectedClientCalls": 0
+      },
+      "caseDurationMs": 279.419792,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5303368,
+          "rss": 46678016,
+          "external": 2043259,
+          "arrayBuffers": 169171
+        },
+        "endMemory": {
+          "heapUsed": 29906432,
+          "rss": 135888896,
+          "external": 2772959,
+          "arrayBuffers": 19907
+        },
+        "maxRssBytes": 135888896
+      }
+    }
+  ]
+}

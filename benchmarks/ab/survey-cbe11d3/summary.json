@@ -1,0 +1,4538 @@
+{
+  "meta": {
+    "label": "survey-cbe11d3",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 15,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "cbe11d3a7655196ad3871ad930176a8847225eb0",
+      "packagesTree": "56576949d4a805fe7008356ecbb6c9a6c64f8161",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "cbe11d3a7655196ad3871ad930176a8847225eb0",
+    "date": "2026-10-27T19:37:24.391Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        11.28564453125,
+        10.912109375,
+        7.83251953125
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)",
+    "loadAverageAtEnd": [
+      10.48583984375,
+      10.2099609375,
+      8.97509765625
+    ]
+  },
+  "cases": [
+    {
+      "workload": "perf-01-core-receipts",
+      "case": "long-lived-best-effort",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "checkpoints.ops1000.heapBytesPerOperation": {
+          "n": 15,
+          "medianA": 2016.816,
+          "medianB": 224.808,
+          "p95A": 2016.848,
+          "p95B": 224.952,
+          "medianRatio": 0.11146678725277863,
+          "ci95": [
+            0.1114491523406821,
+            0.111520550879392
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops1000.heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 2016816,
+          "medianB": 224808,
+          "p95A": 2016848,
+          "p95B": 224952,
+          "medianRatio": 0.11146678725277864,
+          "ci95": [
+            0.11144915234068209,
+            0.111520550879392
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops1000.operations": {
+          "n": 15,
+          "medianA": 1000,
+          "medianB": 1000,
+          "p95A": 1000,
+          "p95B": 1000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "checkpoints.ops1000.receiptsEmitted": {
+          "n": 15,
+          "medianA": 1000,
+          "medianB": 1000,
+          "p95A": 1000,
+          "p95B": 1000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "checkpoints.ops1000.receiptsStillReachable": {
+          "n": 15,
+          "medianA": 1000,
+          "medianB": 1,
+          "p95A": 1000,
+          "p95B": 1,
+          "medianRatio": 0.001,
+          "ci95": [
+            0.001,
+            0.001
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops1000.rssDeltaBytes": {
+          "n": 15,
+          "medianA": 11681792,
+          "medianB": 11599872,
+          "p95A": 12075008,
+          "p95B": 11960320,
+          "medianRatio": 0.9943899018232819,
+          "ci95": [
+            0.9776536312849162,
+            1.0028449502133712
+          ],
+          "verdict": "no difference"
+        },
+        "checkpoints.ops20000.heapBytesPerOperation": {
+          "n": 15,
+          "medianA": 1854.3664,
+          "medianB": 61.4304,
+          "p95A": 1854.468,
+          "p95B": 61.5284,
+          "medianRatio": 0.03312661911161058,
+          "ci95": [
+            0.03307255781581141,
+            0.03314996377259413
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops20000.heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 37087328,
+          "medianB": 1228608,
+          "p95A": 37089360,
+          "p95B": 1230568,
+          "medianRatio": 0.03312661911161058,
+          "ci95": [
+            0.03307255781581141,
+            0.03315259682613375
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops20000.operations": {
+          "n": 15,
+          "medianA": 20000,
+          "medianB": 20000,
+          "p95A": 20000,
+          "p95B": 20000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "checkpoints.ops20000.receiptsEmitted": {
+          "n": 15,
+          "medianA": 20000,
+          "medianB": 20000,
+          "p95A": 20000,
+          "p95B": 20000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "checkpoints.ops20000.receiptsStillReachable": {
+          "n": 15,
+          "medianA": 20000,
+          "medianB": 1,
+          "p95A": 20000,
+          "p95B": 1,
+          "medianRatio": 0.00005,
+          "ci95": [
+            0.00005,
+            0.00005
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops20000.rssDeltaBytes": {
+          "n": 15,
+          "medianA": 81756160,
+          "medianB": 70647808,
+          "p95A": 83001344,
+          "p95B": 72728576,
+          "medianRatio": 0.8624825104937037,
+          "ci95": [
+            0.8587330499898805,
+            0.8695217130278167
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops5000.heapBytesPerOperation": {
+          "n": 15,
+          "medianA": 1907.1072,
+          "medianB": 113.1936,
+          "p95A": 1907.7808,
+          "p95B": 113.6048,
+          "medianRatio": 0.059352735278226175,
+          "ci95": [
+            0.05929174134563103,
+            0.05951128494507283
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops5000.heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 9535536,
+          "medianB": 565968,
+          "p95A": 9538904,
+          "p95B": 568024,
+          "medianRatio": 0.059352735278226175,
+          "ci95": [
+            0.059291741345631026,
+            0.05951128494507283
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops5000.operations": {
+          "n": 15,
+          "medianA": 5000,
+          "medianB": 5000,
+          "p95A": 5000,
+          "p95B": 5000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "checkpoints.ops5000.receiptsEmitted": {
+          "n": 15,
+          "medianA": 5000,
+          "medianB": 5000,
+          "p95A": 5000,
+          "p95B": 5000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "checkpoints.ops5000.receiptsStillReachable": {
+          "n": 15,
+          "medianA": 5000,
+          "medianB": 1,
+          "p95A": 5000,
+          "p95B": 1,
+          "medianRatio": 0.0002,
+          "ci95": [
+            0.0002,
+            0.0002
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops5000.rssDeltaBytes": {
+          "n": 15,
+          "medianA": 37044224,
+          "medianB": 35094528,
+          "p95A": 38240256,
+          "p95B": 36339712,
+          "medianRatio": 0.961079168509509,
+          "ci95": [
+            0.9134532990574121,
+            0.9700680272108844
+          ],
+          "verdict": "better"
+        },
+        "childWallMs": {
+          "n": 15,
+          "medianA": 223.8630000000121,
+          "medianB": 169.9783339999849,
+          "p95A": 297.5366250000079,
+          "p95B": 238.3065840000054,
+          "medianRatio": 0.7567844787858905,
+          "ci95": [
+            0.6472185197942146,
+            0.7768633558959825
+          ],
+          "verdict": "better"
+        },
+        "final.heapBytesPerOperation": {
+          "n": 15,
+          "medianA": 1854.3664,
+          "medianB": 61.4304,
+          "p95A": 1854.468,
+          "p95B": 61.5284,
+          "medianRatio": 0.03312661911161058,
+          "ci95": [
+            0.03310087430451579,
+            0.03315259682613376
+          ],
+          "verdict": "better"
+        },
+        "final.heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 37087328,
+          "medianB": 1228608,
+          "p95A": 37089360,
+          "p95B": 1230568,
+          "medianRatio": 0.03312661911161058,
+          "ci95": [
+            0.03310087430451579,
+            0.03314996377259413
+          ],
+          "verdict": "better"
+        },
+        "final.operations": {
+          "n": 15,
+          "medianA": 20000,
+          "medianB": 20000,
+          "p95A": 20000,
+          "p95B": 20000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "final.receiptsEmitted": {
+          "n": 15,
+          "medianA": 20000,
+          "medianB": 20000,
+          "p95A": 20000,
+          "p95B": 20000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "final.receiptsStillReachable": {
+          "n": 15,
+          "medianA": 20000,
+          "medianB": 1,
+          "p95A": 20000,
+          "p95B": 1,
+          "medianRatio": 0.00005,
+          "ci95": [
+            0.00005,
+            0.00005
+          ],
+          "verdict": "better"
+        },
+        "final.rssDeltaBytes": {
+          "n": 15,
+          "medianA": 81756160,
+          "medianB": 70647808,
+          "p95A": 83001344,
+          "p95B": 72728576,
+          "medianRatio": 0.8624825104937037,
+          "ci95": [
+            0.858889557025456,
+            0.8695217130278167
+          ],
+          "verdict": "better"
+        },
+        "operations": {
+          "n": 15,
+          "medianA": 20000,
+          "medianB": 20000,
+          "p95A": 20000,
+          "p95B": 20000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "opsPerSecond": {
+          "n": 15,
+          "medianA": 112501.01932954826,
+          "medianB": 167284.28162847468,
+          "p95A": 126991.14898994638,
+          "p95B": 208765.72411690975,
+          "medianRatio": 1.5930217721884548,
+          "ci95": [
+            1.4292721859343114,
+            1.711885282929375
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 132431872,
+          "medianB": 120209408,
+          "p95A": 133873664,
+          "p95B": 122257408,
+          "medianRatio": 0.9062654779593858,
+          "ci95": [
+            0.9032977932060501,
+            0.9112374830016071
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {
+        "sandboxStillLive": {
+          "A": "true",
+          "B": "true"
+        }
+      }
+    },
+    {
+      "workload": "perf-01-core-receipts",
+      "case": "long-lived-required",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "checkpoints.ops1000.heapBytesPerOperation": {
+          "n": 15,
+          "medianA": 2339.68,
+          "medianB": 224.936,
+          "p95A": 2342.408,
+          "p95B": 225.368,
+          "medianRatio": 0.09612596594406073,
+          "ci95": [
+            0.09607467687888942,
+            0.09613832813611248
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops1000.heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 2339680,
+          "medianB": 224936,
+          "p95A": 2342408,
+          "p95B": 225368,
+          "medianRatio": 0.09612596594406073,
+          "ci95": [
+            0.09607467687888942,
+            0.09613865685573901
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops1000.operations": {
+          "n": 15,
+          "medianA": 1000,
+          "medianB": 1000,
+          "p95A": 1000,
+          "p95B": 1000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "checkpoints.ops1000.receiptsEmitted": {
+          "n": 15,
+          "medianA": 1000,
+          "medianB": 1000,
+          "p95A": 1000,
+          "p95B": 1000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "checkpoints.ops1000.receiptsStillReachable": {
+          "n": 15,
+          "medianA": 1000,
+          "medianB": 1,
+          "p95A": 1000,
+          "p95B": 1,
+          "medianRatio": 0.001,
+          "ci95": [
+            0.001,
+            0.001
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops1000.rssDeltaBytes": {
+          "n": 15,
+          "medianA": 13205504,
+          "medianB": 12288000,
+          "p95A": 13713408,
+          "p95B": 12779520,
+          "medianRatio": 0.9295426452410384,
+          "ci95": [
+            0.9095477386934674,
+            0.9478908188585607
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops20000.heapBytesPerOperation": {
+          "n": 15,
+          "medianA": 2175.5564,
+          "medianB": 61.378,
+          "p95A": 2175.8632,
+          "p95B": 61.5476,
+          "medianRatio": 0.02821258920028447,
+          "ci95": [
+            0.02811592278850466,
+            0.02826421783411361
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops20000.heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 43511128,
+          "medianB": 1227560,
+          "p95A": 43517264,
+          "p95B": 1230952,
+          "medianRatio": 0.02821258920028447,
+          "ci95": [
+            0.028098299458135353,
+            0.028272831732316036
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops20000.operations": {
+          "n": 15,
+          "medianA": 20000,
+          "medianB": 20000,
+          "p95A": 20000,
+          "p95B": 20000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "checkpoints.ops20000.receiptsEmitted": {
+          "n": 15,
+          "medianA": 20000,
+          "medianB": 20000,
+          "p95A": 20000,
+          "p95B": 20000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "checkpoints.ops20000.receiptsStillReachable": {
+          "n": 15,
+          "medianA": 20000,
+          "medianB": 1,
+          "p95A": 20000,
+          "p95B": 1,
+          "medianRatio": 0.00005,
+          "ci95": [
+            0.00005,
+            0.00005
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops20000.rssDeltaBytes": {
+          "n": 15,
+          "medianA": 88588288,
+          "medianB": 71139328,
+          "p95A": 89309184,
+          "p95B": 72417280,
+          "medianRatio": 0.8043919542350987,
+          "ci95": [
+            0.7988558774681676,
+            0.8087634608243595
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops5000.heapBytesPerOperation": {
+          "n": 15,
+          "medianA": 2231.648,
+          "medianB": 114.4144,
+          "p95A": 2233.6032,
+          "p95B": 115.1648,
+          "medianRatio": 0.05126721626808734,
+          "ci95": [
+            0.051230131187224304,
+            0.0513779950960008
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops5000.heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 11158240,
+          "medianB": 572072,
+          "p95A": 11168016,
+          "p95B": 575824,
+          "medianRatio": 0.05126721626808734,
+          "ci95": [
+            0.051230131187224304,
+            0.051386686916447426
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops5000.operations": {
+          "n": 15,
+          "medianA": 5000,
+          "medianB": 5000,
+          "p95A": 5000,
+          "p95B": 5000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "checkpoints.ops5000.receiptsEmitted": {
+          "n": 15,
+          "medianA": 5000,
+          "medianB": 5000,
+          "p95A": 5000,
+          "p95B": 5000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "checkpoints.ops5000.receiptsStillReachable": {
+          "n": 15,
+          "medianA": 5000,
+          "medianB": 1,
+          "p95A": 5000,
+          "p95B": 1,
+          "medianRatio": 0.0002,
+          "ci95": [
+            0.0002,
+            0.0002
+          ],
+          "verdict": "better"
+        },
+        "checkpoints.ops5000.rssDeltaBytes": {
+          "n": 15,
+          "medianA": 38305792,
+          "medianB": 32702464,
+          "p95A": 39010304,
+          "p95B": 33701888,
+          "medianRatio": 0.8541488451668092,
+          "ci95": [
+            0.8443694643610291,
+            0.8695652173913043
+          ],
+          "verdict": "better"
+        },
+        "childWallMs": {
+          "n": 15,
+          "medianA": 245.48912500000006,
+          "medianB": 166.56358399998862,
+          "p95A": 504.24254100001417,
+          "p95B": 270.2244999999966,
+          "medianRatio": 0.6787655683051209,
+          "ci95": [
+            0.6642148234075518,
+            0.7570737597289512
+          ],
+          "verdict": "better"
+        },
+        "final.heapBytesPerOperation": {
+          "n": 15,
+          "medianA": 2175.5564,
+          "medianB": 61.378,
+          "p95A": 2175.8632,
+          "p95B": 61.5476,
+          "medianRatio": 0.02821258920028447,
+          "ci95": [
+            0.028098299458135353,
+            0.028272831732316036
+          ],
+          "verdict": "better"
+        },
+        "final.heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 43511128,
+          "medianB": 1227560,
+          "p95A": 43517264,
+          "p95B": 1230952,
+          "medianRatio": 0.02821258920028447,
+          "ci95": [
+            0.028098299458135353,
+            0.028272831732316036
+          ],
+          "verdict": "better"
+        },
+        "final.operations": {
+          "n": 15,
+          "medianA": 20000,
+          "medianB": 20000,
+          "p95A": 20000,
+          "p95B": 20000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "final.receiptsEmitted": {
+          "n": 15,
+          "medianA": 20000,
+          "medianB": 20000,
+          "p95A": 20000,
+          "p95B": 20000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "final.receiptsStillReachable": {
+          "n": 15,
+          "medianA": 20000,
+          "medianB": 1,
+          "p95A": 20000,
+          "p95B": 1,
+          "medianRatio": 0.00005,
+          "ci95": [
+            0.00005,
+            0.00005
+          ],
+          "verdict": "better"
+        },
+        "final.rssDeltaBytes": {
+          "n": 15,
+          "medianA": 88588288,
+          "medianB": 71139328,
+          "p95A": 89309184,
+          "p95B": 72417280,
+          "medianRatio": 0.8043919542350987,
+          "ci95": [
+            0.7982310668877833,
+            0.8091347939101374
+          ],
+          "verdict": "better"
+        },
+        "operations": {
+          "n": 15,
+          "medianA": 20000,
+          "medianB": 20000,
+          "p95A": 20000,
+          "p95B": 20000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "opsPerSecond": {
+          "n": 15,
+          "medianA": 100640.1974560674,
+          "medianB": 163031.3501460826,
+          "p95A": 128085.4922500624,
+          "p95B": 193648.8033714257,
+          "medianRatio": 1.6026584110701383,
+          "ci95": [
+            1.4116402852942398,
+            1.6758182087118938
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 139280384,
+          "medianB": 120635392,
+          "p95A": 139952128,
+          "p95B": 121815040,
+          "medianRatio": 0.8676384154225931,
+          "ci95": [
+            0.8641975308641975,
+            0.8698678621991506
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {
+        "sandboxStillLive": {
+          "A": "true",
+          "B": "true"
+        }
+      }
+    },
+    {
+      "workload": "perf-01-core-receipts",
+      "case": "parallel-required-delayed-a",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "aLatencyMs.p50": {
+          "n": 15,
+          "medianA": 52.46783300000001,
+          "medianB": 52.276208,
+          "p95A": 52.681916,
+          "p95B": 52.62629100000004,
+          "medianRatio": 0.9970064940002548,
+          "ci95": [
+            0.9922190377434248,
+            1.0020258664643193
+          ],
+          "verdict": "no difference"
+        },
+        "aLatencyMs.p95": {
+          "n": 15,
+          "medianA": 52.921875,
+          "medianB": 52.958417,
+          "p95A": 54.64175,
+          "p95B": 54.84074999999999,
+          "medianRatio": 1.000136252795209,
+          "ci95": [
+            0.9969899143689258,
+            1.0019755742233318
+          ],
+          "verdict": "no difference"
+        },
+        "bLatencyMs.p50": {
+          "n": 15,
+          "medianA": 52.429457999999954,
+          "medianB": 3.5998749999999973,
+          "p95A": 52.64762500000006,
+          "p95B": 3.6474170000001322,
+          "medianRatio": 0.06874673493222075,
+          "ci95": [
+            0.06828060464325386,
+            0.0689908137331685
+          ],
+          "verdict": "better"
+        },
+        "bLatencyMs.p95": {
+          "n": 15,
+          "medianA": 52.87541699999997,
+          "medianB": 3.8624580000000606,
+          "p95A": 54.54445800000008,
+          "p95B": 4.792249999999967,
+          "medianRatio": 0.07309504713361921,
+          "ci95": [
+            0.07221849427683931,
+            0.07379502382012236
+          ],
+          "verdict": "better"
+        },
+        "childWallMs": {
+          "n": 15,
+          "medianA": 2132.7847499999916,
+          "medianB": 2130.6180830000085,
+          "p95A": 2164.4788750000007,
+          "p95B": 2166.1447089999856,
+          "medianRatio": 0.9983488613251235,
+          "ci95": [
+            0.9971327262392651,
+            1.0004542826900988
+          ],
+          "verdict": "no difference"
+        },
+        "iterations": {
+          "n": 15,
+          "medianA": 40,
+          "medianB": 40,
+          "p95A": 40,
+          "p95B": 40,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "outcomes.aRejected": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "outcomes.aResolved": {
+          "n": 15,
+          "medianA": 40,
+          "medianB": 40,
+          "p95A": 40,
+          "p95B": 40,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "outcomes.bRejected": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "outcomes.bRejectedWithAError": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "outcomes.bResolved": {
+          "n": 15,
+          "medianA": 40,
+          "medianB": 40,
+          "p95A": 40,
+          "p95B": 40,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 55050240,
+          "medianB": 54984704,
+          "p95A": 55214080,
+          "p95B": 55394304,
+          "medianRatio": 0.9982137540934802,
+          "ci95": [
+            0.9970202622169249,
+            0.9991066110780227
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {
+        "bSettlesBeforeA": {
+          "A": "false",
+          "B": "true"
+        }
+      }
+    },
+    {
+      "workload": "perf-01-core-receipts",
+      "case": "parallel-required-failing-a",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "aLatencyMs.p50": {
+          "n": 15,
+          "medianA": 6.9133750000000305,
+          "medianB": 6.910334000000006,
+          "p95A": 7.021833000000001,
+          "p95B": 7.009708999999987,
+          "medianRatio": 0.9990765275465647,
+          "ci95": [
+            0.9941908330773462,
+            1.0089116539112193
+          ],
+          "verdict": "no difference"
+        },
+        "aLatencyMs.p95": {
+          "n": 15,
+          "medianA": 7.325125,
+          "medianB": 7.277290999999991,
+          "p95A": 8.342790999999991,
+          "p95B": 7.935083999999989,
+          "medianRatio": 0.9908918078119611,
+          "ci95": [
+            0.975968401522884,
+            1.0184748525818756
+          ],
+          "verdict": "no difference"
+        },
+        "bLatencyMs.p50": {
+          "n": 15,
+          "medianA": 6.889792,
+          "medianB": 3.557957999999985,
+          "p95A": 6.994666999999993,
+          "p95B": 3.620541000000003,
+          "medianRatio": 0.5130344442241467,
+          "ci95": [
+            0.507487919010299,
+            0.5406348772929477
+          ],
+          "verdict": "better"
+        },
+        "bLatencyMs.p95": {
+          "n": 15,
+          "medianA": 7.279707999999999,
+          "medianB": 3.813208000000003,
+          "p95A": 8.29187499999999,
+          "p95B": 4.0169580000000025,
+          "medianRatio": 0.5194375015979431,
+          "ci95": [
+            0.5090344605314483,
+            0.5354522014448015
+          ],
+          "verdict": "better"
+        },
+        "childWallMs": {
+          "n": 15,
+          "medianA": 309.2484580000164,
+          "medianB": 303.6379579999775,
+          "p95A": 326.040708000015,
+          "p95B": 319.8227499999921,
+          "medianRatio": 0.9875580632562272,
+          "ci95": [
+            0.9809288906340412,
+            0.9950758924338501
+          ],
+          "verdict": "better"
+        },
+        "iterations": {
+          "n": 15,
+          "medianA": 40,
+          "medianB": 40,
+          "p95A": 40,
+          "p95B": 40,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "outcomes.aRejected": {
+          "n": 15,
+          "medianA": 40,
+          "medianB": 40,
+          "p95A": 40,
+          "p95B": 40,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "outcomes.aResolved": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "outcomes.bRejected": {
+          "n": 15,
+          "medianA": 40,
+          "medianB": 0,
+          "p95A": 40,
+          "p95B": 0,
+          "medianRatio": 0,
+          "ci95": [
+            0,
+            0
+          ],
+          "verdict": "better"
+        },
+        "outcomes.bRejectedWithAError": {
+          "n": 15,
+          "medianA": 40,
+          "medianB": 0,
+          "p95A": 40,
+          "p95B": 0,
+          "medianRatio": 0,
+          "ci95": [
+            0,
+            0
+          ],
+          "verdict": "better"
+        },
+        "outcomes.bResolved": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 40,
+          "p95A": 0,
+          "p95B": 40,
+          "medianRatio": null,
+          "ci95": null,
+          "verdict": "n/a"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 55099392,
+          "medianB": 54935552,
+          "p95A": 55640064,
+          "p95B": 55214080,
+          "medianRatio": 0.9964317573595004,
+          "ci95": [
+            0.9949389699315272,
+            0.9979166666666667
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {
+        "bSettlesBeforeA": {
+          "A": "false",
+          "B": "true"
+        }
+      }
+    },
+    {
+      "workload": "perf-01-core-receipts",
+      "case": "required-inflight-bookkeeping",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 407.98783399991225,
+          "medianB": 229.9522500000021,
+          "p95A": 622.1341250000405,
+          "p95B": 347.9039580000099,
+          "medianRatio": 0.5582427929996024,
+          "ci95": [
+            0.5235269859074425,
+            0.5663499147380023
+          ],
+          "verdict": "better"
+        },
+        "failures": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "heapBytesPerOperation": {
+          "n": 15,
+          "medianA": 2118.94144,
+          "medianB": 6.7208,
+          "p95A": 2119.03472,
+          "p95B": 6.7752,
+          "medianRatio": 0.003171881626178138,
+          "ci95": [
+            0.003156066455522244,
+            0.0031765674013265344
+          ],
+          "verdict": "better"
+        },
+        "heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 105947072,
+          "medianB": 336040,
+          "p95A": 105951736,
+          "p95B": 338760,
+          "medianRatio": 0.003171881626178138,
+          "ci95": [
+            0.003156066455522244,
+            0.003176567401326535
+          ],
+          "verdict": "better"
+        },
+        "operations": {
+          "n": 15,
+          "medianA": 50000,
+          "medianB": 50000,
+          "p95A": 50000,
+          "p95B": 50000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 203112448,
+          "medianB": 69042176,
+          "p95A": 204980224,
+          "p95B": 69910528,
+          "medianRatio": 0.33916196615632555,
+          "ci95": [
+            0.33634401726480695,
+            0.34084120448857674
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {
+        "sandboxStillLive": {
+          "A": "true",
+          "B": "true"
+        }
+      }
+    },
+    {
+      "workload": "perf-02-artifact-collection",
+      "case": "large-file-tiny-limit",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "bytesRead": {
+          "n": 15,
+          "medianA": 16777216,
+          "medianB": 0,
+          "p95A": 16777216,
+          "p95B": 0,
+          "medianRatio": 0,
+          "ci95": [
+            0,
+            0
+          ],
+          "verdict": "better"
+        },
+        "childWallMs": {
+          "n": 15,
+          "medianA": 42.77374999993481,
+          "medianB": 43.31487500004005,
+          "p95A": 68.4527919999673,
+          "p95B": 64.64808400004404,
+          "medianRatio": 0.9812036902779341,
+          "ci95": [
+            0.869015544609293,
+            1.0227003331996962
+          ],
+          "verdict": "no difference"
+        },
+        "collectedFiles": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "elapsedMs": {
+          "n": 15,
+          "medianA": 2.324375,
+          "medianB": 0.20937500000000142,
+          "p95A": 3.40925,
+          "p95B": 0.49441699999999855,
+          "medianRatio": 0.08663061303264004,
+          "ci95": [
+            0.08410745290803379,
+            0.09501592554136319
+          ],
+          "verdict": "better"
+        },
+        "eventLoopMaxDelayMs": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 59312,
+          "medianB": 63552,
+          "p95A": 59312,
+          "p95B": 63552,
+          "medianRatio": 1.0714863771243592,
+          "ci95": [
+            1.0714863771243592,
+            1.0714863771243592
+          ],
+          "verdict": "worse"
+        },
+        "peakRssBytes": {
+          "n": 15,
+          "medianA": 65306624,
+          "medianB": 48365568,
+          "p95A": 65519616,
+          "p95B": 48562176,
+          "medianRatio": 0.74062893081761,
+          "ci95": [
+            0.7399598393574297,
+            0.7415392328904488
+          ],
+          "verdict": "better"
+        },
+        "peakRssGrowthBytes": {
+          "n": 15,
+          "medianA": 16891904,
+          "medianB": 49152,
+          "p95A": 16908288,
+          "p95B": 65536,
+          "medianRatio": 0.002909796314258002,
+          "ci95": [
+            0.002909796314258002,
+            0.002912621359223301
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 65372160,
+          "medianB": 48431104,
+          "p95A": 65601536,
+          "p95B": 48644096,
+          "medianRatio": 0.7408521303258145,
+          "ci95": [
+            0.7405174579251445,
+            0.7415084915084915
+          ],
+          "verdict": "better"
+        },
+        "readCalls": {
+          "n": 15,
+          "medianA": 1,
+          "medianB": 0,
+          "p95A": 1,
+          "p95B": 0,
+          "medianRatio": 0,
+          "ci95": [
+            0,
+            0
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {
+        "truncated": {
+          "A": "true",
+          "B": "true"
+        },
+        "truncationReason": {
+          "A": "\"maxBytes\"",
+          "B": "\"maxBytes\""
+        }
+      }
+    },
+    {
+      "workload": "perf-02-artifact-collection",
+      "case": "large-file-within-budget",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "bytesRead": {
+          "n": 15,
+          "medianA": 50331648,
+          "medianB": 50331648,
+          "p95A": 50331648,
+          "p95B": 50331648,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "childWallMs": {
+          "n": 15,
+          "medianA": 105.32474999997066,
+          "medianB": 103.14758400002029,
+          "p95A": 932.9659579999861,
+          "p95B": 204.57962500001304,
+          "medianRatio": 0.9793290181087448,
+          "ci95": [
+            0.8438116977264009,
+            1.131865225526708
+          ],
+          "verdict": "no difference"
+        },
+        "collectedFiles": {
+          "n": 15,
+          "medianA": 1,
+          "medianB": 1,
+          "p95A": 1,
+          "p95B": 1,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "elapsedMs": {
+          "n": 15,
+          "medianA": 21.27404200000001,
+          "medianB": 19.651832999999996,
+          "p95A": 27.446666000000008,
+          "p95B": 22.822375,
+          "medianRatio": 0.9244604189319986,
+          "ci95": [
+            0.8645234600128673,
+            0.9288395871036302
+          ],
+          "verdict": "better"
+        },
+        "eventLoopMaxDelayMs": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 60792,
+          "medianB": 445736,
+          "p95A": 60792,
+          "p95B": 445736,
+          "medianRatio": 7.3321489669693385,
+          "ci95": [
+            7.3321489669693385,
+            7.3321489669693385
+          ],
+          "verdict": "worse"
+        },
+        "peakRssBytes": {
+          "n": 15,
+          "medianA": 100007936,
+          "medianB": 49659904,
+          "p95A": 100089856,
+          "p95B": 50020352,
+          "medianRatio": 0.4968862667977712,
+          "ci95": [
+            0.49606815203145477,
+            0.49869024230517356
+          ],
+          "verdict": "better"
+        },
+        "peakRssGrowthBytes": {
+          "n": 15,
+          "medianA": 50429952,
+          "medianB": 65536,
+          "p95A": 50446336,
+          "p95B": 147456,
+          "medianRatio": 0.0012999675008124798,
+          "ci95": [
+            0.001299545159194282,
+            0.001949317738791423
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 100106240,
+          "medianB": 49725440,
+          "p95A": 100188160,
+          "p95B": 50085888,
+          "medianRatio": 0.49688932547478715,
+          "ci95": [
+            0.4958299264104661,
+            0.49869152764147856
+          ],
+          "verdict": "better"
+        },
+        "readCalls": {
+          "n": 15,
+          "medianA": 1,
+          "medianB": 769,
+          "p95A": 1,
+          "p95B": 769,
+          "medianRatio": 769,
+          "ci95": [
+            769,
+            769
+          ],
+          "verdict": "worse"
+        }
+      },
+      "observations": {
+        "truncated": {
+          "A": "false",
+          "B": "false"
+        },
+        "truncationReason": {
+          "A": "null",
+          "B": "null"
+        },
+        "hashMatches": {
+          "A": "true",
+          "B": "true"
+        }
+      }
+    },
+    {
+      "workload": "perf-02-artifact-collection",
+      "case": "many-small-files",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "bytesRead": {
+          "n": 15,
+          "medianA": 4096000,
+          "medianB": 4096000,
+          "p95A": 4096000,
+          "p95B": 4096000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "childWallMs": {
+          "n": 15,
+          "medianA": 216.79591699998127,
+          "medianB": 204.28833399998257,
+          "p95A": 393.2623339999991,
+          "p95B": 494.9105419999978,
+          "medianRatio": 1.045509127310388,
+          "ci95": [
+            0.9449181719364496,
+            1.2525041566782715
+          ],
+          "verdict": "no difference"
+        },
+        "collectedFiles": {
+          "n": 15,
+          "medianA": 1000,
+          "medianB": 1000,
+          "p95A": 1000,
+          "p95B": 1000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "elapsedMs": {
+          "n": 15,
+          "medianA": 19.872042000000008,
+          "medianB": 23.525959,
+          "p95A": 28.676417000000015,
+          "p95B": 43.50625000000002,
+          "medianRatio": 1.0990986191700909,
+          "ci95": [
+            1.0685203958734981,
+            1.3011200187382814
+          ],
+          "verdict": "worse"
+        },
+        "eventLoopMaxDelayMs": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 918672,
+          "medianB": 360816,
+          "p95A": 947064,
+          "p95B": 397672,
+          "medianRatio": 0.39527790923910183,
+          "ci95": [
+            0.38578813559322034,
+            0.39801618468544
+          ],
+          "verdict": "better"
+        },
+        "peakRssBytes": {
+          "n": 15,
+          "medianA": 56967168,
+          "medianB": 65437696,
+          "p95A": 57163776,
+          "p95B": 67649536,
+          "medianRatio": 1.147945992530882,
+          "ci95": [
+            1.1470419299253303,
+            1.1504882251579551
+          ],
+          "verdict": "worse"
+        },
+        "peakRssGrowthBytes": {
+          "n": 15,
+          "medianA": 1556480,
+          "medianB": 9764864,
+          "p95A": 1622016,
+          "p95B": 11698176,
+          "medianRatio": 6.354166666666667,
+          "ci95": [
+            6.177083333333333,
+            6.461538461538462
+          ],
+          "verdict": "worse"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 58540032,
+          "medianB": 66650112,
+          "p95A": 58884096,
+          "p95B": 68861952,
+          "medianRatio": 1.138327721661055,
+          "ci95": [
+            1.1369863013698631,
+            1.140022358859698
+          ],
+          "verdict": "worse"
+        },
+        "readCalls": {
+          "n": 15,
+          "medianA": 1000,
+          "medianB": 2000,
+          "p95A": 1000,
+          "p95B": 2000,
+          "medianRatio": 2,
+          "ci95": [
+            2,
+            2
+          ],
+          "verdict": "worse"
+        }
+      },
+      "observations": {
+        "truncated": {
+          "A": "false",
+          "B": "false"
+        },
+        "truncationReason": {
+          "A": "null",
+          "B": "null"
+        },
+        "inventoryDigest": {
+          "A": "\"50758fbb91a29981fc3e90bf25da02b02297172b4e30636792a509ea0b91140d\"",
+          "B": "\"50758fbb91a29981fc3e90bf25da02b02297172b4e30636792a509ea0b91140d\""
+        }
+      }
+    },
+    {
+      "workload": "perf-03-aws-client-reuse",
+      "case": "ec2-owned-client",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 174.35691699999734,
+          "medianB": 201.74612500000512,
+          "p95A": 283.0809579999768,
+          "p95B": 254.4914160000044,
+          "medianRatio": 1.1607654128577827,
+          "ci95": [
+            1.0598125806848606,
+            1.2018626380703288
+          ],
+          "verdict": "worse"
+        },
+        "firstCallMs": {
+          "n": 15,
+          "medianA": 2.3147920000000113,
+          "medianB": 2.282375000000002,
+          "p95A": 4.841207999999995,
+          "p95B": 3.3107920000000206,
+          "medianRatio": 0.9609470281331876,
+          "ci95": [
+            0.9372883799032763,
+            0.9898109146810218
+          ],
+          "verdict": "better"
+        },
+        "injectedClientCalls": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 133447680,
+          "medianB": 133480448,
+          "p95A": 135790592,
+          "p95B": 136822784,
+          "medianRatio": 1.002717391304348,
+          "ci95": [
+            0.9952944015444015,
+            1.015731450514059
+          ],
+          "verdict": "no difference"
+        },
+        "sendCalls": {
+          "n": 15,
+          "medianA": 50,
+          "medianB": 50,
+          "p95A": 50,
+          "p95B": 50,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "uniqueSdkClients": {
+          "n": 15,
+          "medianA": 50,
+          "medianB": 1,
+          "p95A": 50,
+          "p95B": 1,
+          "medianRatio": 0.02,
+          "ci95": [
+            0.02,
+            0.02
+          ],
+          "verdict": "better"
+        },
+        "warmCallMedianMs": {
+          "n": 15,
+          "medianA": 0.043000000000006366,
+          "medianB": 0.005791000000016311,
+          "p95A": 0.07837499999999409,
+          "p95B": 0.007874999999984311,
+          "medianRatio": 0.13975155279520649,
+          "ci95": [
+            0.12443732686991975,
+            0.14343034055763834
+          ],
+          "verdict": "better"
+        },
+        "warmCallP95Ms": {
+          "n": 15,
+          "medianA": 0.20300000000000296,
+          "medianB": 0.0589999999999975,
+          "p95A": 0.7335419999999999,
+          "p95B": 0.1995420000000081,
+          "medianRatio": 0.2759164027864813,
+          "ci95": [
+            0.26457142857142624,
+            0.28439491366925723
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {}
+    },
+    {
+      "workload": "perf-03-aws-client-reuse",
+      "case": "ec2-injected-client",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 160.39554200001294,
+          "medianB": 156.0497500000056,
+          "p95A": 190.47470800002338,
+          "p95B": 233.58045799995307,
+          "medianRatio": 1.0111464676177682,
+          "ci95": [
+            0.9657837996521028,
+            1.071972030410137
+          ],
+          "verdict": "no difference"
+        },
+        "firstCallMs": {
+          "n": 15,
+          "medianA": 0.637457999999981,
+          "medianB": 0.6268749999999841,
+          "p95A": 0.8362079999999992,
+          "p95B": 0.8732080000000053,
+          "medianRatio": 0.944642800318202,
+          "ci95": [
+            0.8642762489637921,
+            1.054464112040453
+          ],
+          "verdict": "no difference"
+        },
+        "injectedClientCalls": {
+          "n": 15,
+          "medianA": 50,
+          "medianB": 50,
+          "p95A": 50,
+          "p95B": 50,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 132530176,
+          "medianB": 134725632,
+          "p95A": 135593984,
+          "p95B": 136134656,
+          "medianRatio": 1.009819763828465,
+          "ci95": [
+            0.9978163290064297,
+            1.0227610094012864
+          ],
+          "verdict": "no difference"
+        },
+        "sendCalls": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "uniqueSdkClients": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "warmCallMedianMs": {
+          "n": 15,
+          "medianA": 0.005833000000023958,
+          "medianB": 0.005791999999985364,
+          "p95A": 0.006249999999994316,
+          "p95B": 0.007708000000008042,
+          "medianRatio": 0.9998209169058963,
+          "ci95": [
+            0.9400000000013642,
+            1.036886692549101
+          ],
+          "verdict": "no difference"
+        },
+        "warmCallP95Ms": {
+          "n": 15,
+          "medianA": 0.05924999999999159,
+          "medianB": 0.05866600000001654,
+          "p95A": 0.14212500000002137,
+          "p95B": 0.08424999999999727,
+          "medianRatio": 0.9935112126247356,
+          "ci95": [
+            0.9482938775511749,
+            1.0405032537959296
+          ],
+          "verdict": "no difference"
+        }
+      },
+      "observations": {}
+    },
+    {
+      "workload": "perf-03-aws-client-reuse",
+      "case": "ecs-owned-client",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 89.80108400003519,
+          "medianB": 91.5327920000127,
+          "p95A": 124.24212499998976,
+          "p95B": 125.65791699994588,
+          "medianRatio": 0.9751871070070928,
+          "ci95": [
+            0.9545402592241137,
+            1.0439218220794704
+          ],
+          "verdict": "no difference"
+        },
+        "firstCallMs": {
+          "n": 15,
+          "medianA": 2.4072920000000124,
+          "medianB": 2.2750000000000057,
+          "p95A": 3.485457999999994,
+          "p95B": 6.203749999999999,
+          "medianRatio": 0.9401176935675217,
+          "ci95": [
+            0.8912678644717779,
+            1.0201883990175469
+          ],
+          "verdict": "no difference"
+        },
+        "injectedClientCalls": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 80019456,
+          "medianB": 76890112,
+          "p95A": 83771392,
+          "p95B": 79249408,
+          "medianRatio": 0.9616731918400989,
+          "ci95": [
+            0.9557558377714052,
+            0.9657212813711488
+          ],
+          "verdict": "better"
+        },
+        "sendCalls": {
+          "n": 15,
+          "medianA": 50,
+          "medianB": 50,
+          "p95A": 50,
+          "p95B": 50,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "uniqueSdkClients": {
+          "n": 15,
+          "medianA": 50,
+          "medianB": 1,
+          "p95A": 50,
+          "p95B": 1,
+          "medianRatio": 0.02,
+          "ci95": [
+            0.02,
+            0.02
+          ],
+          "verdict": "better"
+        },
+        "warmCallMedianMs": {
+          "n": 15,
+          "medianA": 0.055666000000002214,
+          "medianB": 0.006833999999997786,
+          "p95A": 0.07608299999999701,
+          "p95B": 0.009500000000002728,
+          "medianRatio": 0.1266355313391753,
+          "ci95": [
+            0.11765757072148413,
+            0.13371064044953326
+          ],
+          "verdict": "better"
+        },
+        "warmCallP95Ms": {
+          "n": 15,
+          "medianA": 0.3272500000000065,
+          "medianB": 0.0639590000000112,
+          "p95A": 0.49858300000001066,
+          "p95B": 0.13487500000000807,
+          "medianRatio": 0.20944189892054715,
+          "ci95": [
+            0.18352941176468562,
+            0.2374856150928085
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {}
+    },
+    {
+      "workload": "perf-03-aws-client-reuse",
+      "case": "ecs-injected-client",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 82.74466700002085,
+          "medianB": 91.35091699997429,
+          "p95A": 120.07158300001174,
+          "p95B": 126.74591699999291,
+          "medianRatio": 0.9830598578683079,
+          "ci95": [
+            0.9759313128441773,
+            1.0350350090744664
+          ],
+          "verdict": "no difference"
+        },
+        "firstCallMs": {
+          "n": 15,
+          "medianA": 0.6135419999999954,
+          "medianB": 0.6711250000000035,
+          "p95A": 1.0132080000000059,
+          "p95B": 1.3387910000000005,
+          "medianRatio": 1.0264380649243214,
+          "ci95": [
+            0.9802607724550078,
+            1.1838478495785736
+          ],
+          "verdict": "no difference"
+        },
+        "injectedClientCalls": {
+          "n": 15,
+          "medianA": 50,
+          "medianB": 50,
+          "p95A": 50,
+          "p95B": 50,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 76283904,
+          "medianB": 76611584,
+          "p95A": 77365248,
+          "p95B": 78266368,
+          "medianRatio": 1.0025867643888768,
+          "ci95": [
+            1.0010748065348238,
+            1.007912745936698
+          ],
+          "verdict": "worse"
+        },
+        "sendCalls": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "uniqueSdkClients": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "warmCallMedianMs": {
+          "n": 15,
+          "medianA": 0.006874999999993747,
+          "medianB": 0.006709000000000742,
+          "p95A": 0.010458999999997332,
+          "p95B": 0.010584000000008587,
+          "medianRatio": 0.9885517241354943,
+          "ci95": [
+            0.9636363636371904,
+            1.0122932825993092
+          ],
+          "verdict": "no difference"
+        },
+        "warmCallP95Ms": {
+          "n": 15,
+          "medianA": 0.06125000000000114,
+          "medianB": 0.06795799999999019,
+          "p95A": 0.13237500000001035,
+          "p95B": 0.14845799999999088,
+          "medianRatio": 1.114340259430158,
+          "ci95": [
+            1.0597609561752501,
+            1.2455909090910053
+          ],
+          "verdict": "worse"
+        }
+      },
+      "observations": {}
+    },
+    {
+      "workload": "perf-03-aws-client-reuse",
+      "case": "lambda-owned-client",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 105.69470799999544,
+          "medianB": 102.1339170000283,
+          "p95A": 167.82479199999943,
+          "p95B": 161.85412499995437,
+          "medianRatio": 1.0213211969957425,
+          "ci95": [
+            0.9267635234869293,
+            1.1396887205765978
+          ],
+          "verdict": "no difference"
+        },
+        "firstCallMs": {
+          "n": 15,
+          "medianA": 3.3854589999999973,
+          "medianB": 3.156833000000006,
+          "p95A": 7.76124999999999,
+          "p95B": 6.214917000000014,
+          "medianRatio": 0.9586639915856424,
+          "ci95": [
+            0.9107346908587951,
+            0.9795632350384694
+          ],
+          "verdict": "better"
+        },
+        "injectedClientCalls": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 82477056,
+          "medianB": 78315520,
+          "p95A": 86343680,
+          "p95B": 81608704,
+          "medianRatio": 0.9534744408945687,
+          "ci95": [
+            0.9473161033797217,
+            0.9569827931172469
+          ],
+          "verdict": "better"
+        },
+        "sendCalls": {
+          "n": 15,
+          "medianA": 50,
+          "medianB": 50,
+          "p95A": 50,
+          "p95B": 50,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "uniqueSdkClients": {
+          "n": 15,
+          "medianA": 50,
+          "medianB": 1,
+          "p95A": 50,
+          "p95B": 1,
+          "medianRatio": 0.02,
+          "ci95": [
+            0.02,
+            0.02
+          ],
+          "verdict": "better"
+        },
+        "warmCallMedianMs": {
+          "n": 15,
+          "medianA": 0.06358400000002007,
+          "medianB": 0.01129099999999994,
+          "p95A": 0.19283300000000736,
+          "p95B": 0.0191250000000025,
+          "medianRatio": 0.16904375507156558,
+          "ci95": [
+            0.12537530647299036,
+            0.18297168970492403
+          ],
+          "verdict": "better"
+        },
+        "warmCallP95Ms": {
+          "n": 15,
+          "medianA": 0.5311249999999887,
+          "medianB": 0.11158299999999599,
+          "p95A": 0.7995420000000024,
+          "p95B": 0.22491599999999323,
+          "medianRatio": 0.22280408952750116,
+          "ci95": [
+            0.20681359863030216,
+            0.24772384554676102
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {}
+    },
+    {
+      "workload": "perf-03-aws-client-reuse",
+      "case": "lambda-injected-client",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 88.71400000003632,
+          "medianB": 90.7777500000011,
+          "p95A": 153.00837499997579,
+          "p95B": 199.73033399996348,
+          "medianRatio": 1.0029665476180625,
+          "ci95": [
+            0.9849507178568772,
+            1.1101604800580758
+          ],
+          "verdict": "no difference"
+        },
+        "firstCallMs": {
+          "n": 15,
+          "medianA": 1.5729579999999999,
+          "medianB": 1.5586669999999998,
+          "p95A": 3.116458999999992,
+          "p95B": 2.245207999999991,
+          "medianRatio": 0.9504600482467056,
+          "ci95": [
+            0.9110434635548775,
+            1.0278021664305597
+          ],
+          "verdict": "no difference"
+        },
+        "injectedClientCalls": {
+          "n": 15,
+          "medianA": 50,
+          "medianB": 50,
+          "p95A": 50,
+          "p95B": 50,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 77938688,
+          "medianB": 77873152,
+          "p95A": 78544896,
+          "p95B": 78430208,
+          "medianRatio": 0.9983140147523709,
+          "ci95": [
+            0.996427070197562,
+            1.0002114164904863
+          ],
+          "verdict": "no difference"
+        },
+        "sendCalls": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "uniqueSdkClients": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "warmCallMedianMs": {
+          "n": 15,
+          "medianA": 0.010917000000006283,
+          "medianB": 0.011459000000002106,
+          "p95A": 0.021667000000007874,
+          "p95B": 0.015250000000008868,
+          "medianRatio": 1,
+          "ci95": [
+            0.9733418834746983,
+            1.0734871652290356
+          ],
+          "verdict": "no difference"
+        },
+        "warmCallP95Ms": {
+          "n": 15,
+          "medianA": 0.11199999999999477,
+          "medianB": 0.11199999999999477,
+          "p95A": 0.3698749999999933,
+          "p95B": 0.16195899999999597,
+          "medianRatio": 1.0080121741044543,
+          "ci95": [
+            0.968274836568794,
+            1.1751544617435157
+          ],
+          "verdict": "no difference"
+        }
+      },
+      "observations": {}
+    },
+    {
+      "workload": "perf-04-vercel-log-streams",
+      "case": "finite-array",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "bytesEmitted": {
+          "n": 15,
+          "medianA": 565781,
+          "medianB": 565781,
+          "p95A": 565781,
+          "p95B": 565781,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "childWallMs": {
+          "n": 15,
+          "medianA": 77.61775000000125,
+          "medianB": 73.63895799999591,
+          "p95A": 117.96541699999943,
+          "p95B": 108.1246669999964,
+          "medianRatio": 0.9420418619726542,
+          "ci95": [
+            0.9201444514946451,
+            1.0258098602405339
+          ],
+          "verdict": "no difference"
+        },
+        "entriesReturned": {
+          "n": 15,
+          "medianA": 2000,
+          "medianB": 100,
+          "p95A": 2000,
+          "p95B": 100,
+          "medianRatio": 0.05,
+          "ci95": [
+            0.05,
+            0.05
+          ],
+          "verdict": "better"
+        },
+        "heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 2972144,
+          "medianB": 2680816,
+          "p95A": 2997608,
+          "p95B": 2711192,
+          "medianRatio": 0.903853328070849,
+          "ci95": [
+            0.898117475530398,
+            0.9122521556708633
+          ],
+          "verdict": "better"
+        },
+        "peakRssGrowthBytes": {
+          "n": 15,
+          "medianA": 13762560,
+          "medianB": 13549568,
+          "p95A": 14401536,
+          "p95B": 14385152,
+          "medianRatio": 0.9844124700239808,
+          "ci95": [
+            0.9737470167064439,
+            1.0035971223021583
+          ],
+          "verdict": "no difference"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 65683456,
+          "medianB": 65748992,
+          "p95A": 66469888,
+          "p95B": 66764800,
+          "medianRatio": 1.0014966325767025,
+          "ci95": [
+            0.9985022466300549,
+            1.004436775942815
+          ],
+          "verdict": "no difference"
+        },
+        "recordsEmitted": {
+          "n": 15,
+          "medianA": 2000,
+          "medianB": 2000,
+          "p95A": 2000,
+          "p95B": 2000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "requests": {
+          "n": 15,
+          "medianA": 1,
+          "medianB": 1,
+          "p95A": 1,
+          "p95B": 1,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "settleMs": {
+          "n": 15,
+          "medianA": 22.174959,
+          "medianB": 22.753332999999998,
+          "p95A": 30.278999999999996,
+          "p95B": 31.367208000000005,
+          "medianRatio": 1.0330361537538069,
+          "ci95": [
+            1.0108493098003022,
+            1.0790091947273985
+          ],
+          "verdict": "worse"
+        }
+      },
+      "observations": {
+        "outcome": {
+          "A": "\"resolved\"",
+          "B": "\"resolved\""
+        },
+        "settledBeforeDeadline": {
+          "A": "true",
+          "B": "true"
+        },
+        "entriesWithinLimit": {
+          "A": "false",
+          "B": "true"
+        },
+        "error": {
+          "A": "null",
+          "B": "null"
+        },
+        "bodyCancelled": {
+          "A": "false",
+          "B": "false"
+        },
+        "sourceClosed": {
+          "A": "true",
+          "B": "true"
+        }
+      }
+    },
+    {
+      "workload": "perf-04-vercel-log-streams",
+      "case": "ndjson-fragmented",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "bytesEmitted": {
+          "n": 15,
+          "medianA": 565780,
+          "medianB": 28049,
+          "p95A": 565780,
+          "p95B": 28049,
+          "medianRatio": 0.04957580685071936,
+          "ci95": [
+            0.04957580685071936,
+            0.04957580685071936
+          ],
+          "verdict": "better"
+        },
+        "childWallMs": {
+          "n": 15,
+          "medianA": 88.26516699999956,
+          "medianB": 69.86250000004657,
+          "p95A": 120.69395899999654,
+          "p95B": 99.90058399998816,
+          "medianRatio": 0.8470941291485049,
+          "ci95": [
+            0.8277181793331597,
+            0.8657947370418858
+          ],
+          "verdict": "better"
+        },
+        "entriesReturned": {
+          "n": 15,
+          "medianA": 2000,
+          "medianB": 100,
+          "p95A": 2000,
+          "p95B": 100,
+          "medianRatio": 0.05,
+          "ci95": [
+            0.05,
+            0.05
+          ],
+          "verdict": "better"
+        },
+        "heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 9153368,
+          "medianB": 3252392,
+          "p95A": 9388520,
+          "p95B": 3310584,
+          "medianRatio": 0.35536034386468457,
+          "ci95": [
+            0.3536229382399136,
+            0.35720719018743446
+          ],
+          "verdict": "better"
+        },
+        "peakRssGrowthBytes": {
+          "n": 15,
+          "medianA": 34160640,
+          "medianB": 18120704,
+          "p95A": 35061760,
+          "p95B": 18628608,
+          "medianRatio": 0.5313084112149533,
+          "ci95": [
+            0.528537170263789,
+            0.5342003853564548
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 86458368,
+          "medianB": 70320128,
+          "p95A": 87244800,
+          "p95B": 70828032,
+          "medianRatio": 0.8150541722106064,
+          "ci95": [
+            0.8124405554498764,
+            0.8164472428925778
+          ],
+          "verdict": "better"
+        },
+        "recordsEmitted": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "requests": {
+          "n": 15,
+          "medianA": 1,
+          "medianB": 1,
+          "p95A": 1,
+          "p95B": 1,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "settleMs": {
+          "n": 15,
+          "medianA": 40.073625,
+          "medianB": 21.390625,
+          "p95A": 61.788666,
+          "p95B": 35.620542,
+          "medianRatio": 0.5731766034449918,
+          "ci95": [
+            0.5623753145325288,
+            0.606079583977377
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {
+        "outcome": {
+          "A": "\"resolved\"",
+          "B": "\"resolved\""
+        },
+        "settledBeforeDeadline": {
+          "A": "true",
+          "B": "true"
+        },
+        "entriesWithinLimit": {
+          "A": "false",
+          "B": "true"
+        },
+        "error": {
+          "A": "null",
+          "B": "null"
+        },
+        "bodyCancelled": {
+          "A": "false",
+          "B": "true"
+        },
+        "sourceClosed": {
+          "A": "true",
+          "B": "false"
+        }
+      }
+    },
+    {
+      "workload": "perf-04-vercel-log-streams",
+      "case": "ndjson-malformed",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "bytesEmitted": {
+          "n": 15,
+          "medianA": 565525,
+          "medianB": 28059,
+          "p95A": 565525,
+          "p95B": 28059,
+          "medianRatio": 0.049615843685071395,
+          "ci95": [
+            0.049615843685071395,
+            0.049615843685071395
+          ],
+          "verdict": "better"
+        },
+        "childWallMs": {
+          "n": 15,
+          "medianA": 81.83812500000931,
+          "medianB": 73.73424999997951,
+          "p95A": 114.13012499996694,
+          "p95B": 111.4960420000134,
+          "medianRatio": 0.8954286947548558,
+          "ci95": [
+            0.8491717940376227,
+            0.923639550937457
+          ],
+          "verdict": "better"
+        },
+        "heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 8039952,
+          "medianB": 3429296,
+          "p95A": 8287448,
+          "p95B": 3451240,
+          "medianRatio": 0.42479357653915384,
+          "ci95": [
+            0.42260333686451246,
+            0.42811574572327116
+          ],
+          "verdict": "better"
+        },
+        "peakRssGrowthBytes": {
+          "n": 15,
+          "medianA": 33177600,
+          "medianB": 18038784,
+          "p95A": 34455552,
+          "p95B": 18595840,
+          "medianRatio": 0.5416258570029383,
+          "ci95": [
+            0.5382728164867517,
+            0.5442412259021255
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 85442560,
+          "medianB": 70320128,
+          "p95A": 86818816,
+          "p95B": 70877184,
+          "medianRatio": 0.8222222222222222,
+          "ci95": [
+            0.8189655172413793,
+            0.8236877523553163
+          ],
+          "verdict": "better"
+        },
+        "recordsEmitted": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "requests": {
+          "n": 15,
+          "medianA": 1,
+          "medianB": 1,
+          "p95A": 1,
+          "p95B": 1,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "settleMs": {
+          "n": 15,
+          "medianA": 37.462,
+          "medianB": 23.043833,
+          "p95A": 64.2505,
+          "p95B": 29.858083000000008,
+          "medianRatio": 0.6029732863646454,
+          "ci95": [
+            0.5178749824430626,
+            0.6445992061708978
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {
+        "outcome": {
+          "A": "\"rejected\"",
+          "B": "\"resolved\""
+        },
+        "settledBeforeDeadline": {
+          "A": "true",
+          "B": "true"
+        },
+        "entriesReturned": {
+          "A": "null",
+          "B": null
+        },
+        "entriesWithinLimit": {
+          "A": "null",
+          "B": "true"
+        },
+        "error.name": {
+          "A": "\"SyntaxError\"",
+          "B": null
+        },
+        "error.constructor": {
+          "A": "\"SyntaxError\"",
+          "B": null
+        },
+        "error.message": {
+          "A": "\"Unterminated string in JSON at position 28 (line 1 column 29)\"",
+          "B": null
+        },
+        "bodyCancelled": {
+          "A": "false",
+          "B": "true"
+        },
+        "sourceClosed": {
+          "A": "true",
+          "B": "false"
+        },
+        "error": {
+          "A": null,
+          "B": "null"
+        }
+      }
+    },
+    {
+      "workload": "perf-04-vercel-log-streams",
+      "case": "endless-limit-10",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "bytesEmitted": {
+          "n": 15,
+          "medianA": 67109012,
+          "medianB": 3060,
+          "p95A": 67109012,
+          "p95B": 3060,
+          "medianRatio": 0.00004559745269383492,
+          "ci95": [
+            0.00004559745269383492,
+            0.00004559745269383492
+          ],
+          "verdict": "better"
+        },
+        "childWallMs": {
+          "n": 15,
+          "medianA": 3054.2727080000004,
+          "medianB": 71.83841699990444,
+          "p95A": 3183.327708000026,
+          "p95B": 95.4248329999973,
+          "medianRatio": 0.023541386064023524,
+          "ci95": [
+            0.02251429058594584,
+            0.024204301495386854
+          ],
+          "verdict": "better"
+        },
+        "heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 56498216,
+          "medianB": 3092248,
+          "p95A": 57661888,
+          "p95B": 3092392,
+          "medianRatio": 0.05473178126544739,
+          "ci95": [
+            0.054336853289427715,
+            0.055254022521201186
+          ],
+          "verdict": "better"
+        },
+        "peakRssGrowthBytes": {
+          "n": 15,
+          "medianA": 215236608,
+          "medianB": 9961472,
+          "p95A": 215941120,
+          "p95B": 10256384,
+          "medianRatio": 0.046200840015273005,
+          "ci95": [
+            0.04549258273107645,
+            0.04673466281016898
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 265109504,
+          "medianB": 59588608,
+          "p95A": 265863168,
+          "p95B": 60030976,
+          "medianRatio": 0.2246439628482972,
+          "ci95": [
+            0.22394869897644593,
+            0.2255258774905928
+          ],
+          "verdict": "better"
+        },
+        "recordsEmitted": {
+          "n": 15,
+          "medianA": 233789,
+          "medianB": 11,
+          "p95A": 233789,
+          "p95B": 11,
+          "medianRatio": 0.00004705097331354341,
+          "ci95": [
+            0.00004705097331354341,
+            0.00004705097331354341
+          ],
+          "verdict": "better"
+        },
+        "requests": {
+          "n": 15,
+          "medianA": 1,
+          "medianB": 1,
+          "p95A": 1,
+          "p95B": 1,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "settleMs": {
+          "n": 15,
+          "medianA": 3001.492459,
+          "medianB": 17.774291999999996,
+          "p95A": 3002.482583,
+          "p95B": 28.29283300000001,
+          "medianRatio": 0.005922817614061578,
+          "ci95": [
+            0.005700691604512723,
+            0.006871148017259797
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {
+        "outcome": {
+          "A": "\"timeout\"",
+          "B": "\"resolved\""
+        },
+        "settledBeforeDeadline": {
+          "A": "false",
+          "B": "true"
+        },
+        "entriesReturned": {
+          "A": "null",
+          "B": null
+        },
+        "entriesWithinLimit": {
+          "A": "null",
+          "B": "true"
+        },
+        "error": {
+          "A": "null",
+          "B": "null"
+        },
+        "bodyCancelled": {
+          "A": "false",
+          "B": "true"
+        },
+        "sourceClosed": {
+          "A": "false",
+          "B": "false"
+        }
+      }
+    },
+    {
+      "workload": "perf-04-vercel-log-streams",
+      "case": "idle-limit-10",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "bytesEmitted": {
+          "n": 15,
+          "medianA": 278,
+          "medianB": 278,
+          "p95A": 278,
+          "p95B": 278,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "childWallMs": {
+          "n": 15,
+          "medianA": 3045.0154999999795,
+          "medianB": 3046.741708000016,
+          "p95A": 3059.808250000002,
+          "p95B": 3096.497207999986,
+          "medianRatio": 1.0005889797715635,
+          "ci95": [
+            0.9995843049991365,
+            1.0042906127560507
+          ],
+          "verdict": "no difference"
+        },
+        "heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 2688496,
+          "medianB": 2710520,
+          "p95A": 2688640,
+          "p95B": 2710592,
+          "medianRatio": 1.0081919407728337,
+          "ci95": [
+            1.0081919407728337,
+            1.008218721545429
+          ],
+          "verdict": "worse"
+        },
+        "peakRssGrowthBytes": {
+          "n": 15,
+          "medianA": 10371072,
+          "medianB": 10354688,
+          "p95A": 10616832,
+          "p95B": 10665984,
+          "medianRatio": 0.9968354430379747,
+          "ci95": [
+            0.9795275590551181,
+            1.0142630744849446
+          ],
+          "verdict": "no difference"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 60276736,
+          "medianB": 60014592,
+          "p95A": 60866560,
+          "p95B": 60456960,
+          "medianRatio": 0.9953791791247621,
+          "ci95": [
+            0.9905149051490515,
+            0.9980936819172114
+          ],
+          "verdict": "better"
+        },
+        "recordsEmitted": {
+          "n": 15,
+          "medianA": 1,
+          "medianB": 1,
+          "p95A": 1,
+          "p95B": 1,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "requests": {
+          "n": 15,
+          "medianA": 1,
+          "medianB": 1,
+          "p95A": 1,
+          "p95B": 1,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "settleMs": {
+          "n": 15,
+          "medianA": 3001.355417,
+          "medianB": 3001.2701660000002,
+          "p95A": 3002.123167,
+          "p95B": 3001.652208,
+          "medianRatio": 0.9999982366683515,
+          "ci95": [
+            0.9998130471961172,
+            1.0001668386284397
+          ],
+          "verdict": "no difference"
+        }
+      },
+      "observations": {
+        "outcome": {
+          "A": "\"timeout\"",
+          "B": "\"timeout\""
+        },
+        "settledBeforeDeadline": {
+          "A": "false",
+          "B": "false"
+        },
+        "entriesReturned": {
+          "A": "null",
+          "B": "null"
+        },
+        "entriesWithinLimit": {
+          "A": "null",
+          "B": "null"
+        },
+        "error": {
+          "A": "null",
+          "B": "null"
+        },
+        "bodyCancelled": {
+          "A": "false",
+          "B": "false"
+        },
+        "sourceClosed": {
+          "A": "false",
+          "B": "false"
+        }
+      }
+    },
+    {
+      "workload": "perf-05-kubernetes-logs",
+      "case": "40-pods-3-containers-all",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 1028.2860840000212,
+          "medianB": 551.5026669999934,
+          "p95A": 1800.7811250000377,
+          "p95B": 1019.6294589999598,
+          "medianRatio": 0.5560161094885884,
+          "ci95": [
+            0.5185529161006563,
+            0.5662150967958076
+          ],
+          "verdict": "better"
+        },
+        "containersPerPod": {
+          "n": 15,
+          "medianA": 3,
+          "medianB": 3,
+          "p95A": 3,
+          "p95B": 3,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "elapsedMs": {
+          "n": 15,
+          "medianA": 684.4823329999999,
+          "medianB": 201.05933399999998,
+          "p95A": 691.60525,
+          "p95B": 208.67641600000002,
+          "medianRatio": 0.29475490615163136,
+          "ci95": [
+            0.29101356145553264,
+            0.29785091640131
+          ],
+          "verdict": "better"
+        },
+        "entriesReturned": {
+          "n": 15,
+          "medianA": 3000,
+          "medianB": 3000,
+          "p95A": 3000,
+          "p95B": 3000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "leakedSecrets": {
+          "n": 15,
+          "medianA": 119,
+          "medianB": 0,
+          "p95A": 119,
+          "p95B": 0,
+          "medianRatio": 0,
+          "ci95": [
+            0,
+            0
+          ],
+          "verdict": "better"
+        },
+        "logRequests": {
+          "n": 15,
+          "medianA": 120,
+          "medianB": 120,
+          "p95A": 120,
+          "p95B": 120,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "maxOutstandingRequests": {
+          "n": 15,
+          "medianA": 1,
+          "medianB": 4,
+          "p95A": 1,
+          "p95B": 4,
+          "medianRatio": 4,
+          "ci95": [
+            4,
+            4
+          ],
+          "verdict": "worse"
+        },
+        "pods": {
+          "n": 15,
+          "medianA": 40,
+          "medianB": 40,
+          "p95A": 40,
+          "p95B": 40,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 144064512,
+          "medianB": 158793728,
+          "p95A": 146407424,
+          "p95B": 160464896,
+          "medianRatio": 1.101966579515744,
+          "ci95": [
+            1.0968468468468469,
+            1.1080155286595113
+          ],
+          "verdict": "worse"
+        }
+      },
+      "observations": {
+        "globallyAscendingTimestamps": {
+          "A": "false",
+          "B": "true"
+        },
+        "matchesGlobalNewestSet": {
+          "A": "true",
+          "B": "true"
+        },
+        "matchesGlobalNewestInOrder": {
+          "A": "false",
+          "B": "true"
+        },
+        "firstRequestedSources": {
+          "A": "[\"pod-026/c0\",\"pod-026/c1\",\"pod-026/c2\"]",
+          "B": "[\"pod-026/c0\",\"pod-026/c1\",\"pod-026/c2\"]"
+        }
+      }
+    },
+    {
+      "workload": "perf-05-kubernetes-logs",
+      "case": "40-pods-3-containers-limit-20",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 899.3452919999836,
+          "medianB": 378.6461249999993,
+          "p95A": 1027.7650830000057,
+          "p95B": 442.8121660000179,
+          "medianRatio": 0.42138569884273236,
+          "ci95": [
+            0.4191868366393821,
+            0.4254071817302764
+          ],
+          "verdict": "better"
+        },
+        "containersPerPod": {
+          "n": 15,
+          "medianA": 3,
+          "medianB": 3,
+          "p95A": 3,
+          "p95B": 3,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "elapsedMs": {
+          "n": 15,
+          "medianA": 683.481709,
+          "medianB": 171.47504200000003,
+          "p95A": 691.396083,
+          "p95B": 176.700125,
+          "medianRatio": 0.24948707207713894,
+          "ci95": [
+            0.24799430845225315,
+            0.25557004059567406
+          ],
+          "verdict": "better"
+        },
+        "entriesReturned": {
+          "n": 15,
+          "medianA": 20,
+          "medianB": 20,
+          "p95A": 20,
+          "p95B": 20,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "leakedSecrets": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "logRequests": {
+          "n": 15,
+          "medianA": 120,
+          "medianB": 120,
+          "p95A": 120,
+          "p95B": 120,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "maxOutstandingRequests": {
+          "n": 15,
+          "medianA": 1,
+          "medianB": 4,
+          "p95A": 1,
+          "p95B": 4,
+          "medianRatio": 4,
+          "ci95": [
+            4,
+            4
+          ],
+          "verdict": "worse"
+        },
+        "pods": {
+          "n": 15,
+          "medianA": 40,
+          "medianB": 40,
+          "p95A": 40,
+          "p95B": 40,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 142196736,
+          "medianB": 145637376,
+          "p95A": 147144704,
+          "p95B": 148324352,
+          "medianRatio": 1.0240950226244343,
+          "ci95": [
+            1.0200566572237961,
+            1.0260398663440489
+          ],
+          "verdict": "worse"
+        }
+      },
+      "observations": {
+        "globallyAscendingTimestamps": {
+          "A": "true",
+          "B": "true"
+        },
+        "matchesGlobalNewestSet": {
+          "A": "false",
+          "B": "true"
+        },
+        "matchesGlobalNewestInOrder": {
+          "A": "false",
+          "B": "true"
+        },
+        "firstRequestedSources": {
+          "A": "[\"pod-026/c0\",\"pod-026/c1\",\"pod-026/c2\"]",
+          "B": "[\"pod-026/c0\",\"pod-026/c1\",\"pod-026/c2\"]"
+        }
+      }
+    },
+    {
+      "workload": "perf-09-cli-cold-start",
+      "case": "help",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 5001.729750000057,
+          "medianB": 404.4582919999957,
+          "p95A": 7226.597083000001,
+          "p95B": 771.4682500000054,
+          "medianRatio": 0.0804710624504057,
+          "ci95": [
+            0.0743405628114871,
+            0.08580102405910157
+          ],
+          "verdict": "better"
+        },
+        "exitCode": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "maxRssBytes.max": {
+          "n": 15,
+          "medianA": 223363072,
+          "medianB": 54099968,
+          "p95A": 226492416,
+          "p95B": 54542336,
+          "medianRatio": 0.2432908051033876,
+          "ci95": [
+            0.23962933468471728,
+            0.24545319022063208
+          ],
+          "verdict": "better"
+        },
+        "maxRssBytes.p50": {
+          "n": 15,
+          "medianA": 218234880,
+          "medianB": 53837824,
+          "p95A": 221069312,
+          "p95B": 54296576,
+          "medianRatio": 0.24662162162162163,
+          "ci95": [
+            0.24556301267710665,
+            0.24718595227375056
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 48218112,
+          "medianB": 48250880,
+          "p95A": 48496640,
+          "p95B": 48693248,
+          "medianRatio": 1.0023825731790335,
+          "ci95": [
+            0.9976222826086957,
+            1.005427408412483
+          ],
+          "verdict": "no difference"
+        },
+        "stdoutBytes": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "wallMs.min": {
+          "n": 15,
+          "medianA": 440.59837500000003,
+          "medianB": 32.68879100000001,
+          "p95A": 526.9132500000001,
+          "p95B": 38.385625000000005,
+          "medianRatio": 0.0721838546065221,
+          "ci95": [
+            0.07083882783361398,
+            0.07966309199513547
+          ],
+          "verdict": "better"
+        },
+        "wallMs.p50": {
+          "n": 15,
+          "medianA": 466.1577500000001,
+          "medianB": 35.493583,
+          "p95A": 582.062167,
+          "p95B": 62.241333,
+          "medianRatio": 0.07411289385802841,
+          "ci95": [
+            0.0728591048223985,
+            0.08198246252706202
+          ],
+          "verdict": "better"
+        },
+        "wallMs.p95": {
+          "n": 15,
+          "medianA": 683.3126669999999,
+          "medianB": 40.07779099999999,
+          "p95A": 1801.849667,
+          "p95B": 143.3065,
+          "medianRatio": 0.06645237483627374,
+          "ci95": [
+            0.05387726107492697,
+            0.07288783812681383
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {
+        "command": {
+          "A": "\"capsule --help\"",
+          "B": "\"capsule --help\""
+        },
+        "stdoutDigest": {
+          "A": "\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"",
+          "B": "\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\""
+        },
+        "stdoutStableAcrossSamples": {
+          "A": "true",
+          "B": "true"
+        }
+      }
+    },
+    {
+      "workload": "perf-09-cli-cold-start",
+      "case": "capabilities-json",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 4764.287499999977,
+          "medianB": 388.84070800000336,
+          "p95A": 6491.494584,
+          "p95B": 521.3652079999447,
+          "medianRatio": 0.08145607636416191,
+          "ci95": [
+            0.07505688175428311,
+            0.08690076780250293
+          ],
+          "verdict": "better"
+        },
+        "exitCode": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "maxRssBytes.max": {
+          "n": 15,
+          "medianA": 223248384,
+          "medianB": 54050816,
+          "p95A": 225918976,
+          "p95B": 54542336,
+          "medianRatio": 0.24269696075538508,
+          "ci95": [
+            0.24164222873900293,
+            0.24397657350433688
+          ],
+          "verdict": "better"
+        },
+        "maxRssBytes.p50": {
+          "n": 15,
+          "medianA": 218939392,
+          "medianB": 53837824,
+          "p95A": 220364800,
+          "p95B": 53985280,
+          "medianRatio": 0.24608702164307647,
+          "ci95": [
+            0.24507462686567164,
+            0.24653428250281004
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 48201728,
+          "medianB": 48185344,
+          "p95A": 48693248,
+          "p95B": 48513024,
+          "medianRatio": 1.0003409478349812,
+          "ci95": [
+            0.9979777553083923,
+            1.0023793337865399
+          ],
+          "verdict": "no difference"
+        },
+        "stdoutBytes": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "wallMs.min": {
+          "n": 15,
+          "medianA": 442.855625,
+          "medianB": 32.653583999999995,
+          "p95A": 500.0089160000002,
+          "p95B": 39.86391699999999,
+          "medianRatio": 0.07351824014190045,
+          "ci95": [
+            0.07068453756577814,
+            0.07689161027591229
+          ],
+          "verdict": "better"
+        },
+        "wallMs.p50": {
+          "n": 15,
+          "medianA": 471.3784590000005,
+          "medianB": 33.885875,
+          "p95A": 660.9969590000001,
+          "p95B": 43.738999999999976,
+          "medianRatio": 0.07462852064784621,
+          "ci95": [
+            0.068666685041941,
+            0.07850928790854424
+          ],
+          "verdict": "better"
+        },
+        "wallMs.p95": {
+          "n": 15,
+          "medianA": 558.408209,
+          "medianB": 47.449208000000006,
+          "p95A": 748.3453330000002,
+          "p95B": 69.12462499999998,
+          "medianRatio": 0.07924501366423632,
+          "ci95": [
+            0.06762421924033832,
+            0.10434998381906027
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {
+        "command": {
+          "A": "\"capsule capabilities --json\"",
+          "B": "\"capsule capabilities --json\""
+        },
+        "stdoutDigest": {
+          "A": "\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"",
+          "B": "\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\""
+        },
+        "stdoutStableAcrossSamples": {
+          "A": "true",
+          "B": "true"
+        }
+      }
+    },
+    {
+      "workload": "perf-09-cli-cold-start",
+      "case": "preset-list-json",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 4982.8069589999795,
+          "medianB": 389.976874999993,
+          "p95A": 6560.304125000024,
+          "p95B": 721.5602499999804,
+          "medianRatio": 0.08171768200825658,
+          "ci95": [
+            0.07677821959253456,
+            0.08361992776930777
+          ],
+          "verdict": "better"
+        },
+        "exitCode": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "maxRssBytes.max": {
+          "n": 15,
+          "medianA": 224067584,
+          "medianB": 54001664,
+          "p95A": 228573184,
+          "p95B": 54640640,
+          "medianRatio": 0.24183531818513918,
+          "ci95": [
+            0.23967540936096218,
+            0.24326704336978058
+          ],
+          "verdict": "better"
+        },
+        "maxRssBytes.p50": {
+          "n": 15,
+          "medianA": 218497024,
+          "medianB": 53821440,
+          "p95A": 222330880,
+          "p95B": 54263808,
+          "medianRatio": 0.24635940549467047,
+          "ci95": [
+            0.2458267834418744,
+            0.24703052172605625
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 48201728,
+          "medianB": 48218112,
+          "p95A": 48644096,
+          "p95B": 48611328,
+          "medianRatio": 1.0003396739130435,
+          "ci95": [
+            0.9946109801279892,
+            1.0034013605442176
+          ],
+          "verdict": "no difference"
+        },
+        "stdoutBytes": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "wallMs.min": {
+          "n": 15,
+          "medianA": 440.2342920000001,
+          "medianB": 32.09787500000001,
+          "p95A": 522.2807089999997,
+          "p95B": 46.857957999999996,
+          "medianRatio": 0.07296567035040623,
+          "ci95": [
+            0.07108949402685254,
+            0.07571785331292567
+          ],
+          "verdict": "better"
+        },
+        "wallMs.p50": {
+          "n": 15,
+          "medianA": 466.188791,
+          "medianB": 34.17433299999999,
+          "p95A": 621.5121670000001,
+          "p95B": 54.05533299999999,
+          "medianRatio": 0.0727362307087736,
+          "ci95": [
+            0.07020291119263618,
+            0.07491450059976376
+          ],
+          "verdict": "better"
+        },
+        "wallMs.p95": {
+          "n": 15,
+          "medianA": 524.4385840000001,
+          "medianB": 39.567792,
+          "p95A": 979.1876669999999,
+          "p95B": 170.811042,
+          "medianRatio": 0.07402651914573309,
+          "ci95": [
+            0.06771834743760559,
+            0.08539348673202482
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {
+        "command": {
+          "A": "\"capsule preset list --json\"",
+          "B": "\"capsule preset list --json\""
+        },
+        "stdoutDigest": {
+          "A": "\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"",
+          "B": "\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\""
+        },
+        "stdoutStableAcrossSamples": {
+          "A": "true",
+          "B": "true"
+        }
+      }
+    },
+    {
+      "workload": "perf-09-cli-cold-start",
+      "case": "completion-bash",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 5309.6075420000125,
+          "medianB": 409.9739589999954,
+          "p95A": 6894.946874999965,
+          "p95B": 515.9162500000093,
+          "medianRatio": 0.07998256757453602,
+          "ci95": [
+            0.07395380450194068,
+            0.0824353438540473
+          ],
+          "verdict": "better"
+        },
+        "exitCode": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "maxRssBytes.max": {
+          "n": 15,
+          "medianA": 224116736,
+          "medianB": 54083584,
+          "p95A": 226705408,
+          "p95B": 54558720,
+          "medianRatio": 0.24192955364365026,
+          "ci95": [
+            0.24088018129980263,
+            0.24406654343807763
+          ],
+          "verdict": "better"
+        },
+        "maxRssBytes.p50": {
+          "n": 15,
+          "medianA": 219480064,
+          "medianB": 53837824,
+          "p95A": 221986816,
+          "p95B": 54181888,
+          "medianRatio": 0.24615845888614046,
+          "ci95": [
+            0.24490709648533693,
+            0.24675421578868825
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 48152576,
+          "medianB": 48250880,
+          "p95A": 48529408,
+          "p95B": 48709632,
+          "medianRatio": 1.0010228435049437,
+          "ci95": [
+            0.9996594005449592,
+            1.0037427696495407
+          ],
+          "verdict": "no difference"
+        },
+        "stdoutBytes": {
+          "n": 15,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "wallMs.min": {
+          "n": 15,
+          "medianA": 445.70875,
+          "medianB": 33.67399999999998,
+          "p95A": 539.8577909999999,
+          "p95B": 41.04279199999999,
+          "medianRatio": 0.07558841363702688,
+          "ci95": [
+            0.07254556602690877,
+            0.07986181697370129
+          ],
+          "verdict": "better"
+        },
+        "wallMs.p50": {
+          "n": 15,
+          "medianA": 501.6526670000003,
+          "medianB": 35.450500000000005,
+          "p95A": 639.5344159999995,
+          "p95B": 45.82383400000003,
+          "medianRatio": 0.07301952363544853,
+          "ci95": [
+            0.07165186556590267,
+            0.07482867546155954
+          ],
+          "verdict": "better"
+        },
+        "wallMs.p95": {
+          "n": 15,
+          "medianA": 594.6677910000008,
+          "medianB": 40.54083300000002,
+          "p95A": 1116.98225,
+          "p95B": 56.987874999999974,
+          "medianRatio": 0.06867346795227622,
+          "ci95": [
+            0.057487468389070484,
+            0.07877318346303362
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {
+        "command": {
+          "A": "\"capsule completion bash\"",
+          "B": "\"capsule completion bash\""
+        },
+        "stdoutDigest": {
+          "A": "\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"",
+          "B": "\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\""
+        },
+        "stdoutStableAcrossSamples": {
+          "A": "true",
+          "B": "true"
+        }
+      }
+    },
+    {
+      "workload": "perf-10-docker-output",
+      "case": "stdout-10MiB",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 124.08895800000755,
+          "medianB": 128.45266700000502,
+          "p95A": 169.3634590000147,
+          "p95B": 178.5649170000106,
+          "medianRatio": 1.045914981343375,
+          "ci95": [
+            1.0231192058695053,
+            1.0820952109697994
+          ],
+          "verdict": "worse"
+        },
+        "elapsedMs": {
+          "n": 15,
+          "medianA": 60.746375,
+          "medianB": 62.551959000000004,
+          "p95A": 99.460667,
+          "p95B": 87.38662500000001,
+          "medianRatio": 1.078690553252702,
+          "ci95": [
+            1.0412295896254309,
+            1.0993821634297993
+          ],
+          "verdict": "worse"
+        },
+        "heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 28272864,
+          "medianB": 28169584,
+          "p95A": 28915264,
+          "p95B": 28549848,
+          "medianRatio": 0.993807007829748,
+          "ci95": [
+            0.9814161709165447,
+            1.0076126591172294
+          ],
+          "verdict": "no difference"
+        },
+        "logEntriesReturned": {
+          "n": 15,
+          "medianA": 104859,
+          "medianB": 104859,
+          "p95A": 104859,
+          "p95B": 104859,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "peakRssBytes": {
+          "n": 15,
+          "medianA": 95305728,
+          "medianB": 95272960,
+          "p95A": 96321536,
+          "p95B": 97026048,
+          "medianRatio": 1.0013661202185793,
+          "ci95": [
+            0.998457847840987,
+            1.0029350828729282
+          ],
+          "verdict": "no difference"
+        },
+        "peakRssGrowthBytes": {
+          "n": 15,
+          "medianA": 43843584,
+          "medianB": 43548672,
+          "p95A": 45006848,
+          "p95B": 44990464,
+          "medianRatio": 0.992553983618764,
+          "ci95": [
+            0.9797677032596478,
+            1.0048579970104634
+          ],
+          "verdict": "no difference"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 95453184,
+          "medianB": 95420416,
+          "p95A": 96485376,
+          "p95B": 97206272,
+          "medianRatio": 1.00171998624011,
+          "ci95": [
+            0.9969018932874355,
+            1.0043207742827516
+          ],
+          "verdict": "no difference"
+        },
+        "stdoutBytesEmitted": {
+          "n": 15,
+          "medianA": 10485760,
+          "medianB": 10485760,
+          "p95A": 10485760,
+          "p95B": 10485760,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "stdoutLengthReturned": {
+          "n": 15,
+          "medianA": 10485760,
+          "medianB": 10485760,
+          "p95A": 10485760,
+          "p95B": 10485760,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        }
+      },
+      "observations": {
+        "outcome": {
+          "A": "\"resolved\"",
+          "B": "\"resolved\""
+        },
+        "error": {
+          "A": "null",
+          "B": "null"
+        },
+        "stderrEndsWithMarker": {
+          "A": "true",
+          "B": "true"
+        },
+        "resultKeys": {
+          "A": "[\"artifacts\",\"exitCode\",\"logs\",\"receipt\",\"stderr\",\"stdout\"]",
+          "B": "[\"artifacts\",\"exitCode\",\"logs\",\"receipt\",\"stderr\",\"stdout\",\"truncation\"]"
+        }
+      }
+    },
+    {
+      "workload": "perf-10-docker-output",
+      "case": "stdout-100MiB",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 671.23766600003,
+          "medianB": 199.85854200000176,
+          "p95A": 848.7745419999992,
+          "p95B": 343.87950000001,
+          "medianRatio": 0.29102903254709495,
+          "ci95": [
+            0.28237468750774825,
+            0.32314466756785426
+          ],
+          "verdict": "better"
+        },
+        "elapsedMs": {
+          "n": 15,
+          "medianA": 566.668625,
+          "medianB": 120.030791,
+          "p95A": 700.611042,
+          "p95B": 231.554917,
+          "medianRatio": 0.20978059600211554,
+          "ci95": [
+            0.20065420927488523,
+            0.22435475178398162
+          ],
+          "verdict": "better"
+        },
+        "heapUsedDeltaBytes": {
+          "n": 15,
+          "medianA": 354107496,
+          "medianB": 65129928,
+          "p95A": 355944784,
+          "p95B": 65160008,
+          "medianRatio": 0.18395356420243641,
+          "ci95": [
+            0.18318398075731188,
+            0.1892335168821569
+          ],
+          "verdict": "better"
+        },
+        "logEntriesReturned": {
+          "n": 15,
+          "medianA": 1048577,
+          "medianB": 167774,
+          "p95A": 1048577,
+          "p95B": 167774,
+          "medianRatio": 0.16000160217132361,
+          "ci95": [
+            0.16000160217132361,
+            0.16000160217132361
+          ],
+          "verdict": "better"
+        },
+        "peakRssBytes": {
+          "n": 15,
+          "medianA": 457261056,
+          "medianB": 162840576,
+          "p95A": 475299840,
+          "p95B": 175308800,
+          "medianRatio": 0.3609406247844976,
+          "ci95": [
+            0.3543111813966862,
+            0.36278619800064493
+          ],
+          "verdict": "better"
+        },
+        "peakRssGrowthBytes": {
+          "n": 15,
+          "medianA": 405700608,
+          "medianB": 111181824,
+          "p95A": 423952384,
+          "p95B": 123289600,
+          "medianRatio": 0.2793627269359022,
+          "ci95": [
+            0.2717074356066742,
+            0.28184644445318957
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 471564288,
+          "medianB": 179191808,
+          "p95A": 482803712,
+          "p95B": 190218240,
+          "medianRatio": 0.3831310301898537,
+          "ci95": [
+            0.37692414849899003,
+            0.3932610984681227
+          ],
+          "verdict": "better"
+        },
+        "stdoutBytesEmitted": {
+          "n": 15,
+          "medianA": 104857600,
+          "medianB": 104857600,
+          "p95A": 104857600,
+          "p95B": 104857600,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "stdoutLengthReturned": {
+          "n": 15,
+          "medianA": 104857600,
+          "medianB": 16777216,
+          "p95A": 104857600,
+          "p95B": 16777216,
+          "medianRatio": 0.16,
+          "ci95": [
+            0.16,
+            0.16
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {
+        "outcome": {
+          "A": "\"resolved\"",
+          "B": "\"resolved\""
+        },
+        "error": {
+          "A": "null",
+          "B": "null"
+        },
+        "stderrEndsWithMarker": {
+          "A": "true",
+          "B": "true"
+        },
+        "resultKeys": {
+          "A": "[\"artifacts\",\"exitCode\",\"logs\",\"receipt\",\"stderr\",\"stdout\"]",
+          "B": "[\"artifacts\",\"exitCode\",\"logs\",\"receipt\",\"stderr\",\"stdout\",\"truncation\"]"
+        }
+      }
+    },
+    {
+      "workload": "perf-11-jsonl-read",
+      "case": "read-50k",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 246.1122919999907,
+          "medianB": 233.68879199994262,
+          "p95A": 354.5627080000122,
+          "p95B": 339.9609580000106,
+          "medianRatio": 0.9478012859505854,
+          "ci95": [
+            0.8857090120472286,
+            1.07893788741571
+          ],
+          "verdict": "no difference"
+        },
+        "elapsedMs": {
+          "n": 15,
+          "medianA": 62.709541,
+          "medianB": 61.166833,
+          "p95A": 83.65366600000002,
+          "p95B": 82.42737500000001,
+          "medianRatio": 0.9806563098830974,
+          "ci95": [
+            0.9586544243970944,
+            0.9948032608985558
+          ],
+          "verdict": "better"
+        },
+        "fileBytes": {
+          "n": 15,
+          "medianA": 21883890,
+          "medianB": 21883890,
+          "p95A": 21883890,
+          "p95B": 21883890,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "heapUsedWhileHeldBytes": {
+          "n": 15,
+          "medianA": 80607728,
+          "medianB": 80615360,
+          "p95A": 80640528,
+          "p95B": 80647904,
+          "medianRatio": 1.0000513975724272,
+          "ci95": [
+            0.9999676589419156,
+            1.0002314269222086
+          ],
+          "verdict": "no difference"
+        },
+        "peakRssGrowthBytes": {
+          "n": 15,
+          "medianA": 88195072,
+          "medianB": 87195648,
+          "p95A": 88440832,
+          "p95B": 87375872,
+          "medianRatio": 0.9888537989968419,
+          "ci95": [
+            0.9859207113745831,
+            0.9916294642857143
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 172359680,
+          "medianB": 172408832,
+          "p95A": 173178880,
+          "p95B": 172851200,
+          "medianRatio": 0.9995245792526386,
+          "ci95": [
+            0.9980024731285075,
+            1.0014262622420842
+          ],
+          "verdict": "no difference"
+        },
+        "receiptsRead": {
+          "n": 15,
+          "medianA": 50000,
+          "medianB": 50000,
+          "p95A": 50000,
+          "p95B": 50000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "receiptsWritten": {
+          "n": 15,
+          "medianA": 50000,
+          "medianB": 50000,
+          "p95A": 50000,
+          "p95B": 50000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        }
+      },
+      "observations": {
+        "outcome": {
+          "A": "\"resolved\"",
+          "B": "\"resolved\""
+        },
+        "error": {
+          "A": "null",
+          "B": "null"
+        },
+        "errorNamesCorruptLine": {
+          "A": "null",
+          "B": "null"
+        }
+      }
+    },
+    {
+      "workload": "perf-11-jsonl-read",
+      "case": "corrupt-line-25000",
+      "okA": 15,
+      "okB": 15,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 15,
+          "medianA": 212.25437500000407,
+          "medianB": 216.62108300000546,
+          "p95A": 298.47904200002085,
+          "p95B": 314.07600000000093,
+          "medianRatio": 1.0097024848086544,
+          "ci95": [
+            0.8873845059829599,
+            1.063285475555674
+          ],
+          "verdict": "no difference"
+        },
+        "elapsedMs": {
+          "n": 15,
+          "medianA": 38.509416999999985,
+          "medianB": 36.88749999999999,
+          "p95A": 74.118584,
+          "p95B": 48.995542,
+          "medianRatio": 0.9499952601479886,
+          "ci95": [
+            0.8748895598803873,
+            1.0103802153634305
+          ],
+          "verdict": "no difference"
+        },
+        "fileBytes": {
+          "n": 15,
+          "medianA": 21883469,
+          "medianB": 21883469,
+          "p95A": 21883469,
+          "p95B": 21883469,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "heapUsedWhileHeldBytes": {
+          "n": 15,
+          "medianA": 63534992,
+          "medianB": 63530648,
+          "p95A": 63553632,
+          "p95B": 63561688,
+          "medianRatio": 1.000073273087412,
+          "ci95": [
+            1.0000180034070503,
+            1.0001245280462594
+          ],
+          "verdict": "worse"
+        },
+        "peakRssGrowthBytes": {
+          "n": 15,
+          "medianA": 72892416,
+          "medianB": 72269824,
+          "p95A": 73302016,
+          "p95B": 72351744,
+          "medianRatio": 0.9921365985171872,
+          "ci95": [
+            0.9865891819400984,
+            0.9936493535949195
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 15,
+          "medianA": 151896064,
+          "medianB": 152125440,
+          "p95A": 152502272,
+          "p95B": 152371200,
+          "medianRatio": 1.0008619760801638,
+          "ci95": [
+            0.9993526809796095,
+            1.0012940795858944
+          ],
+          "verdict": "no difference"
+        },
+        "receiptsWritten": {
+          "n": 15,
+          "medianA": 50000,
+          "medianB": 50000,
+          "p95A": 50000,
+          "p95B": 50000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        }
+      },
+      "observations": {
+        "outcome": {
+          "A": "\"rejected\"",
+          "B": "\"rejected\""
+        },
+        "receiptsRead": {
+          "A": "null",
+          "B": "null"
+        },
+        "error.name": {
+          "A": "\"Error\"",
+          "B": "\"Error\""
+        },
+        "error.constructor": {
+          "A": "\"Error\"",
+          "B": "\"Error\""
+        },
+        "error.message": {
+          "A": "\"Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-Pd1Akp/jsonl-qHL8Qn/receipts.jsonl:25000.\"",
+          "B": "\"Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-Pd1Akp/jsonl-zrAwMW/receipts.jsonl:25000.\""
+        },
+        "errorNamesCorruptLine": {
+          "A": "true",
+          "B": "true"
+        }
+      }
+    }
+  ]
+}
