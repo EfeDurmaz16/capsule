@@ -121,6 +121,10 @@ Never report a terminal state the provider has not confirmed. A deleted, stopped
 
 `Machine["status"]` is `MachineStatus`: `creating`, `starting`, `running`, `stopping`, `stopped`, `destroying`, `failed` or `deleted`. Map provider transitions to the matching transitional value and keep the native state in metadata. Do not map an unrecognized native state to `failed`.
 
+## Capture Bounds
+
+Log and output specs accept `bounds?: CaptureBounds` (`maxBytes`, `maxRecords`, `deadlineMs`, `concurrency`, `overflow`). Resolve them with `resolveCaptureBounds(...)` (or `resolveExecOutputBounds(spec.bounds, policy)` for exec output, which applies `policy.limits.maxStdoutBytes`/`maxStderrBytes` as ceilings) and enforce them while consuming with `CaptureBudget`, not by slicing after buffering. Report what was kept on `truncation` (`ExecResult.truncation.stdout`/`stderr`, or the logs result `truncation`). `readBoundedText(response, maxBytes)` reads a bounded HTTP body and cancels the rest; `mapWithConcurrency(items, limit, fn)` caps provider requests in flight. Defaults are in `defaultCaptureBounds`. If a provider SDK buffers the full response before Capsule sees it, say so: Capsule bounds only what it consumes.
+
 ## Minimal Contract Test Template
 
 Use the core contract helpers first. They verify that declared public capabilities match implemented public methods, unsupported capabilities throw `UnsupportedCapabilityError`, and supported mutating capabilities fail closed under an approval-required policy before adapter code runs.

@@ -2,6 +2,7 @@ export * from "./adapters.js";
 export * from "./artifact-collector.js";
 export * from "./artifact-manifest.js";
 export * from "./artifacts.js";
+export * from "./bounds.js";
 export * from "./capabilities.js";
 export * from "./capsule.js";
 export * from "./contract.js";

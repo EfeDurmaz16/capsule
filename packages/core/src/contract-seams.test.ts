@@ -1,7 +1,16 @@
 // Shared M1 contract seams: machine transition statuses, CD-DELETE lifecycle errors and bounded
-// observation.
+// observation and CD-BOUNDS capture budgets.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CapsuleAdapter } from "./adapters.js";
+import {
+  CaptureBudget,
+  CaptureLimitError,
+  defaultCaptureBounds,
+  mapWithConcurrency,
+  readBoundedText,
+  resolveCaptureBounds,
+  resolveExecOutputBounds
+} from "./bounds.js";
 import { Capsule } from "./capsule.js";
 import {
   AdapterExecutionError,
@@ -222,5 +231,83 @@ describe("observeUntilTerminal", () => {
     const observe = vi.fn();
     await expect(observeUntilTerminal(observe, { operation: "x", resource: locator, deadlineMs: Number.POSITIVE_INFINITY })).rejects.toBeInstanceOf(RangeError);
     expect(observe).not.toHaveBeenCalled();
+  });
+});
+
+describe("capture bounds", () => {
+  it("resolves documented defaults, applies ceilings and rejects invalid values", () => {
+    expect(resolveCaptureBounds()).toEqual(defaultCaptureBounds);
+    expect(resolveCaptureBounds({ maxBytes: 100 }, { maxBytes: 10 }).maxBytes).toBe(10);
+    expect(resolveCaptureBounds({ maxBytes: 5 }, { maxBytes: 10 }).maxBytes).toBe(5);
+    expect(() => resolveCaptureBounds({ maxBytes: 0 })).toThrow(RangeError);
+    expect(() => resolveCaptureBounds({ concurrency: 1.5 })).toThrow(RangeError);
+    const exec = resolveExecOutputBounds({ maxBytes: 1_000 }, { limits: { maxStdoutBytes: 10, maxStderrBytes: 20 } });
+    expect([exec.stdout.maxBytes, exec.stderr.maxBytes]).toEqual([10, 20]);
+  });
+
+  it("truncates text on a code point boundary and records the reason", () => {
+    const budget = new CaptureBudget(resolveCaptureBounds({ maxBytes: 4 }));
+    expect(budget.takeText("ab")).toBe("ab");
+    expect(budget.takeText("éé")).toBe("é");
+    expect(budget.takeText("more")).toBe("");
+    expect(budget.truncation()).toEqual({ truncated: true, reason: "bytes", capturedBytes: 4, limit: 4 });
+  });
+
+  it("caps records whole and stops at the deadline", () => {
+    let now = 0;
+    const budget = new CaptureBudget(resolveCaptureBounds({ maxRecords: 2, deadlineMs: 100 }), () => now);
+    expect([budget.takeRecord(1), budget.takeRecord(1), budget.takeRecord(1)]).toEqual([true, true, false]);
+    expect(budget.truncation()).toMatchObject({ truncated: true, reason: "records", capturedRecords: 2, limit: 2 });
+    const timed = new CaptureBudget(resolveCaptureBounds({ deadlineMs: 100 }), () => now);
+    now = 100;
+    expect(timed.takeText("x")).toBe("");
+    expect(timed.truncation()).toMatchObject({ truncated: true, reason: "deadline" });
+  });
+
+  it("throws CaptureLimitError in error overflow mode", () => {
+    const budget = new CaptureBudget(resolveCaptureBounds({ maxBytes: 2, overflow: "error" }));
+    expect(() => budget.takeText("abc")).toThrow(CaptureLimitError);
+  });
+
+  it("reads at most maxBytes from an endless body and cancels it", async () => {
+    let cancelled = false;
+    let pulls = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+        controller.enqueue(new TextEncoder().encode("0123456789"));
+      },
+      cancel() {
+        cancelled = true;
+      }
+    });
+    const { text, truncation } = await readBoundedText(new Response(body), 25);
+    expect(text).toBe("0123456789012345678901234");
+    expect(truncation).toMatchObject({ truncated: true, reason: "bytes", capturedBytes: 25 });
+    expect(cancelled).toBe(true);
+    expect(pulls).toBeLessThan(10);
+  });
+
+  it("maps with bounded concurrency, keeps input order and stops scheduling after a failure", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const results = await mapWithConcurrency([5, 1, 4, 2, 3], 2, async (value) => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, value));
+      inFlight -= 1;
+      return value * 10;
+    });
+    expect(results).toEqual([50, 10, 40, 20, 30]);
+    expect(peak).toBe(2);
+    const started: number[] = [];
+    await expect(
+      mapWithConcurrency([1, 2, 3, 4], 1, async (value) => {
+        started.push(value);
+        if (value === 2) throw new Error("boom");
+        return value;
+      })
+    ).rejects.toThrow("boom");
+    expect(started).toEqual([1, 2]);
   });
 });

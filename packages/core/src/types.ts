@@ -1,3 +1,4 @@
+import type { CaptureBounds, CaptureTruncation } from "./bounds.js";
 import type { MachineStatus } from "./lifecycle.js";
 
 export type SupportLevel = "native" | "emulated" | "unsupported" | "experimental";
@@ -300,6 +301,11 @@ export interface ExecResult {
   logs: LogEntry[];
   artifacts: Artifact[];
   receipt?: CapsuleReceipt;
+  /** Present when the adapter applied capture bounds; says per stream whether output was truncated. */
+  truncation?: {
+    stdout?: CaptureTruncation;
+    stderr?: CaptureTruncation;
+  };
 }
 
 export interface CreateSandboxSpec {
@@ -337,6 +343,11 @@ export interface ExecSpec {
   // Container paths to collect as artifacts after the command runs. Adapters that support artifact
   // collection copy these out and return them on ExecResult.artifacts; adapters that do not ignore it.
   artifactPaths?: string[];
+  /**
+   * Output capture bounds. maxBytes applies to stdout and stderr separately; policy.limits.maxStdoutBytes
+   * and maxStderrBytes act as ceilings. Adapters that adopt bounds report truncation on ExecResult.
+   */
+  bounds?: CaptureBounds;
   providerOptions?: ProviderOptions;
 }
 
@@ -420,6 +431,8 @@ export interface JobLogsSpec {
   follow?: boolean;
   /** Opaque cursor from a prior result's nextCursor to fetch the next page. Adapters without a paged log API ignore it. */
   cursor?: string;
+  /** Client-side capture bounds (bytes, records, deadline, concurrency). See CaptureBounds. */
+  bounds?: CaptureBounds;
   providerOptions?: ProviderOptions;
 }
 
@@ -427,6 +440,8 @@ export interface JobLogsResult {
   id: string;
   provider: string;
   logs: LogEntry[];
+  /** Present when the adapter applied capture bounds; states whether and why logs were cut short. */
+  truncation?: CaptureTruncation;
   /** Opaque cursor to pass back as spec.cursor for the next page. Absent when there are no more pages or the provider does not page logs. */
   nextCursor?: string;
   receipt?: CapsuleReceipt;
@@ -558,6 +573,8 @@ export interface ServiceLogsSpec {
   follow?: boolean;
   /** Opaque cursor from a prior result's nextCursor to fetch the next page. Adapters without a paged log API ignore it. */
   cursor?: string;
+  /** Client-side capture bounds (bytes, records, deadline, concurrency). See CaptureBounds. */
+  bounds?: CaptureBounds;
   providerOptions?: ProviderOptions;
 }
 
@@ -566,6 +583,8 @@ export interface ServiceLogsResult {
   provider: string;
   name?: string;
   logs: LogEntry[];
+  /** Present when the adapter applied capture bounds; states whether and why logs were cut short. */
+  truncation?: CaptureTruncation;
   /** Opaque cursor to pass back as spec.cursor for the next page. Absent when there are no more pages or the provider does not page logs. */
   nextCursor?: string;
   receipt?: CapsuleReceipt;
@@ -689,6 +708,8 @@ export interface EdgeLogsSpec {
   follow?: boolean;
   /** Opaque cursor from a prior result's nextCursor to fetch the next page. Adapters without a paged log API ignore it. */
   cursor?: string;
+  /** Client-side capture bounds (bytes, records, deadline, concurrency). See CaptureBounds. */
+  bounds?: CaptureBounds;
   providerOptions?: ProviderOptions;
 }
 
@@ -697,6 +718,8 @@ export interface EdgeLogsResult {
   provider: string;
   name?: string;
   logs: LogEntry[];
+  /** Present when the adapter applied capture bounds; states whether and why logs were cut short. */
+  truncation?: CaptureTruncation;
   /** Opaque cursor to pass back as spec.cursor for the next page. Absent when there are no more pages or the provider does not page logs. */
   nextCursor?: string;
   receipt?: CapsuleReceipt;
@@ -871,6 +894,8 @@ export interface PreviewLogsSpec {
   follow?: boolean;
   /** Opaque cursor from a prior result's nextCursor to fetch the next page. Adapters without a paged log API ignore it. */
   cursor?: string;
+  /** Client-side capture bounds (bytes, records, deadline, concurrency). See CaptureBounds. */
+  bounds?: CaptureBounds;
   providerOptions?: ProviderOptions;
 }
 
@@ -878,6 +903,8 @@ export interface PreviewLogsResult {
   id: string;
   provider: string;
   logs: LogEntry[];
+  /** Present when the adapter applied capture bounds; states whether and why logs were cut short. */
+  truncation?: CaptureTruncation;
   /** Opaque cursor to pass back as spec.cursor for the next page. Absent when there are no more pages or the provider does not page logs. */
   nextCursor?: string;
   receipt?: CapsuleReceipt;
