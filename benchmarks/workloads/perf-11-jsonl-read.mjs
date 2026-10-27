@@ -48,6 +48,8 @@ async function run(params) {
     const path = join(dir, "receipts.jsonl");
     const fileBytes = writeFixture(path, params.receipts, params.corruptLine);
     const store = jsonlReceiptStore(path);
+    // A build without the incremental reader fails the run instead of reporting an empty measurement.
+    if (params.mode === "iterate" && typeof store.iterate !== "function") throw new Error("not available in this build: JsonlReceiptStore.iterate");
     await settleGc();
     const before = memory();
     const rssBefore = maxRssBytes();
@@ -57,7 +59,6 @@ async function run(params) {
     let count = null;
     try {
       if (params.mode === "iterate") {
-        if (typeof store.iterate !== "function") throw new Error("not available in this build: JsonlReceiptStore.iterate");
         count = 0;
         // Nothing is retained: the incremental reader's own memory is what peak RSS shows.
         for await (const _receipt of store.iterate()) count += 1;
