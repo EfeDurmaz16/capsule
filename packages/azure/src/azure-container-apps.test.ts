@@ -233,9 +233,11 @@ describe("azure container apps adapter", () => {
       if (method === "POST" && requestUrl.endsWith("/start?api-version=2025-07-01")) {
         return response({ error: { message: "Azure start failed" } }, 409);
       }
+      // ARM accepts the delete with 202 and a Location to poll; the poll returns 200 once it finished.
       if (method === "DELETE") {
-        return response(undefined, 202);
+        return response(undefined, 202, { location: "https://management.azure.com/operationResults/delete-job" });
       }
+      if (requestUrl === "https://management.azure.com/operationResults/delete-job") return response(undefined, 200);
       return response({ id: `/jobs/${jobName}`, name: jobName, properties: { provisioningState: "Succeeded" } }, 201);
     }) as typeof fetch;
     const capsule = new Capsule({ adapter: azureContainerApps({ ...options, fetch: fetchMock }), receipts: true });
@@ -263,7 +265,8 @@ describe("azure container apps adapter", () => {
     expect(calls.map((call) => [call.init.method, call.url])).toEqual([
       ["PUT", `https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/${jobName}?api-version=2025-07-01`],
       ["POST", `https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/${jobName}/start?api-version=2025-07-01`],
-      ["DELETE", `https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/${jobName}?api-version=2025-07-01`]
+      ["DELETE", `https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-1/providers/Microsoft.App/jobs/${jobName}?api-version=2025-07-01`],
+      ["GET", "https://management.azure.com/operationResults/delete-job"]
     ]);
   });
 
@@ -381,7 +384,9 @@ describe("azure container apps adapter", () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(url), init: init ?? {} });
-      return response(undefined, 202);
+      // 202 Accepted with Azure-AsyncOperation; the operation resource reports Succeeded when done.
+      if (String(url) === "https://management.azure.com/asyncOperations/delete-api") return response({ status: "Succeeded" });
+      return response(undefined, 202, { "azure-asyncoperation": "https://management.azure.com/asyncOperations/delete-api" });
     }) as typeof fetch;
     const capsule = new Capsule({ adapter: azureContainerApps({ ...options, fetch: fetchMock }), receipts: true });
 

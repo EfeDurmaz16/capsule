@@ -1,6 +1,10 @@
 import {
   AdapterExecutionError,
   CleanupFailureError,
+  PartialEffectsError,
+  PendingOperationError,
+  UnknownOutcomeError,
+  resourceLocator,
   capsuleOperationTags,
   providerRuntimeMetadata,
   type AdapterContext,
@@ -14,6 +18,8 @@ import {
   type JobRun,
   type JobStatusResult,
   type JobStatusSpec,
+  type CleanupOutcome,
+  type ResourceLocator,
   type RunJobSpec,
   type ServiceDeployment,
   type ServiceStatusResult,
@@ -45,7 +51,7 @@ interface AzureResource {
 interface AzureJobCleanupMetadata {
   action: "delete-generated-job";
   jobName: string;
-  status: "deleted" | "failed";
+  status: "deleted" | "pending" | "failed";
   resourceGroupName: string;
   subscriptionId: string;
   error?: string;
@@ -247,7 +253,20 @@ async function requireNewUserNamedJob(client: AzureContainerAppsClient, jobName:
   throw new AdapterExecutionError(`Azure Container Apps job.run refuses to update existing Job ${jobName} without providerOptions.allowExistingJobUpdate.`);
 }
 
+function locate(client: AzureContainerAppsClient, kind: "containerApp" | "job", name: string): ResourceLocator {
+  return resourceLocator({
+    provider,
+    kind,
+    nativeId: name,
+    scope: { subscriptionId: client.subscriptionId, resourceGroupName: client.resourceGroupName }
+  });
+}
+
+// Deletes a Job this run generated after its execution failed to start. The delete is observed like
+// service.delete: a 202 is not completion. A confirmed delete rethrows the start error with cleanup
+// metadata; a delete still pending or failed is reported beside the start error, never as deleted.
 async function cleanupGeneratedJobAfterStartFailure(client: AzureContainerAppsClient, jobName: string, startError: unknown): Promise<never> {
+  const job = locate(client, "job", jobName);
   const cleanup: AzureJobCleanupMetadata = {
     action: "delete-generated-job",
     jobName,
@@ -255,14 +274,33 @@ async function cleanupGeneratedJobAfterStartFailure(client: AzureContainerAppsCl
     resourceGroupName: client.resourceGroupName,
     subscriptionId: client.subscriptionId
   };
+  let cleanupError: unknown;
   try {
-    await client.request<unknown>({ method: "DELETE", path: client.resourcePath("jobs", jobName) });
-  } catch (cleanupError) {
-    cleanup.status = "failed";
-    cleanup.error = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+    await client.deleteAndObserve(client.resourcePath("jobs", jobName), { operation: "job.run.cleanup", resource: job });
+  } catch (error) {
+    cleanupError = error;
+    cleanup.status = error instanceof PendingOperationError ? "pending" : "failed";
+    cleanup.error = error instanceof Error ? error.message : String(error);
   }
+  const outcome: CleanupOutcome =
+    cleanup.status === "deleted"
+      ? { status: "succeeded", resources: [job] }
+      : { status: cleanup.status, resources: [job], residual: [job], error: cleanupError };
+  const effects = {
+    operation: "job.run",
+    // A start that timed out may have started an execution; a rejected start did not.
+    outcome: startError instanceof UnknownOutcomeError ? ("unknown" as const) : ("failed" as const),
+    resources: [job],
+    primaryError: startError,
+    cleanup: outcome
+  };
   if (cleanup.status === "failed") {
-    throw new CleanupFailureError("Azure Container Apps job cleanup failed after execution start failure.", cleanup, { operationError: startError });
+    throw new CleanupFailureError("Azure Container Apps job cleanup failed after execution start failure.", cleanup, { operationError: startError }, effects);
+  }
+  if (cleanup.status === "pending") {
+    const error = new PartialEffectsError("Azure Container Apps job cleanup is still pending after execution start failure.", effects);
+    (error as unknown as CleanupAwareError).cleanup = cleanup;
+    throw error;
   }
   if (startError instanceof Error) {
     (startError as CleanupAwareError).cleanup = cleanup;
@@ -487,7 +525,12 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
         const startedAt = new Date();
         const client = getClient();
         const name = resourceName(spec.id, "containerApps");
-        await client.request<unknown>({ method: "DELETE", path: client.resourcePath("containerApps", name) });
+        // ARM answers DELETE with 202 while deletion runs. deleted is reported only after the
+        // operation is observed finished (or 200/204), else PendingOperationError.
+        const outcome = await client.deleteAndObserve(client.resourcePath("containerApps", name), {
+          operation: "service.delete",
+          resource: locate(client, "containerApp", name)
+        });
         const receipt = context.receipts
           ? context.createReceipt({
               type: "service.delete",
@@ -496,10 +539,14 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
               policy: {
                 decision: "allowed",
                 applied: context.policy,
-                notes: ["Azure Container Apps service deletion maps to the ARM Container Apps delete operation."]
+                notes: [
+                  "Azure Container Apps service deletion maps to the ARM Container Apps delete operation.",
+                  "deleted is reported only after the asynchronous ARM operation is observed finished."
+                ]
               },
               resource: { id: spec.id, name, status: "deleted" },
               metadata: azureReceiptMetadata(client, options, {
+                outcome,
                 reason: spec.reason,
                 force: spec.force,
                 resourceGroupName: client.resourceGroupName,
@@ -507,7 +554,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
               })
             })
           : undefined;
-        return { id: spec.id, provider, name, status: "deleted", receipt, metadata: { reason: spec.reason, force: spec.force } };
+        return { id: spec.id, provider, name, status: "deleted", receipt, metadata: { outcome, reason: spec.reason, force: spec.force } };
       }
     }
   };

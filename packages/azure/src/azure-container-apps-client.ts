@@ -2,8 +2,11 @@ import {
   AdapterExecutionError,
   UnknownOutcomeError,
   classifyProviderError,
+  observeUntilTerminal,
+  providerErrorStatus,
   providerExecutionError,
-  readBoundedText
+  readBoundedText,
+  type ResourceLocator
 } from "@capsule-sdk/core";
 
 export interface AzureContainerAppsClientOptions {
@@ -17,6 +20,13 @@ export interface AzureContainerAppsClientOptions {
   requestTimeoutMs?: number;
   /** Largest successful response body Capsule reads, in bytes. Default 33554432 (32 MiB). */
   maxResponseBytes?: number;
+  /**
+   * Client-side budget for observing an accepted asynchronous ARM operation (HTTP 202) to completion.
+   * Default 300000. When it expires the operation is reported as pending, never as completed.
+   */
+  operationDeadlineMs?: number;
+  /** Delay between ARM operation polls. Defaults to the provider Retry-After value, else 2000. */
+  operationPollIntervalMs?: number;
 }
 
 export interface AzureContainerAppsRequestOptions {
@@ -37,6 +47,9 @@ export interface AzureContainerAppsResponse<T> {
   locationUrl?: string;
   retryAfterMs?: number;
 }
+
+/** Terminal outcome of an observed ARM delete. */
+export type AzureDeleteOutcome = "deleted" | "already-absent";
 
 const maxErrorBodyBytes = 64 * 1024;
 
@@ -139,6 +152,68 @@ export class AzureContainerAppsClient {
             );
       }
       throw error;
+    }
+  }
+
+  /**
+   * Deletes an ARM resource and returns only once the deletion is known to be finished. 200 means
+   * deleted and 204 means the resource did not exist. 202 means accepted and still in progress: the
+   * operation is polled through Azure-AsyncOperation or Location (only on the configured ARM origin,
+   * so the bearer token is never sent elsewhere), or else the resource is read until it returns 404.
+   * When operationDeadlineMs expires it throws PendingOperationError; an operation that ended Failed
+   * or Canceled throws.
+   */
+  async deleteAndObserve(path: string, target: { operation: string; resource: ResourceLocator }): Promise<AzureDeleteOutcome> {
+    const accepted = await this.send<unknown>({ method: "DELETE", path });
+    if (accepted.status === 204) return "already-absent";
+    if (accepted.status !== 202) return "deleted";
+    const asyncOperationUrl = this.sameOrigin(accepted.asyncOperationUrl);
+    const locationUrl = this.sameOrigin(accepted.locationUrl);
+    await observeUntilTerminal<void>(
+      async ({ signal }) => {
+        if (asyncOperationUrl) {
+          const polled = await this.send<{ status?: string; error?: { message?: string } }>({ url: asyncOperationUrl, path: "", signal });
+          const status = polled.data?.status;
+          if (status === "Succeeded") return { done: true, value: undefined };
+          if (status === "Failed" || status === "Canceled") {
+            return {
+              done: "failed",
+              error: new AdapterExecutionError(
+                `${target.operation} for ${target.resource.nativeId} ended ${status}: ${polled.data?.error?.message ?? "no detail"}`,
+                { operation: polled.data }
+              )
+            };
+          }
+          return { done: false, state: status ?? "unknown" };
+        }
+        if (locationUrl) {
+          const polled = await this.send<unknown>({ url: locationUrl, path: "", signal });
+          return polled.status === 202 ? { done: false, state: "InProgress" } : { done: true, value: undefined };
+        }
+        try {
+          const resource = await this.send<{ properties?: { provisioningState?: string } }>({ path, signal });
+          return { done: false, state: resource.data?.properties?.provisioningState ?? "present" };
+        } catch (error) {
+          if (providerErrorStatus(error) === 404) return { done: true, value: undefined };
+          throw error;
+        }
+      },
+      {
+        operation: target.operation,
+        resource: target.resource,
+        deadlineMs: this.options.operationDeadlineMs ?? 300_000,
+        intervalMs: this.options.operationPollIntervalMs ?? Math.min(accepted.retryAfterMs ?? 2_000, 30_000)
+      }
+    );
+    return "deleted";
+  }
+
+  private sameOrigin(url: string | undefined): string | undefined {
+    if (!url) return undefined;
+    try {
+      return new URL(url).origin === new URL(this.baseUrl).origin ? url : undefined;
+    } catch {
+      return undefined;
     }
   }
 }
