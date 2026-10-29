@@ -26,6 +26,9 @@
     "docs:api:check": "node scripts/generate-api-reference.mjs --check",
     "capsule:gap": "node scripts/capsule-gap-report.mjs",
     "capsule:gap:check": "node scripts/capsule-gap-report.mjs --check",
+    "bridge:docker-smoke": "node scripts/bridge-docker-smoke.mjs",
+    "bridge:sea": "node scripts/build-bridge-worker-sea.mjs",
+    "bridge:artifact-smoke": "node scripts/bridge-artifact-smoke.mjs",
     "bench:bounds": "node benchmarks/run.mjs --label ci-bounds --reps 1 --only perf-01-core-receipts,perf-02-artifact-collection,perf-03-aws-client-reuse,perf-04-vercel-log-streams,perf-05-kubernetes-logs,perf-10-docker-output,perf-11-jsonl-read,perf-12-sqlite-store,perf-14-docker-artifacts && node benchmarks/check-bounds.mjs benchmarks/raw/ci-bounds/summary.json --require perf-01-core-receipts,perf-02-artifact-collection,perf-03-aws-client-reuse,perf-04-vercel-log-streams,perf-05-kubernetes-logs,perf-10-docker-output,perf-11-jsonl-read,perf-12-sqlite-store,perf-14-docker-artifacts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

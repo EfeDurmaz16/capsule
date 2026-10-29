@@ -1,0 +1,74 @@
+# Capsule gates for the M3 deferred work
+
+commit: 4c9d1ced88393ead4d702eb97027ec8f2b63ab93 (the last code commit; this file is recorded after it). The runs were made
+        on the same code before two sentences about the executable and the CI smoke were added to
+        docs/bridge-protocol.md; format:check and node --test scripts/*.test.mjs passed again after that.
+host: darwin 25.6.0 arm64, Apple M5 Pro, 18 cpus, load average 6 to 28 from other work
+pnpm: 10.32.1
+gates: the commands of .github/workflows/ci.yml, run locally, except bench:bounds, which only the performance phase runs.
+No timing was measured here: no benchmark, A/B script or stress loop ran, and no Docker image was built or pulled.
+
+## Node 22.23.2
+PASS  pnpm install --frozen-lockfile
+PASS  pnpm capsule:gap:check
+PASS  pnpm format:check
+PASS  pnpm typecheck
+PASS  pnpm test                              vitest: 83 files passed, 11 skipped; 1097 tests passed, 20 skipped. node --test: 70 of 70 pass
+PASS  pnpm build
+PASS  pnpm release:audit                     pack smoke passed for 23 packages, packed capsule-bridge-worker round trip, refusal before effect and oversize hello
+PASS  pnpm docs:api:check
+PASS  pnpm test:package-exports
+PASS  pnpm release:pack-smoke:compatible     22 packages
+PASS  node --test scripts/bridge-fixtures.test.mjs   manifest pinned at af9a31d70699b1e0fc1ffec8ede50eafbb3bd8fcb35d7b1dd99a9826098d7556
+PASS  actionlint .github/workflows/ci.yml
+
+## Node 24.19.0
+PASS  pnpm test                              on the rerun: vitest 83 files passed, 11 skipped; 1097 tests passed, 20 skipped.
+                                             node --test: 70 of 70 pass. The first run, at a load average of 28,
+                                             timed out 3 tests at their 5 s limit in files this work does not
+                                             touch (packages/cli audit-regressions CLI-01 twice, packages/docker
+                                             docker-cli SB-08); the rerun passed them.
+PASS  pnpm test:package-exports
+PASS  pnpm release:pack-smoke:compatible     23 packages
+
+## Node 26.7.0: the steps of the CI job bridge-artifact, on this host
+PASS  pnpm install --frozen-lockfile, pnpm --filter "@capsule-sdk/bridge-worker..." run build, pnpm bridge:sea,
+      pnpm bridge:artifact-smoke (artifact-smoke-darwin-arm64.json)
+      The executable is a Node 26.7.0 single executable application, 143820864 bytes, signed ad hoc. Copied to a
+      fresh directory and run with PATH set to an empty directory (no node, nodejs, bun, pnpm, npm, npx or deno
+      reachable), it passed all 18 shared scenarios over its stdio (exec_observed_until_exit and
+      pending_destroy_with_locator stop at their advance step), refused all 8 Fabric-to-worker frame fixtures
+      with one protocol_error and exit 2, answered an exec in flight pending/shutting_down on SIGTERM and exited
+      0, exited 0 on SIGINT, and wrote at most 54 stderr bytes with no runtime warning in 30 worker processes.
+      The Linux x64 artifact is built and run only by the CI job on its runner; it has not run on this host.
+
+## Docker profile, digest-pinned image
+PASS  node scripts/bridge-docker-smoke.mjs --image debian@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8
+      --execs 3 --require on OrbStack, Docker 29.4.0, the image already present (docker-smoke-checks.json): all 11
+      checks pass; no container left with a fabric.job label. This proves a digest reference through the worker's
+      --pull never create. CI pulls busybox@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662
+      (busybox 1.36.1, pushed 2026-03-24) before its smoke; that image is not on this host and was not pulled here.
+
+## Each new check fails first
+- packages/bridge-worker/src/session.test.ts "every fixture effect carries the operation it was made for", with
+  the fixture effects as they were (native id only): it and two updated effect assertions fail, 3 of 48.
+- packages/bridge-worker/src/exec-observe.test.ts with the observe of an exec routed to the old resource read:
+  5 of 7 fail; with OperationHooks.detach never firing: 4 of 7 fail. "an operation id that runs again is a
+  record in progress" fails with the ledger's begin as first written, which left the old record's accounting
+  in place, so eviction dropped the running record.
+- With the observe job check reduced to "some job made it": the shared scenario observe_checks_owner and
+  session.test.ts "an observe of a destroy refuses a resource another job made" fail.
+- With the create observe accepting a resource that has no operation label: docker.test.ts "an observe of a
+  create answers only a container labelled with that operation" fails.
+- With observe scope made optional in validate.ts: the case observe_missing_scope and session.test.ts "an
+  observe without the original operation's scope" fail.
+- scripts/bridge-docker-smoke.test.mjs against the smoke without --require: the required run exits 0, 1 of 2 fail.
+- scripts/bridge-artifact-smoke.mjs against packages/bridge-worker/dist/bin.js: refused as not a native
+  executable. Against an executable built from the worker before the v1 correction: hello_ack differs from the
+  fixture.
+
+## Fabric
+Fabric's m3/capsule-bridge worktree holds the same 2026-10-29 fixture files, byte for byte (diff -r of
+protocol/bridge/v1 is empty), and pins the same manifest digest in crates/fabric-client/tests/bridge_fixtures.rs.
+Fabric's client side of observe scope and exec observe is that branch's work; its interop job still pins Capsule
+95cbbcf until it moves to this commit. Fabric's capsule_worker tests were not run against this worker here.

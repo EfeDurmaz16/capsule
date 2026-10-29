@@ -1,0 +1,252 @@
+{
+  "meta": {
+    "label": "m3-node22",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "bb83ed14a5b225e1205ebc42acbd8c4641abcb33",
+    "packagesTree": "c9f139ee61855ec186024d9a4c8574ec62fc0448",
+    "dirty": false,
+    "date": "2026-10-27T19:39:46.964Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56",
+      "execArgv": [
+        "--expose-gc"
+      ]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": "perf-01-core-receipts,perf-09-cli-cold-start,perf-10-docker-output",
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workload": {
+    "id": "perf-01-core-receipts",
+    "perfIds": [
+      "PERF-01"
+    ],
+    "manifestIds": [
+      "CORE-01",
+      "CORE-02"
+    ]
+  },
+  "case": "parallel-required-delayed-a",
+  "description": "A and B concurrent; A receipt write delayed 50 ms; B write immediate. Measures B latency.",
+  "params": {
+    "iterations": 40,
+    "aExecMs": 1,
+    "bExecMs": 3,
+    "aWriteMs": 50
+  },
+  "runs": [
+    {
+      "rep": 0,
+      "childWallMs": 2126.370417,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.5823749999999563,
+          "p95": 3.7757080000000087
+        },
+        "aLatencyMs": {
+          "p50": 52.55445899999995,
+          "p95": 52.85374999999999
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2092.4896670000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5308808,
+          "rss": 46137344,
+          "external": 2049890,
+          "arrayBuffers": 173507
+        },
+        "endMemory": {
+          "heapUsed": 5866960,
+          "rss": 54624256,
+          "external": 1958473,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54624256
+      }
+    },
+    {
+      "rep": 1,
+      "childWallMs": 2127.313167,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.5823749999999563,
+          "p95": 3.8707080000000076
+        },
+        "aLatencyMs": {
+          "p50": 52.282332999999994,
+          "p95": 53.01637500000015
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2091.034709,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5308808,
+          "rss": 46170112,
+          "external": 2049890,
+          "arrayBuffers": 173507
+        },
+        "endMemory": {
+          "heapUsed": 5899336,
+          "rss": 54902784,
+          "external": 1958473,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54902784
+      }
+    },
+    {
+      "rep": 2,
+      "childWallMs": 2135.8504170000006,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.5092500000000655,
+          "p95": 3.914041999999995
+        },
+        "aLatencyMs": {
+          "p50": 52.56449999999995,
+          "p95": 52.89929200000006
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2094.176708,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5308880,
+          "rss": 46235648,
+          "external": 2049890,
+          "arrayBuffers": 173507
+        },
+        "endMemory": {
+          "heapUsed": 5869464,
+          "rss": 54984704,
+          "external": 1958473,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54984704
+      }
+    },
+    {
+      "rep": 3,
+      "childWallMs": 2122.1956659999996,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.543542000000002,
+          "p95": 3.7438750000000027
+        },
+        "aLatencyMs": {
+          "p50": 52.422874999999976,
+          "p95": 52.70037500000001
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2089.5443330000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5308808,
+          "rss": 46301184,
+          "external": 2049890,
+          "arrayBuffers": 173507
+        },
+        "endMemory": {
+          "heapUsed": 5925216,
+          "rss": 54919168,
+          "external": 1958473,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54919168
+      }
+    },
+    {
+      "rep": 4,
+      "childWallMs": 2129.8395409999994,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.5759590000000117,
+          "p95": 4.193125000000009
+        },
+        "aLatencyMs": {
+          "p50": 52.45629199999996,
+          "p95": 53.53449999999998
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2097.414292,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5308808,
+          "rss": 46137344,
+          "external": 2049890,
+          "arrayBuffers": 173507
+        },
+        "endMemory": {
+          "heapUsed": 5868736,
+          "rss": 54968320,
+          "external": 1958473,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54968320
+      }
+    }
+  ]
+}

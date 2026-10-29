@@ -103,6 +103,22 @@ describe("GAP-01: docker timeouts", () => {
     expect((error as UnknownOutcomeError).resource).toMatchObject({ kind: "sandbox", nativeId: "maybe-created" });
     expect(fake.calls.some((args) => args[0] === "rm" || args[0] === "start")).toBe(false);
   });
+
+  it("reports a timed-out docker rm as an unknown destroy of that container, not a failure", async () => {
+    const fake = fakeDaemon((args) => (args[0] === "rm" ? timedOut : undefined));
+    const store = new MemoryReceiptStore();
+    const box = await new Capsule({ adapter: fake.adapter, receipts: true, receiptStore: store }).sandbox.create({});
+
+    const error = await box.destroy().then(
+      () => undefined,
+      (caught: unknown) => caught
+    );
+
+    // The daemon may finish the removal after the CLI was killed, so this is not a definite failure.
+    expect(error).toBeInstanceOf(UnknownOutcomeError);
+    expect(error).toMatchObject({ operation: "sandbox.destroy", resource: { provider: "docker", kind: "sandbox", nativeId: "box-1" } });
+    expect(store.receipts.some((receipt) => receipt.type === "sandbox.destroy")).toBe(false);
+  });
 });
 
 describe("PERF-10: docker output bounds", () => {

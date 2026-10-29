@@ -1,0 +1,56 @@
+{
+  "name": "@capsule-sdk/bridge-worker",
+  "version": "0.0.0",
+  "type": "module",
+  "bin": {
+    "capsule-bridge-worker": "./dist/bin.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts src/bin.ts --format esm && tsc -p tsconfig.json --emitDeclarationOnly",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@capsule-sdk/core": "workspace:*",
+    "@capsule-sdk/docker": "workspace:*",
+    "@capsule-sdk/store-jsonl": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "description": "Capsule provider worker for the Fabric bridge protocol v1: framed stdio, versioned handshake, governed sandbox actions on a fixture or local Docker profile.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EfeDurmaz16/capsule.git",
+    "directory": "packages/bridge-worker"
+  },
+  "homepage": "https://github.com/EfeDurmaz16/capsule#readme",
+  "bugs": {
+    "url": "https://github.com/EfeDurmaz16/capsule/issues"
+  },
+  "keywords": [
+    "capsule",
+    "fabric",
+    "bridge",
+    "worker",
+    "sandbox"
+  ],
+  "engines": {
+    "node": ">=22"
+  }
+}

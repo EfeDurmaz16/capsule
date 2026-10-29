@@ -14,6 +14,7 @@ Capsule is a pnpm monorepo with focused packages:
 - `@capsule-sdk/presets`: provider-oriented runtime and preview preset factories.
 - `@capsule-sdk/preview`: preview environment composition helpers for resources, cleanup evidence, and receipts.
 - `@capsule-sdk/store-jsonl` and `@capsule-sdk/store-sqlite`: receipt persistence packages.
+- `@capsule-sdk/bridge-worker`: the `capsule-bridge-worker` process that serves Fabric's bridge protocol v1 over framed stdio, with a deterministic fixture profile and a local Docker profile. See [Fabric bridge protocol](bridge-protocol.md).
 - `@capsule-sdk/test-utils`: private workspace helpers for contract and live provider tests.
 
 The `Capsule` class receives an adapter, optional policy, and receipt setting. Domain APIs such as `capsule.sandbox.create` and `capsule.job.run` validate capability paths, evaluate policy, call the adapter, and attach receipts where the domain result supports them.

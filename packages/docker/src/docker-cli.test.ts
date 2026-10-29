@@ -1,11 +1,12 @@
 // Exercises the real runDocker child-process plumbing against a fake `docker` executable placed first
 // on PATH. No Docker daemon is used.
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Capsule, CaptureLimitError, defaultCaptureBounds, UnknownOutcomeError } from "@capsule-sdk/core";
-import { runDocker } from "./docker-cli.js";
+import { runDocker, type RunDockerOptions } from "./docker-cli.js";
 import { docker } from "./index.js";
 
 let binDir: string;
@@ -41,6 +42,50 @@ describe.skipIf(process.platform === "win32")("runDocker", () => {
     const result = await runDocker(["run", "image"], { timeoutMs: 100 });
     expect(result).toMatchObject({ exitCode: 124, timedOut: true });
     expect(Date.now() - started).toBeLessThan(4_000);
+  });
+
+  it("an abort kills the local CLI at once and rejects with the abort reason", async () => {
+    fakeDocker('echo $$ > "$0.pid"; exec sleep 30');
+    const controller = new AbortController();
+    const running = runDocker(["exec", "c", "sleep", "30"], { timeoutMs: 60_000, signal: controller.signal });
+    // The shell creates the file before it writes the pid, so wait for a whole number, not the file.
+    const pidFile = join(binDir, "docker.pid");
+    const readPid = () => (existsSync(pidFile) ? Number.parseInt(readFileSync(pidFile, "utf8"), 10) : Number.NaN);
+    for (let tries = 0; tries < 500 && !(readPid() > 0); tries += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+    const pid = readPid();
+    expect(pid).toBeGreaterThan(0);
+    const aborted = Date.now();
+    controller.abort();
+    await expect(running).rejects.toMatchObject({ name: "AbortError" });
+    // The rejection comes as the kill is sent; give the process a moment to be reaped.
+    const alive = () => {
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    for (let tries = 0; tries < 500 && alive(); tries += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(alive()).toBe(false);
+    expect(Date.now() - aborted).toBeLessThan(4_000);
+    rmSync(pidFile, { force: true });
+  });
+
+  it("a detached client leads a process group of its own; without the option it stays in the caller's", async () => {
+    // The fake prints its pid and its process group id.
+    fakeDocker('echo "$$ $(ps -o pgid= -p $$)"');
+    const ours = Number(execFileSync("ps", ["-o", "pgid=", "-p", String(process.pid)], { encoding: "utf8" }).trim());
+    const group = async (options: RunDockerOptions) => {
+      const result = await runDocker(["create", "image"], { timeoutMs: 10_000, ...options });
+      expect(result.exitCode).toBe(0);
+      const [pid = Number.NaN, pgid = Number.NaN] = result.stdout.trim().split(/\s+/).map(Number);
+      return { pid, pgid };
+    };
+    const detached = await group({ detached: true });
+    expect(detached.pgid).toBe(detached.pid);
+    expect(detached.pgid).not.toBe(ours);
+    expect((await group({})).pgid).toBe(ours);
   });
 
   it("GAP-01: a command that exits 124 by itself is not a timeout", async () => {

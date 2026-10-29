@@ -26,7 +26,7 @@ Before the first publish, verify manually with the npm account that will publish
 
 1. The npm organization for the `@capsule-sdk` scope, which every package manifest uses, exists and is controlled by the publishing team. The repository audit only checks that names use this scope; it cannot prove account ownership or registry availability.
 2. The publishing account has owner or maintainer permission for `@capsule-sdk`.
-3. Every intended public `@capsule-sdk/*` package name (ai, azure, cli, cloud-run, cloudflare, core, daytona, docker, e2b, ec2, ecs, fly, kubernetes, lambda, mock, modal, neon, presets, preview, store-jsonl, store-sqlite, vercel) is available under it.
+3. Every intended public `@capsule-sdk/*` package name (ai, azure, bridge-worker, cli, cloud-run, cloudflare, core, daytona, docker, e2b, ec2, ecs, fly, kubernetes, lambda, mock, modal, neon, presets, preview, store-jsonl, store-sqlite, vercel) is available under it.
 4. Two-factor authentication and npm provenance requirements match the release workflow.
 5. `NPM_TOKEN` is an automation token scoped to the organization/packages and stored only in GitHub Actions secrets.
 6. The first release PR from Changesets is reviewed before publishing.

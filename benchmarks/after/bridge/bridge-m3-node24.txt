@@ -1,0 +1,15 @@
+# Capsule synthetic benchmark: bridge-m3-node24
+# mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls
+# commit=0f81a66b57bc22d11daf28f8f28d44c6d815a526 packagesTree=e5fb6134c2ae106bc67737a5489317731d4f39a3 dirtyPackages=false date=2026-10-27T19:52:58.374Z
+# host=darwin 25.6.0 arm64 cpus=18 (Apple M5 Pro) mem=48GiB node=v24.19.0
+# raw: benchmarks/raw/bridge-m3-node24/ (one JSON per case, every repetition kept)
+
+m3-bridge-worker                   spawn-to-hello-ack             spawnToHelloAckMs.p50              median=31.29 p95=31.375
+m3-bridge-worker                   spawn-to-hello-ack             spawnToHelloAckMs.p95              median=32.925 p95=37.196
+m3-bridge-worker                   spawn-to-hello-ack             workerMaxRssBytes.p50              median=56393728 p95=56459264
+m3-bridge-worker                   request-round-trip             execRoundTripMs.p50                median=0.071 p95=0.077
+m3-bridge-worker                   request-round-trip             execRoundTripMs.p95                median=0.167 p95=0.241
+m3-bridge-worker                   request-round-trip             createRoundTripMs.p50              median=0.047 p95=0.048
+m3-bridge-worker                   request-round-trip             destroyRoundTripMs.p50             median=0.044 p95=0.046
+m3-bridge-worker                   request-round-trip             refusalRoundTripMs.p50             median=0.034 p95=0.034
+m3-bridge-worker                   request-round-trip             workerMaxRssBytes                  median=80478208 p95=81084416

@@ -1,0 +1,47 @@
+{
+  "harness": "capsule bridge worker docker smoke v1",
+  "commit": "6f5a8d070cea4d4d64d2e1cf84e4930492edeb64",
+  "date": "2026-10-27T22:45:29.556Z",
+  "host": {
+    "platform": "darwin",
+    "release": "25.6.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "cpuModel": "Apple M5 Pro"
+  },
+  "node": "v22.23.2",
+  "image": "debian:bookworm-slim",
+  "outcome": "passed",
+  "dockerServer": "29.4.0",
+  "engine": "orbstack",
+  "checks": {
+    "deniedBeforeEffect": true,
+    "missingImageNotPulled": true,
+    "locatorScope": true,
+    "labels": true,
+    "receiptListed": true,
+    "execOutput": true,
+    "workerKillLeftContainerRunning": true,
+    "restartFindsSameContainer": true,
+    "destroyNeedsFreshApproval": true,
+    "destroyObservedGone": true,
+    "cleanExitOnEndOfInput": true
+  },
+  "summary": {
+    "execP50Ms": 143.57899999999972,
+    "execP95Ms": 186.75404199999957
+  },
+  "raw": {
+    "spawnToHelloAckMs": [38.164333, 41.40695799999958],
+    "createMs": 2151.501083,
+    "execMs": [
+      144.81687499999998, 145.8654590000001, 130.90770799999973, 176.9151670000001, 117.9828749999997, 129.88379200000008, 121.69370900000013,
+      132.22487500000034, 130.8145830000003, 121.06825000000026, 130.75154099999963, 138.00916700000016, 146.2104160000008, 186.75404199999957,
+      161.78162499999962, 176.10304200000064, 321.9770419999995, 143.57899999999972, 139.95420899999954, 145.20679199999995
+    ],
+    "destroyMs": 572.934792,
+    "deniedMs": 33.48729199999997,
+    "missingImageMs": 101.37141700000001,
+    "replayCreateMs": 110.37175000000025
+  }
+}

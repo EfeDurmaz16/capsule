@@ -1,0 +1,156 @@
+{
+  "meta": {
+    "label": "ab-base-node24-r5",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "",
+    "packagesTree": "",
+    "dirty": false,
+    "date": "2026-10-27T21:40:16.779Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v24.19.0",
+      "v8": "13.6.233.17-node.51",
+      "execArgv": ["--expose-gc"]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": "m3-bridge-worker",
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workload": {
+    "id": "m3-bridge-worker",
+    "perfIds": [],
+    "manifestIds": ["M3-BRIDGE"]
+  },
+  "case": "spawn-to-hello-ack",
+  "description": "Fresh worker process per sample: time from spawn to a decoded hello_ack, and the worker's peak RSS.",
+  "params": {
+    "samples": 20
+  },
+  "runs": [
+    {
+      "rep": 0,
+      "childWallMs": 1195.758875,
+      "ok": true,
+      "metrics": {
+        "spawnToHelloAckMs": {
+          "p50": 44.09824999999995,
+          "p95": 55.361375000000066,
+          "min": 34.98854199999994,
+          "max": 63.04079100000013,
+          "n": 20
+        },
+        "workerMaxRssBytes": {
+          "p50": 56819712,
+          "p95": 57147392,
+          "min": 56606720,
+          "max": 57278464,
+          "n": 20
+        },
+        "samples": 20
+      },
+      "caseDurationMs": 1144.714041,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5178728,
+          "rss": 53870592,
+          "external": 2406483,
+          "arrayBuffers": 143647
+        },
+        "endMemory": {
+          "heapUsed": 6380200,
+          "rss": 56180736,
+          "external": 2467050,
+          "arrayBuffers": 163522
+        },
+        "maxRssBytes": 56180736
+      }
+    },
+    {
+      "rep": 1,
+      "childWallMs": 1647.7062500000002,
+      "ok": true,
+      "metrics": {
+        "spawnToHelloAckMs": {
+          "p50": 57.4011660000001,
+          "p95": 92.46149999999989,
+          "min": 36.000292,
+          "max": 193.87200000000007,
+          "n": 20
+        },
+        "workerMaxRssBytes": {
+          "p50": 56885248,
+          "p95": 57245696,
+          "min": 56492032,
+          "max": 57294848,
+          "n": 20
+        },
+        "samples": 20
+      },
+      "caseDurationMs": 1555.099334,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5152840,
+          "rss": 53837824,
+          "external": 2406483,
+          "arrayBuffers": 143647
+        },
+        "endMemory": {
+          "heapUsed": 6346744,
+          "rss": 49889280,
+          "external": 2466071,
+          "arrayBuffers": 162543
+        },
+        "maxRssBytes": 55836672
+      }
+    },
+    {
+      "rep": 2,
+      "childWallMs": 1207.1665830000002,
+      "ok": true,
+      "metrics": {
+        "spawnToHelloAckMs": {
+          "p50": 43.89654100000001,
+          "p95": 63.86754199999996,
+          "min": 35.078959,
+          "max": 73.69945899999993,
+          "n": 20
+        },
+        "workerMaxRssBytes": {
+          "p50": 56918016,
+          "p95": 57163776,
+          "min": 56590336,
+          "max": 57393152,
+          "n": 20
+        },
+        "samples": 20
+      },
+      "caseDurationMs": 1152.995834,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5156544,
+          "rss": 53886976,
+          "external": 2406483,
+          "arrayBuffers": 143647
+        },
+        "endMemory": {
+          "heapUsed": 6374472,
+          "rss": 56131584,
+          "external": 2466071,
+          "arrayBuffers": 162543
+        },
+        "maxRssBytes": 56131584
+      }
+    }
+  ]
+}

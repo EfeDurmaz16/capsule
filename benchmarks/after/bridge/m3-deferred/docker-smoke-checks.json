@@ -1,0 +1,22 @@
+{
+  "harness": "capsule bridge worker docker smoke v1",
+  "commit": "4c9d1ced88393ead4d702eb97027ec8f2b63ab93",
+  "image": "debian@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8",
+  "dockerServer": "29.4.0",
+  "engine": "orbstack",
+  "outcome": "passed",
+  "checks": {
+    "deniedBeforeEffect": true,
+    "missingImageNotPulled": true,
+    "locatorScope": true,
+    "labels": true,
+    "receiptListed": true,
+    "execOutput": true,
+    "workerKillLeftContainerRunning": true,
+    "restartFindsSameContainer": true,
+    "destroyNeedsFreshApproval": true,
+    "destroyObservedGone": true,
+    "cleanExitOnEndOfInput": true
+  },
+  "note": "checks only; the smoke also prints raw timings, which only the performance phase records"
+}
