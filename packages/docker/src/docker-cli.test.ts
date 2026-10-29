@@ -1,11 +1,12 @@
 // Exercises the real runDocker child-process plumbing against a fake `docker` executable placed first
 // on PATH. No Docker daemon is used.
+import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Capsule, CaptureLimitError, defaultCaptureBounds, UnknownOutcomeError } from "@capsule-sdk/core";
-import { runDocker } from "./docker-cli.js";
+import { runDocker, type RunDockerOptions } from "./docker-cli.js";
 import { docker } from "./index.js";
 
 let binDir: string;
@@ -69,6 +70,22 @@ describe.skipIf(process.platform === "win32")("runDocker", () => {
     expect(alive()).toBe(false);
     expect(Date.now() - aborted).toBeLessThan(4_000);
     rmSync(pidFile, { force: true });
+  });
+
+  it("a detached client leads a process group of its own; without the option it stays in the caller's", async () => {
+    // The fake prints its pid and its process group id.
+    fakeDocker('echo "$$ $(ps -o pgid= -p $$)"');
+    const ours = Number(execFileSync("ps", ["-o", "pgid=", "-p", String(process.pid)], { encoding: "utf8" }).trim());
+    const group = async (options: RunDockerOptions) => {
+      const result = await runDocker(["create", "image"], { timeoutMs: 10_000, ...options });
+      expect(result.exitCode).toBe(0);
+      const [pid = Number.NaN, pgid = Number.NaN] = result.stdout.trim().split(/\s+/).map(Number);
+      return { pid, pgid };
+    };
+    const detached = await group({ detached: true });
+    expect(detached.pgid).toBe(detached.pid);
+    expect(detached.pgid).not.toBe(ours);
+    expect((await group({})).pgid).toBe(ours);
   });
 
   it("GAP-01: a command that exits 124 by itself is not a timeout", async () => {

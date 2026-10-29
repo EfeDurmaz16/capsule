@@ -44,6 +44,8 @@ export interface RunDockerOptions {
    * timeout, this stops only the client: a container or an exec'd process keeps running in the daemon.
    */
   signal?: AbortSignal;
+  /** Starts the CLI in a process group of its own, which a signal to the caller's group misses. */
+  detached?: boolean;
 }
 
 class StreamCapture {
@@ -86,7 +88,8 @@ export function runDocker(args: string[], options: RunDockerOptions = {}): Promi
   return new Promise((resolve, reject) => {
     const child = spawn("docker", args, {
       stdio: ["pipe", "pipe", "pipe"],
-      ...(options.signal ? { signal: options.signal, killSignal: "SIGKILL" as const } : {})
+      ...(options.signal ? { signal: options.signal, killSignal: "SIGKILL" as const } : {}),
+      ...(options.detached ? { detached: true } : {})
     });
     const stdout = new StreamCapture(options.outputBounds?.stdout);
     const stderr = new StreamCapture(options.outputBounds?.stderr);
