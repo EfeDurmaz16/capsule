@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // Physical smoke for the bridge worker's Docker profile (draft P12 layer L3) on the local engine.
 //
-//   pnpm build && node scripts/bridge-docker-smoke.mjs [--image debian:bookworm-slim] [--execs 20] [--out <file.json>]
+//   pnpm build && node scripts/bridge-docker-smoke.mjs [--image debian:bookworm-slim] [--execs 20] [--out <file.json>] [--require]
 //
 // It spawns the built capsule-bridge-worker with --profile docker and drives it over its pipes:
 // a refusal before effect, a missing image that must not be pulled, create, exec, a worker kill and
 // respawn that must find the same container by label, destroy, and a check that nothing is left. It
 // never pulls an image: the image must already be present, or the run is skipped with the reason.
+// With --require, as in CI, a skip fails the run: no reachable engine or no image is not a pass.
 // Raw timings (spawn to hello_ack, each round trip) are written as JSON. Every container it makes
 // carries a per-run fabric.job label, and the run removes any such container it left behind.
 import { execFileSync } from "node:child_process";
@@ -20,7 +21,12 @@ import { expect, hello, startWorker } from "./bridge-worker-client.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const { values } = parseArgs({
-  options: { image: { type: "string", default: "debian:bookworm-slim" }, execs: { type: "string", default: "20" }, out: { type: "string" } }
+  options: {
+    image: { type: "string", default: "debian:bookworm-slim" },
+    execs: { type: "string", default: "20" },
+    out: { type: "string" },
+    require: { type: "boolean", default: false }
+  }
 });
 const image = values.image;
 const execCount = Number(values.execs);
@@ -49,13 +55,15 @@ const meta = {
 };
 
 const version = docker(["version", "--format", "{{.Server.Version}}"]);
+// A skip passes a local run and fails a required one.
+const skipped = values.require ? 1 : 0;
 if (!version.ok) {
   report({ ...meta, outcome: "skipped", reason: "Docker daemon is not reachable", detail: version.stderr?.trim().slice(0, 300) });
-  process.exit(0);
+  process.exit(skipped);
 }
 if (!docker(["image", "inspect", image]).ok) {
   report({ ...meta, outcome: "skipped", reason: `image ${image} is not present locally and the smoke never pulls` });
-  process.exit(0);
+  process.exit(skipped);
 }
 const missingImage = `capsule-bridge-smoke-missing:${randomBytes(4).toString("hex")}`;
 expect(!docker(["image", "inspect", missingImage]).ok, "the deliberately missing image exists");
