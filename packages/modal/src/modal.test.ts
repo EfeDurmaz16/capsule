@@ -8,6 +8,7 @@ import {
   PolicyViolationError,
   ProviderAuthError,
   ProviderRetryableError,
+  PartialEffectsError,
   partialEffectsOf,
   runAdapterContract,
   UnknownOutcomeError,
@@ -312,5 +313,65 @@ describe("modal adapter", () => {
     const box = await new Capsule({ adapter: modal({ client: fakeModalClient(sandbox) }) }).sandbox.create({});
 
     await expect(box.exec({ command: ["cat"], input: "hello" })).rejects.toBeInstanceOf(UnknownOutcomeError);
+  });
+});
+
+// The installed modal SDK's Sandbox.terminate, wait and poll take no AbortSignal or timeout, so the
+// termination wait cannot be cancelled at terminateDeadlineMs. The call must still end with
+// PendingOperationError at the deadline, and the SDK call settling later must change nothing.
+describe("modal termination that outlives the deadline", () => {
+  function lateTerminatingSandbox() {
+    const { sandbox } = fakeModalSandbox();
+    const settle: { resolve?: (exitCode: number) => void; reject?: (error: Error) => void } = {};
+    sandbox.terminate = (params?: unknown) => {
+      sandbox.terminateParams.push(params);
+      return new Promise<number>((resolve, reject) => Object.assign(settle, { resolve, reject }));
+    };
+    return { sandbox, settle };
+  }
+  const later = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  it.each([
+    { outcome: "resolves with an exit code", finish: (settle: any) => settle.resolve(137) },
+    { outcome: "rejects", finish: (settle: any) => settle.reject(new Error("modal wait failed later")) }
+  ])("destroy is pending at the deadline and nothing changes when the SDK call later $outcome", async ({ finish }) => {
+    const { sandbox, settle } = lateTerminatingSandbox();
+    const store = new MemoryReceiptStore();
+    const capsule = new Capsule({ adapter: modal({ client: fakeModalClient(sandbox), terminateDeadlineMs: 20 }), receipts: true, receiptStore: store });
+    const box = await capsule.sandbox.create({});
+
+    const error = await box.destroy().catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(PendingOperationError);
+    expect(error).toMatchObject({ operation: "sandbox.destroy", deadlineMs: 20, observations: 1 });
+    expect(sandbox.terminateParams).toEqual([{ wait: true }]);
+
+    finish(settle);
+    await later();
+    expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
+    expect(sandbox.terminateParams).toHaveLength(1);
+  });
+
+  it("a create rollback stays pending when the termination finishes after the deadline", async () => {
+    const { sandbox, settle } = lateTerminatingSandbox();
+    const capsule = new Capsule({
+      adapter: modal({ client: fakeModalClient(sandbox), terminateDeadlineMs: 20 }),
+      receipts: true,
+      receiptSigner: {
+        algorithm: "test",
+        sign: () => {
+          throw new Error("sign failed");
+        }
+      }
+    });
+    const error = await capsule.sandbox.create({}).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(PartialEffectsError);
+    const effects = partialEffectsOf(error)!;
+    expect(effects.cleanup).toMatchObject({ status: "pending", residual: [expect.objectContaining({ nativeId: "sb-1" })] });
+    const cleanup = structuredClone({ status: effects.cleanup.status, residual: effects.cleanup.residual });
+
+    settle.resolve?.(137);
+    await later();
+    expect({ status: effects.cleanup.status, residual: effects.cleanup.residual }).toEqual(cleanup);
+    expect(sandbox.terminateParams).toEqual([{ wait: true }]);
   });
 });
