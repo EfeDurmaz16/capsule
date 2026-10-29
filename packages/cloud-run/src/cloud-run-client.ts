@@ -38,7 +38,14 @@ export interface CloudRunClientOptions {
   operationDeadlineMs?: number;
   /** Delay between operations.wait calls when a wait returns before the operation is done. Default 1000. */
   operationPollIntervalMs?: number;
-  /** Client-side timeout for one HTTP request, including reading its body. Default 60000. */
+  /**
+   * Client-side timeout for one HTTP request, including obtaining its access token and reading its
+   * body. Default 60000. Without accessToken the token comes from Application Default Credentials.
+   * google-auth-library's getRequestHeaders takes no AbortSignal, so a token refresh still running at
+   * the timeout or the operationDeadlineMs deadline cannot be cancelled: Capsule stops waiting for it,
+   * never sends the request, and reports a retryable error (PendingOperationError inside an
+   * observation). The refresh itself may finish later in the background.
+   */
   requestTimeoutMs?: number;
   /** Largest successful response body Capsule reads, in bytes. Default 33554432 (32 MiB). */
   maxResponseBytes?: number;
@@ -384,12 +391,26 @@ export class CloudRunClient {
             { operation: describe },
             error
           );
+    let token: string;
+    try {
+      // google-auth-library's getRequestHeaders takes no signal, so an ADC token refresh cannot be
+      // cancelled. It is raced against the request signal instead: the request ends at its timeout or
+      // the observation deadline, and a token that arrives later sends nothing.
+      token = await untilAborted(this.token(), signal);
+    } catch (error) {
+      if (!signal.aborted) throw error;
+      throw providerExecutionError(
+        `${describe} was not sent: Google credentials were not available within ${timeoutMs}ms or the request was aborted.`,
+        { category: "retryable", retryable: true },
+        { timeoutMs, error }
+      );
+    }
     try {
       const response = await this.fetchImpl(url, {
         method,
         headers: {
           accept: "application/json",
-          authorization: `Bearer ${await this.token()}`,
+          authorization: `Bearer ${token}`,
           ...(options.body === undefined ? {} : { "content-type": "application/json" })
         },
         body: options.body === undefined ? undefined : JSON.stringify(options.body),
@@ -439,6 +460,26 @@ const maxErrorBodyBytes = 64 * 1024;
 
 function waitTimeout(ms: number): string {
   return `${Math.max(1, Math.ceil(ms / 1000))}s`;
+}
+
+// Settles with the promise, or rejects with the signal's reason once it aborts. The promise itself keeps
+// running; its later result is ignored.
+function untilAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    if (signal.aborted) return onAbort();
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      }
+    );
+  });
 }
 
 function parseJson(text: string): unknown {
