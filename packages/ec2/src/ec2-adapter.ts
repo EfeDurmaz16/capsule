@@ -9,6 +9,7 @@ import {
 import {
   AdapterExecutionError,
   asProviderError,
+  capsuleOperationTag,
   capsuleOperationTags,
   type AdapterContext,
   type CapsuleAdapter,
@@ -17,6 +18,7 @@ import {
   type DestroyMachineSpec,
   type Machine,
   type MachineLifecycleResult,
+  type MachineStatus,
   type MachineStatusResult,
   type MachineStatusSpec,
   type StartMachineSpec,
@@ -115,6 +117,17 @@ function classifiedClient(client: EC2ClientLike): EC2ClientLike {
   };
 }
 
+/**
+ * Native RunInstances ClientToken for a caller idempotency key (GAP-17): a 32-hex hash of the key scoped
+ * to this adapter and region, so the raw key never reaches AWS. EC2 returns the original instance for a
+ * retried request with the same token and parameters and rejects a reused token with different
+ * parameters (IdempotentParameterMismatch). This is provider retry deduplication within the AWS token
+ * window, not exactly-once execution across arbitrary Capsule calls.
+ */
+function ec2ClientToken(idempotencyKey: string | undefined, region: string | undefined): string | undefined {
+  return capsuleOperationTag({ idempotencyKey, capabilityPath: "machine.create", idempotencyScope: `ec2:machine.create:${region ?? "sdk-default-region"}` });
+}
+
 function tags(name: string, labels?: Record<string, string>, idempotencyKey?: string) {
   return [
     {
@@ -131,23 +144,72 @@ function tags(name: string, labels?: Record<string, string>, idempotencyKey?: st
   ];
 }
 
+const shellIdentifier = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** Wraps a value in POSIX single quotes so the shell performs no expansion of any kind. */
+function shellLiteral(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function validateEnv(env: Record<string, string> | undefined): void {
+  for (const [key, value] of Object.entries(env ?? {})) {
+    if (!shellIdentifier.test(key)) {
+      throw new AdapterExecutionError(`EC2 machine.create env name ${JSON.stringify(key)} is not a valid shell variable name.`);
+    }
+    if (typeof value !== "string" || value.includes("\0")) {
+      throw new AdapterExecutionError(`EC2 machine.create env value for ${key} must be a string without NUL characters.`);
+    }
+  }
+}
+
+/**
+ * Generated user data exports each env entry as a single-quoted shell literal, so dollars, backticks,
+ * quotes and newlines reach the variable unchanged. The exports exist only inside the user-data script
+ * process; they do not configure the environment of later logins, services or runner processes.
+ * `options.userData` replaces the generated script entirely.
+ */
 function userData(options: EC2AdapterOptions, spec: CreateMachineSpec): string | undefined {
   const payload = options.userData
     ? options.userData
-    : spec.env
+    : spec.env && Object.keys(spec.env).length > 0
       ? `#!/bin/sh\n${Object.entries(spec.env)
-          .map(([key, value]) => `export ${key}=${JSON.stringify(value)}`)
+          .map(([key, value]) => `export ${key}=${shellLiteral(value)}`)
           .join("\n")}\n`
       : undefined;
   return payload ? Buffer.from(payload).toString("base64") : undefined;
 }
 
-function capsuleMachineState(state: string | undefined): Machine["status"] {
-  if (state === "running") return "running";
-  if (state === "stopped" || state === "stopping") return "stopped";
-  if (state === "terminated" || state === "shutting-down") return "deleted";
-  if (state === "pending") return "creating";
-  return "failed";
+function envDeliveryNotes(options: EC2AdapterOptions, spec: CreateMachineSpec): string[] {
+  if (!spec.env || Object.keys(spec.env).length === 0) return [];
+  if (options.userData) return ["Adapter userData replaces the generated script, so spec.env is not delivered to the instance."];
+  return ["Environment values are exported only inside the user-data script process; they do not persist into later logins, services or runner processes."];
+}
+
+// EC2 InstanceStateName values (AWS-02). Transitional native states map to transitional Capsule states:
+// stopping is not stopped and shutting-down is not terminated. pending is reported as creating because
+// DescribeInstances does not distinguish a first launch from a restart; the native value stays in
+// metadata.awsState.
+const ec2MachineStates: Readonly<Record<string, MachineStatus>> = Object.freeze({
+  pending: "creating",
+  running: "running",
+  stopping: "stopping",
+  stopped: "stopped",
+  "shutting-down": "destroying",
+  terminated: "deleted"
+});
+
+function capsuleMachineState(instanceId: string, state: string | undefined): MachineStatus {
+  const mapped = state === undefined ? undefined : ec2MachineStates[state];
+  if (!mapped) {
+    // An unrecognized or missing native state is not evidence of failure; refuse to invent one.
+    throw new AdapterExecutionError(
+      state === undefined
+        ? `EC2 DescribeInstances returned no instance state for ${instanceId}.`
+        : `EC2 reported unrecognized instance state ${JSON.stringify(state)} for ${instanceId}.`,
+      { instanceId, awsState: state ?? null }
+    );
+  }
+  return mapped;
 }
 
 function providerBoolean(options: DestroyMachineSpec["providerOptions"], key: string): boolean | undefined {
@@ -190,7 +252,11 @@ function lifecycleReceipt(
 }
 
 export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
-  const getClient = () => classifiedClient(options.client ?? defaultClient(options));
+  // One classified client per adapter, created on first use (AWS-05). An injected client stays
+  // caller-owned; the default SDK client is built lazily so constructing the adapter resolves no
+  // credentials, and reusing it keeps the SDK keep-alive connection pool and credential cache warm.
+  let cachedClient: EC2ClientLike | undefined;
+  const getClient = (): EC2ClientLike => (cachedClient ??= classifiedClient(options.client ?? defaultClient(options)));
   return {
     name: adapter,
     provider,
@@ -200,6 +266,14 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
       create: async (spec: CreateMachineSpec, context: AdapterContext): Promise<Machine> => {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env });
+        validateEnv(spec.env);
+        if (spec.region !== undefined && spec.region !== options.region) {
+          // The SDK client is bound to the adapter region; a different spec.region can be neither honored
+          // nor recorded truthfully, so refuse before any request (GAP-12).
+          throw new AdapterExecutionError(
+            `EC2 machine.create spec.region ${JSON.stringify(spec.region)} does not match the adapter region ${JSON.stringify(options.region ?? null)}. Create an ec2 adapter for that region instead.`
+          );
+        }
         const imageId = spec.image ?? options.imageId;
         const instanceType = spec.size ?? options.instanceType;
         if (!imageId) {
@@ -219,6 +293,7 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
             KeyName: options.keyName,
             IamInstanceProfile: options.iamInstanceProfileArn ? { Arn: options.iamInstanceProfileArn } : undefined,
             UserData: userData(options, spec),
+            ClientToken: ec2ClientToken(spec.idempotencyKey, options.region),
             TagSpecifications: tags(spec.name, spec.labels, spec.idempotencyKey) as any
           })
         );
@@ -237,11 +312,17 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
                   ...policy.notes,
                   "EC2 RunInstances is native.",
                   "EC2 is a low-level machine primitive; networking, IAM, SSH access, patching, and runtime hardening are not abstracted away by Capsule.",
-                  "Environment values are only encoded into user data when provided; this is not a secret manager."
+                  "Environment values are only encoded into user data when provided; this is not a secret manager.",
+                  ...(spec.idempotencyKey
+                    ? [
+                        "idempotencyKey is sent as a hashed RunInstances ClientToken scoped to the adapter region; EC2 deduplicates retries with identical parameters within its token window and rejects reuse with different parameters. It is not an exactly-once guarantee."
+                      ]
+                    : []),
+                  ...envDeliveryNotes(options, spec)
                 ]
               },
               resource: { id, name: spec.name, status: state },
-              metadata: { region: spec.region ?? options.region, instanceType, subnetId: options.subnetId, securityGroupIds: options.securityGroupIds }
+              metadata: { region: options.region, instanceType, subnetId: options.subnetId, securityGroupIds: options.securityGroupIds }
             })
           : undefined;
         return { id, provider, name: spec.name, status: state, receipt };
@@ -250,8 +331,8 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const response = await getClient().send(new DescribeInstancesCommand({ InstanceIds: [spec.id] }));
         const instance = response.Reservations?.flatMap((reservation: any) => reservation.Instances ?? [])?.[0];
-        const stateName = instance?.State?.Name ?? "unknown";
-        const status = capsuleMachineState(stateName);
+        const stateName: string | undefined = instance?.State?.Name;
+        const status = capsuleMachineState(spec.id, stateName);
         const receipt = lifecycleReceipt(context, {
           type: "machine.status",
           capabilityPath: "machine.status",
@@ -273,7 +354,7 @@ export function ec2(options: EC2AdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const response = await getClient().send(new StartInstancesCommand({ InstanceIds: [spec.id] }));
         const stateName = response.StartingInstances?.[0]?.CurrentState?.Name ?? "pending";
-        const status = capsuleMachineState(stateName) === "running" ? "running" : "starting";
+        const status = stateName === "running" ? "running" : "starting";
         const receipt = lifecycleReceipt(context, {
           type: "machine.start",
           capabilityPath: "machine.start",

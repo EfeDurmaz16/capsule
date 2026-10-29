@@ -1,6 +1,10 @@
 import {
   AdapterExecutionError,
   CleanupFailureError,
+  PartialEffectsError,
+  PendingOperationError,
+  UnknownOutcomeError,
+  resourceLocator,
   capsuleOperationTags,
   providerRuntimeMetadata,
   type AdapterContext,
@@ -14,6 +18,8 @@ import {
   type JobRun,
   type JobStatusResult,
   type JobStatusSpec,
+  type CleanupOutcome,
+  type ResourceLocator,
   type RunJobSpec,
   type ServiceDeployment,
   type ServiceStatusResult,
@@ -45,7 +51,7 @@ interface AzureResource {
 interface AzureJobCleanupMetadata {
   action: "delete-generated-job";
   jobName: string;
-  status: "deleted" | "failed";
+  status: "deleted" | "pending" | "failed";
   resourceGroupName: string;
   subscriptionId: string;
   error?: string;
@@ -77,7 +83,7 @@ export const azureContainerAppsCapabilities: CapabilityMap = {
     url: "native",
     scale: "native",
     rollback: "unsupported",
-    healthcheck: "experimental",
+    healthcheck: "unsupported",
     secrets: "unsupported"
   }
 };
@@ -126,6 +132,10 @@ function tagsWithOperationTag(
 
 function serviceBody(spec: DeployServiceSpec, options: AzureContainerAppsAdapterOptions) {
   const image = required("service image", spec.image);
+  // The Container App template written below has no probes, so any healthcheck would be dropped.
+  if (spec.healthcheck !== undefined) {
+    throw new AdapterExecutionError("Azure Container Apps service.deploy does not implement healthcheck yet; omit spec.healthcheck.");
+  }
   const port = spec.ports?.[0]?.port;
   return {
     location: required("location", options.location ?? process.env.AZURE_LOCATION),
@@ -207,11 +217,48 @@ function jobStatus(resource: AzureResource): JobRun["status"] {
   }
 }
 
-function resourceName(id: string, collection: "containerApps" | "jobs" | "executions"): string {
-  const marker = `/${collection}/`;
-  const index = id.indexOf(marker);
-  if (index === -1) return id;
-  return decodeURIComponent(id.slice(index + marker.length).split("/")[0] ?? id);
+const armResourceId =
+  /^\/subscriptions\/([^/?#]+)\/resourceGroups\/([^/?#]+)\/providers\/Microsoft\.App\/(containerApps|jobs)\/([^/?#]+)(?:\/executions\/([^/?#]+))?\/?$/i;
+
+function plainName(value: string, what: string): string {
+  if (!value || /[/?#\u0000-\u001f\u007f]/.test(value)) {
+    throw new AdapterExecutionError(`Azure Container Apps ${what} ${JSON.stringify(value)} must be a resource name or a full ARM resource id.`);
+  }
+  return value;
+}
+
+// Resolves a plain name or a full ARM id. A full id must be in the configured subscription and
+// resource group (compared case-insensitively, as ARM does); it is never trimmed to its name and
+// re-addressed under this adapter's scope.
+function scopedArmResource(
+  client: AzureContainerAppsClient,
+  id: string,
+  kind: "containerApps" | "jobs" | "executions"
+): { name: string; executionName?: string } {
+  if (!id.startsWith("/subscriptions/")) {
+    if (kind === "executions")
+      throw new AdapterExecutionError("Azure Container Apps execution ids must be full ARM ids unless providerOptions.jobName is set.");
+    return { name: plainName(id, kind === "jobs" ? "job" : "container app") };
+  }
+  const match = armResourceId.exec(id);
+  const collection = match?.[3]?.toLowerCase();
+  const shapeOk =
+    match && (kind === "executions" ? collection === "jobs" && match[5] !== undefined : collection === kind.toLowerCase() && match[5] === undefined);
+  if (!match || !shapeOk) {
+    throw new AdapterExecutionError(
+      `Azure Container Apps id ${JSON.stringify(id)} is not a valid ARM ${kind === "containerApps" ? "container app" : kind.slice(0, -1)} id.`
+    );
+  }
+  const [, subscription, resourceGroup, , name, executionName] = match;
+  if (
+    decodeURIComponent(subscription!).toLowerCase() !== client.subscriptionId.toLowerCase() ||
+    decodeURIComponent(resourceGroup!).toLowerCase() !== client.resourceGroupName.toLowerCase()
+  ) {
+    throw new AdapterExecutionError(
+      `Azure Container Apps resource ${id} is outside the configured subscription ${client.subscriptionId} and resource group ${client.resourceGroupName}; use an adapter configured for that scope.`
+    );
+  }
+  return { name: decodeURIComponent(name!), ...(executionName === undefined ? {} : { executionName: decodeURIComponent(executionName) }) };
 }
 
 function stringProviderOption(options: JobStatusSpec["providerOptions"], key: string): string | undefined {
@@ -247,7 +294,20 @@ async function requireNewUserNamedJob(client: AzureContainerAppsClient, jobName:
   throw new AdapterExecutionError(`Azure Container Apps job.run refuses to update existing Job ${jobName} without providerOptions.allowExistingJobUpdate.`);
 }
 
+function locate(client: AzureContainerAppsClient, kind: "containerApp" | "job", name: string): ResourceLocator {
+  return resourceLocator({
+    provider,
+    kind,
+    nativeId: name,
+    scope: { subscriptionId: client.subscriptionId, resourceGroupName: client.resourceGroupName }
+  });
+}
+
+// Deletes a Job this run generated after its execution failed to start. The delete is observed like
+// service.delete: a 202 is not completion. A confirmed delete rethrows the start error with cleanup
+// metadata; a delete still pending or failed is reported beside the start error, never as deleted.
 async function cleanupGeneratedJobAfterStartFailure(client: AzureContainerAppsClient, jobName: string, startError: unknown): Promise<never> {
+  const job = locate(client, "job", jobName);
   const cleanup: AzureJobCleanupMetadata = {
     action: "delete-generated-job",
     jobName,
@@ -255,14 +315,33 @@ async function cleanupGeneratedJobAfterStartFailure(client: AzureContainerAppsCl
     resourceGroupName: client.resourceGroupName,
     subscriptionId: client.subscriptionId
   };
+  let cleanupError: unknown;
   try {
-    await client.request<unknown>({ method: "DELETE", path: client.resourcePath("jobs", jobName) });
-  } catch (cleanupError) {
-    cleanup.status = "failed";
-    cleanup.error = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+    await client.deleteAndObserve(client.resourcePath("jobs", jobName), { operation: "job.run.cleanup", resource: job });
+  } catch (error) {
+    cleanupError = error;
+    cleanup.status = error instanceof PendingOperationError ? "pending" : "failed";
+    cleanup.error = error instanceof Error ? error.message : String(error);
   }
+  const outcome: CleanupOutcome =
+    cleanup.status === "deleted"
+      ? { status: "succeeded", resources: [job] }
+      : { status: cleanup.status, resources: [job], residual: [job], error: cleanupError };
+  const effects = {
+    operation: "job.run",
+    // A start that timed out may have started an execution; a rejected start did not.
+    outcome: startError instanceof UnknownOutcomeError ? ("unknown" as const) : ("failed" as const),
+    resources: [job],
+    primaryError: startError,
+    cleanup: outcome
+  };
   if (cleanup.status === "failed") {
-    throw new CleanupFailureError("Azure Container Apps job cleanup failed after execution start failure.", cleanup, { operationError: startError });
+    throw new CleanupFailureError("Azure Container Apps job cleanup failed after execution start failure.", cleanup, { operationError: startError }, effects);
+  }
+  if (cleanup.status === "pending") {
+    const error = new PartialEffectsError("Azure Container Apps job cleanup is still pending after execution start failure.", effects);
+    (error as unknown as CleanupAwareError).cleanup = cleanup;
+    throw error;
   }
   if (startError instanceof Error) {
     (startError as CleanupAwareError).cleanup = cleanup;
@@ -271,13 +350,16 @@ async function cleanupGeneratedJobAfterStartFailure(client: AzureContainerAppsCl
   throw new AdapterExecutionError("Azure Container Apps job start failed.", { startError, cleanup });
 }
 
-function jobExecutionIdentity(spec: JobStatusSpec | CancelJobSpec): { jobName: string; executionName: string } {
-  const jobName = spec.id.includes("/jobs/") ? resourceName(spec.id, "jobs") : stringProviderOption(spec.providerOptions, "jobName");
-  const executionName = spec.id.includes("/executions/") ? resourceName(spec.id, "executions") : spec.id;
+function jobExecutionIdentity(client: AzureContainerAppsClient, spec: JobStatusSpec | CancelJobSpec): { jobName: string; executionName: string } {
+  if (spec.id.startsWith("/subscriptions/")) {
+    const { name, executionName } = scopedArmResource(client, spec.id, "executions");
+    return { jobName: name, executionName: executionName! };
+  }
+  const jobName = stringProviderOption(spec.providerOptions, "jobName");
   if (!jobName) {
     throw new AdapterExecutionError("Azure Container Apps job execution operations require a full ARM execution id or providerOptions.jobName.");
   }
-  return { jobName, executionName };
+  return { jobName: plainName(jobName, "job"), executionName: plainName(spec.id, "execution") };
 }
 
 export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {}): CapsuleAdapter {
@@ -349,7 +431,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
       status: async (spec: JobStatusSpec, context: AdapterContext): Promise<JobStatusResult> => {
         const startedAt = new Date();
         const client = getClient();
-        const { jobName, executionName } = jobExecutionIdentity(spec);
+        const { jobName, executionName } = jobExecutionIdentity(client, spec);
         const execution = await client.request<AzureResource>({ path: client.jobExecutionPath(jobName, executionName) });
         const status = jobStatus(execution);
         const id = execution.id ?? spec.id;
@@ -384,7 +466,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
       cancel: async (spec: CancelJobSpec, context: AdapterContext): Promise<CancelJobResult> => {
         const startedAt = new Date();
         const client = getClient();
-        const { jobName, executionName } = jobExecutionIdentity(spec);
+        const { jobName, executionName } = jobExecutionIdentity(client, spec);
         await client.request<unknown>({ method: "POST", path: client.jobExecutionPath(jobName, executionName, "/stop") });
         const id = spec.id;
         const receipt = context.receipts
@@ -462,7 +544,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
       status: async (spec: ServiceStatusSpec, context: AdapterContext): Promise<ServiceStatusResult> => {
         const startedAt = new Date();
         const client = getClient();
-        const name = resourceName(spec.id, "containerApps");
+        const { name } = scopedArmResource(client, spec.id, "containerApps");
         const resource = await client.request<AzureResource>({ path: client.resourcePath("containerApps", name) });
         const status = resourceStatus(resource);
         const id = resource.id ?? spec.id;
@@ -486,8 +568,13 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
       delete: async (spec: DeleteServiceSpec, context: AdapterContext): Promise<DeletedService> => {
         const startedAt = new Date();
         const client = getClient();
-        const name = resourceName(spec.id, "containerApps");
-        await client.request<unknown>({ method: "DELETE", path: client.resourcePath("containerApps", name) });
+        const { name } = scopedArmResource(client, spec.id, "containerApps");
+        // ARM answers DELETE with 202 while deletion runs. deleted is reported only after the
+        // operation is observed finished (or 200/204), else PendingOperationError.
+        const outcome = await client.deleteAndObserve(client.resourcePath("containerApps", name), {
+          operation: "service.delete",
+          resource: locate(client, "containerApp", name)
+        });
         const receipt = context.receipts
           ? context.createReceipt({
               type: "service.delete",
@@ -496,10 +583,14 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
               policy: {
                 decision: "allowed",
                 applied: context.policy,
-                notes: ["Azure Container Apps service deletion maps to the ARM Container Apps delete operation."]
+                notes: [
+                  "Azure Container Apps service deletion maps to the ARM Container Apps delete operation.",
+                  "deleted is reported only after the asynchronous ARM operation is observed finished."
+                ]
               },
               resource: { id: spec.id, name, status: "deleted" },
               metadata: azureReceiptMetadata(client, options, {
+                outcome,
                 reason: spec.reason,
                 force: spec.force,
                 resourceGroupName: client.resourceGroupName,
@@ -507,7 +598,7 @@ export function azureContainerApps(options: AzureContainerAppsAdapterOptions = {
               })
             })
           : undefined;
-        return { id: spec.id, provider, name, status: "deleted", receipt, metadata: { reason: spec.reason, force: spec.force } };
+        return { id: spec.id, provider, name, status: "deleted", receipt, metadata: { outcome, reason: spec.reason, force: spec.force } };
       }
     }
   };

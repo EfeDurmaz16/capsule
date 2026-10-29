@@ -1,6 +1,16 @@
-import { AdapterExecutionError, classifyProviderError, providerExecutionError } from "@capsule-sdk/core";
+import { AdapterExecutionError, providerExecutionError } from "@capsule-sdk/core";
+import {
+  errorBodyDiagnostics,
+  fetchWithinLimits,
+  httpErrorClassification,
+  parseErrorJson,
+  parseSuccessJson,
+  resolveHttpLimits,
+  type HttpLimitOptions,
+  type HttpLimits
+} from "./http-response.js";
 
-export interface NeonClientOptions {
+export interface NeonClientOptions extends HttpLimitOptions {
   apiKey?: string;
   baseUrl?: string;
   fetch?: typeof fetch;
@@ -17,6 +27,7 @@ export class NeonClient {
   private readonly apiKey: string;
   private readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
+  private readonly limits: HttpLimits;
 
   constructor(options: NeonClientOptions = {}) {
     const apiKey = options.apiKey ?? process.env.NEON_API_KEY;
@@ -26,6 +37,7 @@ export class NeonClient {
     this.apiKey = apiKey;
     this.baseUrl = options.baseUrl ?? "https://console.neon.tech/api/v2";
     this.fetchImpl = options.fetch ?? globalThis.fetch;
+    this.limits = resolveHttpLimits(options);
   }
 
   async request<T>(options: NeonRequestOptions): Promise<T> {
@@ -36,37 +48,40 @@ export class NeonClient {
       }
     }
 
-    const response = await this.fetchImpl(url, {
-      method: options.method ?? "GET",
-      headers: {
-        accept: "application/json",
-        authorization: `Bearer ${this.apiKey}`,
-        ...(options.body === undefined ? {} : { "content-type": "application/json" })
-      },
-      body: options.body === undefined ? undefined : JSON.stringify(options.body)
+    const response = await fetchWithinLimits({
+      provider: "Neon",
+      fetchImpl: this.fetchImpl,
+      url,
+      limits: this.limits,
+      init: {
+        method: options.method ?? "GET",
+        headers: {
+          accept: "application/json",
+          authorization: `Bearer ${this.apiKey}`,
+          ...(options.body === undefined ? {} : { "content-type": "application/json" })
+        },
+        body: options.body === undefined ? undefined : JSON.stringify(options.body)
+      }
     });
 
-    if (response.status === 204) {
-      return undefined as T;
-    }
-
-    const text = await response.text();
-    const data = text ? JSON.parse(text) : undefined;
-
     if (!response.ok) {
+      const data = parseErrorJson(response) as { message?: unknown; error?: unknown } | undefined;
       const message =
         typeof data?.message === "string"
           ? data.message
           : typeof data?.error === "string"
             ? data.error
             : `Neon API request failed with status ${response.status}`;
-      const providerError = classifyProviderError({ status: response.status, headers: response.headers, error: data });
-      throw providerExecutionError(message, providerError, {
+      throw providerExecutionError(message, httpErrorClassification(response, data), {
         status: response.status,
-        data
+        ...(data === undefined ? errorBodyDiagnostics(response) : { data })
       });
     }
 
-    return data as T;
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    return parseSuccessJson("Neon", response) as T;
   }
 }

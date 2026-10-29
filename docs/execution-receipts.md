@@ -2,6 +2,14 @@
 
 Receipts record runtime actions across sandboxes, jobs, services, edge deployments, database branches, previews, and machines.
 
+## When a receipt is created
+
+- Receipt capture is off by default. A `Capsule` records receipts only when constructed with `receipts: true`, and only for calls made through the Capsule facade. A `receiptStore` persists receipts; it does not turn capture on by itself.
+- Governed actions that create, run, change or delete something (sandbox create/exec/destroy, job run, service deploy/delete, edge deploy, database branch create/delete, machine lifecycle) return a receipt on their result when capture is enabled.
+- Read-only coverage is uneven across adapters. Some record `job.status`, `service.status`, `edge.status`, `machine.status` or log reads as receipts (for example Azure and ECS job status, Cloud Run, ECS, Kubernetes and Azure service status, Vercel edge status and logs); others return status, logs and file reads without one. Do not treat a missing read receipt as a missing read.
+- `raw()` returns the native provider client and bypasses capability checks, policy, redaction and receipts entirely. Nothing done through it is recorded.
+- A receipt is Capsule's observation of a call. It does not prove provider state, and a failed or interrupted operation may have provider effects without a receipt (see `PartialEffectsError`, `UnknownOutcomeError` and `PendingOperationError` in the errors reference).
+
 The schema includes:
 
 - receipt id
@@ -69,8 +77,8 @@ Evidence bundles are explicit exports above individual receipts. `createEvidence
 
 Receipt persistence is explicit. `receiptPersistence: "best-effort"` is the default and keeps provider operations moving if an optional store write fails. Use `receiptPersistence: "required"` when the caller must know that every receipt created during a Capsule operation was accepted by the configured `receiptStore`; in required mode, Capsule rejects before adapter execution starts if no store is configured or the store `ready()` preflight fails. A later store `write()` failure still rejects after the adapter creates the receipt, so the provider side effect may already have happened before Capsule reports evidence loss. Evidence profiles that make destructive or billable operations transactional with evidence persistence are future work.
 
-`@capsule-sdk/store-jsonl` is the local file store. Its writes create parent directories, append one receipt per line, serialize concurrent writes on one store instance, and flush by default before `write` resolves. `readAll()` reports corrupt JSON with file and line context. `close()` waits for queued writes and rejects later operations.
+`@capsule-sdk/store-jsonl` is the local file store. Its writes create parent directories, append one receipt per line, serialize concurrent writes on one store instance, and flush by default before `write` resolves. `iterate()` reads receipts one line at a time without holding the file: only one 1 MiB read chunk and the current line stay in memory, and stopping early closes the file. `readAll()` collects the same reader into an array, reading 4 MiB chunks. Both read a file up to its size when the read started, skip blank lines, and report corrupt JSON with file and line context. A line longer than `maxLineBytes` (default 16 MiB, set on the store or per read) fails with its line number instead of growing memory. `capsule receipt verify` and `receipt inspect` stream the store the same way. `close()` waits for queued writes and rejects later operations.
 
-`@capsule-sdk/store-sqlite` is an optional Node 24 local SQLite store. It persists the full receipt JSON plus indexed columns for provider, receipt type, capability path, support level, and timestamps. Reads report corrupt stored JSON with receipt id context, and a closed store rejects later operations with an explicit closed-store error. The package uses Node's built-in `node:sqlite` module, so it remains dependency-free but should be treated as a Node 24 local persistence adapter rather than a portable browser or edge store.
+`@capsule-sdk/store-sqlite` is an optional Node 24 local SQLite store. It persists the full receipt JSON plus indexed columns for provider, receipt type, capability path, support level, and timestamps. Each write is its own autocommitted `INSERT OR REPLACE`; the store prepares that statement and the `readAll` query once and reuses them. Reads report corrupt stored JSON with receipt id context, and a closed store rejects later operations with an explicit closed-store error. The package uses Node's built-in `node:sqlite` module, so it remains dependency-free but should be treated as a Node 24 local persistence adapter rather than a portable browser or edge store.
 
 The receipt JSON Schema is published at [`schemas/capsule-receipt.schema.json`](../schemas/capsule-receipt.schema.json) and exported from `@capsule-sdk/core` as `capsuleReceiptJsonSchema`.

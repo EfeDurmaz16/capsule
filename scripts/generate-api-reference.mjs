@@ -4,7 +4,8 @@ import ts from "typescript";
 
 function parseArgs(argv) {
   const options = {
-    root: process.cwd()
+    root: process.cwd(),
+    check: false
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -17,6 +18,8 @@ function parseArgs(argv) {
       }
       options.root = value;
       index += 1;
+    } else if (arg === "--check") {
+      options.check = true;
     } else if (arg === "--help") {
       options.help = true;
     } else {
@@ -28,11 +31,13 @@ function parseArgs(argv) {
 }
 
 function printUsage() {
-  console.log(`Usage: node scripts/generate-api-reference.mjs [--root <path>]
+  console.log(`Usage: node scripts/generate-api-reference.mjs [--root <path>] [--check]
 
 Generates docs/api-reference.md from public package TypeScript entrypoints.
 The generator resolves barrel exports with the TypeScript compiler API so the
-committed document acts as a public API drift snapshot.`);
+committed document acts as a public API drift snapshot. With --check, nothing is
+written: the command fails when the committed document differs from the
+generated one, so CI reports drift instead of rewriting it.`);
 }
 
 const options = parseArgs(process.argv.slice(2));
@@ -140,5 +145,15 @@ for (const { dir, pkg } of packages) {
   lines.push("");
 }
 
-writeFileSync(outputPath, `${lines.join("\n").trimEnd()}\n`);
-console.log(`Wrote ${relative(root, outputPath)}`);
+const generated = `${lines.join("\n").trimEnd()}\n`;
+if (options.check) {
+  const current = existsSync(outputPath) ? readFileSync(outputPath, "utf8") : undefined;
+  if (current !== generated) {
+    console.error(`${relative(root, outputPath)} is stale. Run pnpm docs:api and commit the result.`);
+    process.exit(1);
+  }
+  console.log(`${relative(root, outputPath)} is current.`);
+} else {
+  writeFileSync(outputPath, generated);
+  console.log(`Wrote ${relative(root, outputPath)}`);
+}

@@ -1,0 +1,1729 @@
+{
+  "meta": {
+    "label": "final-8fdc46c",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 20,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "8fdc46cb331b811e14950e283d5b825788b5a07e",
+      "packagesTree": "cf7875190d8205697a7a93db8194dc50e04485b3",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "8fdc46cb331b811e14950e283d5b825788b5a07e",
+    "date": "2026-10-27T20:58:14.843Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        25.86279296875,
+        17.724609375,
+        12.79248046875
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)"
+  },
+  "workload": "perf-01-core-receipts",
+  "case": "parallel-required-delayed-a",
+  "params": {
+    "iterations": 40,
+    "aExecMs": 1,
+    "bExecMs": 3,
+    "aWriteMs": 50
+  },
+  "runs": [
+    {
+      "side": "A",
+      "pair": 0,
+      "childWallMs": 2138.40175,
+      "loadAverage1m": 25.15283203125,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 52.12020800000005,
+          "p95": 53.040291999999994
+        },
+        "aLatencyMs": {
+          "p50": 52.15358399999991,
+          "p95": 53.237042
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2092.888125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4853448,
+          "rss": 47169536,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6202816,
+          "rss": 55099392,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55099392
+      }
+    },
+    {
+      "side": "B",
+      "pair": 0,
+      "childWallMs": 2132.660959,
+      "loadAverage1m": 24.01904296875,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.5914169999999785,
+          "p95": 3.8830000000000098
+        },
+        "aLatencyMs": {
+          "p50": 52.55529100000001,
+          "p95": 53.01845900000001
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2097.93375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46252032,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5813208,
+          "rss": 54853632,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54853632
+      }
+    },
+    {
+      "side": "A",
+      "pair": 1,
+      "childWallMs": 2137.8594159999993,
+      "loadAverage1m": 14.80712890625,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 52.238417,
+          "p95": 52.95058399999999
+        },
+        "aLatencyMs": {
+          "p50": 52.32654199999999,
+          "p95": 52.98316700000001
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2099.483042,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4853376,
+          "rss": 46907392,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6229168,
+          "rss": 54951936,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54951936
+      }
+    },
+    {
+      "side": "B",
+      "pair": 1,
+      "childWallMs": 2139.9033750000017,
+      "loadAverage1m": 14.80712890625,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.5544169999998303,
+          "p95": 3.8571660000000065
+        },
+        "aLatencyMs": {
+          "p50": 52.652041,
+          "p95": 53.40608299999985
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2103.9947500000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46120960,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5888552,
+          "rss": 54886400,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54886400
+      }
+    },
+    {
+      "side": "A",
+      "pair": 2,
+      "childWallMs": 2267.3962909999827,
+      "loadAverage1m": 20.60400390625,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 52.63208400000008,
+          "p95": 54.05641699999978
+        },
+        "aLatencyMs": {
+          "p50": 52.72241699999995,
+          "p95": 54.11779200000001
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2125.001292,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4872256,
+          "rss": 47480832,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6250888,
+          "rss": 55492608,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55492608
+      }
+    },
+    {
+      "side": "B",
+      "pair": 2,
+      "childWallMs": 2146.0695410000044,
+      "loadAverage1m": 20.60400390625,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.6038750000002437,
+          "p95": 4.139374999999973
+        },
+        "aLatencyMs": {
+          "p50": 52.153041999999914,
+          "p95": 52.9455
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2093.621125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46563328,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5856064,
+          "rss": 55214080,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55230464
+      }
+    },
+    {
+      "side": "A",
+      "pair": 3,
+      "childWallMs": 2125.1532920000027,
+      "loadAverage1m": 14.70361328125,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 51.89041699999996,
+          "p95": 52.89599999999999
+        },
+        "aLatencyMs": {
+          "p50": 51.923167000000035,
+          "p95": 52.942125000000004
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2089.7865420000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4822336,
+          "rss": 47005696,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6160640,
+          "rss": 55050240,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55050240
+      }
+    },
+    {
+      "side": "B",
+      "pair": 3,
+      "childWallMs": 2126.362374999997,
+      "loadAverage1m": 14.70361328125,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.6299159999998665,
+          "p95": 3.8032090000001517
+        },
+        "aLatencyMs": {
+          "p50": 51.983540999999946,
+          "p95": 52.806916
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2087.345542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46202880,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5880672,
+          "rss": 54902784,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54902784
+      }
+    },
+    {
+      "side": "A",
+      "pair": 4,
+      "childWallMs": 2128.4673339999863,
+      "loadAverage1m": 11.388671875,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 51.991875000000164,
+          "p95": 53.086083000000144
+        },
+        "aLatencyMs": {
+          "p50": 52.02804099999992,
+          "p95": 53.18995799999993
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2091.988375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4868344,
+          "rss": 46940160,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6230656,
+          "rss": 49561600,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54935552
+      }
+    },
+    {
+      "side": "B",
+      "pair": 4,
+      "childWallMs": 2141.2519160000375,
+      "loadAverage1m": 11.388671875,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.601165999999978,
+          "p95": 4.0167920000000095
+        },
+        "aLatencyMs": {
+          "p50": 52.17508299999986,
+          "p95": 52.794624999999996
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2090.987959,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305080,
+          "rss": 46546944,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5813616,
+          "rss": 55148544,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55148544
+      }
+    },
+    {
+      "side": "A",
+      "pair": 5,
+      "childWallMs": 2144.725792000012,
+      "loadAverage1m": 12.26220703125,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 52.11479200000008,
+          "p95": 53.77341699999988
+        },
+        "aLatencyMs": {
+          "p50": 52.142292,
+          "p95": 53.89279099999999
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2098.004209,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4854632,
+          "rss": 47104000,
+          "external": 2029677,
+          "arrayBuffers": 155589
+        },
+        "endMemory": {
+          "heapUsed": 6227016,
+          "rss": 55132160,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55132160
+      }
+    },
+    {
+      "side": "B",
+      "pair": 5,
+      "childWallMs": 2147.6315000000177,
+      "loadAverage1m": 12.26220703125,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.6067910000001575,
+          "p95": 3.844666999999987
+        },
+        "aLatencyMs": {
+          "p50": 52.46666700000003,
+          "p95": 53.03054199999997
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2093.613667,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46759936,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5855856,
+          "rss": 52248576,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55345152
+      }
+    },
+    {
+      "side": "A",
+      "pair": 6,
+      "childWallMs": 2134.0878329999978,
+      "loadAverage1m": 14.76318359375,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 52.390041999999994,
+          "p95": 52.912958
+        },
+        "aLatencyMs": {
+          "p50": 52.42308300000002,
+          "p95": 53.016415999999936
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2097.036208,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4841024,
+          "rss": 46907392,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6215616,
+          "rss": 55017472,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55017472
+      }
+    },
+    {
+      "side": "B",
+      "pair": 6,
+      "childWallMs": 2128.0402919999906,
+      "loadAverage1m": 13.98095703125,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.7016249999999786,
+          "p95": 4.02170799999999
+        },
+        "aLatencyMs": {
+          "p50": 52.000334000000066,
+          "p95": 53.04433300000005
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2084.952125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46317568,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5881144,
+          "rss": 49512448,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54411264
+      }
+    },
+    {
+      "side": "A",
+      "pair": 7,
+      "childWallMs": 2131.8297500000335,
+      "loadAverage1m": 17.29052734375,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 52.03520800000001,
+          "p95": 52.881583999999975
+        },
+        "aLatencyMs": {
+          "p50": 52.11699999999996,
+          "p95": 52.91658399999983
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2084.6367910000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4845408,
+          "rss": 47218688,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6228360,
+          "rss": 50561024,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54411264
+      }
+    },
+    {
+      "side": "B",
+      "pair": 7,
+      "childWallMs": 2170.1284999999916,
+      "loadAverage1m": 17.29052734375,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.74087499999996,
+          "p95": 4.366040999999996
+        },
+        "aLatencyMs": {
+          "p50": 52.261834000000135,
+          "p95": 55.472291999999925
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2115.8458330000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46694400,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5887992,
+          "rss": 50872320,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54607872
+      }
+    },
+    {
+      "side": "A",
+      "pair": 8,
+      "childWallMs": 2145.2423750000307,
+      "loadAverage1m": 20.42578125,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 52.178999999999974,
+          "p95": 53.21100000000001
+        },
+        "aLatencyMs": {
+          "p50": 52.220292000000086,
+          "p95": 53.259917
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2099.153875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4853376,
+          "rss": 47038464,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6224272,
+          "rss": 48201728,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54345728
+      }
+    },
+    {
+      "side": "B",
+      "pair": 8,
+      "childWallMs": 2159.63824999996,
+      "loadAverage1m": 20.42578125,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.6491250000000264,
+          "p95": 4.1576670000000036
+        },
+        "aLatencyMs": {
+          "p50": 52.39341700000023,
+          "p95": 53.21108299999992
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2097.398917,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46530560,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5814512,
+          "rss": 55115776,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55115776
+      }
+    },
+    {
+      "side": "A",
+      "pair": 9,
+      "childWallMs": 2164.960209000041,
+      "loadAverage1m": 16.27392578125,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 52.219791000000015,
+          "p95": 52.98391700000002
+        },
+        "aLatencyMs": {
+          "p50": 52.294167000000016,
+          "p95": 53.052625000000006
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2094.441791,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4808256,
+          "rss": 47267840,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6193272,
+          "rss": 55312384,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55312384
+      }
+    },
+    {
+      "side": "B",
+      "pair": 9,
+      "childWallMs": 2179.4742919999408,
+      "loadAverage1m": 15.53125,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.3439589999998134,
+          "p95": 4.191708999999975
+        },
+        "aLatencyMs": {
+          "p50": 52.435625000000016,
+          "p95": 54.0961249999998
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2108.642,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46497792,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5813176,
+          "rss": 55083008,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55083008
+      }
+    },
+    {
+      "side": "A",
+      "pair": 10,
+      "childWallMs": 2132.9915000000037,
+      "loadAverage1m": 18.3681640625,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 52.29812500000003,
+          "p95": 52.85137499999996
+        },
+        "aLatencyMs": {
+          "p50": 52.33312500000011,
+          "p95": 52.881125
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2092.612916,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4819392,
+          "rss": 47169536,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6192808,
+          "rss": 55214080,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55214080
+      }
+    },
+    {
+      "side": "B",
+      "pair": 10,
+      "childWallMs": 2119.114667000016,
+      "loadAverage1m": 17.69775390625,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.5575840000001335,
+          "p95": 3.7522079999999995
+        },
+        "aLatencyMs": {
+          "p50": 51.95775000000003,
+          "p95": 52.89670799999999
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2082.335541,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46235648,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5791840,
+          "rss": 54919168,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54919168
+      }
+    },
+    {
+      "side": "A",
+      "pair": 11,
+      "childWallMs": 2150.9131669999333,
+      "loadAverage1m": 15.87890625,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 51.99212499999999,
+          "p95": 53.24095800000009
+        },
+        "aLatencyMs": {
+          "p50": 52.02837500000001,
+          "p95": 53.27737499999989
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2092.604792,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4853376,
+          "rss": 47153152,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6227184,
+          "rss": 55181312,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55181312
+      }
+    },
+    {
+      "side": "B",
+      "pair": 11,
+      "childWallMs": 2162.7742089999374,
+      "loadAverage1m": 15.87890625,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.6729169999998703,
+          "p95": 4.5114169999999945
+        },
+        "aLatencyMs": {
+          "p50": 52.35162500000001,
+          "p95": 53.063041999999996
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2094.92825,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46350336,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5828360,
+          "rss": 55066624,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55066624
+      }
+    },
+    {
+      "side": "A",
+      "pair": 12,
+      "childWallMs": 2164.9725409999955,
+      "loadAverage1m": 17.70947265625,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 52.43916699999997,
+          "p95": 53.533084
+        },
+        "aLatencyMs": {
+          "p50": 52.591083000000026,
+          "p95": 53.55291700000001
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2100.149542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4853376,
+          "rss": 47382528,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6229120,
+          "rss": 55345152,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55345152
+      }
+    },
+    {
+      "side": "B",
+      "pair": 12,
+      "childWallMs": 2162.2719590000343,
+      "loadAverage1m": 17.70947265625,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.5151670000000195,
+          "p95": 4.106750000000034
+        },
+        "aLatencyMs": {
+          "p50": 52.50658300000009,
+          "p95": 53.297833
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2105.675208,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46563328,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5828600,
+          "rss": 55066624,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55066624
+      }
+    },
+    {
+      "side": "A",
+      "pair": 13,
+      "childWallMs": 2304.6276670000516,
+      "loadAverage1m": 29.56640625,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 53.668750000000045,
+          "p95": 67.29958299999998
+        },
+        "aLatencyMs": {
+          "p50": 53.71008400000005,
+          "p95": 66.888083
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2232.479375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4868736,
+          "rss": 47513600,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6176824,
+          "rss": 48087040,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55279616
+      }
+    },
+    {
+      "side": "B",
+      "pair": 13,
+      "childWallMs": 2280.132624999853,
+      "loadAverage1m": 32.40380859375,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.7740000000001146,
+          "p95": 12.936500000000024
+        },
+        "aLatencyMs": {
+          "p50": 52.8901249999999,
+          "p95": 64.26487500000002
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2217.803958,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46333952,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5838544,
+          "rss": 50544640,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54296576
+      }
+    },
+    {
+      "side": "A",
+      "pair": 14,
+      "childWallMs": 2170.0144159998745,
+      "loadAverage1m": 16.2578125,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 52.65241599999999,
+          "p95": 53.89179200000012
+        },
+        "aLatencyMs": {
+          "p50": 52.76470799999993,
+          "p95": 53.984959
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2113.1431669999997,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4854560,
+          "rss": 47185920,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6241392,
+          "rss": 55197696,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55197696
+      }
+    },
+    {
+      "side": "B",
+      "pair": 14,
+      "childWallMs": 2241.2699159998447,
+      "loadAverage1m": 16.95751953125,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.5852500000000873,
+          "p95": 5.227083999999991
+        },
+        "aLatencyMs": {
+          "p50": 52.39300000000003,
+          "p95": 53.24970899999994
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2104.204417,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46514176,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5838656,
+          "rss": 55050240,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55050240
+      }
+    },
+    {
+      "side": "A",
+      "pair": 15,
+      "childWallMs": 2178.3198329999577,
+      "loadAverage1m": 15.42431640625,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 52.682000000000016,
+          "p95": 55.467832999999985
+        },
+        "aLatencyMs": {
+          "p50": 52.7064170000001,
+          "p95": 55.50541700000002
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2124.676625,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4787952,
+          "rss": 47382528,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6164096,
+          "rss": 50151424,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 54657024
+      }
+    },
+    {
+      "side": "B",
+      "pair": 15,
+      "childWallMs": 2184.918125000084,
+      "loadAverage1m": 15.42431640625,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.47462500000006,
+          "p95": 4.985291999999987
+        },
+        "aLatencyMs": {
+          "p50": 52.45762500000001,
+          "p95": 54.76391699999999
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2132.308125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305080,
+          "rss": 46333952,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5834248,
+          "rss": 50577408,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 50593792
+      }
+    },
+    {
+      "side": "A",
+      "pair": 16,
+      "childWallMs": 2151.141916999826,
+      "loadAverage1m": 18.86083984375,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 51.91462499999989,
+          "p95": 53.460207999999966
+        },
+        "aLatencyMs": {
+          "p50": 51.991250000000036,
+          "p95": 53.6870829999998
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2093.311709,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4854632,
+          "rss": 47251456,
+          "external": 2029677,
+          "arrayBuffers": 155589
+        },
+        "endMemory": {
+          "heapUsed": 6199872,
+          "rss": 55263232,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55263232
+      }
+    },
+    {
+      "side": "B",
+      "pair": 16,
+      "childWallMs": 2138.108790999977,
+      "loadAverage1m": 18.07080078125,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.606042000000116,
+          "p95": 3.913083999999998
+        },
+        "aLatencyMs": {
+          "p50": 52.449792,
+          "p95": 53.76174999999989
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2100.0767920000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305080,
+          "rss": 46383104,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5889176,
+          "rss": 55148544,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55148544
+      }
+    },
+    {
+      "side": "A",
+      "pair": 17,
+      "childWallMs": 2147.2193749998696,
+      "loadAverage1m": 15.41064453125,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 52.07849999999996,
+          "p95": 53.555042000000185
+        },
+        "aLatencyMs": {
+          "p50": 52.15820800000006,
+          "p95": 53.59179200000017
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2094.03225,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4820608,
+          "rss": 47398912,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6193104,
+          "rss": 52264960,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55410688
+      }
+    },
+    {
+      "side": "B",
+      "pair": 17,
+      "childWallMs": 2135.989959000144,
+      "loadAverage1m": 15.41064453125,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.4406659999999647,
+          "p95": 3.8215419999999085
+        },
+        "aLatencyMs": {
+          "p50": 52.021792000000005,
+          "p95": 53.21508300000005
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2091.754667,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46399488,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5888336,
+          "rss": 55066624,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55066624
+      }
+    },
+    {
+      "side": "A",
+      "pair": 18,
+      "childWallMs": 2136.2945000000764,
+      "loadAverage1m": 15.69482421875,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 52.11962500000001,
+          "p95": 52.86679099999992
+        },
+        "aLatencyMs": {
+          "p50": 52.16562500000009,
+          "p95": 52.90100000000007
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2091.104375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4897584,
+          "rss": 47120384,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6255400,
+          "rss": 55132160,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55132160
+      }
+    },
+    {
+      "side": "B",
+      "pair": 18,
+      "childWallMs": 2157.5080840000883,
+      "loadAverage1m": 15.69482421875,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.6011250000000246,
+          "p95": 4.3082080000000005
+        },
+        "aLatencyMs": {
+          "p50": 52.30412500000011,
+          "p95": 53.50758300000007
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2101.029167,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46628864,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5855840,
+          "rss": 55263232,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55263232
+      }
+    },
+    {
+      "side": "A",
+      "pair": 19,
+      "childWallMs": 2170.1472089998424,
+      "loadAverage1m": 17.177734375,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 52.477540999999974,
+          "p95": 53.64962499999996
+        },
+        "aLatencyMs": {
+          "p50": 52.55774999999994,
+          "p95": 53.695875
+        },
+        "bSettlesBeforeA": false,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2105.194042,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4820608,
+          "rss": 47202304,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 6160376,
+          "rss": 55197696,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55197696
+      }
+    },
+    {
+      "side": "B",
+      "pair": 19,
+      "childWallMs": 2145.092958000023,
+      "loadAverage1m": 18.2841796875,
+      "ok": true,
+      "metrics": {
+        "iterations": 40,
+        "bLatencyMs": {
+          "p50": 3.532707999999957,
+          "p95": 4.091208000000002
+        },
+        "aLatencyMs": {
+          "p50": 52.26362500000005,
+          "p95": 53.957874999999945
+        },
+        "bSettlesBeforeA": true,
+        "outcomes": {
+          "bResolved": 40,
+          "bRejected": 0,
+          "bRejectedWithAError": 0,
+          "aResolved": 40,
+          "aRejected": 0
+        }
+      },
+      "caseDurationMs": 2102.778083,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5305008,
+          "rss": 46383104,
+          "external": 2046357,
+          "arrayBuffers": 172269
+        },
+        "endMemory": {
+          "heapUsed": 5883152,
+          "rss": 55001088,
+          "external": 1956178,
+          "arrayBuffers": 16655
+        },
+        "maxRssBytes": 55001088
+      }
+    }
+  ]
+}

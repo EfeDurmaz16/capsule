@@ -1,0 +1,157 @@
+{
+  "meta": {
+    "label": "after-85506c1",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "85506c1b5a77ae4e3092cdf17b792201373492d4",
+    "packagesTree": "deea6cd305e943c057dec39258545a4e6052eaec",
+    "dirty": false,
+    "date": "2026-10-27T14:08:44.812Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56",
+      "execArgv": [
+        "--expose-gc"
+      ]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": null,
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workload": {
+    "id": "perf-11-jsonl-read",
+    "perfIds": [
+      "PERF-11"
+    ],
+    "manifestIds": [
+      "EV-01"
+    ]
+  },
+  "case": "corrupt-line-25000",
+  "description": "50k receipts with line 25000 truncated; the error must name the line.",
+  "params": {
+    "receipts": 50000,
+    "corruptLine": 25000
+  },
+  "runs": [
+    {
+      "rep": 0,
+      "childWallMs": 164.85874999999942,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-bench-0j948z/jsonl-RL54Ds/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 33.10862499999999,
+        "peakRssGrowthBytes": 71909376,
+        "heapUsedWhileHeldBytes": 63524744
+      },
+      "caseDurationMs": 129.927041,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5407160,
+          "rss": 46465024,
+          "external": 2056889,
+          "arrayBuffers": 172180
+        },
+        "endMemory": {
+          "heapUsed": 68396944,
+          "rss": 151224320,
+          "external": 2505014,
+          "arrayBuffers": 550464
+        },
+        "maxRssBytes": 151224320
+      }
+    },
+    {
+      "rep": 1,
+      "childWallMs": 166.99666699999943,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-bench-0j948z/jsonl-2QL4K9/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 33.1015,
+        "peakRssGrowthBytes": 71925760,
+        "heapUsedWhileHeldBytes": 63545072
+      },
+      "caseDurationMs": 130.427667,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5407160,
+          "rss": 46514176,
+          "external": 2056889,
+          "arrayBuffers": 172180
+        },
+        "endMemory": {
+          "heapUsed": 68417280,
+          "rss": 151109632,
+          "external": 2505014,
+          "arrayBuffers": 550464
+        },
+        "maxRssBytes": 151109632
+      }
+    },
+    {
+      "rep": 2,
+      "childWallMs": 163.7746249999982,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-bench-0j948z/jsonl-6ynwho/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 31.96116599999999,
+        "peakRssGrowthBytes": 71876608,
+        "heapUsedWhileHeldBytes": 63527072
+      },
+      "caseDurationMs": 127.473292,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5407160,
+          "rss": 46579712,
+          "external": 2056889,
+          "arrayBuffers": 172180
+        },
+        "endMemory": {
+          "heapUsed": 68399280,
+          "rss": 151257088,
+          "external": 2504614,
+          "arrayBuffers": 550064
+        },
+        "maxRssBytes": 151257088
+      }
+    }
+  ]
+}

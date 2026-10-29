@@ -1,6 +1,16 @@
-import { AdapterExecutionError, classifyProviderError, providerExecutionError } from "@capsule-sdk/core";
+import { AdapterExecutionError, providerExecutionError } from "@capsule-sdk/core";
+import {
+  errorBodyDiagnostics,
+  fetchWithinLimits,
+  httpErrorClassification,
+  parseErrorJson,
+  parseSuccessJson,
+  resolveHttpLimits,
+  type HttpLimitOptions,
+  type HttpLimits
+} from "./http-response.js";
 
-export interface CloudflareClientOptions {
+export interface CloudflareClientOptions extends HttpLimitOptions {
   apiToken?: string;
   accountId?: string;
   zoneId?: string;
@@ -87,6 +97,7 @@ export class CloudflareClient {
   private readonly zoneId?: string;
   private readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
+  private readonly limits: HttpLimits;
 
   constructor(options: CloudflareClientOptions = {}) {
     const apiToken = options.apiToken ?? process.env.CLOUDFLARE_API_TOKEN;
@@ -102,6 +113,7 @@ export class CloudflareClient {
     this.zoneId = options.zoneId ?? process.env.CLOUDFLARE_ZONE_ID;
     this.baseUrl = options.baseUrl ?? "https://api.cloudflare.com/client/v4";
     this.fetchImpl = options.fetch ?? globalThis.fetch;
+    this.limits = resolveHttpLimits(options);
   }
 
   async uploadWorkerModule(input: UploadWorkerModuleInput): Promise<CloudflareWorkerScript> {
@@ -195,16 +207,13 @@ export class CloudflareClient {
   }
 
   private async request<T>(url: string, init: RequestInit): Promise<T> {
-    const response = await this.fetchImpl(url, init);
-    const text = await response.text();
-    const data = text ? (JSON.parse(text) as CloudflareEnvelope<T>) : undefined;
+    const response = await fetchWithinLimits({ provider: "Cloudflare", fetchImpl: this.fetchImpl, url, init, limits: this.limits });
+    const data = (response.ok ? parseSuccessJson("Cloudflare", response) : parseErrorJson(response)) as CloudflareEnvelope<T> | undefined;
     if (!response.ok || data?.success === false) {
       const message = data?.errors?.find((error) => error.message)?.message ?? `Cloudflare API request failed with status ${response.status}`;
-      const providerError = classifyProviderError({ status: response.status, headers: response.headers, error: data });
-      throw providerExecutionError(message, providerError, {
+      throw providerExecutionError(message, httpErrorClassification(response, data), {
         status: response.status,
-        errors: data?.errors,
-        messages: data?.messages
+        ...(data === undefined ? errorBodyDiagnostics(response) : { errors: data.errors, messages: data.messages })
       });
     }
     return data?.result ?? ({} as T);

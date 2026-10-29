@@ -1,11 +1,25 @@
+import { randomBytes } from "node:crypto";
 import * as k8s from "@kubernetes/client-node";
 import {
   AdapterExecutionError,
   asProviderError,
   capsuleOperationTags,
-  logsFromOutput,
   providerRuntimeMetadata,
+  CaptureBudget,
+  CaptureLimitError,
+  mapWithConcurrency,
+  resolveCaptureBounds,
+  CleanupFailureError,
+  PartialEffectsError,
+  PendingOperationError,
+  observeUntilTerminal,
+  providerErrorStatus,
+  resourceLocator,
   type AdapterContext,
+  type CaptureBounds,
+  type CleanupOutcome,
+  type ResourceLocator,
+  type CaptureTruncation,
   type CapsuleAdapter,
   type CapabilityMap,
   type CancelJobResult,
@@ -47,7 +61,7 @@ interface KubernetesPodList {
 
 interface BatchApi {
   createNamespacedJob(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
-  readNamespacedJob?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
+  readNamespacedJob?(input: { namespace: string; name: string }, options?: KubernetesRequestOptions): Promise<KubernetesObject>;
   deleteNamespacedJob?(input: {
     namespace: string;
     name: string;
@@ -59,7 +73,7 @@ interface BatchApi {
 
 interface AppsApi {
   createNamespacedDeployment(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
-  readNamespacedDeployment?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
+  readNamespacedDeployment?(input: { namespace: string; name: string }, options?: KubernetesRequestOptions): Promise<KubernetesObject>;
   deleteNamespacedDeployment?(input: {
     namespace: string;
     name: string;
@@ -71,7 +85,7 @@ interface AppsApi {
 
 interface CoreApi {
   createNamespacedService(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
-  readNamespacedService?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
+  readNamespacedService?(input: { namespace: string; name: string }, options?: KubernetesRequestOptions): Promise<KubernetesObject>;
   deleteNamespacedService?(input: {
     namespace: string;
     name: string;
@@ -79,17 +93,51 @@ interface CoreApi {
     propagationPolicy?: string;
     body?: unknown;
   }): Promise<KubernetesObject>;
-  listNamespacedPod?(input: { namespace: string; labelSelector?: string; limit?: number; _continue?: string }): Promise<KubernetesPodList>;
-  readNamespacedPodLog?(input: {
-    namespace: string;
-    name: string;
-    container?: string;
-    follow?: boolean;
-    sinceSeconds?: number;
-    stream?: "Stdout" | "Stderr";
-    tailLines?: number;
-    timestamps?: boolean;
-  }): Promise<string>;
+  listNamespacedPod?(
+    input: { namespace: string; labelSelector?: string; limit?: number; _continue?: string },
+    options?: KubernetesRequestOptions
+  ): Promise<KubernetesPodList>;
+  readNamespacedPodLog?(
+    input: {
+      namespace: string;
+      name: string;
+      container?: string;
+      follow?: boolean;
+      sinceSeconds?: number;
+      stream?: "Stdout" | "Stderr";
+      tailLines?: number;
+      limitBytes?: number;
+      timestamps?: boolean;
+    },
+    options?: KubernetesRequestOptions
+  ): Promise<string>;
+}
+
+/**
+ * Per-request options of the @kubernetes/client-node 1.x API methods. Capsule passes only a request
+ * middleware that attaches an AbortSignal, so a deadline cancels the HTTP request instead of leaving it
+ * running. Injected clients may ignore it; Capsule still stops waiting at the deadline.
+ */
+type KubernetesRequestOptions = k8s.ConfigurationOptions<k8s.ObservableMiddleware>;
+
+// The client has no signal parameter. Its HTTP library sends RequestContext.getSignal() to fetch, and a
+// request middleware is the only place to set it. The generated API classes hand per-request options to
+// their Observable layer unwrapped, so pre and post return the client's Observable, as the client's own
+// setHeaderOptions does (a Promise-returning middleware fails there). "append" keeps the middleware the
+// client was built with; the default "replace" would drop it.
+function abortableRequest(signal: AbortSignal): KubernetesRequestOptions {
+  return {
+    middleware: [
+      {
+        pre: (request) => {
+          request.setSignal(signal);
+          return new k8s.Observable(Promise.resolve(request));
+        },
+        post: (response) => new k8s.Observable(Promise.resolve(response))
+      }
+    ],
+    middlewareMergeStrategy: "append"
+  };
 }
 
 interface KubernetesClients {
@@ -102,7 +150,30 @@ export interface KubernetesAdapterOptions {
   namespace?: string;
   kubeconfigPath?: string;
   context?: string;
+  /**
+   * Injected API clients, for example from KubeConfig.makeApiClient. Reads that a deadline bounds (the
+   * service.delete observation, and the Service or Job selector read, pod list and pod log reads of a
+   * log capture) get a second argument: per-request options whose middleware attaches the deadline's
+   * AbortSignal, so the installed client cancels the request. A client that ignores it is abandoned at
+   * the deadline instead.
+   */
   clients?: KubernetesClients;
+  /**
+   * Client-side budget in milliseconds for observing that an accepted foreground DELETE has finished
+   * (the object is gone, after finalizers ran). Default 120000. When it expires, service.delete throws
+   * PendingOperationError instead of reporting deleted, and an observation GET still in flight is
+   * cancelled.
+   */
+  operationDeadlineMs?: number;
+  /** Delay between deletion observations in milliseconds. Default 1000. */
+  operationPollIntervalMs?: number;
+  /**
+   * Reread the kubeconfig and rebuild API clients for every operation, as earlier versions did. By
+   * default the kubeconfig is parsed once per adapter on first use and the clients are reused; the
+   * client library still applies authentication (including exec-plugin token refresh) per request.
+   * Enable this when the kubeconfig file or its current context can change during the adapter's life.
+   */
+  reloadKubeconfigPerOperation?: boolean;
 }
 
 const provider = "kubernetes";
@@ -166,14 +237,32 @@ export const kubernetesCapabilities: CapabilityMap = {
   }
 };
 
-function normalizeName(value: string): string {
-  return (
-    value
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 63) || `capsule-${Date.now()}`
-  );
+const dnsLabel = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
+
+// Lowercases, replaces characters Kubernetes does not allow and truncates to 63 characters. Trimming
+// runs after truncation too, so the result never ends with a dash. A name with no usable characters is
+// rejected instead of silently replaced, so callers can always find the resource they named.
+function kubernetesName(value: string, operation: string, options: { rfc1035?: boolean } = {}): string {
+  const name = value
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/^-+/, "")
+    .slice(0, 63)
+    .replace(/-+$/, "");
+  if (!dnsLabel.test(name)) {
+    throw new AdapterExecutionError(`Kubernetes ${operation} name ${JSON.stringify(value)} does not contain a valid Kubernetes name.`);
+  }
+  if (options.rfc1035 && !/^[a-z]/.test(name)) {
+    throw new AdapterExecutionError(
+      `Kubernetes ${operation} name ${JSON.stringify(value)} must start with a letter because Service names are RFC 1035 labels.`
+    );
+  }
+  return name;
+}
+
+// Generated names carry random bits so two runs in the same millisecond never collide.
+function generatedJobName(): string {
+  return `capsule-job-${Date.now().toString(36)}-${randomBytes(4).toString("hex")}`;
 }
 
 function labels(name: string, extra?: Record<string, string>): Record<string, string> {
@@ -241,7 +330,17 @@ function deploymentBody(name: string, namespace: string, spec: DeployServiceSpec
     ...(spec.labels ?? {}),
     ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "service.deploy" }) ?? {})
   });
+  // Only what the manifest really expresses is accepted: a fixed replica count and an HTTP readiness
+  // path. A command healthcheck or an autoscaling range would otherwise be dropped silently.
+  if (spec.healthcheck?.command !== undefined) {
+    throw new AdapterExecutionError("Kubernetes service.deploy supports only healthcheck.path (HTTP readiness probe); healthcheck.command is not implemented.");
+  }
   const replicas = spec.scale?.min ?? 1;
+  if (spec.scale?.max !== undefined && spec.scale.max !== replicas) {
+    throw new AdapterExecutionError(
+      "Kubernetes service.deploy sets a fixed replica count; scale.max must be omitted or equal scale.min because autoscaling (HPA) is not implemented."
+    );
+  }
   return {
     apiVersion: "apps/v1",
     kind: "Deployment",
@@ -268,22 +367,50 @@ function deploymentBody(name: string, namespace: string, spec: DeployServiceSpec
   };
 }
 
+interface ServicePortSpec {
+  port: number;
+  protocol: "http" | "tcp";
+  public?: boolean;
+}
+
+// Kubernetes requires a name on every port of a multi-port Service, unique within the Service and a
+// valid IANA service name (lowercase alphanumerics and dashes, at most 15 characters). Ports are
+// validated before any API call so an invalid spec never leaves a Deployment behind.
+function servicePorts(spec: DeployServiceSpec): Array<ServicePortSpec & { name: string }> {
+  const ports: ServicePortSpec[] = spec.ports?.length
+    ? spec.ports.map((port) => ({ port: port.port, protocol: port.protocol ?? "http", public: port.public }))
+    : [{ port: 80, protocol: "http" }];
+  const seen = new Set<number>();
+  return ports.map((port) => {
+    if (!Number.isInteger(port.port) || port.port < 1 || port.port > 65535) {
+      throw new AdapterExecutionError(`Kubernetes service.deploy port ${String(port.port)} must be an integer between 1 and 65535.`);
+    }
+    if (seen.has(port.port)) {
+      throw new AdapterExecutionError(`Kubernetes service.deploy port ${port.port} is listed more than once.`);
+    }
+    seen.add(port.port);
+    return { ...port, name: `${port.protocol}-${port.port}` };
+  });
+}
+
 function serviceBody(name: string, namespace: string, spec: DeployServiceSpec) {
   const matchLabels = labels(name, {
     ...(spec.labels ?? {}),
     ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "service.deploy" }) ?? {})
   });
+  const ports = servicePorts(spec);
   return {
     apiVersion: "v1",
     kind: "Service",
     metadata: { name, namespace, labels: matchLabels },
     spec: {
       selector: matchLabels,
-      type: spec.ports?.some((port) => port.public) ? "LoadBalancer" : "ClusterIP",
-      ports: (spec.ports?.length ? spec.ports : [{ port: 80, protocol: "http" as const }]).map((port) => ({
+      type: ports.some((port) => port.public) ? "LoadBalancer" : "ClusterIP",
+      ports: ports.map((port) => ({
+        name: port.name,
         port: port.port,
         targetPort: port.port,
-        protocol: (port.protocol ?? "http") === "tcp" ? "TCP" : "TCP"
+        protocol: "TCP"
       }))
     }
   };
@@ -326,15 +453,36 @@ function foregroundDeleteOptions() {
   };
 }
 
-async function deleteDeploymentForeground(apps: AppsApi, namespace: string, name: string): Promise<void> {
-  const deleteNamespacedDeployment = requireAppsMethod(apps, "deleteNamespacedDeployment");
-  await deleteNamespacedDeployment.call(apps, {
-    namespace,
-    name,
-    gracePeriodSeconds: 0,
-    propagationPolicy: "Foreground",
-    body: foregroundDeleteOptions()
-  });
+type ResourceKind = "deployment" | "service";
+
+interface DeleteAttempt {
+  kind: ResourceKind;
+  /** absent: already gone or deleted immediately; accepted: DELETE accepted, object still terminating; failed: request failed. */
+  state: "absent" | "accepted" | "failed";
+  response?: KubernetesObject;
+  error?: unknown;
+}
+
+// A DELETE that removed the object at once returns a Status object. A foreground DELETE that still has
+// finalizers or dependents to process returns the object itself with a deletionTimestamp: it is
+// accepted, not finished.
+function deletedImmediately(response: KubernetesObject | undefined): boolean {
+  const value = record(response);
+  return value?.kind === "Status" && value.status === "Success";
+}
+
+async function requestForegroundDelete(kind: ResourceKind, remove: () => Promise<KubernetesObject>): Promise<DeleteAttempt> {
+  try {
+    const response = await remove();
+    return { kind, state: deletedImmediately(response) ? "absent" : "accepted", response };
+  } catch (error) {
+    if (providerErrorStatus(error) === 404) return { kind, state: "absent" };
+    return { kind, state: "failed", error };
+  }
+}
+
+function deleteRequest(namespace: string, name: string) {
+  return { namespace, name, gracePeriodSeconds: 0, propagationPolicy: "Foreground", body: foregroundDeleteOptions() };
 }
 
 function conditionIsTrue(condition: unknown, type: string): boolean {
@@ -449,8 +597,10 @@ function containers(pod: KubernetesObject): string[] {
   });
 }
 
-function literalEnv(pods: KubernetesObject[]): Record<string, string> {
-  const values: Record<string, string> = {};
+// Every literal env value on every selected container, not one value per name: during a rollout two
+// pods can carry different values for the same variable and both must be redacted.
+function literalEnvValues(pods: KubernetesObject[]): Set<string> {
+  const values = new Set<string>();
   for (const pod of pods) {
     const podContainers = record(pod.spec)?.containers;
     if (!Array.isArray(podContainers)) continue;
@@ -459,8 +609,8 @@ function literalEnv(pods: KubernetesObject[]): Record<string, string> {
       if (!Array.isArray(envVars)) continue;
       for (const envVar of envVars) {
         const item = record(envVar);
-        if (typeof item?.name === "string" && typeof item.value === "string") {
-          values[item.name] = item.value;
+        if (typeof item?.name === "string" && typeof item.value === "string" && item.value.length > 0) {
+          values.add(item.value);
         }
       }
     }
@@ -484,18 +634,133 @@ function parseTimestamp(value: string): number {
   return Date.parse(normalized);
 }
 
+// /^(\d{4}-\d{2}-\d{2}T\S+)\s(.*)$/ without the capture groups: test() and search() return a boolean
+// and an index, so a line costs no match array (PERF-05). The prefix has no whitespace, so the first
+// whitespace in a matching line ends the timestamp, exactly where the capturing form split it.
+const timestampedLine = /^\d{4}-\d{2}-\d{2}T\S+\s.*$/;
+const whitespace = /\s/;
+
 function parseKubernetesLog(text: string, stream: LogEntry["stream"], fallbackTimestamp: string, source?: string): LogEntry[] {
-  return text
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .map((line) => {
-      const match = line.match(/^(\d{4}-\d{2}-\d{2}T\S+)\s(.*)$/);
-      const base =
-        match && !Number.isNaN(parseTimestamp(match[1]))
-          ? { timestamp: match[1], stream, message: match[2] }
-          : { timestamp: fallbackTimestamp, stream, message: line };
-      return source ? { ...base, source } : base;
-    });
+  const entries: LogEntry[] = [];
+  const lines = text.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!;
+    if (!line) continue;
+    let timestamp = fallbackTimestamp;
+    let message = line;
+    if (timestampedLine.test(line)) {
+      const end = line.search(whitespace);
+      const candidate = line.slice(0, end);
+      if (!Number.isNaN(parseTimestamp(candidate))) {
+        timestamp = candidate;
+        message = line.slice(end + 1);
+      }
+    }
+    entries.push(source ? { timestamp, stream, message, source } : { timestamp, stream, message });
+  }
+  return entries;
+}
+
+// Comparable instant with nanosecond precision. Kubernetes log timestamps are RFC3339 with up to nine
+// fractional digits, which Date.parse would round to milliseconds and so misorder close entries.
+// Builds the ordering record for one entry; seconds is NaN when the timestamp has no comparable instant.
+function orderedLog(entry: LogEntry, target: number, line: number): OrderedLog {
+  const seconds = utcTimestampSeconds(entry.timestamp);
+  if (seconds !== undefined) return { entry, seconds, nanos: utcNanos, target, line };
+  const key = generalTimestampKey(entry.timestamp);
+  return { entry, seconds: key ? key.seconds : Number.NaN, nanos: key ? key.nanos : 0, target, line };
+}
+
+// The whole second ("YYYY-MM-DDTHH:MM:SSZ") of the last UTC timestamp and its Date.parse value; log lines
+// of one source often share it. Built by concatenation, so it holds no reference into a log body.
+let lastSecond = "";
+let lastSecondMillis = Number.NaN;
+// Fraction of the last timestamp utcTimestampSeconds accepted, in nanoseconds (kept out of a return
+// object so that ordering thousands of lines allocates nothing per line).
+let utcNanos = 0;
+
+const maxTimerDelayMs = 2_147_483_647;
+
+const utcDigitPositions = [0, 1, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17, 18];
+
+const digitAt = (value: string, index: number): boolean => {
+  const code = value.charCodeAt(index);
+  return code >= 48 && code <= 57;
+};
+
+// Fast path for the form the kubelet writes, "YYYY-MM-DDTHH:MM:SS[.fraction]Z", with no regular
+// expression match objects (PERF-05). It gives exactly what generalTimestampKey gives for that form and
+// undefined for anything else, which then takes the general path.
+function utcTimestampSeconds(value: string): number | undefined {
+  const zone = value.length - 1;
+  if (zone < 19 || value.charCodeAt(zone) !== 90 /* Z */) return undefined;
+  for (let position = 0; position < utcDigitPositions.length; position += 1) {
+    if (!digitAt(value, utcDigitPositions[position]!)) return undefined;
+  }
+  if (value[4] !== "-" || value[7] !== "-" || value[10] !== "T" || value[13] !== ":" || value[16] !== ":") return undefined;
+  let nanos = 0;
+  if (zone > 19) {
+    const digits = zone - 20;
+    if (value[19] !== "." || digits < 1 || digits > 9) return undefined;
+    for (let index = 20; index < zone; index += 1) {
+      if (!digitAt(value, index)) return undefined;
+      nanos = nanos * 10 + (value.charCodeAt(index) - 48);
+    }
+    nanos *= 10 ** (9 - digits);
+  }
+  if (!sameSecond(value, lastSecond)) {
+    lastSecond = `${value.slice(0, 19)}Z`;
+    lastSecondMillis = Date.parse(lastSecond);
+  }
+  if (Number.isNaN(lastSecondMillis)) return undefined;
+  utcNanos = nanos;
+  return lastSecondMillis / 1000;
+}
+
+function sameSecond(value: string, second: string): boolean {
+  if (second.length !== 20) return false;
+  for (let index = 0; index < 19; index += 1) {
+    if (value.charCodeAt(index) !== second.charCodeAt(index)) return false;
+  }
+  return true;
+}
+
+function generalTimestampKey(value: string): { seconds: number; nanos: number } | undefined {
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$/.exec(value);
+  if (!match) {
+    const millis = Date.parse(value);
+    return Number.isNaN(millis) ? undefined : { seconds: Math.floor(millis / 1000), nanos: (millis % 1000) * 1_000_000 };
+  }
+  const millis = Date.parse(`${match[1]}${match[3]}`);
+  if (Number.isNaN(millis)) return undefined;
+  return { seconds: millis / 1000, nanos: Number((match[2] ?? "").padEnd(9, "0")) };
+}
+
+// Global oldest-to-newest order across every pod and container, independent of the order the provider
+// listed pods in or the order concurrent reads finished. Ties fall back to source name, then to the
+// read target's position in the pod list, then to the original line order, so the result is
+// deterministic.
+interface OrderedLog {
+  entry: LogEntry;
+  /** NaN when the timestamp has no comparable instant; such entries sort before all others. */
+  seconds: number;
+  nanos: number;
+  target: number;
+  line: number;
+}
+
+function compareOrderedLogs(left: OrderedLog, right: OrderedLog): number {
+  const a = !Number.isNaN(left.seconds);
+  const b = !Number.isNaN(right.seconds);
+  if (a && b) {
+    if (left.seconds !== right.seconds) return left.seconds - right.seconds;
+    if (left.nanos !== right.nanos) return left.nanos - right.nanos;
+  } else if (a || b) {
+    return a ? 1 : -1;
+  }
+  const sourceOrder = (left.entry.source ?? "").localeCompare(right.entry.source ?? "");
+  if (sourceOrder !== 0) return sourceOrder;
+  return left.target !== right.target ? left.target - right.target : left.line - right.line;
 }
 
 function filterUntil(logs: LogEntry[], until: string | undefined): LogEntry[] {
@@ -510,30 +775,70 @@ function filterUntil(logs: LogEntry[], until: string | undefined): LogEntry[] {
   });
 }
 
-function limitLogs(logs: LogEntry[], limit: number | undefined): LogEntry[] {
-  if (limit === undefined) return logs;
-  if (!Number.isInteger(limit) || limit < 0) {
-    throw new AdapterExecutionError("Kubernetes log limit must be a non-negative integer.");
+function redactLiteralEnvValues(logs: LogEntry[], values: Set<string>, context: AdapterContext): LogEntry[] {
+  if (!context.policy.secrets?.redactFromLogs) return logs;
+  // Longest first so a value that contains another value is replaced whole.
+  const secrets = [...values].sort((left, right) => right.length - left.length);
+  if (secrets.length === 0) return logs;
+  // The entries were parsed by this collection and nothing else holds them yet, so the redacted message
+  // replaces the original in place instead of in a copy of every entry.
+  for (let entryIndex = 0; entryIndex < logs.length; entryIndex += 1) {
+    const entry = logs[entryIndex]!;
+    let message = entry.message;
+    // Same replacements in the same order as splitting and joining on every value (a literal
+    // replaceAll); a value that does not occur in the message as it stands is skipped. Index loops:
+    // this runs entries x values times, mostly before the code is optimized, where for...of allocates.
+    for (let index = 0; index < secrets.length; index += 1) {
+      const secret = secrets[index]!;
+      if (message.includes(secret)) message = message.replaceAll(secret, "[REDACTED]");
+    }
+    entry.message = message;
   }
-  if (limit === 0) return [];
-  return logs.slice(-limit);
+  return logs;
 }
 
-function redactLiteralEnvValues(logs: LogEntry[], env: Record<string, string>, context: AdapterContext): LogEntry[] {
-  if (!context.policy.secrets?.redactFromLogs) return logs;
-  const secrets = Object.values(env).filter(Boolean);
-  if (secrets.length === 0) return logs;
-  return logs.map((entry) => ({
-    ...entry,
-    message: secrets.reduce((message, secret) => message.split(secret).join("[REDACTED]"), entry.message)
-  }));
+function validateLogLimit(limit: number | undefined): void {
+  if (limit !== undefined && (!Number.isInteger(limit) || limit < 0)) {
+    throw new AdapterExecutionError("Kubernetes log limit must be a non-negative integer.");
+  }
+}
+
+// Keeps the `cap` newest entries of everything added. With a total order (compareOrderedLogs is one:
+// target and line are unique), trimming once the buffer passes twice the cap keeps exactly the entries a
+// sort after every source kept, with about one sort per `cap` entries instead of one per source of a
+// growing array (PERF-05). Exported for its unit test only.
+export class NewestWindow<T> {
+  private entries: T[] = [];
+
+  constructor(
+    private readonly cap: number,
+    private readonly compare: (left: T, right: T) => number
+  ) {}
+
+  add(incoming: T[]): void {
+    for (let index = 0; index < incoming.length; index += 1) this.entries.push(incoming[index]!);
+    if (this.entries.length > 2 * this.cap) this.trim();
+  }
+
+  /** The kept entries, oldest first. */
+  result(): T[] {
+    this.trim();
+    return this.entries;
+  }
+
+  private trim(): void {
+    this.entries.sort(this.compare);
+    if (this.entries.length > this.cap) this.entries = this.entries.slice(this.entries.length - this.cap);
+  }
 }
 
 async function collectPodLogs(
   core: CoreApi,
   input: {
     namespace: string;
-    selector: string | undefined;
+    /** Reads the Service or Job that names the pod selector. It is a request of the capture too. */
+    readOwner: (options: KubernetesRequestOptions) => Promise<KubernetesObject>;
+    selectorOf: (owner: KubernetesObject) => string | undefined;
     selectorSource: string;
     id: string;
     since?: string;
@@ -541,54 +846,222 @@ async function collectPodLogs(
     limit?: number;
     follow?: boolean;
     cursor?: string;
+    bounds?: CaptureBounds;
     context: AdapterContext;
   }
-): Promise<{ logs: LogEntry[]; nextCursor?: string; metadata: Record<string, unknown> }> {
-  if (!input.selector) {
-    throw new AdapterExecutionError(`Kubernetes ${input.selectorSource} logs require a pod selector for ${input.id}.`);
-  }
+): Promise<{
+  /** The Service or Job read for the selector; undefined when the deadline expired before it answered. */
+  owner: KubernetesObject | undefined;
+  name: string;
+  logs: LogEntry[];
+  nextCursor?: string;
+  truncation: CaptureTruncation;
+  metadata: Record<string, unknown>;
+}> {
   if (input.follow) {
     throw new AdapterExecutionError("Kubernetes logs follow mode is not supported yet; call logs again to fetch newer entries.");
   }
+  validateLogLimit(input.limit);
+  const bounds = resolveCaptureBounds(input.bounds);
+  const sinceSeconds = secondsSince(input.since);
+  if (input.until !== undefined && Number.isNaN(parseTimestamp(input.until))) {
+    throw new AdapterExecutionError(`Invalid Kubernetes log until timestamp: ${input.until}`);
+  }
   const listNamespacedPod = requireCoreMethod(core, "listNamespacedPod");
   const readNamespacedPodLog = requireCoreMethod(core, "readNamespacedPodLog");
-  // Pagination rides the pod list continue token: one page of matched pods per call, their logs
-  // fanned out and tagged with source. readNamespacedPodLog itself has no cursor, so the log lines
-  // within a pod are always a bounded tail, never a full transcript.
-  const podList = await listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: input.selector, _continue: input.cursor });
-  const pods = podList.items ?? [];
-  const nextCursor = typeof podList.metadata?.["continue"] === "string" && podList.metadata["continue"] ? (podList.metadata["continue"] as string) : undefined;
-  const sinceSeconds = secondsSince(input.since);
-  const fallbackTimestamp = new Date().toISOString();
-  const logs: LogEntry[] = [];
-  for (const pod of pods) {
-    const podName = pod.metadata?.name;
-    if (!podName) continue;
-    const podContainers = containers(pod);
-    const targets = podContainers.length > 0 ? podContainers : [undefined];
-    for (const container of targets) {
-      const text = await readNamespacedPodLog.call(core, {
-        namespace: input.namespace,
-        name: podName,
-        container,
-        sinceSeconds,
-        tailLines: input.limit,
-        timestamps: true
-      });
-      logs.push(...parseKubernetesLog(text, "stdout", fallbackTimestamp, podName));
+  // The caller's limit is the requested page size; bounds.maxRecords is a ceiling that is reported as
+  // truncation when it cuts the result. Every per-source read is a bounded tail (tailLines) with a
+  // server-side byte cap (limitBytes), so no single source can return an unbounded transcript.
+  const cap = Math.min(input.limit ?? bounds.maxRecords, bounds.maxRecords);
+  const capFromBounds = input.limit === undefined || input.limit > bounds.maxRecords;
+  // The deadline bounds every provider request of the capture, the selector read and the pod list
+  // included; the byte and record budget is applied afterwards to what arrived.
+  const deadlineAt = Date.now() + bounds.deadlineMs;
+  const budget = new CaptureBudget({ ...bounds, deadlineMs: Number.MAX_SAFE_INTEGER, overflow: "truncate" });
+  // One deadline timer for every request instead of one per read (PERF-05). When it fires, the waits
+  // stop and the capture signal cancels the requests still in flight; the capture also aborts it when it
+  // ends early on an error, so no read outlives the call. Node caps timer delays at 2^31 - 1 ms and
+  // fires a longer one after 1 ms, so a longer deadline waits for the largest delay.
+  const capture = new AbortController();
+  const requestOptions = abortableRequest(capture.signal);
+  let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+  const deadlineReached = new Promise<undefined>((resolve) => {
+    deadlineTimer = setTimeout(
+      () => {
+        resolve(undefined);
+        capture.abort(new Error(`Kubernetes log capture deadline of ${bounds.deadlineMs}ms expired.`));
+      },
+      Math.min(bounds.deadlineMs, maxTimerDelayMs)
+    );
+  });
+  // Waits for one request until the deadline. Resolves undefined when the deadline comes first, including
+  // when the deadline's abort is what failed the request. An injected client may ignore the signal; its
+  // request is then abandoned rather than cancelled, and an answer after the deadline is never used.
+  const untilDeadline = async <T>(request: Promise<T>): Promise<T | undefined> => {
+    request.catch(() => undefined);
+    try {
+      return await Promise.race([request, deadlineReached]);
+    } catch (error) {
+      if (capture.signal.aborted) return undefined;
+      throw error;
     }
+  };
+
+  let owner: KubernetesObject | undefined;
+  let name = input.id;
+  let selector: string | undefined;
+  let pods: KubernetesObject[] = [];
+  let nextCursor: string | undefined;
+  const fallbackTimestamp = new Date().toISOString();
+  const newest = new NewestWindow<OrderedLog>(cap, compareOrderedLogs);
+  let candidates = 0;
+  let sourceAtTailCap = false;
+  let sourceAtByteCap = false;
+  let untilWindowShort = false;
+  let deadlineHit = false;
+  // One bounded read: a tail of `tailLines` lines with a server-side byte cap. Resolves undefined when
+  // the client deadline expires first.
+  const readTail = async (podName: string, container: string | undefined, tailLines: number): Promise<string | undefined> => {
+    if (capture.signal.aborted || Date.now() >= deadlineAt) return undefined;
+    return await untilDeadline(
+      readNamespacedPodLog.call(
+        core,
+        {
+          namespace: input.namespace,
+          name: podName,
+          container,
+          sinceSeconds,
+          tailLines,
+          limitBytes: bounds.maxBytes,
+          timestamps: true
+        },
+        requestOptions
+      )
+    );
+  };
+  try {
+    owner = await untilDeadline(input.readOwner(requestOptions));
+    if (owner !== undefined || !capture.signal.aborted) {
+      name = owner?.metadata?.name ?? input.id;
+      selector = input.selectorOf(owner ?? {});
+      if (!selector) {
+        throw new AdapterExecutionError(`Kubernetes ${input.selectorSource} logs require a pod selector for ${name}.`);
+      }
+    }
+    // Pagination rides the pod list continue token: one page of matched pods per call, their logs
+    // fanned out with at most bounds.concurrency reads in flight and tagged with source.
+    const podList =
+      selector === undefined
+        ? undefined
+        : await untilDeadline(listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: selector, _continue: input.cursor }, requestOptions));
+    if (podList === undefined && capture.signal.aborted) {
+      // The selector or the pods were not read in time. The page was not read, so the next call asks
+      // for it again.
+      deadlineHit = true;
+      nextCursor = input.cursor;
+    } else {
+      pods = podList?.items ?? [];
+      const continueToken = podList?.metadata?.["continue"];
+      nextCursor = typeof continueToken === "string" && continueToken ? continueToken : undefined;
+    }
+    const targets = pods.flatMap((pod) => {
+      const podName = pod.metadata?.name;
+      if (!podName) return [];
+      const podContainers = containers(pod);
+      return (podContainers.length > 0 ? podContainers : [undefined]).map((container) => ({ podName, container }));
+    });
+    await mapWithConcurrency(targets, bounds.concurrency, async ({ podName, container }, target) => {
+      if (cap === 0) return;
+      // Kubelet seeks to the start of the tail and then counts limitBytes forward, so a tail larger than
+      // maxBytes comes back as its OLDEST part. When that happens, read again with a shorter tail (the
+      // number of complete lines that fitted, halving after a few attempts) until the newest lines fit.
+      // Every read stays bounded by maxBytes and the attempt count is logarithmic in the tail length.
+      let tailLines = cap;
+      let body: string | undefined;
+      for (let attempt = 0; ; attempt += 1) {
+        const text = await readTail(podName, container, tailLines);
+        if (text === undefined) {
+          deadlineHit = true;
+          return;
+        }
+        if (Buffer.byteLength(text, "utf8") < bounds.maxBytes) {
+          body = text;
+          break;
+        }
+        // limitBytes stopped the stream; the last line may be cut mid-way, so drop it.
+        sourceAtByteCap = true;
+        const lastNewline = text.lastIndexOf("\n");
+        const complete = lastNewline === -1 ? "" : text.slice(0, lastNewline + 1);
+        const completeLines = complete === "" ? 0 : complete.split("\n").length - 1;
+        if (tailLines <= 1) {
+          // Even the newest single line does not fit in maxBytes; keep only what arrived complete.
+          body = complete;
+          break;
+        }
+        const shorter = attempt < 3 && completeLines > 0 ? Math.min(completeLines, tailLines - 1) : Math.floor(tailLines / 2);
+        tailLines = Math.max(1, completeLines > 0 ? Math.min(shorter, completeLines) : shorter);
+      }
+      const raw = parseKubernetesLog(body, "stdout", fallbackTimestamp, podName);
+      const entries = filterUntil(raw, input.until);
+      // The tail was full, so older lines exist that were not read. With `until`, those older lines may be
+      // exactly the ones the caller asked for, so a window that filters down below the cap is incomplete
+      // whatever the caller's limit was.
+      const fullTail = raw.length >= tailLines;
+      if (fullTail) sourceAtTailCap = true;
+      if (fullTail && input.until !== undefined && entries.length < cap) untilWindowShort = true;
+      candidates += entries.length;
+      newest.add(entries.map((entry, line) => orderedLog(entry, target, line)));
+    });
+  } finally {
+    clearTimeout(deadlineTimer);
+    capture.abort(new Error("Kubernetes log capture ended."));
   }
-  const redactionEnv = literalEnv(pods);
-  const redactedLogs = redactLiteralEnvValues(filterUntil(logs, input.until), redactionEnv, input.context);
+  const kept = newest.result();
+
+  const redactionValues = literalEnvValues(pods);
+  const redacted = redactLiteralEnvValues(
+    kept.map((item) => item.entry),
+    redactionValues,
+    input.context
+  );
+  // Aggregate byte budget, filled newest first so a cut drops the oldest entries.
+  const selected: LogEntry[] = [];
+  for (let index = redacted.length - 1; index >= 0; index -= 1) {
+    const entry = redacted[index]!;
+    if (!budget.takeRecord(Buffer.byteLength(entry.message, "utf8"))) break;
+    selected.push(entry);
+  }
+  selected.reverse();
+
+  const budgetTruncation = budget.truncation();
+  let truncation: CaptureTruncation = budgetTruncation;
+  if (!budgetTruncation.truncated) {
+    const reason = deadlineHit
+      ? ({ reason: "deadline", limit: bounds.deadlineMs } as const)
+      : sourceAtByteCap
+        ? ({ reason: "bytes", limit: bounds.maxBytes } as const)
+        : untilWindowShort
+          ? ({ reason: "records", limit: cap } as const)
+          : capFromBounds && (candidates > cap || sourceAtTailCap)
+            ? ({ reason: "records", limit: bounds.maxRecords } as const)
+            : undefined;
+    if (reason) truncation = { ...budgetTruncation, truncated: true, ...reason };
+  }
+  if (truncation.truncated && bounds.overflow === "error") {
+    throw new CaptureLimitError(`Kubernetes ${input.selectorSource} logs exceeded capture bounds: ${truncation.reason}.`, truncation);
+  }
   return {
-    logs: limitLogs(redactedLogs, input.limit),
+    owner,
+    name,
+    logs: selected,
     nextCursor,
+    truncation,
     metadata: {
       namespace: input.namespace,
-      selector: input.selector,
+      selector,
       selectorSource: input.selectorSource,
       podNames: pods.map((pod) => pod.metadata?.name).filter(Boolean),
-      redactedFromPodEnv: Object.keys(redactionEnv).length > 0
+      redactedFromPodEnv: redactionValues.size > 0
     }
   };
 }
@@ -634,6 +1107,10 @@ function defaultClients(options: KubernetesAdapterOptions): KubernetesClients {
   };
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function rethrowKubernetesError(error: unknown): never {
   throw asProviderError(error, "Kubernetes API request failed.");
 }
@@ -662,14 +1139,95 @@ function classifyKubernetesErrors<T extends object>(client: T): T {
 
 export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapter {
   const namespace = options.namespace ?? "default";
+  // Lazily built once per adapter. A failed kubeconfig load is not cached, so the next operation
+  // retries it. Injected clients are wrapped but never replaced.
+  let cachedClients: KubernetesClients | undefined;
   const getClients = (): KubernetesClients => {
+    if (cachedClients) return cachedClients;
     const clients = options.clients ?? defaultClients(options);
-    return {
+    const classified = {
       batch: classifyKubernetesErrors(clients.batch),
       apps: classifyKubernetesErrors(clients.apps),
       core: classifyKubernetesErrors(clients.core)
     };
+    if (!options.reloadKubeconfigPerOperation) cachedClients = classified;
+    return classified;
   };
+  const operationDeadlineMs = options.operationDeadlineMs ?? 120_000;
+  const operationPollIntervalMs = options.operationPollIntervalMs ?? 1_000;
+  const locate = (kind: ResourceKind, name: string): ResourceLocator =>
+    resourceLocator({ provider, kind, nativeId: name, scope: { namespace, context: options.context } });
+
+  // Observes accepted foreground deletions until every object is gone (GET returns 404). Finalizers and
+  // dependents can keep an object terminating for a long time, so this is bounded; on expiry the
+  // caller gets PendingOperationError with the last observed state, never a fabricated deleted. Each GET
+  // carries the observation signal, so the deadline cancels a read that is still in flight.
+  const observeAbsence = async (clients: KubernetesClients, name: string, kinds: ResourceKind[]): Promise<void> => {
+    const readers: Record<ResourceKind, ((signal: AbortSignal) => Promise<KubernetesObject>) | undefined> = {
+      deployment: clients.apps.readNamespacedDeployment
+        ? (signal) => clients.apps.readNamespacedDeployment!({ namespace, name }, abortableRequest(signal))
+        : undefined,
+      service: clients.core.readNamespacedService ? (signal) => clients.core.readNamespacedService!({ namespace, name }, abortableRequest(signal)) : undefined
+    };
+    const resource = locate("service", name);
+    const unobservable = kinds.filter((kind) => !readers[kind]);
+    if (unobservable.length > 0) {
+      throw new PendingOperationError(
+        `Kubernetes service.delete was accepted for ${kinds.join(" and ")} ${name}, but the client cannot read ${unobservable.join(" and ")} to confirm deletion.`,
+        { operation: "service.delete", resource, state: kinds.map((kind) => `${kind}=terminating`).join(",") }
+      );
+    }
+    let remaining = [...kinds];
+    await observeUntilTerminal<void>(
+      async ({ signal }) => {
+        const states: string[] = [];
+        const stillPresent: ResourceKind[] = [];
+        for (const kind of remaining) {
+          try {
+            const object = await readers[kind]!(signal);
+            stillPresent.push(kind);
+            states.push(`${kind}=${object.metadata?.deletionTimestamp ? "terminating" : "present"}`);
+          } catch (error) {
+            if (providerErrorStatus(error) !== 404) throw error;
+          }
+        }
+        remaining = stillPresent;
+        return remaining.length === 0 ? { done: true, value: undefined } : { done: false, state: states.join(",") };
+      },
+      { operation: "service.delete", resource, deadlineMs: operationDeadlineMs, intervalMs: operationPollIntervalMs }
+    );
+  };
+
+  // Compensates a Deployment created by a deploy whose Service step failed. The original error stays
+  // the primary error; the cleanup outcome and any residual resources are reported beside it instead
+  // of being swallowed.
+  const rollbackDeployment = async (apps: AppsApi, deploymentName: string, serviceName: string, error: unknown): Promise<Error> => {
+    const deployment = locate("deployment", deploymentName);
+    const status = providerErrorStatus(error);
+    // A 4xx means the API server rejected the Service, so it was not created. Anything else leaves its
+    // existence unknown.
+    const serviceRejected = status !== undefined && status >= 400 && status < 500;
+    const service = locate("service", serviceName);
+    const attempt = await requestForegroundDelete("deployment", () =>
+      requireAppsMethod(apps, "deleteNamespacedDeployment").call(apps, deleteRequest(namespace, deploymentName))
+    );
+    const cleanup: CleanupOutcome =
+      attempt.state === "failed"
+        ? { status: "failed", resources: [deployment], residual: [deployment], error: attempt.error }
+        : attempt.state === "accepted"
+          ? { status: "pending", resources: [deployment], residual: [deployment] }
+          : { status: "succeeded", resources: [deployment] };
+    const effects = {
+      operation: "service.deploy",
+      outcome: serviceRejected ? ("failed" as const) : ("unknown" as const),
+      resources: serviceRejected ? [deployment] : [deployment, service],
+      primaryError: error,
+      cleanup
+    };
+    const message = `Kubernetes service.deploy failed after creating Deployment ${deploymentName}: ${errorMessage(error)}`;
+    return cleanup.status === "failed" ? new CleanupFailureError(message, cleanup, error, effects) : new PartialEffectsError(message, effects);
+  };
+
   return {
     name: adapter,
     provider,
@@ -679,7 +1237,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
       run: async (spec: RunJobSpec, context: AdapterContext): Promise<JobRun> => {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
-        const name = normalizeName(spec.name ?? `capsule-job-${Date.now()}`);
+        const name = spec.name === undefined ? generatedJobName() : kubernetesName(spec.name, "job.run");
         const created = await getClients().batch.createNamespacedJob({ namespace, body: jobBody(name, spec) });
         const receipt = context.receipts
           ? context.createReceipt({
@@ -701,11 +1259,12 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
               metadata: kubernetesReceiptMetadata("batch/v1", { namespace, kubernetesName: created.metadata?.name ?? name, uid: created.metadata?.uid })
             })
           : undefined;
+        // The Job was only created; no exit code exists yet. Omit result until job.status observes a
+        // terminal state instead of returning a placeholder that looks like a passed workload.
         return {
           id: created.metadata?.name ?? name,
           provider,
           status: "running",
-          result: { exitCode: 0, stdout: "", stderr: "", logs: logsFromOutput("", ""), artifacts: [], receipt },
           receipt
         };
       },
@@ -755,20 +1314,21 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
         const startedAt = new Date();
         const clients = getClients();
         const readNamespacedJob = requireBatchMethod(clients.batch, "readNamespacedJob");
-        const job = await readNamespacedJob.call(clients.batch, { namespace, name: spec.id });
-        const name = job.metadata?.name ?? spec.id;
         const result = await collectPodLogs(clients.core, {
           namespace,
-          selector: labelSelectorFromJobSpec(job.spec),
+          readOwner: (options) => readNamespacedJob.call(clients.batch, { namespace, name: spec.id }, options),
+          selectorOf: (job) => labelSelectorFromJobSpec(job.spec),
           selectorSource: "job.spec.selector",
-          id: name,
+          id: spec.id,
           since: spec.since,
           until: spec.until,
           limit: spec.limit,
           follow: spec.follow,
           cursor: spec.cursor,
+          bounds: spec.bounds,
           context
         });
+        const { owner: job, name } = result;
         const policy = context.evaluatePolicy();
         const receipt = context.receipts
           ? context.createReceipt({
@@ -785,27 +1345,29 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
                   "Kubernetes follow-mode log streaming is intentionally rejected until Capsule exposes bounded streaming semantics."
                 ]
               },
-              resource: { id: name, name, status: jobStatus(job) },
-              metadata: kubernetesReceiptMetadata("batch/v1+v1", { ...result.metadata, kubernetesName: name, uid: job.metadata?.uid })
+              resource: { id: name, name, status: job ? jobStatus(job) : undefined },
+              metadata: kubernetesReceiptMetadata("batch/v1+v1", { ...result.metadata, kubernetesName: name, uid: job?.metadata?.uid })
             })
           : undefined;
-        return { id: name, provider, logs: result.logs, nextCursor: result.nextCursor, metadata: result.metadata, receipt };
+        return { id: name, provider, logs: result.logs, truncation: result.truncation, nextCursor: result.nextCursor, metadata: result.metadata, receipt };
       }
     },
     service: {
       deploy: async (spec: DeployServiceSpec, context: AdapterContext): Promise<ServiceDeployment> => {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env });
-        const name = normalizeName(spec.name);
+        const name = kubernetesName(spec.name, "service.deploy", { rfc1035: true });
+        // Build and validate both manifests before the first API call.
+        const deploymentManifest = deploymentBody(name, namespace, spec);
+        const serviceManifest = serviceBody(name, namespace, spec);
         const clients = getClients();
-        const deployment = await clients.apps.createNamespacedDeployment({ namespace, body: deploymentBody(name, namespace, spec) });
+        const deployment = await clients.apps.createNamespacedDeployment({ namespace, body: deploymentManifest });
         const deploymentName = deployment.metadata?.name ?? name;
         let service: KubernetesObject;
         try {
-          service = await clients.core.createNamespacedService({ namespace, body: serviceBody(name, namespace, spec) });
+          service = await clients.core.createNamespacedService({ namespace, body: serviceManifest });
         } catch (error) {
-          await deleteDeploymentForeground(clients.apps, namespace, deploymentName).catch(() => undefined);
-          throw error;
+          throw await rollbackDeployment(clients.apps, deploymentName, name, error);
         }
         const serviceName = service.metadata?.name ?? name;
         const url = serviceUrl(service, serviceName, namespace, spec.ports?.[0]?.port);
@@ -878,33 +1440,57 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
         const deleteNamespacedDeployment = requireAppsMethod(clients.apps, "deleteNamespacedDeployment");
         const deleteNamespacedService = requireCoreMethod(clients.core, "deleteNamespacedService");
         const name = spec.id;
-        const deleteOptions = foregroundDeleteOptions();
-        const deployment = await deleteNamespacedDeployment.call(clients.apps, {
-          namespace,
-          name,
-          gracePeriodSeconds: 0,
-          propagationPolicy: "Foreground",
-          body: deleteOptions
-        });
-        const service = await deleteNamespacedService.call(clients.core, {
-          namespace,
-          name,
-          gracePeriodSeconds: 0,
-          propagationPolicy: "Foreground",
-          body: deleteOptions
-        });
-        const resolvedName = deployment.metadata?.name ?? service.metadata?.name ?? name;
+        // Each resource is deleted independently. A Deployment that is already gone (for example after
+        // an earlier attempt that failed on the Service) never stops the Service delete from running.
+        const attempts = [
+          await requestForegroundDelete("deployment", () => deleteNamespacedDeployment.call(clients.apps, deleteRequest(namespace, name))),
+          await requestForegroundDelete("service", () => deleteNamespacedService.call(clients.core, deleteRequest(namespace, name)))
+        ];
+        const failed = attempts.filter((attempt) => attempt.state === "failed");
+        const accepted = attempts.filter((attempt) => attempt.state === "accepted");
+        if (failed.length > 0) {
+          const primary = failed[0]!;
+          if (accepted.length === 0) throw primary.error;
+          throw new PartialEffectsError(
+            `Kubernetes service.delete accepted the ${accepted.map((attempt) => attempt.kind).join(" and ")} delete but the ${failed
+              .map((attempt) => attempt.kind)
+              .join(" and ")} delete failed: ${errorMessage(primary.error)}`,
+            {
+              operation: "service.delete",
+              outcome: "failed",
+              resources: [...failed, ...accepted].map((attempt) => locate(attempt.kind, name)),
+              primaryError: primary.error,
+              cleanup: { status: "not-attempted" }
+            }
+          );
+        }
+        if (accepted.length > 0) {
+          await observeAbsence(
+            clients,
+            name,
+            accepted.map((attempt) => attempt.kind)
+          );
+        }
+        const deployment = attempts[0]!.response;
+        const service = attempts[1]!.response;
+        const observed = Object.fromEntries(attempts.map((attempt) => [attempt.kind, attempt.state === "absent" ? "already-absent" : "deleted"]));
+        const resolvedName = deployment?.metadata?.name ?? service?.metadata?.name ?? name;
+        const policy = context.evaluatePolicy();
         const receipt = context.receipts
           ? context.createReceipt({
               type: "service.delete",
               capabilityPath: "service.delete",
               startedAt,
-              policy: context.evaluatePolicy(),
+              policy: {
+                ...policy,
+                notes: [...policy.notes, "Kubernetes service.delete reports deleted only after the Deployment and Service are observed absent."]
+              },
               resource: { id: resolvedName, name: resolvedName, status: "deleted" },
               metadata: kubernetesReceiptMetadata("apps/v1+v1", {
                 namespace,
-                deploymentName: deployment.metadata?.name ?? name,
-                serviceName: service.metadata?.name ?? name,
+                deploymentName: deployment?.metadata?.name ?? name,
+                serviceName: service?.metadata?.name ?? name,
+                observed,
                 reason: spec.reason
               })
             })
@@ -914,7 +1500,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
           provider,
           name: resolvedName,
           status: "deleted",
-          metadata: { namespace, deployment, service, reason: spec.reason },
+          metadata: { namespace, deployment, service, observed, reason: spec.reason },
           receipt
         };
       },
@@ -922,20 +1508,21 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
         const startedAt = new Date();
         const clients = getClients();
         const readNamespacedService = requireCoreMethod(clients.core, "readNamespacedService");
-        const service = await readNamespacedService.call(clients.core, { namespace, name: spec.id });
-        const name = service.metadata?.name ?? spec.id;
         const result = await collectPodLogs(clients.core, {
           namespace,
-          selector: serviceSelector(service),
+          readOwner: (options) => readNamespacedService.call(clients.core, { namespace, name: spec.id }, options),
+          selectorOf: serviceSelector,
           selectorSource: "service.spec.selector",
-          id: name,
+          id: spec.id,
           since: spec.since,
           until: spec.until,
           limit: spec.limit,
           follow: spec.follow,
           cursor: spec.cursor,
+          bounds: spec.bounds,
           context
         });
+        const { owner: service, name } = result;
         const policy = context.evaluatePolicy();
         const receipt = context.receipts
           ? context.createReceipt({
@@ -953,10 +1540,19 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
                 ]
               },
               resource: { id: name, name },
-              metadata: kubernetesReceiptMetadata("v1", { ...result.metadata, serviceName: name, uid: service.metadata?.uid })
+              metadata: kubernetesReceiptMetadata("v1", { ...result.metadata, serviceName: name, uid: service?.metadata?.uid })
             })
           : undefined;
-        return { id: name, provider, name, logs: result.logs, nextCursor: result.nextCursor, metadata: result.metadata, receipt };
+        return {
+          id: name,
+          provider,
+          name,
+          logs: result.logs,
+          truncation: result.truncation,
+          nextCursor: result.nextCursor,
+          metadata: result.metadata,
+          receipt
+        };
       }
     }
   };

@@ -31,6 +31,10 @@ export interface LambdaAdapterOptions {
   region?: string;
   functionName?: string;
   qualifier?: string;
+  /**
+   * Lambda invocation type. "DryRun" is rejected by job.run: AWS only validates parameters and
+   * permissions for it and runs no code, so it cannot produce a job result.
+   */
   invocationType?: "RequestResponse" | "Event" | "DryRun";
   logType?: "None" | "Tail";
   client?: LambdaClientLike;
@@ -172,7 +176,11 @@ function classifiedClient(client: LambdaClientLike): LambdaClientLike {
 }
 
 export function lambda(options: LambdaAdapterOptions = {}): CapsuleAdapter {
-  const getClient = () => classifiedClient(options.client ?? defaultClient(options));
+  // One classified client per adapter, created on first use (AWS-05). An injected client stays
+  // caller-owned; the default SDK client is built lazily so constructing the adapter resolves no
+  // credentials, and reusing it keeps the SDK keep-alive connection pool and credential cache warm.
+  let cachedClient: LambdaClientLike | undefined;
+  const getClient = (): LambdaClientLike => (cachedClient ??= classifiedClient(options.client ?? defaultClient(options)));
   return {
     name: adapter,
     provider,
@@ -187,6 +195,11 @@ export function lambda(options: LambdaAdapterOptions = {}): CapsuleAdapter {
           throw new AdapterExecutionError("Lambda adapter requires functionName option or RunJobSpec.name.");
         }
         const invocationType = options.invocationType ?? "RequestResponse";
+        if (invocationType === "DryRun") {
+          throw new AdapterExecutionError(
+            'Lambda job.run does not support invocationType "DryRun": AWS validates the request without running the function, so there is no job to report. Use "RequestResponse" or "Event".'
+          );
+        }
         const logType = options.logType ?? "Tail";
         const response = await getClient().send(
           new InvokeCommand({

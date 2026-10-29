@@ -10,7 +10,7 @@ Typical flow:
 4. Run checks or jobs.
 5. Collect logs and artifacts.
 6. Return URLs.
-7. Enforce TTL, cost, and resource policy.
+7. Apply TTL, cost, and resource policy (see the TTL note below for what is enforced).
 8. Cleanup.
 9. Produce a preview receipt.
 
@@ -22,12 +22,20 @@ Production preview plans should set `requireRealProviders: true`. When that flag
 
 The package records a resource graph containing service, edge, database, and job resources. Cleanup walks that graph in reverse dependency order and reports partial cleanup failures instead of hiding successfully cleaned resources.
 
+Every creation gets a unique run id from `createPreviewId` (name, time and a random component). The run id is not an idempotency key. Pass `operationId` on the plan to record a caller-stable identity, such as a pull request and commit, on the cleanup plan and the `preview.create` receipt; cleanup idempotency keys stay scoped to the run so one run's keys are never reused for another run's resources.
+
+Preview status is aggregated from resource statuses. Any `failed`, `error`, `errored`, `crashed` or `cancelled` resource makes the preview `failed`, so a cancelled check never yields `ready`. `creating`, `pending`, `provisioning`, `queued` and `deploying` make it `creating`. A preview whose resources are all `deleted` is `deleted`. Everything else, including running services, a `running` job and resources without a status, is `ready`. A running job is not evidence that a check passed; callers that gate on checks should require each job's status to be `succeeded`.
+
+Each created resource gets a graph-local `ref` (for example `resource-0`). The ref, not the provider-native id, is the join key between a resource, its cleanup action and its receipts, because native ids are not unique across providers or across projects of one provider. Cleanup plan actions record `resourceRef`, `resourceId`, `resourceProvider`, `resourceAdapter` and `resourceScope`, and each resource is always deleted through the Capsule that created it.
+
+When a cleanup plan is passed to `cleanupPreviewEnvironment`, it is validated before the first delete. The plan must belong to the same preview, and each action must match its resource's kind, capability, provider, native id and cleanup identity (database project and branch, service id). Otherwise `PreviewCleanupPlanError` is thrown and nothing is deleted. Plans written before refs existed are accepted only when every action matches exactly one resource; ambiguous plans are rejected rather than guessed.
+
 Cleanup evidence is explicit. Every resource gets a cleanup disposition:
 
 - `cleaned`: Capsule invoked a cleanup action and the provider receipt reported deletion or did not expose a conflicting status.
 - `partial`: Capsule invoked cleanup, but the provider receipt did not confirm a deleted terminal state.
 - `unsupported`: the resource has no cleanup action in the current preview graph. Edge and job resources are unsupported by design because Capsule does not register a delete action for them.
-- `leaked`: Capsule attempted cleanup and the provider operation failed, so the resource may still exist.
+- `leaked`: Capsule attempted cleanup and the provider operation failed, so the resource may still exist; or a cleanup approval resolver denied the cleanup, so no delete was sent and the resource still exists.
 
 The cleanup result also carries an overall `status` derived from those dispositions:
 
@@ -35,7 +43,19 @@ The cleanup result also carries an overall `status` derived from those dispositi
 - `unsupported`: nothing failed, but at least one resource was left behind because its kind has no cleanup action by design (edge, job). This is not a failure.
 - `partial`: at least one disposition is `partial` or `leaked`, meaning a real cleanup failure occurred.
 
-`createPreviewEnvironmentWithCleanup(...)` attempts cleanup when creation fails after earlier resources were provisioned. The cleanup result includes underlying provider receipts plus an orchestration-level `preview.cleanup` receipt from `@capsule-sdk/preview`. That receipt summarizes the cleanup status and per-resource dispositions. Provider receipts remain the strongest evidence for what happened at each provider; preview orchestration does not claim provider-native preview support unless an adapter exposes it.
+### TTL
+
+`PreviewPlan.ttlMs` is recorded, not enforced. It appears in the dry-run and `preview.create` receipt metadata as `ttl: { requestedMs, enforcement: "record-only" }`. `@capsule-sdk/preview` has no expiry controller or scheduler: nothing deletes the preview when the TTL passes, and the top-level value is not copied into child resource specs. Set `ttlEnforcement: "required"` when a preview must not be created without enforced expiry; creation then fails with `UnsupportedCapabilityError` (`preview.ttl`) before any provider call. A per-resource `ttlMs` (for example on a database branch spec) is checked against `policy.ttl.maxMs` by Capsule core; whether the provider expires the resource depends on the adapter, and the Neon adapter declares database TTL unsupported.
+
+### Cleanup approval
+
+When a Capsule policy requires approvals, the grant used to create a resource never authorizes its deletion; preview cleanup does not copy create grants into delete specs. Pass a resolver to obtain a fresh grant per cleanup action: `cleanupPreviewEnvironment(preview, resources, { approval })` or `createPreviewEnvironmentWithCleanup(plan, { cleanupApproval })`. The resolver receives `{ capabilityPath, resource, reason }`, where `resource` is exactly the scope Capsule core checks for that delete (`{ type: "database", project, id }` or `{ type: "service", id }`). Return a grant to send the delete with it, or `undefined` to deny; a denied cleanup sends no delete and is reported as `leaked` with an explanatory note. Without a resolver, deletes are sent without a grant, as before, and a policy that requires approval rejects them.
+
+### Creation failures and the two create variants
+
+`createPreviewGraph(...)` never cleans up by itself. If a provider call throws part-way, it throws `PreviewCreationError` carrying `resources` (the resources created before the failure, each bound to the Capsule that created it), a `cleanupPlan` for exactly those resources, and their provider `receipts`, plus the original error as `cause`. Recover with `cleanupPreviewEnvironment(error.preview, error.resources, { cleanupPlan: error.cleanupPlan })`; there is no need to rebuild provider identity. The resources live only in memory: a process that crashes before cleanup loses them, so a durable controller must persist each resource as it is created.
+
+`createPreviewEnvironmentWithCleanup(...)` attempts cleanup when creation fails after earlier resources were provisioned, and reports it on `error.cleanup`. Neither variant cleans up a preview that was created without throwing but aggregates to `failed` (for example a failed or cancelled check job); the caller decides. The cleanup result includes underlying provider receipts plus an orchestration-level `preview.cleanup` receipt from `@capsule-sdk/preview`. That receipt summarizes the cleanup status and per-resource dispositions. Provider receipts remain the strongest evidence for what happened at each provider; preview orchestration does not claim provider-native preview support unless an adapter exposes it.
 
 ## CLI
 

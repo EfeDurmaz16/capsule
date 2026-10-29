@@ -4,7 +4,7 @@ import { createMockAdapter } from "@capsule-sdk/mock";
 import { neon } from "@capsule-sdk/neon";
 import { vercel } from "@capsule-sdk/vercel";
 import { cloudRun } from "@capsule-sdk/cloud-run";
-import { createPreviewGraph, cleanupPreviewEnvironment, type PreviewPlan } from "@capsule-sdk/preview";
+import { createPreviewGraph, cleanupPreviewEnvironment, PreviewCreationError, type PreviewCleanupResult, type PreviewPlan } from "@capsule-sdk/preview";
 import { jsonlReceiptStore } from "@capsule-sdk/store-jsonl";
 
 type Env = Record<string, string | undefined>;
@@ -244,14 +244,46 @@ export async function run(env: Env = process.env): Promise<void> {
   }
   console.log(`Receipt store: ${config.receiptPath}`);
 
-  const graph = await createPreviewGraph(config.plan);
+  await createAndCleanUpPreview(config.plan);
+}
+
+/**
+ * Creates the preview, prints it, then cleans it up. When creation fails part-way, the resources
+ * created so far are cleaned up from the error's own cleanup plan before the error is rethrown.
+ * Cleanup is attempted, not guaranteed: inspect the printed dispositions and the provider consoles.
+ */
+export async function createAndCleanUpPreview(plan: PreviewPlan): Promise<PreviewCleanupResult> {
+  let graph: Awaited<ReturnType<typeof createPreviewGraph>>;
+  try {
+    graph = await createPreviewGraph(plan);
+  } catch (error) {
+    if (error instanceof PreviewCreationError) {
+      printReceipts("create receipts before the failure", error.receipts);
+      const partial = await cleanupPreviewEnvironment(error.preview, error.resources, { cleanupPlan: error.cleanupPlan });
+      printCleanup(partial);
+    }
+    throw error;
+  }
   console.log(JSON.stringify({ preview: graph.preview, resources: graph.resources.map(({ cleanup, receipt, ...resource }) => resource) }, null, 2));
   printReceipts("create receipts", graph.receipts);
 
   const cleanup = await cleanupPreviewEnvironment(graph.preview, graph.resources);
+  printCleanup(cleanup);
+  return cleanup;
+}
+
+function printCleanup(cleanup: PreviewCleanupResult): void {
   console.log(
     JSON.stringify(
-      { cleanup: { previewId: cleanup.previewId, status: cleanup.status, cleaned: cleanup.cleaned.length, failed: cleanup.failed.length } },
+      {
+        cleanup: {
+          previewId: cleanup.previewId,
+          status: cleanup.status,
+          cleaned: cleanup.cleaned.length,
+          failed: cleanup.failed.length,
+          dispositions: cleanup.dispositions.map((entry) => ({ kind: entry.resource.kind, id: entry.resource.id, disposition: entry.disposition }))
+        }
+      },
       null,
       2
     )

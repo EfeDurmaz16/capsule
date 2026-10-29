@@ -1,0 +1,144 @@
+{
+  "meta": {
+    "label": "control-after-85506c1",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "85506c1b5a77ae4e3092cdf17b792201373492d4",
+    "packagesTree": "deea6cd305e943c057dec39258545a4e6052eaec",
+    "dirty": false,
+    "date": "2026-10-27T14:13:48.220Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56",
+      "execArgv": [
+        "--expose-gc"
+      ]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": null,
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workload": {
+    "id": "perf-11-jsonl-read",
+    "perfIds": [
+      "PERF-11"
+    ],
+    "manifestIds": [
+      "EV-01"
+    ]
+  },
+  "case": "read-50k",
+  "description": "50k receipts, valid file.",
+  "params": {
+    "receipts": 50000
+  },
+  "runs": [
+    {
+      "rep": 0,
+      "childWallMs": 170.36875000000146,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 51.61337499999999,
+        "peakRssGrowthBytes": 86900736,
+        "heapUsedWhileHeldBytes": 80613704
+      },
+      "caseDurationMs": 138.893667,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5407152,
+          "rss": 46350336,
+          "external": 2056889,
+          "arrayBuffers": 172180
+        },
+        "endMemory": {
+          "heapUsed": 85485408,
+          "rss": 166199296,
+          "external": 2505014,
+          "arrayBuffers": 550464
+        },
+        "maxRssBytes": 166199296
+      }
+    },
+    {
+      "rep": 1,
+      "childWallMs": 172.48937500000466,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 51.857333,
+        "peakRssGrowthBytes": 86917120,
+        "heapUsedWhileHeldBytes": 80622888
+      },
+      "caseDurationMs": 140.308792,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5407152,
+          "rss": 46546944,
+          "external": 2056889,
+          "arrayBuffers": 172180
+        },
+        "endMemory": {
+          "heapUsed": 85494576,
+          "rss": 166526976,
+          "external": 2504214,
+          "arrayBuffers": 549664
+        },
+        "maxRssBytes": 166526976
+      }
+    },
+    {
+      "rep": 2,
+      "childWallMs": 170.91841700000077,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 51.22625000000001,
+        "peakRssGrowthBytes": 87064576,
+        "heapUsedWhileHeldBytes": 80646600
+      },
+      "caseDurationMs": 139.078542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5407152,
+          "rss": 46579712,
+          "external": 2056889,
+          "arrayBuffers": 172180
+        },
+        "endMemory": {
+          "heapUsed": 85518288,
+          "rss": 166412288,
+          "external": 2504414,
+          "arrayBuffers": 549864
+        },
+        "maxRssBytes": 166412288
+      }
+    }
+  ]
+}

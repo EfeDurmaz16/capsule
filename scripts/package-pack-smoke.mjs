@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
+import { packedEntryViolations } from "./packed-file-policy.mjs";
 
 function parseArgs(argv) {
   const options = {
@@ -64,27 +65,27 @@ const packagesDir = join(root, "packages");
 const kib = 1024;
 // Packed tarball budgets are rounded up from current pnpm pack artifacts.
 const packedSizeBudgetBytes = {
-  "@capsule-sdk/azure": 8 * kib,
-  "@capsule-sdk/cloud-run": 12 * kib,
-  "@capsule-sdk/cloudflare": 8 * kib,
+  "@capsule-sdk/azure": 11 * kib,
+  "@capsule-sdk/cloud-run": 15 * kib,
+  "@capsule-sdk/cloudflare": 11 * kib,
   "@capsule-sdk/daytona": 6 * kib,
-  "@capsule-sdk/docker": 8 * kib,
+  "@capsule-sdk/docker": 12 * kib,
   "@capsule-sdk/e2b": 6 * kib,
   "@capsule-sdk/ec2": 6 * kib,
-  "@capsule-sdk/ecs": 8 * kib,
-  "@capsule-sdk/fly": 8 * kib,
-  "@capsule-sdk/kubernetes": 12 * kib,
+  "@capsule-sdk/ecs": 9 * kib,
+  "@capsule-sdk/fly": 9 * kib,
+  "@capsule-sdk/kubernetes": 15 * kib,
   "@capsule-sdk/lambda": 6 * kib,
   "@capsule-sdk/mock": 10 * kib,
-  "@capsule-sdk/modal": 6 * kib,
-  "@capsule-sdk/neon": 6 * kib,
-  "@capsule-sdk/vercel": 10 * kib,
-  "@capsule-sdk/ai": 6 * kib,
-  "@capsule-sdk/cli": 28 * kib,
-  "@capsule-sdk/core": 47 * kib,
-  "@capsule-sdk/presets": 6 * kib,
-  "@capsule-sdk/preview": 9 * kib,
-  "@capsule-sdk/store-jsonl": 4 * kib,
+  "@capsule-sdk/modal": 7 * kib,
+  "@capsule-sdk/neon": 9 * kib,
+  "@capsule-sdk/vercel": 13 * kib,
+  "@capsule-sdk/ai": 7 * kib,
+  "@capsule-sdk/cli": 32 * kib,
+  "@capsule-sdk/core": 60 * kib,
+  "@capsule-sdk/presets": 7 * kib,
+  "@capsule-sdk/preview": 14 * kib,
+  "@capsule-sdk/store-jsonl": 5 * kib,
   "@capsule-sdk/store-sqlite": 5 * kib
 };
 
@@ -172,8 +173,22 @@ function packPackages(packages, packDir) {
       throw new Error(`pnpm pack did not return a tarball filename for ${pkg.name}.`);
     }
     const filename = isAbsolute(packed.filename) ? packed.filename : join(packDir, packed.filename);
-    return { name: pkg.name, filename, sizeBytes: statSync(filename).size };
+    return { name: pkg.name, main: pkg.main, filename, sizeBytes: statSync(filename).size };
   });
+}
+
+function checkPackedContents(tarballs) {
+  const errors = tarballs.flatMap((tarball) =>
+    packedEntryViolations(tarball.name, run("tar", ["-tzf", tarball.filename]).split(/\r?\n/), { main: tarball.main })
+  );
+  if (errors.length === 0) {
+    return true;
+  }
+  console.error("Packed package contents check failed:");
+  for (const error of errors) {
+    console.error(`- ${error}`);
+  }
+  return false;
 }
 
 function checkPackedSizeBudgets(tarballs) {
@@ -269,7 +284,8 @@ try {
   mkdirSync(packDir, { recursive: true });
   mkdirSync(fixtureDir, { recursive: true });
   const tarballs = packPackages(packages, packDir);
-  if (!checkPackedSizeBudgets(tarballs)) {
+  const contentsOk = checkPackedContents(tarballs);
+  if (!checkPackedSizeBudgets(tarballs) || !contentsOk) {
     failed = true;
   } else {
     writeFixture(fixtureDir, tarballs);

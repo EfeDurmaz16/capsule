@@ -1,0 +1,245 @@
+# Capsule gate record
+commit: 7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7
+date: 2026-10-27T13:10:44.560Z
+host: darwin 25.6.0 arm64, cpus=18 (Apple M5 Pro), mem=48GiB
+node: v22.23.2
+pnpm: 10.32.1
+gates: same commands as .github/workflows/ci.yml verify + package-exports jobs, run locally in order
+
+## summary
+PASS           install                  0.5s  $ pnpm install --frozen-lockfile
+PASS           gap-report               0.5s  $ pnpm capsule:gap
+PASS           provider-matrix-check    0.2s  $ node scripts/capsule-gap-report.mjs --check
+PASS           format                   1.9s  $ pnpm format:check
+PASS           typecheck                2.3s  $ pnpm typecheck
+PASS           test                     3.1s  $ pnpm test  [Test Files  35 passed | 11 skipped (46) | Tests  516 passed | 20 skipped (536) | Duration  1.72s (transform 3.73s, setup 0ms, import 7.51s, tests 2.35s, environment 2ms) | ℹ tests 28 | ℹ pass 28 | ℹ fail 0 | ℹ skipped 0 | ℹ todo 0]
+PASS           build                    10.0s  $ pnpm build
+PASS           release-audit            10.7s  $ pnpm release:audit
+PASS           api-reference-current    1.6s  $ pnpm docs:api && git diff --exit-code docs/api-reference.md
+PASS           package-exports          1.7s  $ pnpm test:package-exports  [Test Files  1 passed (1) | Tests  3 passed (3) | Duration  1.18s (transform 13ms, setup 0ms, import 19ms, tests 1.10s, environment 0ms)]
+PASS           pack-smoke-compatible    9.6s  $ pnpm release:pack-smoke:compatible
+
+## install: PASS in 0.5s
+$ pnpm install --frozen-lockfile
+  Scope: all 32 workspace projects
+  Lockfile is up to date, resolution step is skipped
+  Already up to date
+  
+  ╭ Warning ─────────────────────────────────────────────────────────────────────╮
+  │                                                                              │
+  │   Ignored build scripts: cbor-extract@2.2.2, esbuild@0.27.7,                 │
+  │   protobufjs@7.5.8, protobufjs@8.0.1.                                        │
+  │   Run "pnpm approve-builds" to pick which dependencies should be allowed     │
+  │   to run scripts.                                                            │
+  │                                                                              │
+  ╰──────────────────────────────────────────────────────────────────────────────╯
+  Done in 281ms using pnpm v10.32.1
+
+## gap-report: PASS in 0.5s
+$ pnpm capsule:gap
+  | @capsule-sdk/ecs | 8 | 1 | 0 | 31 |
+  | @capsule-sdk/ec2 | 5 | 0 | 1 | 34 |
+  | @capsule-sdk/fly | 7 | 0 | 2 | 8 |
+  | @capsule-sdk/azure | 10 | 0 | 2 | 6 |
+  
+  ## Mock-First Example References
+  - examples/agent-code-execution/package.json
+  - examples/agent-code-execution/src/index.ts
+  - examples/agent-preview-environment/package.json
+  - examples/agent-preview-environment/src/index.ts
+  - examples/capability-check/package.json
+  - examples/capability-check/src/index.ts
+  - examples/policy-receipts/package.json
+  - examples/policy-receipts/src/index.ts
+  - examples/preview-environment-model/package.json
+  - examples/preview-environment-model/src/index.ts
+  - examples/stripe-projects-provisioning/package.json
+  - examples/stripe-projects-provisioning/src/index.ts
+  
+  ## Recommended Next Work
+  - Reduce unsupported counts by implementing explicit lifecycle operations, not by pretending support exists.
+  - Move examples to env-gated real adapters while preserving mock mode for credential-free docs.
+  - Add live tests behind CAPSULE_LIVE_TESTS=1 and provider-specific credentials.
+  
+  Updated docs/provider-matrix.md from adapter capability declarations.
+
+## provider-matrix-check: PASS in 0.2s
+$ node scripts/capsule-gap-report.mjs --check
+  | @capsule-sdk/kubernetes | 12 | 0 | 2 | 26 |
+  | @capsule-sdk/lambda | 1 | 1 | 0 | 35 |
+  | @capsule-sdk/ecs | 8 | 1 | 0 | 31 |
+  | @capsule-sdk/ec2 | 5 | 0 | 1 | 34 |
+  | @capsule-sdk/fly | 7 | 0 | 2 | 8 |
+  | @capsule-sdk/azure | 10 | 0 | 2 | 6 |
+  
+  ## Mock-First Example References
+  - examples/agent-code-execution/package.json
+  - examples/agent-code-execution/src/index.ts
+  - examples/agent-preview-environment/package.json
+  - examples/agent-preview-environment/src/index.ts
+  - examples/capability-check/package.json
+  - examples/capability-check/src/index.ts
+  - examples/policy-receipts/package.json
+  - examples/policy-receipts/src/index.ts
+  - examples/preview-environment-model/package.json
+  - examples/preview-environment-model/src/index.ts
+  - examples/stripe-projects-provisioning/package.json
+  - examples/stripe-projects-provisioning/src/index.ts
+  
+  ## Recommended Next Work
+  - Reduce unsupported counts by implementing explicit lifecycle operations, not by pretending support exists.
+  - Move examples to env-gated real adapters while preserving mock mode for credential-free docs.
+  - Add live tests behind CAPSULE_LIVE_TESTS=1 and provider-specific credentials.
+
+## format: PASS in 1.9s
+$ pnpm format:check
+  
+  > capsule@0.1.0 format:check /private/tmp/capsule-wt/m1
+  > prettier --check .
+  
+  Checking formatting...
+  All matched files use Prettier code style!
+
+## typecheck: PASS in 2.3s
+$ pnpm typecheck
+  
+  > capsule@0.1.0 typecheck /private/tmp/capsule-wt/m1
+  > tsc -p tsconfig.typecheck.json --noEmit
+
+## test: PASS in 3.1s
+$ pnpm test
+counts: Test Files  35 passed | 11 skipped (46) | Tests  516 passed | 20 skipped (536) | Duration  1.72s (transform 3.73s, setup 0ms, import 7.51s, tests 2.35s, environment 2ms) | ℹ tests 28 | ℹ pass 28 | ℹ fail 0 | ℹ skipped 0 | ℹ todo 0
+  ✔ live cleanup sweep deletes stale Kubernetes resources through kubectl only when acknowledged (0.243791ms)
+  ✔ live cleanup sweep dry-run command emits JSON and exits without credentials (38.782792ms)
+  ✔ live test matrix reports ready read-only providers without leaking secret values (1.130459ms)
+  ✔ live test matrix blocks CI runs without explicit opt-in (0.224458ms)
+  ✔ live test matrix blocks untrusted fork CI runs even with opt-in (0.097ms)
+  ✔ live test matrix blocks billable providers without cost acknowledgement (0.093875ms)
+  ✔ live test matrix blocks billable providers when max resource count is too low (0.08ms)
+  ✔ live test matrix reports quarantined flaky providers with revalidation metadata (0.103333ms)
+  ✔ live test matrix lets explicitly revalidated flaky providers become ready (0.064125ms)
+  ✔ live test matrix dry-run command emits JSON and exits without credentials (37.578541ms)
+  ✔ engine-aware package pack smoke excludes Node 24-only packages on Node 22 (43.528917ms)
+  ✔ engine-aware package pack smoke includes every public package on Node 24 (37.308ms)
+  ✔ dry-run passes for publishable package metadata (41.020584ms)
+  ✔ dry-run rejects missing metadata, private publish access, and dist test artifacts (33.768458ms)
+  ✔ dry-run rejects public examples and private packages missing Changesets ignore (30.7855ms)
+  ✔ dry-run lists public packages without shelling out to npm (39.640375ms)
+  ✔ real mode checks published dist provenance metadata with npm view (291.352875ms)
+  ℹ tests 28
+  ℹ suites 1
+  ℹ pass 28
+  ℹ fail 0
+  ℹ cancelled 0
+  ℹ skipped 0
+  ℹ todo 0
+  ℹ duration_ms 684.576167
+
+## build: PASS in 10.0s
+$ pnpm build
+  packages/presets build: Done
+  packages/vercel build$ tsup src/index.ts --format esm && tsc -p tsconfig.json --emitDeclarationOnly
+  packages/preview build: Done
+  packages/store-sqlite build: Done
+  packages/vercel build: CLI Building entry: src/index.ts
+  packages/vercel build: CLI Using tsconfig: tsconfig.json
+  packages/vercel build: CLI tsup v8.5.1
+  packages/vercel build: CLI Target: es2022
+  packages/vercel build: ESM Build start
+  packages/vercel build: ESM dist/index.js 16.17 KB
+  packages/vercel build: ESM ⚡️ Build success in 12ms
+  packages/store-jsonl build: Done
+  packages/vercel build: Done
+  packages/cli build$ tsup src/index.ts --format esm && tsc -p tsconfig.json --emitDeclarationOnly
+  packages/cli build: CLI Building entry: src/index.ts
+  packages/cli build: CLI Using tsconfig: tsconfig.json
+  packages/cli build: CLI tsup v8.5.1
+  packages/cli build: CLI Target: es2022
+  packages/cli build: ESM Build start
+  packages/cli build: ESM dist/index.js 94.90 KB
+  packages/cli build: ESM ⚡️ Build success in 14ms
+  packages/cli build: Done
+  
+  > capsule@0.1.0 prune:build /private/tmp/capsule-wt/m1
+  > node scripts/prune-package-artifacts.mjs
+
+## release-audit: PASS in 10.7s
+$ pnpm release:audit
+  + @capsule-sdk/azure 0.1.1
+  + @capsule-sdk/cli 0.1.1
+  + @capsule-sdk/cloud-run 0.1.1
+  + @capsule-sdk/cloudflare 0.1.1
+  + @capsule-sdk/core 0.1.1
+  + @capsule-sdk/daytona 0.1.1
+  + @capsule-sdk/docker 0.1.1
+  + @capsule-sdk/e2b 0.1.1
+  + @capsule-sdk/ec2 0.1.1
+  + @capsule-sdk/ecs 0.1.1
+  + @capsule-sdk/fly 0.1.1
+  + @capsule-sdk/kubernetes 0.1.1
+  + @capsule-sdk/lambda 0.1.1
+  + @capsule-sdk/mock 0.1.1
+  + @capsule-sdk/modal 0.1.1
+  + @capsule-sdk/neon 0.1.1
+  + @capsule-sdk/presets 0.1.1
+  + @capsule-sdk/preview 0.2.0
+  + @capsule-sdk/store-jsonl 0.1.1
+  + @capsule-sdk/store-sqlite 0.1.0
+  + @capsule-sdk/vercel 0.1.1
+  
+  Done in 3s using pnpm v10.32.1
+  Imported 22 Capsule packages from packed artifacts.
+  Package pack smoke passed for 22 packages in capsule-pack-smoke-64OWKO.
+
+## api-reference-current: PASS in 1.6s
+$ pnpm docs:api && git diff --exit-code docs/api-reference.md
+  
+  > capsule@0.1.0 docs:api /private/tmp/capsule-wt/m1
+  > node scripts/generate-api-reference.mjs
+  
+  Wrote docs/api-reference.md
+
+## package-exports: PASS in 1.7s
+$ pnpm test:package-exports
+counts: Test Files  1 passed (1) | Tests  3 passed (3) | Duration  1.18s (transform 13ms, setup 0ms, import 19ms, tests 1.10s, environment 0ms)
+  
+  > capsule@0.1.0 test:package-exports /private/tmp/capsule-wt/m1
+  > vitest run packages/core/src/package-exports.test.ts
+  
+  
+   RUN  v4.1.6 /private/tmp/capsule-wt/m1
+  
+  
+   Test Files  1 passed (1)
+        Tests  3 passed (3)
+     Start at  16:11:15
+     Duration  1.18s (transform 13ms, setup 0ms, import 19ms, tests 1.10s, environment 0ms)
+
+## pack-smoke-compatible: PASS in 9.6s
+$ pnpm release:pack-smoke:compatible
+  + @capsule-sdk/azure 0.1.1
+  + @capsule-sdk/cli 0.1.1
+  + @capsule-sdk/cloud-run 0.1.1
+  + @capsule-sdk/cloudflare 0.1.1
+  + @capsule-sdk/core 0.1.1
+  + @capsule-sdk/daytona 0.1.1
+  + @capsule-sdk/docker 0.1.1
+  + @capsule-sdk/e2b 0.1.1
+  + @capsule-sdk/ec2 0.1.1
+  + @capsule-sdk/ecs 0.1.1
+  + @capsule-sdk/fly 0.1.1
+  + @capsule-sdk/kubernetes 0.1.1
+  + @capsule-sdk/lambda 0.1.1
+  + @capsule-sdk/mock 0.1.1
+  + @capsule-sdk/modal 0.1.1
+  + @capsule-sdk/neon 0.1.1
+  + @capsule-sdk/presets 0.1.1
+  + @capsule-sdk/preview 0.2.0
+  + @capsule-sdk/store-jsonl 0.1.1
+  + @capsule-sdk/store-sqlite 0.1.0
+  + @capsule-sdk/vercel 0.1.1
+  
+  Done in 2.7s using pnpm v10.32.1
+  Imported 22 Capsule packages from packed artifacts.
+  Package pack smoke passed for 22 packages in capsule-pack-smoke-ID4eJA.
+

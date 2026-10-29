@@ -13,3 +13,7 @@ operator-notes/
 .env
 .env.local
 .claude/
+
+# Local output of pnpm bench:bounds
+benchmarks/raw/ci-bounds/
+benchmarks/results/ci-bounds.txt

@@ -52,6 +52,10 @@ export const adapterContractFixtureKinds = [
   "lifecycle"
 ] as const satisfies readonly CapsuleAdapterContractFixtureKind[];
 
+/**
+ * Declarative descriptions of the scenarios an adapter test suite should cover. They are data for
+ * adapter tests to read; the contract runners below do not execute them.
+ */
 export const adapterContractFixtures: Record<CapsuleAdapterContractFixtureKind, CapsuleAdapterContractFixture> = {
   allow: {
     kind: "allow",
@@ -123,7 +127,9 @@ export const adapterContractFixtures: Record<CapsuleAdapterContractFixtureKind, 
     spec: { image: "node:22" },
     cleanup: { action: "destroy-resource", status: "destroyed" },
     expectedReceiptTypes: ["sandbox.create", "sandbox.destroy"],
-    notes: ["Use this fixture to prove create, status, and destroy lifecycle transitions are exercised end to end and produce receipts."]
+    notes: [
+      "Descriptive fixture data: runCapsuleAdapterContract does not execute it. Drive create, status and destroy with the adapter's own fake client in the adapter test and assert the transitions and receipts there."
+    ]
   }
 };
 
@@ -400,6 +406,13 @@ export async function assertAdapterFailureScenarios(adapter: CapsuleAdapter, opt
   }
 }
 
+/**
+ * Guard-only contract check. It verifies declarations against implemented public methods, that
+ * unsupported capabilities throw UnsupportedCapabilityError, that approval-gated capabilities fail
+ * closed under an approval-required policy, and any supplied failureScenarios. It does not run a
+ * successful create, exec, status or destroy lifecycle, so passing it is not evidence that the
+ * adapter's lifecycle, cleanup or receipts work.
+ */
 export async function runAdapterContract(adapter: CapsuleAdapter, options: CapsuleAdapterContractOptions = {}): Promise<void> {
   assertAdapterContract(adapter, options);
   await assertUnsupportedCapabilityGuards(adapter, options);
@@ -407,6 +420,7 @@ export async function runAdapterContract(adapter: CapsuleAdapter, options: Capsu
   await assertAdapterFailureScenarios(adapter, options);
 }
 
+/** Alias of runAdapterContract, with the same guard-only scope. */
 export async function runCapsuleAdapterContract(adapter: CapsuleAdapter, options: CapsuleAdapterContractOptions = {}): Promise<void> {
   await runAdapterContract(adapter, options);
 }

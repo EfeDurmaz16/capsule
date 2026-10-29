@@ -12,7 +12,7 @@
 
 One TypeScript layer for running code across cloud runtimes: sandboxes, jobs, services, edge deploys, database branches, preview environments, and machines.
 
-A `Capsule` is a small facade you construct around one provider adapter. Every call through it is capability-checked, policy-checked, and recorded as a receipt:
+A `Capsule` is a small facade you construct around one provider adapter. Every governed call through it is capability-checked and policy-checked, and with `receipts: true` each governed action that returns a result records a receipt:
 
 ```ts
 import { Capsule } from "@capsule-sdk/core";
@@ -46,7 +46,7 @@ Capsule does not pretend these providers are the same. Adapters declare a suppor
 
 - **Capability negotiation.** `capsule.supports("edge.rollback")` and `capsule.supportLevel("database.branchCreate")` tell you before you call whether an operation is native, emulated, experimental, or unsupported on the chosen provider.
 - **Policy before execution.** Network, filesystem, secrets, limits, cost, TTL, and approval policies are evaluated before the provider call, and the decision is recorded.
-- **Execution receipts.** Every action produces a normalized record: provider, adapter, capability path, support level, timing, SHA-256 output hashes, resource ids, and the policy decision. Receipts can be persisted to JSONL or SQLite and composed into verifiable evidence bundles.
+- **Execution receipts.** With receipt capture enabled (`receipts: true`; it is off by default), governed actions such as create, exec, run, deploy and delete produce a normalized record: provider, adapter, capability path, support level, timing, SHA-256 output hashes, resource ids, and the policy decision. Read-only coverage is uneven: some adapters record status and log reads, others return them without a receipt. Receipts can be persisted to JSONL or SQLite and composed into evidence bundles whose hashes and optional signatures can be verified.
 - **Escape hatch, not a cage.** `raw()` returns the native provider client when you need the full API. Calls through it skip Capsule's checks and receipts by design.
 - **Preview composition.** A database branch, an edge deploy, a service, and check jobs compose into one preview environment with URLs, a cleanup plan, and evidence.
 - **Agent-ready.** `@capsule-sdk/ai` ships a code execution tool plus dependency-free tool descriptors for the Vercel AI SDK, OpenAI Agents/Responses, LangChain, Mastra, and CrewAI.
@@ -120,7 +120,7 @@ Install only the adapters you use. `@capsule-sdk/mock` is for tests and examples
 
 Honest accounting of what has actually been exercised:
 
-- Every adapter passes the shared contract suite plus unit tests against fake clients; nothing in CI talks to a real provider.
+- Every adapter passes the shared guard-only contract checks (capability declarations and fail-closed unsupported paths) plus unit tests against fake clients and the installed SDK exception classes; nothing in CI talks to a real provider, and no provider emulator is used.
 - Docker has a runnable local end-to-end check (`pnpm --filter @capsule-sdk/example-sandbox-docker e2e`) covering sandbox create, exec, files, job run, receipts, and cleanup against a local daemon.
 - The cloud adapters (E2B, Daytona, Modal, Cloud Run, Cloudflare, Vercel, Neon, Kubernetes, Lambda, ECS, EC2, Fly, Azure Container Apps) implement the real provider APIs but have not yet been verified against live accounts. Each has a gated live test (see [live tests](docs/live-tests.md)) and an open tracking issue labeled `needs-verification`; treat those adapters as unverified until their issue closes with live evidence.
 
@@ -297,6 +297,8 @@ capsule preview create --config-file preview.json --cleanup-file .capsule/previe
 
 `capsule init` scaffolds a `capsule.config.json`. Commands read it from the working directory and apply its `adapter`, `receipts.path`, and `policyFile` when the matching flag is not passed; explicit flags always override the config file. The scaffolded policy sets `secrets.allowed` to `[]`, which denies every environment key by default until you add keys to it.
 
+The selected policy (`--policy-file`, or `policyFile` from the config) is enforced on every execution command, including each preview child, not only by `capsule policy explain`. A policy file that is missing or malformed fails before any provider is created. An unknown adapter name from a flag or the config fails and lists the valid names; only an omitted adapter falls back to Docker. The `neon` commands select Neon when no adapter is set and reject a contradictory `--adapter` or config adapter instead of rerouting.
+
 ## Packages
 
 | Package                                                 | What it is                                                                                            |
@@ -314,6 +316,7 @@ capsule preview create --config-file preview.json --cleanup-file .capsule/previe
 - Capsule is not a sandbox by itself; isolation comes from the provider. Local Docker is not safe for hostile untrusted code by default.
 - Policy enforcement depends on adapter and provider support; unsupported enforcement is reported, not silently assumed.
 - Receipts are not signed attestations yet unless you configure a signer.
+- Known limits and the evidence class of each test layer are listed in the [roadmap](docs/roadmap.md#known-limits).
 - Hosted persistence, auth, dashboards, queues, and server APIs are intentionally outside core.
 
 ## Docs

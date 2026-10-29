@@ -104,11 +104,161 @@ export class CleanupFailureError<TCleanup extends object = object> extends Adapt
   constructor(
     message: string,
     public readonly cleanup: TCleanup,
-    cause?: unknown
+    cause?: unknown,
+    /**
+     * Optional structured partial-effects record (action outcome, safe locators, primary cause and
+     * cleanup outcome). Additive: existing callers that pass only `cleanup` and `cause` are unchanged.
+     */
+    public readonly effects?: PartialEffects
   ) {
     super(message, cause, "CAPSULE_CLEANUP_FAILURE");
     this.name = "CleanupFailureError";
   }
+}
+
+// Lifecycle outcome errors (CD-DELETE) -------------------------------------------------------------
+// These types let adapters report what is actually known about a provider action instead of
+// fabricating a terminal state. A known-pending action was accepted by the provider and is still in
+// progress. An unknown outcome means Capsule cannot tell whether the provider applied the action (for
+// example the transport failed after the request was sent). Neither is safe to retry blindly.
+
+/**
+ * Provider-neutral identity of a provider resource that is safe to put in errors, receipts and logs.
+ * Build it with `resourceLocator()`, which strips URL credentials, query strings and control characters.
+ */
+export interface ResourceLocator {
+  /** Capsule provider name, for example "azure-container-apps". */
+  readonly provider: string;
+  /** Resource kind, for example "service", "machine", "sandbox", "worker". */
+  readonly kind: string;
+  /** Provider-native identifier (resource ID, name or ARN). */
+  readonly nativeId: string;
+  /** Scope that disambiguates nativeId, for example project, region, resource group. */
+  readonly scope?: Readonly<Record<string, string>>;
+  /** Provider-native operation identifier for a long-running operation, when one exists. */
+  readonly nativeOperationId?: string;
+}
+
+/** What is known about a provider action. */
+export type ActionOutcome = "not-started" | "pending" | "completed" | "failed" | "unknown";
+
+export const actionOutcomes: readonly ActionOutcome[] = Object.freeze(["not-started", "pending", "completed", "failed", "unknown"]);
+
+/** Outcome of compensation or cleanup that followed a primary action. */
+export type CleanupStatus = "not-attempted" | "succeeded" | "failed" | "pending" | "unknown";
+
+export interface CleanupOutcome {
+  status: CleanupStatus;
+  /** Resources the cleanup targeted. */
+  resources?: readonly ResourceLocator[];
+  /** Resources that may still exist after cleanup (residual effects). */
+  residual?: readonly ResourceLocator[];
+  /** Cleanup failure, kept separate from the primary error. */
+  error?: unknown;
+}
+
+/**
+ * Structured record of effects that may exist after an operation did not fully succeed, or after it
+ * succeeded but its cleanup did not. The primary outcome and the cleanup outcome are kept separate so
+ * neither overwrites the other.
+ */
+export interface PartialEffects<TResult = unknown> {
+  /** Capability path of the primary action, for example "edge.deploy" or "sandbox.exec". */
+  operation: string;
+  /** What is known about the primary action. */
+  outcome: ActionOutcome;
+  /** Resources the primary action created or touched that may still exist. */
+  resources: readonly ResourceLocator[];
+  /** The primary error, when the primary action failed or its outcome is unknown. */
+  primaryError?: unknown;
+  /** The completed primary result, when the primary action succeeded but a later step failed. */
+  result?: TResult;
+  cleanup: CleanupOutcome;
+}
+
+/**
+ * Thrown when an operation created or touched provider resources and then could not complete, but
+ * cleanup did not fail (succeeded, was not attempted, or its outcome is itself unresolved). When cleanup
+ * failed, adapters should keep throwing `CleanupFailureError` and pass the same record as `effects`.
+ * Use `partialEffectsOf(error)` to read the record from either class.
+ */
+export class PartialEffectsError<TResult = unknown> extends AdapterExecutionError {
+  constructor(
+    message: string,
+    public readonly effects: PartialEffects<TResult>
+  ) {
+    super(message, effects.primaryError ?? effects.cleanup.error, "CAPSULE_PARTIAL_EFFECTS");
+    this.name = "PartialEffectsError";
+  }
+}
+
+export interface PendingOperationDetails {
+  /** Capability path, for example "service.delete". */
+  operation: string;
+  resource: ResourceLocator;
+  /** Last observed provider-native state, when one was observed. */
+  state?: string;
+  /** Observation deadline that expired, in milliseconds. */
+  deadlineMs?: number;
+  /** Number of observations made before giving up. */
+  observations?: number;
+}
+
+/**
+ * The provider accepted the action and it has not reached a terminal state within the bounded
+ * observation window. The resource must not be treated as deleted, stopped or completed. Retrying the
+ * same action is normally safe only after observing the resource again.
+ */
+export class PendingOperationError extends AdapterExecutionError {
+  readonly outcome = "pending" as const;
+  readonly operation: string;
+  readonly resource: ResourceLocator;
+  readonly state?: string;
+  readonly deadlineMs?: number;
+  readonly observations?: number;
+
+  constructor(message: string, details: PendingOperationDetails, cause?: unknown) {
+    super(message, cause, "CAPSULE_OPERATION_PENDING");
+    this.name = "PendingOperationError";
+    this.operation = details.operation;
+    this.resource = details.resource;
+    if (details.state !== undefined) this.state = details.state;
+    if (details.deadlineMs !== undefined) this.deadlineMs = details.deadlineMs;
+    if (details.observations !== undefined) this.observations = details.observations;
+  }
+}
+
+export interface UnknownOutcomeDetails {
+  /** Capability path, for example "service.deploy". */
+  operation: string;
+  /** Best known locator. Omitted when the provider never returned an identity. */
+  resource?: ResourceLocator;
+}
+
+/**
+ * Capsule cannot tell whether the provider applied the action (for example the connection dropped
+ * after the request was sent). Do not retry a create or mutate automatically: observe or reconcile by
+ * locator first. `retrySafe` is always false.
+ */
+export class UnknownOutcomeError extends AdapterExecutionError {
+  readonly outcome = "unknown" as const;
+  readonly retrySafe = false as const;
+  readonly operation: string;
+  readonly resource?: ResourceLocator;
+
+  constructor(message: string, details: UnknownOutcomeDetails, cause?: unknown) {
+    super(message, cause, "CAPSULE_OPERATION_OUTCOME_UNKNOWN");
+    this.name = "UnknownOutcomeError";
+    this.operation = details.operation;
+    if (details.resource !== undefined) this.resource = details.resource;
+  }
+}
+
+/** Reads the structured partial-effects record from PartialEffectsError or CleanupFailureError. */
+export function partialEffectsOf(error: unknown): PartialEffects | undefined {
+  if (error instanceof PartialEffectsError) return error.effects;
+  if (error instanceof CleanupFailureError) return error.effects;
+  return undefined;
 }
 
 export function providerExecutionError(message: string, classification: ProviderErrorClassification, cause?: unknown): AdapterExecutionError {

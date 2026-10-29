@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, ProviderAuthError, ProviderRateLimitError, runAdapterContract } from "@capsule-sdk/core";
+import { AdapterExecutionError, Capsule, capsuleOperationTag, ProviderAuthError, ProviderRateLimitError, runAdapterContract } from "@capsule-sdk/core";
 import { ec2, ec2Capabilities } from "./index.js";
 
 function awsError(name: string, httpStatusCode: number, message = name): Error {
@@ -158,5 +158,121 @@ describe("ec2 adapter", () => {
     await expect(capsule.machine.destroy({ id: "i-missing", reason: "cleanup" })).rejects.toThrow(
       "EC2 machine.destroy did not return termination state for i-missing."
     );
+  });
+  it("records that generated env exports do not persist and that adapter userData drops spec.env", async () => {
+    const userDataSent: Array<string | undefined> = [];
+    const client = {
+      send: async (command: any) => {
+        userDataSent.push(command.input.UserData);
+        return { Instances: [{ InstanceId: "i-env", State: { Name: "pending" } }] };
+      }
+    };
+    const generated = new Capsule({ adapter: ec2({ client }), receipts: true });
+    const created = await generated.machine.create({ name: "env", image: "ami-x", size: "t3.micro", env: { A: "1" } });
+    expect(created.receipt?.policy.notes).toContain(
+      "Environment values are exported only inside the user-data script process; they do not persist into later logins, services or runner processes."
+    );
+    expect(Buffer.from(userDataSent[0] ?? "", "base64").toString("utf8")).toBe("#!/bin/sh\nexport A='1'\n");
+
+    const overridden = new Capsule({ adapter: ec2({ client, userData: "#!/bin/sh\ntrue\n" }), receipts: true });
+    const replaced = await overridden.machine.create({ name: "env", image: "ami-x", size: "t3.micro", env: { A: "1" } });
+    expect(replaced.receipt?.policy.notes).toContain("Adapter userData replaces the generated script, so spec.env is not delivered to the instance.");
+
+    const none = new Capsule({ adapter: ec2({ client }), receipts: true });
+    await none.machine.create({ name: "env", image: "ami-x", size: "t3.micro", env: {} });
+    expect(userDataSent[2]).toBeUndefined();
+  });
+  it("rejects a spec.region that differs from the adapter region before any request", async () => {
+    let sends = 0;
+    const client = {
+      send: async () => {
+        sends += 1;
+        return { Instances: [{ InstanceId: "i-region", State: { Name: "pending" } }] };
+      }
+    };
+    const pinned = new Capsule({ adapter: ec2({ region: "us-east-1", client }), receipts: true });
+    await expect(pinned.machine.create({ name: "r", image: "ami-x", size: "t3.micro", region: "eu-west-1" })).rejects.toBeInstanceOf(AdapterExecutionError);
+    const unpinned = new Capsule({ adapter: ec2({ client }), receipts: true });
+    await expect(unpinned.machine.create({ name: "r", image: "ami-x", size: "t3.micro", region: "eu-west-1" })).rejects.toThrow(
+      /does not match the adapter region/
+    );
+    expect(sends).toBe(0);
+
+    const matching = await pinned.machine.create({ name: "r", image: "ami-x", size: "t3.micro", region: "us-east-1" });
+    expect(matching.receipt?.metadata).toMatchObject({ region: "us-east-1" });
+    expect(sends).toBe(1);
+  });
+  it("maps every EC2 instance state to a faithful machine status and keeps the native state", async () => {
+    const expected: Record<string, string> = {
+      pending: "creating",
+      running: "running",
+      stopping: "stopping",
+      stopped: "stopped",
+      "shutting-down": "destroying",
+      terminated: "deleted"
+    };
+    for (const [awsState, status] of Object.entries(expected)) {
+      const capsule = new Capsule({
+        adapter: ec2({ client: { send: async () => ({ Reservations: [{ Instances: [{ InstanceId: "i-map", State: { Name: awsState } }] }] }) } }),
+        receipts: true
+      });
+      const result = await capsule.machine.status({ id: "i-map" });
+      expect(result.status).toBe(status);
+      expect(result.metadata).toMatchObject({ awsState });
+      expect(result.receipt?.resource).toMatchObject({ id: "i-map", status });
+    }
+  });
+
+  it("refuses to invent a status for an unrecognized or missing EC2 instance state", async () => {
+    const unknownState = new Capsule({
+      adapter: ec2({ client: { send: async () => ({ Reservations: [{ Instances: [{ InstanceId: "i-odd", State: { Name: "hibernating" } }] }] }) } })
+    });
+    await expect(unknownState.machine.status({ id: "i-odd" })).rejects.toThrow(/unrecognized instance state "hibernating"/);
+    const missing = new Capsule({ adapter: ec2({ client: { send: async () => ({ Reservations: [] }) } }) });
+    await expect(missing.machine.status({ id: "i-gone" })).rejects.toThrow(/no instance state for i-gone/);
+  });
+  it("maps a machine idempotency key to a hashed RunInstances ClientToken scoped to the adapter region", async () => {
+    const inputs: any[] = [];
+    const createWith = async (region: string | undefined, idempotencyKey?: string) => {
+      const capsule = new Capsule({
+        adapter: ec2({
+          region,
+          client: {
+            send: async (command: any) => {
+              inputs.push(command.input);
+              return { Instances: [{ InstanceId: "i-token", State: { Name: "pending" } }] };
+            }
+          }
+        }),
+        receipts: true
+      });
+      const machine = await capsule.machine.create({ name: "t", image: "ami-x", size: "t3.micro", idempotencyKey });
+      return { token: inputs.at(-1).ClientToken as string | undefined, machine };
+    };
+    const first = await createWith("us-east-1", "machine-7");
+    expect((await createWith("us-east-1", "machine-7")).token).toBe(first.token);
+    expect(first.token).toBe(
+      capsuleOperationTag({ idempotencyKey: "machine-7", capabilityPath: "machine.create", idempotencyScope: "ec2:machine.create:us-east-1" })
+    );
+    expect(first.token).toMatch(/^[0-9a-f]{32}$/);
+    expect(first.token).not.toContain("machine-7");
+    expect((await createWith("eu-west-1", "machine-7")).token).not.toBe(first.token);
+    expect((await createWith("us-east-1", "machine-8")).token).not.toBe(first.token);
+    expect((await createWith("us-east-1")).token).toBeUndefined();
+    expect(
+      first.machine.receipt?.policy.notes?.some((note) => note.includes("RunInstances ClientToken") && note.includes("not an exactly-once guarantee"))
+    ).toBe(true);
+  });
+
+  it("surfaces IdempotentParameterMismatch for a reused ClientToken as a provider error", async () => {
+    const mismatch = Object.assign(new Error("Arguments on this idempotent request are inconsistent with arguments used in previous request(s)."), {
+      name: "IdempotentParameterMismatch",
+      $fault: "client",
+      $metadata: { httpStatusCode: 400 }
+    });
+    const capsule = new Capsule({ adapter: ec2({ region: "us-east-1", client: { send: async () => Promise.reject(mismatch) } }) });
+    const error = await capsule.machine.create({ name: "t", image: "ami-x", size: "t3.micro", idempotencyKey: "machine-7" }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(AdapterExecutionError);
+    expect((error as AdapterExecutionError).cause).toMatchObject({ cause: { name: "IdempotentParameterMismatch" } });
   });
 });

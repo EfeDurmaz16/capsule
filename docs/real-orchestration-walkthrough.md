@@ -16,7 +16,7 @@ Nothing here calls a provider until you set `CAPSULE_LIVE_TESTS=1` and the requi
 ## Safety before you start
 
 - Capsule records what it requested and observed. It does not make a provider safe. Isolation, billing, IAM, networking, and cleanup stay with the underlying provider.
-- Every step below creates real, potentially billable resources. The Neon branch and Cloud Run service persist until you delete them. Budget for that before running.
+- Every step below creates real, potentially billable resources. The example attempts to delete the Neon branch and Cloud Run service at the end, but cleanup can fail or stay unconfirmed, and the Vercel deployment is never deleted by Capsule. Budget for leftovers before running.
 - Run this from a trusted environment. Do not run live provider operations in untrusted CI or forks.
 
 ## Step 1: Build the CLI and plan the run
@@ -81,9 +81,11 @@ The program:
 1. Fails fast if `CAPSULE_LIVE_TESTS=1` is set but `NEON_API_KEY`, `NEON_PROJECT_ID`, or `VERCEL_TOKEN` is missing. The mock fallback is demo-only and cannot satisfy live verification.
 2. Creates resources in order: database branch, then service (if Cloud Run is configured), then edge deployment.
 3. Prints the preview graph, one create receipt per resource, and a reverse-order cleanup plan.
-4. Runs `cleanupPreviewEnvironment` and prints cleanup receipts.
+4. Runs `cleanupPreviewEnvironment` and prints the cleanup status, one disposition per resource and the cleanup receipts.
 
 Resources are created in create order and cleaned up in reverse create order. Edge deployments have no cleanup action by design, so they resolve to an `unsupported` disposition rather than a failure.
+
+If a provider call fails part-way, `createPreviewGraph` throws `PreviewCreationError` with the resources created before the failure and a cleanup plan for exactly those resources. The example then runs `cleanupPreviewEnvironment` on them, prints the dispositions, and exits with the original error. That recovery lives in this process only: if the process crashes or is killed before cleanup, nothing records the created resources, and you must find them in the provider consoles.
 
 ## Step 6: Inspect and verify receipts
 
@@ -97,12 +99,14 @@ pnpm --filter @capsule-sdk/cli exec node dist/index.js receipt verify --receipt-
 
 ## Step 7: Confirm cleanup and reclaim leftovers
 
-The example runs cleanup at the end, but two provider resources outlive the run by design:
+Cleanup is attempted, not guaranteed. Read the printed dispositions before you trust the run:
 
-- **Neon branch**: delete it with `capsule.database.branch.delete(...)` or in the Neon console. The database branch carries a TTL in its receipt but is not auto-deleted.
-- **Cloud Run service**: delete it through Google Cloud tooling or a future Capsule lifecycle call.
+- **Neon branch**: the example calls `database.branchDelete` for it. A `cleaned` disposition means Neon accepted the delete. The preview cleanup does not set `hardDelete`, so Neon's default delete applies and the branch may stay recoverable for the account's recovery window. The TTL in the create receipt is a record only; nothing deletes the branch when it expires.
+- **Cloud Run service** (when configured): the example calls `service.delete` for it. Capsule reports `cleaned` only after the delete operation completes. If the operation does not finish within the adapter's deadline, or `CAPSULE_EXAMPLE_WAIT_FOR_OPERATIONS=0` is set, the delete raises `PendingOperationError` and the service shows as `leaked`: it may still exist. Delete it with `capsule service delete --adapter cloud-run --project-id <gcp-project> --location <region> --id <service>` or Google Cloud tooling once you confirm its state.
+- **Vercel deployment**: Capsule has no edge cleanup action, so the deployment stays with disposition `unsupported` by design. Remove it in the Vercel dashboard or with Vercel tooling if you do not want it.
+- Any `leaked` disposition means a cleanup call failed or was not confirmed. The overall status is then `partial`; follow the printed error and check that provider.
 
-Check both providers' consoles after the run to confirm nothing you did not intend is still running.
+Check every provider console after the run to confirm nothing you did not intend is still running.
 
 ## Customizing the run
 

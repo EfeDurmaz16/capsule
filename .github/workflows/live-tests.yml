@@ -101,7 +101,19 @@ jobs:
           PROVIDER: ${{ inputs.provider }}
         run: pnpm --filter @capsule-sdk/cli exec node dist/index.js live-test validate --provider "$PROVIDER"
 
+      # Run exactly the planned suite and keep a machine-readable report. Vitest exits 0 when every
+      # gated live test skips, so success here is not evidence on its own.
       - name: Run live test
         env:
           PROVIDER: ${{ inputs.provider }}
-        run: pnpm vitest run packages/*/src/"$PROVIDER".live.test.ts
+        run: |
+          TEST_PATH="$(node scripts/live-test-evidence.mjs --print-test-path --provider "$PROVIDER")"
+          pnpm vitest run "$TEST_PATH" --reporter=default --reporter=json --outputFile.json="$RUNNER_TEMP/live-test-report.json"
+
+      # Fails the run when zero live tests executed (all skipped), when the selected suite did not
+      # run, or when any live test failed. Only an "executed" verdict is live evidence.
+      - name: Require executed live tests
+        if: ${{ !cancelled() }}
+        env:
+          PROVIDER: ${{ inputs.provider }}
+        run: node scripts/live-test-evidence.mjs --provider "$PROVIDER" --report "$RUNNER_TEMP/live-test-report.json"

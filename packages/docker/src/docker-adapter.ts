@@ -1,24 +1,34 @@
+import { lstatSync, mkdirSync } from "node:fs";
 import { mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, posix } from "node:path";
 import {
   AdapterExecutionError,
+  CleanupFailureError,
+  PartialEffectsError,
+  UnknownOutcomeError,
   providerExecutionError,
+  resourceLocator,
   type AdapterContext,
   type Artifact,
+  type CaptureBounds,
+  type CaptureTruncation,
   type CapsuleAdapter,
   type CapabilityMap,
   type CreateSandboxSpec,
   type ExecResult,
   type ExecSpec,
   type FileEntry,
+  type PartialEffects,
   type ProviderErrorClassification,
+  type ResourceLocator,
   type RunJobSpec,
   type Sandbox,
   type SandboxHandle
 } from "@capsule-sdk/core";
-import { capsuleOperationTags, collectFileArtifacts, logsFromOutput, redactSecrets } from "@capsule-sdk/core";
-import { dockerAvailable, runDocker, type DockerCommandResult, type RunDockerOptions } from "./docker-cli.js";
+import { capsuleOperationTags, collectFileArtifacts, logsFromOutput, redactSecrets, resolveExecOutputBounds } from "@capsule-sdk/core";
+import { dockerAvailable, runDocker, type DockerCommandResult, type DockerOutputBounds, type RunDockerOptions } from "./docker-cli.js";
 
 type DockerRunner = (args: string[], options?: RunDockerOptions) => Promise<DockerCommandResult>;
 
@@ -76,6 +86,10 @@ export function classifyDockerCliError(exitCode: number, stderr: string): Provid
   return { category: "unknown", retryable: false };
 }
 
+function isNoSuchContainer(stderr: string): boolean {
+  return stderr.toLowerCase().includes("no such container");
+}
+
 function dockerCliError(message: string, result: DockerCommandResult): AdapterExecutionError {
   return providerExecutionError(message, classifyDockerCliError(result.exitCode, result.stderr), { exitCode: result.exitCode, stderr: result.stderr });
 }
@@ -116,10 +130,10 @@ export const dockerCapabilities: CapabilityMap = {
     status: "unsupported",
     cancel: "unsupported",
     logs: "unsupported",
-    // Emulated in principle, but job.run uses `docker run --rm`, so the container is gone before we
-    // can `docker cp` from it. Job artifacts stay []; use sandbox.exec + ExecSpec.artifactPaths to
-    // collect artifacts. See docs/artifacts.md.
-    artifacts: "emulated",
+    // Unsupported: job.run uses `docker run --rm`, so the container is gone before we can `docker cp`
+    // from it and job artifacts are always []. Use sandbox.exec + ExecSpec.artifactPaths to collect
+    // artifacts. See docs/artifacts.md.
+    artifacts: "unsupported",
     timeout: "native",
     env: "native",
     resources: "experimental"
@@ -231,19 +245,331 @@ export function dockerSandboxCreateArgs(input: DockerSandboxCreateArgsInput): st
 // Copy the requested container paths into a throwaway temp dir with `docker cp`, then hash them with
 // the shared filesystem collector. Only works while the container is alive, so this is used for
 // sandbox.exec (long-lived container) and not for job.run (which uses `docker run --rm`).
-async function collectSandboxArtifacts(runner: DockerRunner, containerId: string, paths: string[]): Promise<Artifact[]> {
+// Each path keeps its location relative to the deepest directory shared by all requested paths, so
+// /a/out.txt and /b/out.txt land at a/out.txt and b/out.txt instead of overwriting each other, while a
+// single path or paths in one directory keep the plain basename layout.
+async function collectSandboxArtifacts(runner: DockerRunner, containerId: string, placements: ArtifactPlacement[]): Promise<Artifact[]> {
   const dir = await mkdtemp(join(tmpdir(), "capsule-docker-artifacts-"));
   try {
-    for (const path of paths) {
-      const copied = await runner(["cp", `${containerId}:${path}`, dir]);
-      if (copied.exitCode !== 0) {
-        throw dockerCliError(`docker cp artifact failed for ${path}: ${copied.stderr}`, copied);
+    if (hasNestedPlacement(placements)) {
+      // A path inside another requested path copies into a tree an earlier copy creates, so the order of
+      // copies matters: keep them strictly sequential, and never follow a symbolic link that tree holds.
+      for (const placement of placements) {
+        await copyArtifact(runner, containerId, placement, realTargetDirectory(dir, placement));
       }
+    } else {
+      // Disjoint paths land in disjoint subtrees, so the copies can overlap (PERF-14). It is still one
+      // `docker cp` per path with the same arguments; only the waiting overlaps. The tree is fresh, so each
+      // distinct target directory is created once, synchronously, with no thread pool round trip per path.
+      for (const targetDir of new Set(placements.map((placement) => placement.targetDir))) mkdirSync(join(dir, targetDir), { recursive: true });
+      await copyConcurrently(runner, containerId, dir, placements);
     }
     return collectFileArtifacts(dir).artifacts;
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+/** Most `docker cp` processes run at once for one exec's artifacts. */
+export const dockerArtifactCopyConcurrency = 4;
+
+async function copyArtifact(runner: DockerRunner, containerId: string, placement: ArtifactPlacement, target: string): Promise<void> {
+  const copied = await runner(["cp", `${containerId}:${placement.path}`, target]);
+  if (copied.exitCode !== 0) {
+    throw dockerCliError(`docker cp artifact failed for ${placement.path}: ${copied.stderr}`, copied);
+  }
+}
+
+// Starts copies in request order, at most dockerArtifactCopyConcurrency at a time. After a failure no
+// further copy starts; the ones already running finish before the temp dir is removed, and the error of
+// the earliest failed path is thrown, the same error the sequential loop raised.
+async function copyConcurrently(runner: DockerRunner, containerId: string, dir: string, placements: ArtifactPlacement[]): Promise<void> {
+  const failures: Array<{ index: number; error: unknown }> = [];
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (failures.length === 0 && next < placements.length) {
+      const index = next;
+      next += 1;
+      const placement = placements[index]!;
+      try {
+        await copyArtifact(runner, containerId, placement, join(dir, placement.targetDir));
+      } catch (error) {
+        failures.push({ index, error });
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(dockerArtifactCopyConcurrency, placements.length) }, () => worker()));
+  if (failures.length > 0) {
+    throw failures.reduce((earliest, failure) => (failure.index < earliest.index ? failure : earliest)).error;
+  }
+}
+
+// Creates the placement's target directory one component at a time and refuses a component that is not a
+// real directory. An earlier copy has written container-controlled entries into this tree, so a component
+// can be a symbolic link the container planted (for example /out/logs -> a host directory): mkdir -p and
+// docker cp, which resolves a symbolic link in its destination, would follow it and write on the host
+// outside the temp dir. Copies here run one at a time and only they write the tree, so nothing changes it
+// between this check and the copy. lstat does not follow the component it names, and every component
+// before it is already known to be a real directory. Synchronous calls with no exception on a missing
+// component keep the check to one lstat per existing component, with no thread pool round trip.
+function realTargetDirectory(dir: string, placement: ArtifactPlacement): string {
+  let current = dir;
+  let relative = "";
+  for (const part of placement.targetDir.split("/")) {
+    if (!part) continue;
+    current = join(current, part);
+    relative = relative ? `${relative}/${part}` : part;
+    const existing = lstatSync(current, { throwIfNoEntry: false });
+    if (!existing) {
+      mkdirSync(current);
+    } else if (!existing.isDirectory()) {
+      throw new AdapterExecutionError(
+        `Docker artifact path ${placement.path} would be copied through ${relative}, which an earlier artifact copy created as ${existing.isSymbolicLink() ? "a symbolic link" : "a non-directory"}; refusing to follow it.`
+      );
+    }
+  }
+  return current;
+}
+
+// True when one requested path is below another requested path or names the same host path (exact
+// duplicates are already rejected). The copies land on the host file system, which can be case- and
+// Unicode-normalization-insensitive (macOS, Windows), where /c/out and /c/OUT/logs/run.txt share one tree;
+// copying those concurrently would let one copy race a symbolic link written by the other. The key folds
+// conservatively: a false match only makes the copies sequential.
+function hasNestedPlacement(placements: ArtifactPlacement[]): boolean {
+  const paths = new Set(placements.map((placement) => hostPathKey(posix.resolve("/", placement.path))));
+  if (paths.size < placements.length) return true;
+  for (const path of paths) {
+    for (let parent = posix.dirname(path); parent !== "/"; parent = posix.dirname(parent)) {
+      if (paths.has(parent)) return true;
+    }
+  }
+  return false;
+}
+
+function hostPathKey(path: string): string {
+  return path.normalize("NFKC").toLowerCase().toUpperCase().toLowerCase();
+}
+
+interface ArtifactPlacement {
+  path: string;
+  targetDir: string;
+}
+
+// Plans every copy before any effect. Container paths resolve against "/" (docker cp treats relative
+// container paths as relative to the root). Two requests for the same container path are rejected.
+export function artifactPlacements(paths: string[]): ArtifactPlacement[] {
+  const resolved = paths.map((path) => ({ path, absolute: posix.resolve("/", path) }));
+  const seen = new Set<string>();
+  for (const entry of resolved) {
+    if (entry.absolute === "/") {
+      throw new AdapterExecutionError("Docker artifact path must name a file or directory below the container root.");
+    }
+    if (seen.has(entry.absolute)) {
+      throw new AdapterExecutionError(`Docker artifact path is requested more than once: ${entry.absolute}`);
+    }
+    seen.add(entry.absolute);
+  }
+  const parents = resolved.map((entry) => posix.dirname(entry.absolute));
+  const root = parents.reduce((common, parent) => commonDirectory(common, parent));
+  return resolved.map((entry) => ({ path: entry.path, targetDir: posix.relative(root, posix.dirname(entry.absolute)) }));
+}
+
+function commonDirectory(left: string, right: string): string {
+  const a = left.split("/").filter(Boolean);
+  const b = right.split("/").filter(Boolean);
+  let shared = 0;
+  while (shared < a.length && shared < b.length && a[shared] === b[shared]) shared += 1;
+  return `/${a.slice(0, shared).join("/")}`;
+}
+
+// Builds the argv for listing one directory level. A path that find would parse as an expression
+// (leading "-", "(" or "!") is anchored with "./" so it can only ever be a starting point.
+export function dockerListFilesCommand(path: string): string[] {
+  const startingPoint = /^[-(!]/.test(path) ? `./${path}` : path;
+  return ["find", startingPoint, "-maxdepth", "1", "-mindepth", "1", "-printf", "%f\\0%p\\0%y\\0%s\\0"];
+}
+
+function parseDockerListFiles(stdout: string): FileEntry[] {
+  const fields = stdout.split("\0");
+  const entries: FileEntry[] = [];
+  for (let index = 0; index + 3 < fields.length; index += 4) {
+    const [name = "", entryPath = "", kind = "", size = ""] = fields.slice(index, index + 4);
+    entries.push({
+      name,
+      path: entryPath,
+      type: kind === "f" ? "file" : kind === "d" ? "directory" : "unknown",
+      sizeBytes: Number(size) || undefined
+    });
+  }
+  return entries;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+// Removes a container this create call allocated but could not hand back. The primary error and the
+// cleanup outcome stay separate: a failed removal throws CleanupFailureError with the container as a
+// residual resource, a successful one throws PartialEffectsError whose cause is the primary error.
+async function rollbackCreatedContainer(runner: DockerRunner, locator: ResourceLocator, primaryError: unknown): Promise<never> {
+  let cleanupError: unknown;
+  try {
+    const removed = await runner(["rm", "-f", locator.nativeId], { timeoutMs: 20_000 });
+    if (removed.exitCode !== 0 && !isNoSuchContainer(removed.stderr)) {
+      cleanupError = dockerCliError(`docker rm failed during create rollback: ${removed.stderr}`, removed);
+    }
+  } catch (error) {
+    cleanupError = error;
+  }
+  const resources = [locator];
+  if (cleanupError !== undefined) {
+    const effects: PartialEffects = {
+      operation: "sandbox.create",
+      outcome: "failed",
+      resources,
+      primaryError,
+      cleanup: { status: "failed", resources, residual: resources, error: cleanupError }
+    };
+    throw new CleanupFailureError(
+      `Docker sandbox cleanup failed after container allocation: ${errorMessage(primaryError)}`,
+      { action: "remove-created-container", containerId: locator.nativeId, status: "failed", error: errorMessage(cleanupError) },
+      primaryError,
+      effects
+    );
+  }
+  throw new PartialEffectsError(`Docker sandbox creation failed after container allocation; the container was removed: ${errorMessage(primaryError)}`, {
+    operation: "sandbox.create",
+    outcome: "failed",
+    resources,
+    primaryError,
+    cleanup: { status: "succeeded", resources }
+  });
+}
+
+// Output bounds for docker exec and job.run (CD-BOUNDS). maxBytes defaults to 16 MiB per stream with
+// policy.limits.maxStdoutBytes/maxStderrBytes as ceilings. A capture deadline applies only when the
+// caller sets bounds.deadlineMs: the command timeout is timeoutMs, and a default capture deadline would
+// silently drop output of long, legitimate commands.
+function dockerOutputBounds(bounds: CaptureBounds | undefined, policy: AdapterContext["policy"]): DockerOutputBounds {
+  const resolved = resolveExecOutputBounds(bounds, policy);
+  if (bounds?.deadlineMs !== undefined) return resolved;
+  return {
+    stdout: { ...resolved.stdout, deadlineMs: Number.MAX_SAFE_INTEGER },
+    stderr: { ...resolved.stderr, deadlineMs: Number.MAX_SAFE_INTEGER }
+  };
+}
+
+function truncationMetadata(truncation: DockerCommandResult["truncation"]): { metadata?: Record<string, unknown> } {
+  if (!truncation || (!truncation.stdout.truncated && !truncation.stderr.truncated)) return {};
+  return { metadata: { outputTruncation: truncation } };
+}
+
+// Redacts captured output. When a stream was cut at the byte cap, the cut can fall inside a secret,
+// leaving a prefix that whole-value redaction cannot match, so a trailing secret prefix is redacted too.
+// Redacts captured stderr and keeps any note the runner appended after it (the timeout note) outside
+// the captured part, so a secret prefix cut by the byte cap is still found at the end of the capture.
+function redactCapturedStderr(
+  result: DockerCommandResult,
+  env: Record<string, string> | undefined,
+  policy: AdapterContext["policy"],
+  extraNote?: string
+): string {
+  const note = result.timeoutNote;
+  const split = note !== undefined && result.stderr.endsWith(note);
+  const captured = split ? result.stderr.slice(0, result.stderr.length - note.length).replace(/\n$/, "") : result.stderr;
+  const notes = [...(split ? [note] : []), ...(extraNote === undefined ? [] : [extraNote])];
+  const redacted = redactCapturedOutput(captured, result.truncation?.stderr, env, policy);
+  return [redacted, ...notes.map((entry) => redactSecrets(entry, env, policy))].filter((part, index) => index > 0 || part.length > 0).join("\n");
+}
+
+function redactCapturedOutput(
+  text: string,
+  truncation: CaptureTruncation | undefined,
+  env: Record<string, string> | undefined,
+  policy: AdapterContext["policy"]
+): string {
+  let output = redactSecrets(text, env, policy);
+  if (!truncation?.truncated || !policy.secrets?.redactFromLogs || !env) return output;
+  for (const key of policy.secrets.allowed ?? []) {
+    const secret = env[key];
+    if (!secret) continue;
+    for (let length = Math.min(secret.length - 1, output.length); length > 0; length -= 1) {
+      if (output.endsWith(secret.slice(0, length))) {
+        output = `${output.slice(0, output.length - length)}[REDACTED]`;
+        break;
+      }
+    }
+  }
+  return output;
+}
+
+const dockerRunLabelKey = "capsule_docker_run";
+
+interface ReapedJob {
+  termination: "removed" | "not-created";
+  containers: string[];
+  note: string;
+}
+
+// runDocker's timeout only kills the local docker CLI. The container keeps running in the daemon, and
+// --rm removes it only when it exits on its own. Find it by its run label and remove it with docker
+// rm -f, which kills and removes it and exits 0 only once the daemon has done so. If that cannot be
+// confirmed the job's outcome is unknown and the container is reported as a residual resource.
+async function reapTimedOutJob(
+  runner: DockerRunner,
+  runLabel: string,
+  timedOut: DockerCommandResult,
+  env: Record<string, string> | undefined,
+  context: AdapterContext
+): Promise<ReapedJob> {
+  const labelLocator = resourceLocator({ provider, kind: "job-container", nativeId: runLabel, scope: { label: runLabel } });
+  const primaryError = providerExecutionError(
+    "Docker job timed out; the docker CLI was killed.",
+    { category: "retryable", retryable: true },
+    { exitCode: timedOut.exitCode, stderr: redactCapturedStderr(timedOut, env, context.policy) }
+  );
+  const fail = (cleanupError: unknown, residual: ResourceLocator[]): never => {
+    throw new CleanupFailureError(
+      `Docker job timed out and its container could not be confirmed removed: ${errorMessage(cleanupError)}`,
+      { action: "remove-timed-out-job-container", runLabel, status: "failed", error: errorMessage(cleanupError) },
+      primaryError,
+      {
+        operation: "job.run",
+        outcome: "unknown",
+        resources: residual,
+        primaryError,
+        cleanup: { status: "failed", resources: residual, residual, error: cleanupError }
+      }
+    );
+  };
+  let listed: DockerCommandResult;
+  try {
+    listed = await runner(["ps", "-a", "-q", "--no-trunc", "--filter", `label=${runLabel}`], { timeoutMs: 20_000 });
+  } catch (error) {
+    return fail(error, [labelLocator]);
+  }
+  if (listed.exitCode !== 0) {
+    return fail(dockerCliError(`docker ps failed while reaping a timed-out job: ${listed.stderr}`, listed), [labelLocator]);
+  }
+  const containers = listed.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (containers.length === 0) {
+    return { termination: "not-created", containers, note: "No container was created for this job before the timeout." };
+  }
+  const residual = containers.map((id) => resourceLocator({ provider, kind: "job-container", nativeId: id, scope: { label: runLabel } }));
+  let removed: DockerCommandResult;
+  try {
+    removed = await runner(["rm", "-f", ...containers], { timeoutMs: 20_000 });
+  } catch (error) {
+    return fail(error, residual);
+  }
+  if (removed.exitCode !== 0 && !isNoSuchContainer(removed.stderr)) {
+    return fail(dockerCliError(`docker rm failed while reaping a timed-out job: ${removed.stderr}`, removed), residual);
+  }
+  return { termination: "removed", containers, note: `Removed timed-out job container ${containers.join(", ")}.` };
 }
 
 async function ensureDocker(checkAvailable: () => Promise<boolean>): Promise<void> {
@@ -263,13 +589,40 @@ class DockerSandbox implements Sandbox {
     const startedAt = new Date();
     const policy = this.context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
     const command = normalizeCommand(spec.command);
-    const result = await this.runner(["exec", ...(spec.cwd ? ["--workdir", spec.cwd] : []), ...envArgs(spec.env), this.handle.id, ...command], {
+    // Plan artifact copies before running the command so an invalid request has no effects.
+    const placements = spec.artifactPaths?.length ? artifactPlacements(spec.artifactPaths) : undefined;
+    const outputBounds = dockerOutputBounds(spec.bounds, this.context.policy);
+    // docker exec only attaches the process stdin with -i. With input the CLI writes it and then
+    // closes its stdin, so the process sees EOF (immediately for empty input). Without input stdin is
+    // not attached, as before.
+    const interactive = spec.input !== undefined ? ["-i"] : [];
+    const result = await this.runner(["exec", ...interactive, ...(spec.cwd ? ["--workdir", spec.cwd] : []), ...envArgs(spec.env), this.handle.id, ...command], {
       timeoutMs: spec.timeoutMs,
-      input: spec.input
+      input: spec.input,
+      outputBounds
     });
-    const stdout = redactSecrets(result.stdout, spec.env, this.context.policy);
-    const stderr = redactSecrets(result.stderr, spec.env, this.context.policy);
-    const artifacts = spec.artifactPaths?.length ? await collectSandboxArtifacts(this.runner, this.handle.id, spec.artifactPaths) : [];
+    if (result.timedOut) {
+      // Killing the docker exec client does not stop the process inside the container, so a timeout
+      // proves nothing about the command. Report the outcome as unknown instead of an exit code.
+      throw new UnknownOutcomeError(
+        `Docker exec timed out after ${spec.timeoutMs}ms; the command may still be running in container ${this.handle.id}.`,
+        { operation: "sandbox.exec", resource: resourceLocator({ provider, kind: "sandbox", nativeId: this.handle.id }) },
+        providerExecutionError(
+          "Docker exec timed out; the docker CLI was killed.",
+          { category: "retryable", retryable: true },
+          {
+            exitCode: result.exitCode,
+            stdout: redactCapturedOutput(result.stdout, result.truncation?.stdout, spec.env, this.context.policy),
+            stderr: redactCapturedStderr(result, spec.env, this.context.policy),
+            ...(result.truncation ? { truncation: result.truncation } : {}),
+            ...(result.captureLimit ? { captureLimit: result.captureLimit.message } : {})
+          }
+        )
+      );
+    }
+    const stdout = redactCapturedOutput(result.stdout, result.truncation?.stdout, spec.env, this.context.policy);
+    const stderr = redactCapturedOutput(result.stderr, result.truncation?.stderr, spec.env, this.context.policy);
+    const artifacts = placements ? await collectSandboxArtifacts(this.runner, this.handle.id, placements) : [];
     const receipt = this.context.receipts
       ? this.context.createReceipt({
           type: "sandbox.exec",
@@ -282,7 +635,8 @@ class DockerSandbox implements Sandbox {
           stderr,
           artifacts,
           policy: { ...policy, notes: [...policy.notes, ...policyNotes(this.context)] },
-          resource: { id: this.handle.id, status: "running" }
+          resource: { id: this.handle.id, status: "running" },
+          ...truncationMetadata(result.truncation)
         })
       : undefined;
     return {
@@ -291,7 +645,8 @@ class DockerSandbox implements Sandbox {
       stderr,
       logs: logsFromOutput(stdout, stderr, this.handle.id),
       artifacts,
-      receipt
+      receipt,
+      ...(result.truncation ? { truncation: result.truncation } : {})
     };
   }
 
@@ -325,35 +680,33 @@ class DockerSandbox implements Sandbox {
   }
 
   async listFiles(path: string): Promise<FileEntry[]> {
-    const command = `find ${JSON.stringify(path)} -maxdepth 1 -mindepth 1 -printf '%f\\t%p\\t%y\\t%s\\n'`;
-    const result = await this.runner(["exec", this.handle.id, "sh", "-lc", command]);
+    // The path travels as one argv element to find, never through a shell, so quotes, $(), backticks
+    // and newlines stay literal. Fields are NUL-separated because file names may contain tabs or newlines.
+    const result = await this.runner(["exec", this.handle.id, ...dockerListFilesCommand(path)]);
     if (result.exitCode !== 0) {
       throw dockerCliError(`docker exec list failed: ${result.stderr}`, result);
     }
-    return result.stdout
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => {
-        const [name = "", entryPath = "", kind = "unknown", size = ""] = line.split("\t");
-        return {
-          name,
-          path: entryPath,
-          type: kind === "f" ? "file" : kind === "d" ? "directory" : "unknown",
-          sizeBytes: Number(size) || undefined
-        };
-      });
+    return parseDockerListFiles(result.stdout);
   }
 
   async destroy(): Promise<void> {
     const startedAt = new Date();
-    await this.runner(["rm", "-f", this.handle.id], { timeoutMs: 20_000 });
+    const removed = await this.runner(["rm", "-f", this.handle.id], { timeoutMs: 20_000 });
+    // docker rm -f exits 0 once the container is gone. A container that is already absent is the
+    // desired end state, so destroy stays idempotent and records it; any other nonzero exit means the
+    // container may still exist, so destroy rejects and writes no deleted receipt.
+    const alreadyAbsent = removed.exitCode !== 0 && isNoSuchContainer(removed.stderr);
+    if (removed.exitCode !== 0 && !alreadyAbsent) {
+      throw dockerCliError(`docker rm failed: ${removed.stderr}`, removed);
+    }
     if (this.context.receipts) {
       this.context.createReceipt({
         type: "sandbox.destroy",
         capabilityPath: "sandbox.destroy",
         startedAt,
         policy: { decision: "allowed", applied: this.context.policy, notes: policyNotes(this.context) },
-        resource: { id: this.handle.id, status: "deleted" }
+        resource: { id: this.handle.id, status: "deleted" },
+        ...(alreadyAbsent ? { metadata: { alreadyAbsent: true } } : {})
       });
     }
   }
@@ -386,32 +739,47 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
           }),
           { timeoutMs: spec.timeoutMs }
         );
+        if (create.timedOut) {
+          // The daemon may have created the container after the CLI was killed. Its id is unknown, so it is
+          // reported by name and not removed here: the name could also belong to an unrelated container.
+          throw new UnknownOutcomeError(
+            `docker create timed out after ${spec.timeoutMs}ms; container ${name} may exist.`,
+            { operation: "sandbox.create", resource: resourceLocator({ provider, kind: "sandbox", nativeId: name, scope: { name } }) },
+            dockerCliError(`docker create timed out: ${create.stderr}`, create)
+          );
+        }
         if (create.exitCode !== 0) {
           throw dockerCliError(`docker create failed: ${create.stderr}`, create);
         }
         const id = create.stdout.trim();
-        const start = await runner(["start", id], { timeoutMs: spec.timeoutMs });
-        if (start.exitCode !== 0) {
-          await runner(["rm", "-f", id]);
-          throw dockerCliError(`docker start failed: ${start.stderr}`, start);
+        const locator = resourceLocator({ provider, kind: "sandbox", nativeId: id, scope: { name } });
+        // From here a container exists. Any failure before the handle is returned (start, receipt
+        // signing or persistence) removes it, so no live container is left without an owner.
+        try {
+          const start = await runner(["start", id], { timeoutMs: spec.timeoutMs });
+          if (start.exitCode !== 0) {
+            throw dockerCliError(`docker start failed: ${start.stderr}`, start);
+          }
+          const handle: SandboxHandle = {
+            id,
+            provider,
+            createdAt: startedAt.toISOString(),
+            metadata: { image, name, exposedPorts: spec.exposedPorts ?? [] }
+          };
+          if (context.receipts) {
+            context.createReceipt({
+              type: "sandbox.create",
+              capabilityPath: "sandbox.create",
+              startedAt,
+              image,
+              policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
+              resource: { id, name, status: "running" }
+            });
+          }
+          return new DockerSandbox(handle, context, runner);
+        } catch (error) {
+          return await rollbackCreatedContainer(runner, locator, error);
         }
-        const handle: SandboxHandle = {
-          id,
-          provider,
-          createdAt: startedAt.toISOString(),
-          metadata: { image, name, exposedPorts: spec.exposedPorts ?? [] }
-        };
-        if (context.receipts) {
-          context.createReceipt({
-            type: "sandbox.create",
-            capabilityPath: "sandbox.create",
-            startedAt,
-            image,
-            policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
-            resource: { id, name, status: "running" }
-          });
-        }
-        return new DockerSandbox(handle, context, runner);
       }
     },
     job: {
@@ -420,21 +788,27 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
         const command = spec.command ? normalizeCommand(spec.command) : [];
+        // A per-run label gives the container an identity Capsule can find again even if the CLI is
+        // killed before it reports the container id.
+        const runLabel = `${dockerRunLabelKey}=${randomUUID()}`;
         const result = await runner(
           [
             "run",
             "--rm",
             ...(context.policy.network?.mode === "none" ? ["--network", "none"] : []),
+            "--label",
+            runLabel,
             ...labelArgs({ ...(spec.labels ?? {}), ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "job.run" }) ?? {}) }),
             ...envArgs(spec.env),
             ...resourceArgs(spec.resources),
             spec.image,
             ...command
           ],
-          { timeoutMs: spec.timeoutMs }
+          { timeoutMs: spec.timeoutMs, outputBounds: dockerOutputBounds(undefined, context.policy) }
         );
-        const stdout = redactSecrets(result.stdout, spec.env, context.policy);
-        const stderr = redactSecrets(result.stderr, spec.env, context.policy);
+        const reaped = result.timedOut ? await reapTimedOutJob(runner, runLabel, result, spec.env, context) : undefined;
+        const stdout = redactCapturedOutput(result.stdout, result.truncation?.stdout, spec.env, context.policy);
+        const stderr = redactCapturedStderr(result, spec.env, context.policy, reaped?.note);
         const receipt = context.receipts
           ? context.createReceipt({
               type: "job.run",
@@ -446,7 +820,12 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
               stdout,
               stderr,
               policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
-              resource: { id: spec.name, name: spec.name, status: result.exitCode === 0 ? "succeeded" : "failed" }
+              resource: { id: spec.name, name: spec.name, status: result.exitCode === 0 ? "succeeded" : "failed" },
+              metadata: {
+                runLabel,
+                ...(reaped ? { timedOut: true, termination: reaped.termination, containers: reaped.containers } : {}),
+                ...truncationMetadata(result.truncation).metadata
+              }
             })
           : undefined;
         return {
@@ -459,7 +838,8 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
             stderr,
             logs: logsFromOutput(stdout, stderr),
             artifacts: [],
-            receipt
+            receipt,
+            ...(result.truncation ? { truncation: result.truncation } : {})
           },
           receipt
         };

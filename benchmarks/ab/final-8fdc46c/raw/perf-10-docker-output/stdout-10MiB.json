@@ -1,0 +1,1786 @@
+{
+  "meta": {
+    "label": "final-8fdc46c",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 20,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "8fdc46cb331b811e14950e283d5b825788b5a07e",
+      "packagesTree": "cf7875190d8205697a7a93db8194dc50e04485b3",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "8fdc46cb331b811e14950e283d5b825788b5a07e",
+    "date": "2026-10-27T20:58:14.843Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        25.86279296875,
+        17.724609375,
+        12.79248046875
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)"
+  },
+  "workload": "perf-10-docker-output",
+  "case": "stdout-10MiB",
+  "params": {
+    "stdoutBytes": 10485760
+  },
+  "runs": [
+    {
+      "side": "A",
+      "pair": 0,
+      "childWallMs": 113.81841700000223,
+      "loadAverage1m": 17.5283203125,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 56.917417,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 94879744,
+        "peakRssGrowthBytes": 43515904,
+        "heapUsedDeltaBytes": 28295016
+      },
+      "caseDurationMs": 82.01612499999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 45023232,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33769784,
+          "rss": 94994432,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 94994432
+      }
+    },
+    {
+      "side": "B",
+      "pair": 0,
+      "childWallMs": 112.46891699999833,
+      "loadAverage1m": 17.5283203125,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 55.991499999999995,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 95371264,
+        "peakRssGrowthBytes": 43679744,
+        "heapUsedDeltaBytes": 28298512
+      },
+      "caseDurationMs": 81.38591699999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794496,
+          "rss": 45072384,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33843584,
+          "rss": 95535104,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95535104
+      }
+    },
+    {
+      "side": "A",
+      "pair": 1,
+      "childWallMs": 220.43087500000547,
+      "loadAverage1m": 17.54248046875,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 93.600833,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 96305152,
+        "peakRssGrowthBytes": 44613632,
+        "heapUsedDeltaBytes": 28632480
+      },
+      "caseDurationMs": 147.878875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 45137920,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34108512,
+          "rss": 96485376,
+          "external": 2145439,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 96485376
+      }
+    },
+    {
+      "side": "B",
+      "pair": 1,
+      "childWallMs": 224.9797910000052,
+      "loadAverage1m": 17.54248046875,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 103.02012500000001,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 102367232,
+        "peakRssGrowthBytes": 50200576,
+        "heapUsedDeltaBytes": 31723728
+      },
+      "caseDurationMs": 159.33375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794424,
+          "rss": 45203456,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 37265888,
+          "rss": 101875712,
+          "external": 3194015,
+          "arrayBuffers": 1073401
+        },
+        "maxRssBytes": 102367232
+      }
+    },
+    {
+      "side": "A",
+      "pair": 2,
+      "childWallMs": 271.31958399998257,
+      "loadAverage1m": 16.14208984375,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 164.687542,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 96108544,
+        "peakRssGrowthBytes": 44482560,
+        "heapUsedDeltaBytes": 28551424
+      },
+      "caseDurationMs": 217.86262499999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 45006848,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34028552,
+          "rss": 96288768,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 96288768
+      }
+    },
+    {
+      "side": "B",
+      "pair": 2,
+      "childWallMs": 334.10620799998287,
+      "loadAverage1m": 17.25146484375,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 207.619458,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 96976896,
+        "peakRssGrowthBytes": 44728320,
+        "heapUsedDeltaBytes": 29017608
+      },
+      "caseDurationMs": 268.987417,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794424,
+          "rss": 45383680,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34562128,
+          "rss": 97140736,
+          "external": 2145439,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 97140736
+      }
+    },
+    {
+      "side": "A",
+      "pair": 3,
+      "childWallMs": 125.95154200005345,
+      "loadAverage1m": 12.88134765625,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 60.10208299999999,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 94289920,
+        "peakRssGrowthBytes": 43008000,
+        "heapUsedDeltaBytes": 27681536
+      },
+      "caseDurationMs": 90.931416,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 44924928,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33156808,
+          "rss": 94355456,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 94355456
+      }
+    },
+    {
+      "side": "B",
+      "pair": 3,
+      "childWallMs": 122.11279099999228,
+      "loadAverage1m": 12.88134765625,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 58.091375000000006,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 95191040,
+        "peakRssGrowthBytes": 43614208,
+        "heapUsedDeltaBytes": 28267320
+      },
+      "caseDurationMs": 89.567083,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794424,
+          "rss": 44941312,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33812320,
+          "rss": 95322112,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95322112
+      }
+    },
+    {
+      "side": "A",
+      "pair": 4,
+      "childWallMs": 171.07279199996265,
+      "loadAverage1m": 10.47314453125,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 66.19600000000001,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 95305728,
+        "peakRssGrowthBytes": 43450368,
+        "heapUsedDeltaBytes": 28313136
+      },
+      "caseDurationMs": 111.65875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 45219840,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33788808,
+          "rss": 95485952,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95485952
+      }
+    },
+    {
+      "side": "B",
+      "pair": 4,
+      "childWallMs": 163.35070800001267,
+      "loadAverage1m": 10.47314453125,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 73.24966599999999,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 97648640,
+        "peakRssGrowthBytes": 45711360,
+        "heapUsedDeltaBytes": 28255936
+      },
+      "caseDurationMs": 121.20858399999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794496,
+          "rss": 45154304,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33801648,
+          "rss": 97812480,
+          "external": 2145439,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 97812480
+      }
+    },
+    {
+      "side": "A",
+      "pair": 5,
+      "childWallMs": 143.51308400003472,
+      "loadAverage1m": 13.7392578125,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 69.16633300000001,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 96059392,
+        "peakRssGrowthBytes": 44662784,
+        "heapUsedDeltaBytes": 28562992
+      },
+      "caseDurationMs": 106.82970799999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 44875776,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34040416,
+          "rss": 96256000,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 96256000
+      }
+    },
+    {
+      "side": "B",
+      "pair": 5,
+      "childWallMs": 185.59908300003735,
+      "loadAverage1m": 13.7392578125,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 90.68033299999999,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 96305152,
+        "peakRssGrowthBytes": 44253184,
+        "heapUsedDeltaBytes": 28600368
+      },
+      "caseDurationMs": 134.615792,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794424,
+          "rss": 45137920,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34144824,
+          "rss": 96436224,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 96436224
+      }
+    },
+    {
+      "side": "A",
+      "pair": 6,
+      "childWallMs": 196.58649999997579,
+      "loadAverage1m": 20.8017578125,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 80.29654199999999,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 95485952,
+        "peakRssGrowthBytes": 43892736,
+        "heapUsedDeltaBytes": 28503448
+      },
+      "caseDurationMs": 136.07654100000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 45154304,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33979712,
+          "rss": 95649792,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95649792
+      }
+    },
+    {
+      "side": "B",
+      "pair": 6,
+      "childWallMs": 165.33029100007843,
+      "loadAverage1m": 20.8017578125,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 77.031792,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 95272960,
+        "peakRssGrowthBytes": 43384832,
+        "heapUsedDeltaBytes": 28242344
+      },
+      "caseDurationMs": 118.764209,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794424,
+          "rss": 45039616,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33787344,
+          "rss": 95436800,
+          "external": 2145439,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95436800
+      }
+    },
+    {
+      "side": "A",
+      "pair": 7,
+      "childWallMs": 120.4759999999078,
+      "loadAverage1m": 14.369140625,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 55.882374999999996,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 95617024,
+        "peakRssGrowthBytes": 44335104,
+        "heapUsedDeltaBytes": 28677520
+      },
+      "caseDurationMs": 81.82579199999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 44974080,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34152936,
+          "rss": 95764480,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95764480
+      }
+    },
+    {
+      "side": "B",
+      "pair": 7,
+      "childWallMs": 114.11883399996441,
+      "loadAverage1m": 14.369140625,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 56.086208,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 95518720,
+        "peakRssGrowthBytes": 43958272,
+        "heapUsedDeltaBytes": 28621472
+      },
+      "caseDurationMs": 81.434209,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794424,
+          "rss": 44892160,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34167272,
+          "rss": 95698944,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95698944
+      }
+    },
+    {
+      "side": "A",
+      "pair": 8,
+      "childWallMs": 150.54362500004936,
+      "loadAverage1m": 15.00830078125,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 65.726167,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 95485952,
+        "peakRssGrowthBytes": 43728896,
+        "heapUsedDeltaBytes": 28216104
+      },
+      "caseDurationMs": 96.840375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794504,
+          "rss": 45400064,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33691448,
+          "rss": 95715328,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95715328
+      }
+    },
+    {
+      "side": "B",
+      "pair": 8,
+      "childWallMs": 160.79045799991582,
+      "loadAverage1m": 15.00830078125,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 79.45125000000002,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 96714752,
+        "peakRssGrowthBytes": 44646400,
+        "heapUsedDeltaBytes": 28541312
+      },
+      "caseDurationMs": 117.05387499999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794424,
+          "rss": 45318144,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34085856,
+          "rss": 96862208,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 96862208
+      }
+    },
+    {
+      "side": "A",
+      "pair": 9,
+      "childWallMs": 127.1328340000473,
+      "loadAverage1m": 22.71337890625,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 59.16275,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 94879744,
+        "peakRssGrowthBytes": 43433984,
+        "heapUsedDeltaBytes": 28215368
+      },
+      "caseDurationMs": 90.72845799999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 44908544,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33690640,
+          "rss": 95076352,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95076352
+      }
+    },
+    {
+      "side": "B",
+      "pair": 9,
+      "childWallMs": 122.8931670000311,
+      "loadAverage1m": 22.71337890625,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 56.743875,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 95043584,
+        "peakRssGrowthBytes": 43433984,
+        "heapUsedDeltaBytes": 28194744
+      },
+      "caseDurationMs": 86.35858400000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794424,
+          "rss": 45023232,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33740160,
+          "rss": 95207424,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95207424
+      }
+    },
+    {
+      "side": "A",
+      "pair": 10,
+      "childWallMs": 140.14100000006147,
+      "loadAverage1m": 14.47607421875,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 64.90050000000001,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 95502336,
+        "peakRssGrowthBytes": 43843584,
+        "heapUsedDeltaBytes": 28177304
+      },
+      "caseDurationMs": 98.32175000000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 45088768,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33653616,
+          "rss": 95584256,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95584256
+      }
+    },
+    {
+      "side": "B",
+      "pair": 10,
+      "childWallMs": 153.93416599999182,
+      "loadAverage1m": 14.47607421875,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 77.41358299999999,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 94371840,
+        "peakRssGrowthBytes": 42139648,
+        "heapUsedDeltaBytes": 27534792
+      },
+      "caseDurationMs": 113.479542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794424,
+          "rss": 45187072,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33078960,
+          "rss": 94486528,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 94486528
+      }
+    },
+    {
+      "side": "A",
+      "pair": 11,
+      "childWallMs": 278.93800000008196,
+      "loadAverage1m": 25.8662109375,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 110.482666,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 96043008,
+        "peakRssGrowthBytes": 44204032,
+        "heapUsedDeltaBytes": 28609576
+      },
+      "caseDurationMs": 205.529292,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 45367296,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34085600,
+          "rss": 96223232,
+          "external": 2145439,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 96223232
+      }
+    },
+    {
+      "side": "B",
+      "pair": 11,
+      "childWallMs": 225.48483299999498,
+      "loadAverage1m": 25.8662109375,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 98.906208,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 95027200,
+        "peakRssGrowthBytes": 43204608,
+        "heapUsedDeltaBytes": 28173944
+      },
+      "caseDurationMs": 149.875584,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794496,
+          "rss": 45105152,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33719632,
+          "rss": 95109120,
+          "external": 2145439,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95109120
+      }
+    },
+    {
+      "side": "A",
+      "pair": 12,
+      "childWallMs": 142.8996670001652,
+      "loadAverage1m": 22.755859375,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 66.8115,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 95502336,
+        "peakRssGrowthBytes": 43958272,
+        "heapUsedDeltaBytes": 28317160
+      },
+      "caseDurationMs": 100.659916,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 45056000,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33792864,
+          "rss": 95666176,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95666176
+      }
+    },
+    {
+      "side": "B",
+      "pair": 12,
+      "childWallMs": 152.5038329998497,
+      "loadAverage1m": 22.755859375,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 70.20633300000001,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 96190464,
+        "peakRssGrowthBytes": 44171264,
+        "heapUsedDeltaBytes": 28557584
+      },
+      "caseDurationMs": 111.231375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794496,
+          "rss": 45137920,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34103056,
+          "rss": 96321536,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 96321536
+      }
+    },
+    {
+      "side": "A",
+      "pair": 13,
+      "childWallMs": 319.28987500001676,
+      "loadAverage1m": 41.3720703125,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 176.377416,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 97107968,
+        "peakRssGrowthBytes": 45318144,
+        "heapUsedDeltaBytes": 29146744
+      },
+      "caseDurationMs": 258.133125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 45072384,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34623888,
+          "rss": 97320960,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 97320960
+      }
+    },
+    {
+      "side": "B",
+      "pair": 13,
+      "childWallMs": 251.7551669999957,
+      "loadAverage1m": 41.3720703125,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 108.02466700000001,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 98156544,
+        "peakRssGrowthBytes": 45940736,
+        "heapUsedDeltaBytes": 29009504
+      },
+      "caseDurationMs": 194.72508299999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794424,
+          "rss": 45072384,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34555440,
+          "rss": 98320384,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 98320384
+      }
+    },
+    {
+      "side": "A",
+      "pair": 14,
+      "childWallMs": 191.75524999992922,
+      "loadAverage1m": 16.2431640625,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 87.07120800000001,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 96174080,
+        "peakRssGrowthBytes": 44335104,
+        "heapUsedDeltaBytes": 28247216
+      },
+      "caseDurationMs": 138.30075,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794504,
+          "rss": 45498368,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33723096,
+          "rss": 96305152,
+          "external": 2145439,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 96305152
+      }
+    },
+    {
+      "side": "B",
+      "pair": 14,
+      "childWallMs": 215.7180000001099,
+      "loadAverage1m": 16.2431640625,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 88.39866699999999,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 96960512,
+        "peakRssGrowthBytes": 44728320,
+        "heapUsedDeltaBytes": 28860144
+      },
+      "caseDurationMs": 150.695666,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794424,
+          "rss": 45465600,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34406104,
+          "rss": 97124352,
+          "external": 2145439,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 97124352
+      }
+    },
+    {
+      "side": "A",
+      "pair": 15,
+      "childWallMs": 120.84841600013897,
+      "loadAverage1m": 26.04541015625,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 57.32875000000001,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 95010816,
+        "peakRssGrowthBytes": 43663360,
+        "heapUsedDeltaBytes": 28302920
+      },
+      "caseDurationMs": 86.025125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 44974080,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33778192,
+          "rss": 95272960,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95272960
+      }
+    },
+    {
+      "side": "B",
+      "pair": 15,
+      "childWallMs": 132.90291699999943,
+      "loadAverage1m": 26.04541015625,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 61.930082999999996,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 96026624,
+        "peakRssGrowthBytes": 44220416,
+        "heapUsedDeltaBytes": 28502432
+      },
+      "caseDurationMs": 93.133333,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794424,
+          "rss": 45023232,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34046976,
+          "rss": 96206848,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 96206848
+      }
+    },
+    {
+      "side": "A",
+      "pair": 16,
+      "childWallMs": 138.63333399989642,
+      "loadAverage1m": 19.388671875,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 64.829666,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 95535104,
+        "peakRssGrowthBytes": 44138496,
+        "heapUsedDeltaBytes": 28324488
+      },
+      "caseDurationMs": 95.447584,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 44990464,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33799760,
+          "rss": 95698944,
+          "external": 2145439,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95698944
+      }
+    },
+    {
+      "side": "B",
+      "pair": 16,
+      "childWallMs": 141.86529200011864,
+      "loadAverage1m": 19.388671875,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 67.83087499999999,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 95944704,
+        "peakRssGrowthBytes": 44220416,
+        "heapUsedDeltaBytes": 28266800
+      },
+      "caseDurationMs": 101.377209,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794424,
+          "rss": 44941312,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33811016,
+          "rss": 96108544,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 96108544
+      }
+    },
+    {
+      "side": "A",
+      "pair": 17,
+      "childWallMs": 219.7677080000285,
+      "loadAverage1m": 16.50927734375,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 103.10162499999998,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 96075776,
+        "peakRssGrowthBytes": 44269568,
+        "heapUsedDeltaBytes": 28226120
+      },
+      "caseDurationMs": 158.460917,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 45203456,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33702328,
+          "rss": 96256000,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 96256000
+      }
+    },
+    {
+      "side": "B",
+      "pair": 17,
+      "childWallMs": 202.18045800016262,
+      "loadAverage1m": 16.50927734375,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 81.70933299999999,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 96370688,
+        "peakRssGrowthBytes": 44433408,
+        "heapUsedDeltaBytes": 28482472
+      },
+      "caseDurationMs": 119.64220800000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794424,
+          "rss": 45350912,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34027376,
+          "rss": 96550912,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 96550912
+      }
+    },
+    {
+      "side": "A",
+      "pair": 18,
+      "childWallMs": 228.02083299984224,
+      "loadAverage1m": 24.9404296875,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 99.927416,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 96616448,
+        "peakRssGrowthBytes": 44793856,
+        "heapUsedDeltaBytes": 28547344
+      },
+      "caseDurationMs": 151.796875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 45301760,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34022080,
+          "rss": 96747520,
+          "external": 2145439,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 96747520
+      }
+    },
+    {
+      "side": "B",
+      "pair": 18,
+      "childWallMs": 244.44679199997336,
+      "loadAverage1m": 24.9404296875,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 96.47691700000001,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 96419840,
+        "peakRssGrowthBytes": 44171264,
+        "heapUsedDeltaBytes": 28696128
+      },
+      "caseDurationMs": 160.420167,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794424,
+          "rss": 45514752,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34242632,
+          "rss": 96583680,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 96583680
+      }
+    },
+    {
+      "side": "A",
+      "pair": 19,
+      "childWallMs": 137.11349999997765,
+      "loadAverage1m": 16.25048828125,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 61.264582999999995,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout"
+        ],
+        "peakRssBytes": 95780864,
+        "peakRssGrowthBytes": 44187648,
+        "heapUsedDeltaBytes": 28706424
+      },
+      "caseDurationMs": 93.535667,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794432,
+          "rss": 44990464,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 34181192,
+          "rss": 95977472,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95977472
+      }
+    },
+    {
+      "side": "B",
+      "pair": 19,
+      "childWallMs": 135.40433399984613,
+      "loadAverage1m": 16.25048828125,
+      "ok": true,
+      "metrics": {
+        "stdoutBytesEmitted": 10485760,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 63.103666999999994,
+        "stdoutLengthReturned": 10485760,
+        "stderrEndsWithMarker": true,
+        "logEntriesReturned": 104859,
+        "resultKeys": [
+          "artifacts",
+          "exitCode",
+          "logs",
+          "receipt",
+          "stderr",
+          "stdout",
+          "truncation"
+        ],
+        "peakRssBytes": 95223808,
+        "peakRssGrowthBytes": 43433984,
+        "heapUsedDeltaBytes": 28177904
+      },
+      "caseDurationMs": 94.91620800000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4794496,
+          "rss": 44941312,
+          "external": 1898570,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 33722976,
+          "rss": 95240192,
+          "external": 2210975,
+          "arrayBuffers": 24825
+        },
+        "maxRssBytes": 95240192
+      }
+    }
+  ]
+}

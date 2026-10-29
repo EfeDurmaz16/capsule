@@ -2,10 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   AdapterExecutionError,
   Capsule,
+  CleanupFailureError,
   MemoryReceiptStore,
+  PendingOperationError,
+  PolicyViolationError,
   ProviderAuthError,
   ProviderRetryableError,
+  PartialEffectsError,
+  partialEffectsOf,
   runAdapterContract,
+  UnknownOutcomeError,
   UnsupportedCapabilityError
 } from "@capsule-sdk/core";
 import { modal, modalCapabilities } from "./index.js";
@@ -27,6 +33,7 @@ function fakeModalSandbox() {
     terminated: false,
     terminateError: undefined as Error | undefined,
     terminateParams: [] as unknown[],
+    terminateHangs: false,
     exec: async (command: string[]) => ({
       wait: async () => 0,
       stdout: { readText: async () => command.join(" ") },
@@ -45,7 +52,12 @@ function fakeModalSandbox() {
       if (sandbox.terminateError) {
         throw sandbox.terminateError;
       }
+      if (sandbox.terminateHangs) {
+        return await new Promise(() => undefined);
+      }
       sandbox.terminated = true;
+      // The installed SDK resolves terminate({ wait: true }) with the sandbox exit code.
+      return (params as { wait?: boolean } | undefined)?.wait ? 137 : undefined;
     }
   };
   return { sandbox, files };
@@ -101,6 +113,13 @@ describe("modal adapter", () => {
     expect(modalCapabilities.sandbox?.fileList).toBe("unsupported");
   });
 
+  it("declares no capability that has no invocable Capsule surface", () => {
+    expect(modalCapabilities.sandbox?.artifacts).toBe("unsupported");
+    expect(modalCapabilities.sandbox?.streamingLogs).toBe("unsupported");
+    expect(modalCapabilities.sandbox?.snapshot).toBe("unsupported");
+    expect(modalCapabilities.sandbox?.exposePort).toBe("unsupported");
+  });
+
   it("creates a sandbox and maps exec/read/write/destroy", async () => {
     const created: any[] = [];
     const { sandbox } = fakeModalSandbox();
@@ -140,8 +159,10 @@ describe("modal adapter", () => {
     expect(store.receipts.find((receipt) => receipt.type === "sandbox.destroy")?.metadata).toMatchObject({
       runtimeVersion: process.version,
       adapterVersion: "0.1.1",
-      terminateWait: false
+      terminateWait: true,
+      exitCode: 137
     });
+    expect(sandbox.terminateParams).toEqual([{ wait: true }]);
     expect(store.receipts.map((receipt) => receipt.type)).toEqual([
       "sandbox.create",
       "sandbox.file.write",
@@ -163,6 +184,50 @@ describe("modal adapter", () => {
     expect(created).toHaveLength(1);
   });
 
+  it("reports a failed rollback with the residual sandbox when termination fails after allocation", async () => {
+    const { sandbox } = fakeModalSandbox();
+    sandbox.terminateError = new Error("modal terminate failed");
+    const capsule = new Capsule({
+      adapter: modal({ client: fakeModalClient(sandbox) }),
+      receipts: true,
+      receiptSigner: {
+        algorithm: "test",
+        sign: () => {
+          throw new Error("sign failed");
+        }
+      }
+    });
+
+    const error = await capsule.sandbox.create({}).then(
+      () => undefined,
+      (caught: unknown) => caught
+    );
+
+    expect(error).toBeInstanceOf(CleanupFailureError);
+    const effects = partialEffectsOf(error)!;
+    expect((effects.primaryError as Error).message).toBe("sign failed");
+    expect(effects.cleanup).toMatchObject({ status: "failed", residual: [expect.objectContaining({ nativeId: "sb-1" })] });
+    expect((effects.cleanup.error as Error).message).toBe("modal terminate failed");
+  });
+
+  it("rejects destroy as pending when termination is requested but not observed before the deadline", async () => {
+    const { sandbox } = fakeModalSandbox();
+    sandbox.terminateHangs = true;
+    const store = new MemoryReceiptStore();
+    const capsule = new Capsule({ adapter: modal({ client: fakeModalClient(sandbox), terminateDeadlineMs: 20 }), receipts: true, receiptStore: store });
+    const box = await capsule.sandbox.create({});
+
+    const error = await box.destroy().then(
+      () => undefined,
+      (caught: unknown) => caught
+    );
+
+    expect(error).toBeInstanceOf(PendingOperationError);
+    expect((error as PendingOperationError).operation).toBe("sandbox.destroy");
+    expect((error as PendingOperationError).resource).toMatchObject({ provider: "modal", kind: "sandbox", nativeId: "sb-1" });
+    expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
+  });
+
   it("propagates Modal sandbox destroy failures without writing destroy receipts", async () => {
     const { sandbox } = fakeModalSandbox();
     sandbox.terminateError = new Error("modal terminate failed");
@@ -175,5 +240,138 @@ describe("modal adapter", () => {
 
     expect(sandbox.terminated).toBe(false);
     expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
+  });
+  it("GAP-03: rejects a domain allowlist entry before resolving the app or creating a sandbox", async () => {
+    const created: unknown[] = [];
+    const { sandbox } = fakeModalSandbox();
+    const client = fakeModalClient(sandbox, created);
+    let appLookups = 0;
+    client.apps.fromName = async () => {
+      appLookups += 1;
+      return { appId: "app-1" };
+    };
+    const capsule = new Capsule({ adapter: modal({ client }), policy: { network: { mode: "allowlist", allowedHosts: ["api.example.com"] } } });
+
+    await expect(capsule.sandbox.create({})).rejects.toBeInstanceOf(PolicyViolationError);
+    expect(appLookups).toBe(0);
+    expect(created).toHaveLength(0);
+  });
+
+  it("GAP-03: maps CIDR allowlists to cidrAllowlist and an empty allowlist to blockNetwork", async () => {
+    const created: any[] = [];
+    const { sandbox } = fakeModalSandbox();
+    const client = fakeModalClient(sandbox, created);
+    await new Capsule({ adapter: modal({ client }), policy: { network: { mode: "allowlist", allowedHosts: ["192.0.2.0/24"] } } }).sandbox.create({});
+    await new Capsule({ adapter: modal({ client }), policy: { network: { mode: "allowlist" } } }).sandbox.create({});
+
+    expect(created[0][2]).toMatchObject({ cidrAllowlist: ["192.0.2.0/24"] });
+    expect(created[0][2].blockNetwork).toBeUndefined();
+    expect(created[1][2]).toMatchObject({ blockNetwork: true });
+    expect(created[1][2].cidrAllowlist).toBeUndefined();
+  });
+  it("GAP-04: writes exec input to the process stdin and closes it for EOF", async () => {
+    const { sandbox } = fakeModalSandbox();
+    const stdinEvents: string[] = [];
+    sandbox.exec = async () => ({
+      stdin: {
+        writeText: async (text: string) => {
+          stdinEvents.push(`write:${text}`);
+        },
+        close: async () => {
+          stdinEvents.push("close");
+        }
+      },
+      wait: async () => 0,
+      stdout: { readText: async () => stdinEvents.join(",") },
+      stderr: { readText: async () => "" }
+    });
+    const box = await new Capsule({ adapter: modal({ client: fakeModalClient(sandbox) }) }).sandbox.create({});
+
+    const withInput = await box.exec({ command: ["cat"], input: "hello" });
+    expect(withInput.stdout).toBe("write:hello,close");
+    stdinEvents.length = 0;
+    const emptyInput = await box.exec({ command: ["cat"], input: "" });
+    expect(emptyInput.stdout).toBe("close");
+    stdinEvents.length = 0;
+    const noInput = await box.exec({ command: ["true"] });
+    expect(noInput.stdout).toBe("");
+  });
+
+  it("GAP-04: a failed stdin delivery reports an unknown command outcome", async () => {
+    const { sandbox } = fakeModalSandbox();
+    sandbox.exec = async () => ({
+      stdin: {
+        writeText: async () => {
+          throw new Error("stream reset");
+        },
+        close: async () => undefined
+      },
+      wait: async () => 0,
+      stdout: { readText: async () => "" },
+      stderr: { readText: async () => "" }
+    });
+    const box = await new Capsule({ adapter: modal({ client: fakeModalClient(sandbox) }) }).sandbox.create({});
+
+    await expect(box.exec({ command: ["cat"], input: "hello" })).rejects.toBeInstanceOf(UnknownOutcomeError);
+  });
+});
+
+// The installed modal SDK's Sandbox.terminate, wait and poll take no AbortSignal or timeout, so the
+// termination wait cannot be cancelled at terminateDeadlineMs. The call must still end with
+// PendingOperationError at the deadline, and the SDK call settling later must change nothing.
+describe("modal termination that outlives the deadline", () => {
+  function lateTerminatingSandbox() {
+    const { sandbox } = fakeModalSandbox();
+    const settle: { resolve?: (exitCode: number) => void; reject?: (error: Error) => void } = {};
+    sandbox.terminate = (params?: unknown) => {
+      sandbox.terminateParams.push(params);
+      return new Promise<number>((resolve, reject) => Object.assign(settle, { resolve, reject }));
+    };
+    return { sandbox, settle };
+  }
+  const later = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  it.each([
+    { outcome: "resolves with an exit code", finish: (settle: any) => settle.resolve(137) },
+    { outcome: "rejects", finish: (settle: any) => settle.reject(new Error("modal wait failed later")) }
+  ])("destroy is pending at the deadline and nothing changes when the SDK call later $outcome", async ({ finish }) => {
+    const { sandbox, settle } = lateTerminatingSandbox();
+    const store = new MemoryReceiptStore();
+    const capsule = new Capsule({ adapter: modal({ client: fakeModalClient(sandbox), terminateDeadlineMs: 20 }), receipts: true, receiptStore: store });
+    const box = await capsule.sandbox.create({});
+
+    const error = await box.destroy().catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(PendingOperationError);
+    expect(error).toMatchObject({ operation: "sandbox.destroy", deadlineMs: 20, observations: 1 });
+    expect(sandbox.terminateParams).toEqual([{ wait: true }]);
+
+    finish(settle);
+    await later();
+    expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
+    expect(sandbox.terminateParams).toHaveLength(1);
+  });
+
+  it("a create rollback stays pending when the termination finishes after the deadline", async () => {
+    const { sandbox, settle } = lateTerminatingSandbox();
+    const capsule = new Capsule({
+      adapter: modal({ client: fakeModalClient(sandbox), terminateDeadlineMs: 20 }),
+      receipts: true,
+      receiptSigner: {
+        algorithm: "test",
+        sign: () => {
+          throw new Error("sign failed");
+        }
+      }
+    });
+    const error = await capsule.sandbox.create({}).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(PartialEffectsError);
+    const effects = partialEffectsOf(error)!;
+    expect(effects.cleanup).toMatchObject({ status: "pending", residual: [expect.objectContaining({ nativeId: "sb-1" })] });
+    const cleanup = structuredClone({ status: effects.cleanup.status, residual: effects.cleanup.residual });
+
+    settle.resolve?.(137);
+    await later();
+    expect({ status: effects.cleanup.status, residual: effects.cleanup.residual }).toEqual(cleanup);
+    expect(sandbox.terminateParams).toEqual([{ wait: true }]);
   });
 });

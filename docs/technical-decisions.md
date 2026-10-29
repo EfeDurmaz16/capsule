@@ -8,7 +8,7 @@ This document records the Capsule stack and the competitive research behind its 
 - ESM packages.
 - pnpm workspaces.
 - `tsup` for package builds.
-- `tsc -b` for type checking.
+- `tsc -p tsconfig.typecheck.json --noEmit` (`pnpm typecheck`) for type checking; each package build also emits declarations with `tsc -p tsconfig.json --emitDeclarationOnly`.
 - Vitest for tests.
 - Node.js standard library where practical.
 - Docker adapter through Docker CLI, not Docker SDK, for the first real adapter.

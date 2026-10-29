@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
 import { createPublicKey, verify as verifySignature } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
   Capsule,
@@ -57,33 +57,23 @@ import {
   mockNeon,
   mockVercel
 } from "@capsule-sdk/mock";
-import { azureContainerApps } from "@capsule-sdk/azure";
-import { cloudflare } from "@capsule-sdk/cloudflare";
-import { cloudRun } from "@capsule-sdk/cloud-run";
-import { daytona } from "@capsule-sdk/daytona";
-import { docker, dockerAvailable } from "@capsule-sdk/docker";
-import { e2b } from "@capsule-sdk/e2b";
-import { ec2 } from "@capsule-sdk/ec2";
-import { ecs } from "@capsule-sdk/ecs";
-import { fly } from "@capsule-sdk/fly";
-import { kubernetes } from "@capsule-sdk/kubernetes";
-import { lambda } from "@capsule-sdk/lambda";
-import { modal } from "@capsule-sdk/modal";
-import { neon } from "@capsule-sdk/neon";
 import {
   cleanupPreviewEnvironment,
   createPreviewDryRunReceiptBundle,
   createPreviewGraph,
+  PreviewCreationError,
+  previewCleanupPlanSchema,
   type PreviewCleanupPlan,
   type PreviewCleanupDisposition,
+  type PreviewResidualEffect,
   type PreviewDryRunReceiptBundle,
   type PreviewPlan,
   type PreviewResourceKind,
   type PreviewResourceRecord
 } from "@capsule-sdk/preview";
 import { presetCatalog, type PresetCatalogEntry } from "@capsule-sdk/presets";
-import { vercel } from "@capsule-sdk/vercel";
 import { jsonlReceiptStore } from "@capsule-sdk/store-jsonl";
+import { dockerAvailableLazy, isProviderAdapterName, loadProviderAdapter, providerAdapterNames } from "./adapters.js";
 
 interface ParsedArgs {
   command?: string;
@@ -145,8 +135,20 @@ interface ParsedArgs {
   allowUnverifiedSignatures?: boolean;
   dryRun?: boolean;
   reason?: string;
+  // Where `adapter` came from. Omitted means the --adapter flag (or no selection at all).
+  adapterSource?: AdapterSelectionSource;
+  // Where `policyFile` came from. Omitted means the --policy-file flag.
+  policyFileSource?: "flag" | "config";
   rest: string[];
 }
+
+type AdapterSelectionSource = "flag" | "config" | "preview";
+
+const adapterSelectionSourceLabels: Record<AdapterSelectionSource, string> = {
+  flag: "--adapter",
+  config: "capsule.config.json",
+  preview: "preview config"
+};
 
 interface CredentialRequirement {
   provider: string;
@@ -296,6 +298,8 @@ interface SerializedPreviewCleanupAction {
 }
 
 interface SerializedPreviewResourceRecord {
+  /** Graph-local resource reference from @capsule-sdk/preview; the join key to its cleanup action. */
+  ref?: string;
   type: string;
   kind: PreviewResourceKind;
   id: string;
@@ -308,6 +312,8 @@ interface SerializedPreviewResourceRecord {
   cleanupOrder?: number;
   cleanup?: SerializedPreviewCleanupAction;
   cleanupDisposition?: PreviewCleanupDisposition;
+  /** Set when a failed create step may have left this resource behind (see @capsule-sdk/preview). */
+  residual?: PreviewResidualEffect;
 }
 
 interface PreviewCleanupPlanFile {
@@ -550,22 +556,7 @@ const credentialRequirements: CredentialRequirement[] = [
   }
 ];
 
-const comparableProviders = [
-  "azure-container-apps",
-  "cloud-run",
-  "cloudflare",
-  "daytona",
-  "docker",
-  "e2b",
-  "ec2",
-  "ecs",
-  "fly",
-  "kubernetes",
-  "lambda",
-  "modal",
-  "neon",
-  "vercel"
-] as const;
+const comparableProviders = providerAdapterNames;
 
 const completionCommands = [
   "doctor",
@@ -666,10 +657,13 @@ const liveTestPlans: LiveTestPlan[] = [
     provider: "cloud-run",
     testPath: "packages/cloud-run/src/cloud-run.live.test.ts",
     requiredEnv: ["CAPSULE_LIVE_TESTS", "GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_RUN_LOCATION", "GOOGLE_OAUTH_ACCESS_TOKEN", "CAPSULE_CLOUD_RUN_SERVICE_ID"],
-    optionalEnv: [],
+    optionalEnv: ["CAPSULE_CLOUD_RUN_JOB_IMAGE"],
     costRisk: "read-only",
     safeCommands: ["CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/cloud-run/src/cloud-run.live.test.ts"],
-    notes: ["Reads an existing Cloud Run service status; no resource is created."]
+    notes: [
+      "Reads an existing Cloud Run service status; no resource is created.",
+      "An optional billable job test runs only with CAPSULE_CLOUD_RUN_JOB_IMAGE, CAPSULE_LIVE_TEST_COST_ACK=1 and CAPSULE_LIVE_TEST_MAX_RESOURCES; its Job resource persists, TTL-labeled for the cleanup sweep. The live workflow does not map this variable."
+    ]
   },
   {
     provider: "cloudflare",
@@ -681,7 +675,7 @@ const liveTestPlans: LiveTestPlan[] = [
       "CAPSULE_CLOUDFLARE_WORKER_NAME",
       "CAPSULE_CLOUDFLARE_LIVE_CREATE_VERSION"
     ],
-    optionalEnv: ["CLOUDFLARE_COMPATIBILITY_DATE"],
+    optionalEnv: ["CLOUDFLARE_COMPATIBILITY_DATE", "CAPSULE_CLOUDFLARE_LIVE_DEPLOY", "CAPSULE_CLOUDFLARE_LIVE_ROLLBACK"],
     costRisk: "billable",
     costAcknowledgementEnv: "CAPSULE_LIVE_TEST_COST_ACK",
     aliases: {
@@ -691,7 +685,10 @@ const liveTestPlans: LiveTestPlan[] = [
     safeCommands: [
       'CLOUDFLARE_API_TOKEN="${CLOUDFLARE_API_TOKEN:-$CAPSULE_WORKER_API_TOKEN}" CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-$CAPSULE_WORKER_ACCOUNT_ID}" CAPSULE_LIVE_TESTS=1 pnpm vitest run packages/cloudflare/src/cloudflare.live.test.ts'
     ],
-    notes: ["Creates an unreleased Worker version. Project-scoped Worker aliases can satisfy the Cloudflare token and account env vars."]
+    notes: [
+      "Creates an unreleased Worker version. Project-scoped Worker aliases can satisfy the Cloudflare token and account env vars.",
+      "Optional deploy and rollback tests update the named Worker and run only with CAPSULE_CLOUDFLARE_LIVE_DEPLOY or CAPSULE_CLOUDFLARE_LIVE_ROLLBACK set; the live workflow does not map either flag."
+    ]
   },
   {
     provider: "vercel",
@@ -1017,7 +1014,7 @@ export async function createDoctorReport(
   const workspaceRoot = options.workspaceRoot ?? process.cwd();
   const rootPackage = await readJsonFile(join(workspaceRoot, "package.json"));
   const missingFiles = await missingWorkspaceFiles(workspaceRoot);
-  const dockerOk = await (options.dockerCheck ?? dockerAvailable)();
+  const dockerOk = await (options.dockerCheck ?? dockerAvailableLazy)();
   return {
     docker: dockerOk ? "available" : "unavailable",
     node: {
@@ -1202,11 +1199,122 @@ export function redactPolicyExplanation(explanation: ReturnType<typeof explainPo
   };
 }
 
+type PolicyFieldKind = "boolean" | "string" | "stringArray" | "number";
+
+// Every field each policy section accepts, with its JSON type. A field outside this map, or of the wrong
+// type, is rejected: evaluatePolicy reads fields by exact name, so a misspelled field (for example
+// approvals.requried) would otherwise be dropped and the restriction the user wrote down would not apply.
+const policySectionFields: Record<string, Record<string, PolicyFieldKind>> = {
+  network: { mode: "string", allowedHosts: "stringArray" },
+  filesystem: { read: "stringArray", write: "stringArray" },
+  secrets: { allowed: "stringArray", redactFromLogs: "boolean", redactionProfile: "string", redactKeys: "stringArray" },
+  limits: { timeoutMs: "number", maxStdoutBytes: "number", maxStderrBytes: "number", memoryMb: "number", cpu: "number" },
+  cost: { maxUsd: "number" },
+  ttl: { maxMs: "number" },
+  approvals: { required: "boolean", reason: "string" }
+};
+const policySectionKeys = new Set(Object.keys(policySectionFields));
+const policyNetworkModes = new Set(["none", "allowlist", "all"]);
+const policyRedactionProfiles = new Set(["standard", "strict"]);
+
+function policyFieldMatches(kind: PolicyFieldKind, value: unknown): boolean {
+  switch (kind) {
+    case "boolean":
+      return typeof value === "boolean";
+    case "string":
+      return typeof value === "string";
+    case "stringArray":
+      return Array.isArray(value) && value.every((item) => typeof item === "string");
+    case "number":
+      return typeof value === "number" && Number.isFinite(value) && value >= 0;
+  }
+}
+
+const policyFieldKindLabels: Record<PolicyFieldKind, string> = {
+  boolean: "a boolean",
+  string: "a string",
+  stringArray: "an array of strings",
+  number: "a finite non-negative number"
+};
+
+function deepFreeze<T>(value: T): T {
+  if (typeof value === "object" && value !== null && !Object.isFrozen(value)) {
+    for (const child of Object.values(value)) {
+      deepFreeze(child);
+    }
+    Object.freeze(value);
+  }
+  return value;
+}
+
+// Structural check only: a misspelled section (for example "netwrok") or field (for example
+// approvals.requried) would otherwise be ignored by policy evaluation and silently run without the
+// restriction the user wrote down.
+function assertCapsulePolicyShape(value: unknown, label: string): CapsulePolicy {
+  const record = assertJsonObject(value, label);
+  for (const [key, section] of Object.entries(record)) {
+    if (key === "$schema") {
+      continue;
+    }
+    const fields = Object.hasOwn(policySectionFields, key) ? policySectionFields[key] : undefined;
+    if (fields === undefined) {
+      throw new Error(`${label} has unknown policy section ${JSON.stringify(key)}. Known sections: ${[...policySectionKeys].join(", ")}.`);
+    }
+    const sectionRecord = assertJsonObject(section, `${label} section ${key}`);
+    for (const [field, fieldValue] of Object.entries(sectionRecord)) {
+      const kind = Object.hasOwn(fields, field) ? fields[field] : undefined;
+      if (kind === undefined) {
+        throw new Error(`${label} has unknown field ${JSON.stringify(field)} in policy section ${key}. Known fields: ${Object.keys(fields).join(", ")}.`);
+      }
+      if (!policyFieldMatches(kind, fieldValue)) {
+        throw new Error(`${label} ${key}.${field} must be ${policyFieldKindLabels[kind]}.`);
+      }
+    }
+  }
+  const network = record.network as { mode?: unknown } | undefined;
+  if (network !== undefined && !policyNetworkModes.has(String(network.mode))) {
+    throw new Error(`${label} network.mode must be one of ${[...policyNetworkModes].join(", ")}.`);
+  }
+  const secrets = record.secrets as { redactionProfile?: unknown } | undefined;
+  if (secrets?.redactionProfile !== undefined && !policyRedactionProfiles.has(String(secrets.redactionProfile))) {
+    throw new Error(`${label} secrets.redactionProfile must be one of ${[...policyRedactionProfiles].join(", ")}.`);
+  }
+  return record as CapsulePolicy;
+}
+
+// The single place the CLI turns --policy-file or capsule.config.json policyFile into the effective
+// policy. Every command that can reach a provider, and policy explain, use this result, so what
+// explain reports is what run enforces. A selected file that is missing or invalid fails here, before
+// any adapter is created. No selection means no policy, as for a direct SDK caller.
+async function loadEffectivePolicy(parsed: ParsedArgs): Promise<CapsulePolicy | undefined> {
+  if (parsed.policyFile === undefined) {
+    return undefined;
+  }
+  const label = `Policy file ${JSON.stringify(parsed.policyFile)} (from ${parsed.policyFileSource === "config" ? "capsule.config.json policyFile" : "--policy-file"})`;
+  if (parsed.policyFile.length === 0) {
+    throw new Error(`${label} is empty. No provider was contacted.`);
+  }
+  let text: string;
+  try {
+    text = await readFile(parsed.policyFile, "utf8");
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code ?? "read failed";
+    throw new Error(`${label} could not be read (${code}). No provider was contacted.`);
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    throw new Error(`${label} is not valid JSON. No provider was contacted.`);
+  }
+  return deepFreeze(assertCapsulePolicyShape(value, label));
+}
+
 async function createPolicyExplainReport(parsed: ParsedArgs): Promise<PolicyExplainReport> {
-  const capsule = createCapsule(parsed);
+  const policy = (await loadEffectivePolicy(parsed)) ?? {};
+  const capsule = await createCapsule(parsed, policy);
   const capabilityPath = assertPolicyExplainCapability(parsed.capability);
   const support = capsule.supportLevel(capabilityPath);
-  const policy = await readJsonObjectFile<CapsulePolicy>(parsed.policyFile, {});
   const spec = await readJsonObjectFile<Omit<PolicyInput, "capabilityPath" | "supportLevel">>(parsed.specFile, {});
   const now = coercePolicySpecNow((spec as { now?: unknown }).now);
 
@@ -1255,14 +1363,16 @@ async function createReceiptVerifyReport(parsed: ParsedArgs): Promise<ReceiptVer
   }
   const verifier = parsed.publicKey ? createPublicKeyVerifier(await resolvePublicKeyPem(parsed.publicKey)) : undefined;
   try {
-    const receipts = await jsonlReceiptStore(parsed.receiptFile).readAll();
-    const verified = receipts.map((receipt) => {
+    // Receipts are verified as they are read; only the per-receipt reports are kept (PERF-11). A read
+    // error part-way still discards every report, exactly as reading the whole file first did.
+    const verified = [];
+    for await (const receipt of jsonlReceiptStore(parsed.receiptFile).iterate()) {
       const report = verifyReceipt(receipt, { verifier, requireSignature: parsed.requireSignature });
       // Without a verifier, a signature can only be confirmed present, not authentic. Under
       // --require-signature that must fail unless the caller downgrades to a presence check.
       const rejectUnverified =
         parsed.requireSignature === true && parsed.allowUnverifiedSignatures !== true && report.signature.status === "present-unverified";
-      return {
+      verified.push({
         id: receipt.id,
         type: receipt.type,
         capabilityPath: receipt.capabilityPath,
@@ -1271,11 +1381,11 @@ async function createReceiptVerifyReport(parsed: ParsedArgs): Promise<ReceiptVer
         ...(rejectUnverified
           ? { notes: ["Signature is present but unverified; supply --public-key or pass --allow-unverified-signatures to accept presence only."] }
           : {})
-      };
-    });
+      });
+    }
     const failed = verified.filter((entry) => !entry.valid).length;
     const notes: string[] = [];
-    const emptyStore = receipts.length === 0;
+    const emptyStore = verified.length === 0;
     if (emptyStore) {
       notes.push("receipts: 0 (store is readable but contains no receipts; nothing to verify).");
     }
@@ -1285,7 +1395,7 @@ async function createReceiptVerifyReport(parsed: ParsedArgs): Promise<ReceiptVer
       store: {
         path: parsed.receiptFile,
         readable: true,
-        receiptCount: receipts.length
+        receiptCount: verified.length
       },
       summary: {
         valid: failed === 0 && !emptyStoreUnderRequireSignature,
@@ -1324,13 +1434,18 @@ async function createReceiptInspectReport(parsed: ParsedArgs): Promise<ReceiptIn
   if (!parsed.receiptFile) {
     throw new Error("Missing --receipt-file for receipt inspect.");
   }
-  const receipts = await jsonlReceiptStore(parsed.receiptFile).readAll();
-  const selected = parsed.id ? receipts.filter((receipt) => receipt.id === parsed.id) : receipts;
+  // Streamed so that --id keeps only the matching receipts in memory.
+  let receiptCount = 0;
+  const selected: CapsuleReceipt[] = [];
+  for await (const receipt of jsonlReceiptStore(parsed.receiptFile).iterate()) {
+    receiptCount += 1;
+    if (!parsed.id || receipt.id === parsed.id) selected.push(receipt);
+  }
   if (parsed.id && selected.length === 0) {
     throw new Error(`No receipt with id "${parsed.id}" in ${parsed.receiptFile}.`);
   }
   return {
-    store: { path: parsed.receiptFile, receiptCount: receipts.length },
+    store: { path: parsed.receiptFile, receiptCount },
     receipts: selected
   };
 }
@@ -1344,7 +1459,7 @@ function formatPresetCatalogTable(entries: PresetCatalogEntry[]): string {
 
 async function createPreviewPlanReport(parsed: ParsedArgs): Promise<PreviewDryRunReceiptBundle> {
   const config = await readPreviewConfigFile(parsed.configFile);
-  return createPreviewDryRunReceiptBundle(createPreviewPlanFromConfig(config));
+  return createPreviewDryRunReceiptBundle(await createPreviewPlanFromConfig(config, await loadEffectivePolicy(parsed)));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -1478,7 +1593,7 @@ const previewAdapterOptionKeys = new Set<keyof ParsedArgs>([
 ]);
 
 function parsedArgsFromPreviewAdapterConfig(adapter: string, options: Record<string, unknown> | undefined): ParsedArgs {
-  const parsed: ParsedArgs = { adapter, rest: [] };
+  const parsed: ParsedArgs = { adapter, adapterSource: "preview", rest: [] };
   for (const [key, value] of Object.entries(options ?? {})) {
     if (!previewAdapterOptionKeys.has(key as keyof ParsedArgs)) {
       throw new Error(`Unsupported preview adapter option "${key}" for ${adapter}.`);
@@ -1488,15 +1603,30 @@ function parsedArgsFromPreviewAdapterConfig(adapter: string, options: Record<str
   return parsed;
 }
 
-function createPreviewCapsule(config: { adapter: string; options?: Record<string, unknown> }): Capsule {
+async function createPreviewCapsule(config: { adapter: string; options?: Record<string, unknown> }, policy: CapsulePolicy | undefined): Promise<Capsule> {
   const mockFactory = mockAdapterFactories[config.adapter];
   if (mockFactory) {
-    return new Capsule({ adapter: mockFactory(), receipts: true });
+    return new Capsule({ adapter: mockFactory(), policy, receipts: true });
   }
-  return createCapsule(parsedArgsFromPreviewAdapterConfig(config.adapter, config.options));
+  return await createCapsule(parsedArgsFromPreviewAdapterConfig(config.adapter, config.options), policy);
 }
 
-function createPreviewPlanFromConfig(config: PreviewConfigFile): PreviewPlan {
+// Capsules are created sequentially in config order so adapter errors surface deterministically.
+async function previewBindings<TSpec>(
+  entries: Array<PreviewConfigResource<TSpec>> | undefined,
+  policy: CapsulePolicy | undefined
+): Promise<Array<{ capsule: Capsule; spec: TSpec }> | undefined> {
+  if (!entries) {
+    return undefined;
+  }
+  const bindings: Array<{ capsule: Capsule; spec: TSpec }> = [];
+  for (const entry of entries) {
+    bindings.push({ capsule: await createPreviewCapsule(entry, policy), spec: entry.spec });
+  }
+  return bindings;
+}
+
+async function createPreviewPlanFromConfig(config: PreviewConfigFile, policy: CapsulePolicy | undefined): Promise<PreviewPlan> {
   return {
     name: config.name,
     source: config.source,
@@ -1504,15 +1634,16 @@ function createPreviewPlanFromConfig(config: PreviewConfigFile): PreviewPlan {
     requireRealProviders: config.requireRealProviders,
     allowMockProviders: config.allowMockProviders,
     labels: config.labels,
-    databases: config.databases?.map((entry) => ({ capsule: createPreviewCapsule(entry), spec: entry.spec })),
-    services: config.services?.map((entry) => ({ capsule: createPreviewCapsule(entry), spec: entry.spec })),
-    edges: config.edges?.map((entry) => ({ capsule: createPreviewCapsule(entry), spec: entry.spec })),
-    jobs: config.jobs?.map((entry) => ({ capsule: createPreviewCapsule(entry), spec: entry.spec }))
+    databases: await previewBindings(config.databases, policy),
+    services: await previewBindings(config.services, policy),
+    edges: await previewBindings(config.edges, policy),
+    jobs: await previewBindings(config.jobs, policy)
   };
 }
 
 function serializePreviewResourceRecord(resource: PreviewResourceRecord, cleanup?: SerializedPreviewCleanupAction): SerializedPreviewResourceRecord {
   return {
+    ref: resource.ref,
     type: resource.type,
     kind: resource.kind,
     id: resource.id,
@@ -1524,7 +1655,8 @@ function serializePreviewResourceRecord(resource: PreviewResourceRecord, cleanup
     cleanupActionId: cleanup?.actionId,
     cleanupOrder: cleanup?.cleanupOrder,
     cleanup,
-    cleanupDisposition: resource.cleanupDisposition
+    cleanupDisposition: resource.cleanupDisposition,
+    ...(resource.residual === undefined ? {} : { residual: resource.residual })
   };
 }
 
@@ -1556,7 +1688,9 @@ function createPreviewCleanupPlanFile(
   cleanupPlan: PreviewCleanupPlan
 ): PreviewCleanupPlanFile {
   const configs = previewResourceConfigs(config);
-  const actionByResourceId = new Map(cleanupPlan.actions.map((action) => [action.resourceId, action]));
+  // Join by graph-local ref, never by native id: equal native ids across providers or projects of one
+  // provider must not attach one resource's cleanup action and spec to another (COMP-01, GAP-06).
+  const actionByRef = new Map(cleanupPlan.actions.map((action) => [action.resourceRef, action]));
   return {
     schema: previewCleanupPlanFileSchema,
     id: cleanupPlan.id,
@@ -1567,19 +1701,61 @@ function createPreviewCleanupPlanFile(
     unsupportedCleanupCount: cleanupPlan.unsupportedCleanupCount,
     actions: cleanupPlan.actions,
     preview,
+    // A residual record comes from the failed step at residual.order; every other record's index is its
+    // plan order, because records are appended in plan order.
     resources: resources.map((resource, index) =>
-      serializePreviewResourceRecord(resource, serializeCleanupAction(resource, configs[index]?.config, actionByResourceId.get(resource.id)))
+      serializePreviewResourceRecord(
+        resource,
+        serializeCleanupAction(
+          resource,
+          configs[resource.residual?.order ?? index]?.config,
+          resource.ref === undefined ? undefined : actionByRef.get(resource.ref)
+        )
+      )
     )
   };
 }
 
+async function writePreviewCleanupPlanFile(path: string, cleanupPlan: PreviewCleanupPlanFile): Promise<void> {
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, `${JSON.stringify(cleanupPlan, null, 2)}\n`, "utf8");
+}
+
+// A failure part-way still leaves real provider resources. Their cleanup bindings (and any residual
+// locators from the failed step) are written to --cleanup-file so `preview destroy` can remove them, or
+// printed to stderr when no file was given, before the original error is rethrown.
+async function recordFailedPreviewCreate(error: unknown, parsed: ParsedArgs, config: PreviewConfigFile): Promise<void> {
+  if (!(error instanceof PreviewCreationError) || error.resources.length === 0 || !error.cleanupPlan) {
+    return;
+  }
+  const cleanupPlan = createPreviewCleanupPlanFile(error.preview, error.resources, config, error.cleanupPlan);
+  const count = error.resources.length;
+  if (parsed.cleanupFile) {
+    await writePreviewCleanupPlanFile(parsed.cleanupFile, cleanupPlan);
+    console.error(
+      `Preview creation failed after ${count} resource(s) were created or left behind. Recovery bindings were written to ${parsed.cleanupFile}; run capsule preview destroy --cleanup-file ${parsed.cleanupFile} to remove them.`
+    );
+    return;
+  }
+  console.error(
+    `Preview creation failed after ${count} resource(s) were created or left behind, and no --cleanup-file was given. Save the recovery bindings below to a file and run capsule preview destroy --cleanup-file <file>:`
+  );
+  console.error(JSON.stringify(cleanupPlan, null, 2));
+}
+
 async function createPreviewCreateReport(parsed: ParsedArgs): Promise<PreviewCreateReport> {
+  const policy = await loadEffectivePolicy(parsed);
   const config = await readPreviewConfigFile(parsed.configFile);
-  const result = await createPreviewGraph(createPreviewPlanFromConfig(config));
+  let result: Awaited<ReturnType<typeof createPreviewGraph>>;
+  try {
+    result = await createPreviewGraph(await createPreviewPlanFromConfig(config, policy));
+  } catch (error) {
+    await recordFailedPreviewCreate(error, parsed, config);
+    throw error;
+  }
   const cleanupPlan = createPreviewCleanupPlanFile(result.preview, result.resources, config, result.cleanupPlan);
   if (parsed.cleanupFile) {
-    await mkdir(dirname(parsed.cleanupFile), { recursive: true });
-    await writeFile(parsed.cleanupFile, `${JSON.stringify(cleanupPlan, null, 2)}\n`, "utf8");
+    await writePreviewCleanupPlanFile(parsed.cleanupFile, cleanupPlan);
   }
   const cleanupActionCount = cleanupPlan.resources.filter((resource) => resource.cleanup).length;
   return {
@@ -1596,6 +1772,79 @@ async function createPreviewCreateReport(parsed: ParsedArgs): Promise<PreviewCre
       cleanupActionCount,
       unsupportedCleanupCount: cleanupPlan.resources.length - cleanupActionCount
     }
+  };
+}
+
+const previewResourceKinds: readonly PreviewResourceKind[] = ["database", "service", "edge", "job"];
+
+function assertPreviewResourceKind(value: unknown, label: string): PreviewResourceKind {
+  if (typeof value !== "string" || !previewResourceKinds.includes(value as PreviewResourceKind)) {
+    throw new Error(`${label} must be one of ${previewResourceKinds.join(", ")}.`);
+  }
+  return value as PreviewResourceKind;
+}
+
+function optionalStringValue(value: unknown, label: string): string | undefined {
+  if (value === undefined) return undefined;
+  return assertStringValue(value, label);
+}
+
+// Each action is validated field by field instead of cast, so a malformed or hand-edited file fails
+// before any Capsule is created. Identity binding against the resources happens in @capsule-sdk/preview.
+function validatePreviewCleanupActions(value: unknown, label: string): PreviewCleanupPlan["actions"] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) {
+    throw new Error(`${label} must be an array.`);
+  }
+  return value.map((item, index) => {
+    const at = `${label}[${index}]`;
+    const action = assertRecordValue(item, at);
+    if (action.reversible !== true) {
+      throw new Error(`${at}.reversible must be true.`);
+    }
+    const resourceScope = optionalStringRecord(action.resourceScope, `${at}.resourceScope`);
+    const resourceRef = optionalStringValue(action.resourceRef, `${at}.resourceRef`);
+    const resourceAdapter = optionalStringValue(action.resourceAdapter, `${at}.resourceAdapter`);
+    const resourceName = optionalStringValue(action.resourceName, `${at}.resourceName`);
+    const cleanupOrder = optionalNumberValue(action.cleanupOrder, `${at}.cleanupOrder`);
+    if (cleanupOrder === undefined) {
+      throw new Error(`${at}.cleanupOrder must be a number.`);
+    }
+    return {
+      actionId: assertStringValue(action.actionId, `${at}.actionId`),
+      cleanupOrder,
+      kind: assertPreviewResourceKind(action.kind, `${at}.kind`),
+      ...(resourceRef === undefined ? {} : { resourceRef }),
+      resourceId: assertStringValue(action.resourceId, `${at}.resourceId`),
+      resourceProvider: assertStringValue(action.resourceProvider, `${at}.resourceProvider`),
+      ...(resourceAdapter === undefined ? {} : { resourceAdapter }),
+      ...(resourceScope === undefined ? {} : { resourceScope }),
+      ...(resourceName === undefined ? {} : { resourceName }),
+      capabilityPath: assertStringValue(action.capabilityPath, `${at}.capabilityPath`) as CapabilityPath,
+      spec: { ...assertRecordValue(action.spec, `${at}.spec`) },
+      idempotencyKey: assertStringValue(action.idempotencyKey, `${at}.idempotencyKey`),
+      reversible: true
+    };
+  });
+}
+
+function validateSerializedCleanup(value: unknown, label: string): SerializedPreviewCleanupAction | undefined {
+  if (value === undefined) return undefined;
+  const cleanup = assertRecordValue(value, label);
+  const options = cleanup.options === undefined ? undefined : assertRecordValue(cleanup.options, `${label}.options`);
+  if (cleanup.reversible !== undefined && cleanup.reversible !== true) {
+    throw new Error(`${label}.reversible must be true when present.`);
+  }
+  return {
+    actionId: optionalStringValue(cleanup.actionId, `${label}.actionId`),
+    cleanupOrder: optionalNumberValue(cleanup.cleanupOrder, `${label}.cleanupOrder`),
+    kind: assertPreviewResourceKind(cleanup.kind, `${label}.kind`),
+    adapter: assertStringValue(cleanup.adapter, `${label}.adapter`),
+    options,
+    capabilityPath: assertStringValue(cleanup.capabilityPath, `${label}.capabilityPath`) as CapabilityPath,
+    spec: { ...assertRecordValue(cleanup.spec, `${label}.spec`) },
+    idempotencyKey: optionalStringValue(cleanup.idempotencyKey, `${label}.idempotencyKey`),
+    reversible: cleanup.reversible === true ? true : undefined
   };
 }
 
@@ -1617,17 +1866,15 @@ function validatePreviewCleanupPlan(record: Record<string, unknown>, label: stri
     cleanupOrder: typeof record.cleanupOrder === "string" ? (record.cleanupOrder as "reverse-create-order") : "reverse-create-order",
     cleanupActionCount: typeof record.cleanupActionCount === "number" ? record.cleanupActionCount : 0,
     unsupportedCleanupCount: typeof record.unsupportedCleanupCount === "number" ? record.unsupportedCleanupCount : 0,
-    actions: Array.isArray(record.actions) ? (record.actions as PreviewCleanupPlan["actions"]) : [],
+    actions: validatePreviewCleanupActions(record.actions, `${label}.actions`),
     preview,
     resources: resources.map((resource, index) => {
       const entry = assertRecordValue(resource, `${label}.resources[${index}]`);
-      const cleanup =
-        entry.cleanup === undefined
-          ? undefined
-          : (assertRecordValue(entry.cleanup, `${label}.resources[${index}].cleanup`) as unknown as SerializedPreviewCleanupAction);
+      const cleanup = validateSerializedCleanup(entry.cleanup, `${label}.resources[${index}].cleanup`);
       return {
+        ref: optionalStringValue(entry.ref, `${label}.resources[${index}].ref`),
         type: assertStringValue(entry.type, `${label}.resources[${index}].type`),
-        kind: assertStringValue(entry.kind, `${label}.resources[${index}].kind`) as PreviewResourceKind,
+        kind: assertPreviewResourceKind(entry.kind, `${label}.resources[${index}].kind`),
         id: assertStringValue(entry.id, `${label}.resources[${index}].id`),
         provider: assertStringValue(entry.provider, `${label}.resources[${index}].provider`),
         name: typeof entry.name === "string" ? entry.name : undefined,
@@ -1637,9 +1884,39 @@ function validatePreviewCleanupPlan(record: Record<string, unknown>, label: stri
         cleanupActionId: typeof entry.cleanupActionId === "string" ? entry.cleanupActionId : undefined,
         cleanupOrder: typeof entry.cleanupOrder === "number" ? entry.cleanupOrder : undefined,
         cleanup,
-        cleanupDisposition: entry.cleanupDisposition as PreviewCleanupDisposition | undefined
+        cleanupDisposition: entry.cleanupDisposition as PreviewCleanupDisposition | undefined,
+        ...(entry.residual === undefined ? {} : { residual: validatePreviewResidual(entry.residual, `${label}.resources[${index}].residual`) })
       };
     })
+  };
+}
+
+const previewResidualOutcomes = new Set(["not-started", "pending", "completed", "failed", "unknown"]);
+
+function validatePreviewResidual(value: unknown, label: string): PreviewResidualEffect {
+  const residual = assertRecordValue(value, label);
+  const locator = assertRecordValue(residual.locator, `${label}.locator`);
+  const order = optionalNumberValue(residual.order, `${label}.order`);
+  if (order === undefined) {
+    throw new Error(`${label}.order must be a number.`);
+  }
+  const outcome = assertStringValue(residual.outcome, `${label}.outcome`);
+  if (!previewResidualOutcomes.has(outcome)) {
+    throw new Error(`${label}.outcome must be one of ${[...previewResidualOutcomes].join(", ")}.`);
+  }
+  const scope = optionalStringRecord(locator.scope, `${label}.locator.scope`);
+  const nativeOperationId = optionalStringValue(locator.nativeOperationId, `${label}.locator.nativeOperationId`);
+  return {
+    order,
+    operation: assertStringValue(residual.operation, `${label}.operation`) as CapabilityPath,
+    outcome: outcome as PreviewResidualEffect["outcome"],
+    locator: {
+      provider: assertStringValue(locator.provider, `${label}.locator.provider`),
+      kind: assertStringValue(locator.kind, `${label}.locator.kind`),
+      nativeId: assertStringValue(locator.nativeId, `${label}.locator.nativeId`),
+      ...(scope === undefined ? {} : { scope }),
+      ...(nativeOperationId === undefined ? {} : { nativeOperationId })
+    }
   };
 }
 
@@ -1650,11 +1927,12 @@ async function readPreviewCleanupPlanFile(path: string | undefined): Promise<Pre
   return validatePreviewCleanupPlan(assertJsonObject(JSON.parse(await readFile(path, "utf8")), path), path);
 }
 
-function previewResourceKey(resource: { kind: PreviewResourceKind; id: string }): string {
-  return `${resource.kind}:${resource.id}`;
+// Legacy files have no refs; fall back to kind and native id only for them.
+function previewResourceKey(resource: { ref?: string; kind: PreviewResourceKind; id: string }): string {
+  return resource.ref === undefined ? `id:${resource.kind}:${resource.id}` : `ref:${resource.ref}`;
 }
 
-function hydratedCleanupSpec(cleanup: SerializedPreviewCleanupAction, parsed: ParsedArgs): Record<string, unknown> {
+function hydratedCleanupSpec(cleanup: { kind: PreviewResourceKind; spec: Record<string, unknown> }, parsed: ParsedArgs): Record<string, unknown> {
   const spec = { ...cleanup.spec };
   if (cleanup.kind === "database" && parsed.hardDelete) {
     spec.hardDelete = true;
@@ -1666,8 +1944,13 @@ function hydratedCleanupSpec(cleanup: SerializedPreviewCleanupAction, parsed: Pa
   return spec;
 }
 
-function hydratePreviewCleanupResource(resource: SerializedPreviewResourceRecord, parsed: ParsedArgs): PreviewResourceRecord {
+async function hydratePreviewCleanupResource(
+  resource: SerializedPreviewResourceRecord,
+  parsed: ParsedArgs,
+  policy: CapsulePolicy | undefined
+): Promise<PreviewResourceRecord> {
   return {
+    ...(resource.ref === undefined ? {} : { ref: resource.ref }),
     type: resource.type as CapsuleDomain,
     kind: resource.kind,
     id: resource.id,
@@ -1679,22 +1962,39 @@ function hydratePreviewCleanupResource(resource: SerializedPreviewResourceRecord
     cleanup: resource.cleanup
       ? {
           kind: resource.cleanup.kind,
-          capsule: createPreviewCapsule(resource.cleanup),
+          capsule: await createPreviewCapsule(resource.cleanup, policy),
           capabilityPath: resource.cleanup.capabilityPath,
           spec: hydratedCleanupSpec(resource.cleanup, parsed)
         }
       : undefined,
-    cleanupDisposition: resource.cleanupDisposition
+    cleanupDisposition: resource.cleanupDisposition,
+    ...(resource.residual === undefined ? {} : { residual: resource.residual })
   };
 }
 
 async function createPreviewDestroyReport(parsed: ParsedArgs): Promise<PreviewDestroyReport> {
+  const policy = await loadEffectivePolicy(parsed);
   const plan = await readPreviewCleanupPlanFile(parsed.cleanupFile);
   const sourceByKey = new Map(plan.resources.map((resource) => [previewResourceKey(resource), resource]));
-  const cleanup = await cleanupPreviewEnvironment(
-    plan.preview,
-    plan.resources.map((resource) => hydratePreviewCleanupResource(resource, parsed))
-  );
+  const hydrated: PreviewResourceRecord[] = [];
+  for (const resource of plan.resources) {
+    hydrated.push(await hydratePreviewCleanupResource(resource, parsed, policy));
+  }
+  // The recorded plan is passed through so @capsule-sdk/preview binds every action to its own resource
+  // (by ref, or by exact unambiguous identity for legacy files) and rejects a foreign or tampered plan
+  // before the first delete. Command flags such as --hard-delete apply to the bound action spec too.
+  const cleanupPlan: PreviewCleanupPlan = {
+    schema: previewCleanupPlanSchema,
+    id: plan.id,
+    previewId: plan.previewId,
+    createdAt: plan.createdAt,
+    cleanupOrder: plan.cleanupOrder,
+    cleanupActionCount: plan.cleanupActionCount,
+    unsupportedCleanupCount: plan.unsupportedCleanupCount,
+    resources: [],
+    actions: plan.actions.map((action) => ({ ...action, spec: hydratedCleanupSpec(action, parsed) }))
+  };
+  const cleanup = await cleanupPreviewEnvironment(plan.preview, hydrated, { cleanupPlan });
   const dispositions = cleanup.dispositions.map((entry) => {
     const source = sourceByKey.get(previewResourceKey(entry.resource));
     return {
@@ -1721,11 +2021,12 @@ async function createPreviewDestroyReport(parsed: ParsedArgs): Promise<PreviewDe
   };
 }
 
-export function compareProviderCapabilities(leftProvider: string, rightProvider: string): ProviderCapabilityComparison {
+// Async because provider adapters are loaded on demand (see adapters.ts).
+export async function compareProviderCapabilities(leftProvider: string, rightProvider: string): Promise<ProviderCapabilityComparison> {
   assertComparableProvider(leftProvider);
   assertComparableProvider(rightProvider);
-  const leftCapabilities = createCapsuleForCapabilityInspection(leftProvider).capabilities();
-  const rightCapabilities = createCapsuleForCapabilityInspection(rightProvider).capabilities();
+  const leftCapabilities = (await createCapsuleForCapabilityInspection(leftProvider)).capabilities();
+  const rightCapabilities = (await createCapsuleForCapabilityInspection(rightProvider)).capabilities();
   const paths = uniqueCapabilityPaths(leftCapabilities, rightCapabilities);
 
   return {
@@ -1741,12 +2042,12 @@ export function compareProviderCapabilities(leftProvider: string, rightProvider:
   };
 }
 
-export function selectProvidersForRecipe(recipeId: ProviderSelectionRecipeId): ProviderSelectionReport {
+// Async because provider adapters are loaded on demand (see adapters.ts).
+export async function selectProvidersForRecipe(recipeId: ProviderSelectionRecipeId): Promise<ProviderSelectionReport> {
   const recipe = getProviderSelectionRecipe(recipeId);
-  const candidates = comparableProviders.map((provider) => ({
-    provider,
-    capabilities: createCapsuleForCapabilityInspection(provider).capabilities()
-  }));
+  const candidates = await Promise.all(
+    comparableProviders.map(async (provider) => ({ provider, capabilities: (await createCapsuleForCapabilityInspection(provider)).capabilities() }))
+  );
 
   return {
     recipe,
@@ -1983,7 +2284,7 @@ export async function createProviderVerificationReport(
   const providers: ProviderVerificationEntry[] = [];
 
   if (!options.provider || options.provider === "docker") {
-    const dockerOk = await (options.dockerCheck ?? dockerAvailable)();
+    const dockerOk = await (options.dockerCheck ?? dockerAvailableLazy)();
     providers.push({
       provider: "docker",
       status: dockerOk ? "passed" : "unavailable",
@@ -2268,7 +2569,7 @@ import { Capsule, runCapsuleAdapterContract } from "@capsule-sdk/core";
 import { ${factoryName}, ${factoryName}Capabilities } from "./index.js";
 
 describe("${segment} adapter", () => {
-  test("satisfies the public adapter contract for declared unsupported capabilities", async () => {
+  test("passes the guard-only adapter contract checks for declared unsupported capabilities", async () => {
     await runCapsuleAdapterContract(${factoryName}(), { domains: ${JSON.stringify(domains)} });
   });
 
@@ -2508,11 +2809,17 @@ export async function runExampleCommand(
   };
 }
 
-function createCapsuleForCapabilityInspection(provider: string): Capsule {
+async function createCapsuleForCapabilityInspection(provider: string): Promise<Capsule> {
   if (provider === "ecs") {
-    return createCapsule({ adapter: provider, cluster: "capability-inspection", taskDefinition: "capability-inspection:1", containerName: "main", rest: [] });
+    return await createCapsule({
+      adapter: provider,
+      cluster: "capability-inspection",
+      taskDefinition: "capability-inspection:1",
+      containerName: "main",
+      rest: []
+    });
   }
-  return createCapsule({ adapter: provider, rest: [] });
+  return await createCapsule({ adapter: provider, rest: [] });
 }
 
 function assertComparableProvider(provider: string): void {
@@ -2606,6 +2913,7 @@ Commands:
   capsule edge --adapter vercel --name my-deployment --project-name my-project --entrypoint index.js ./index.js
   capsule neon branch-create --project <project_id> --name pr-42 --database neondb --role neondb_owner --receipt-file .capsule/receipts.jsonl
   capsule neon branch-delete --project <project_id> --branch-id br_xxx --hard-delete
+  (neon commands always use the neon adapter; a different --adapter or config adapter is rejected.)
 
 Receipt signatures:
   --public-key <path-or-value>     Verify ed25519 receipt signatures against this public key (PEM path or inline PEM).
@@ -2615,6 +2923,11 @@ Receipt signatures:
 Configuration:
   capsule.config.json in the working directory supplies default adapter, receipts.path, and policyFile.
   Explicit flags (--adapter, --receipt-file, --policy-file) always override the config file.
+  An unknown adapter name, from a flag or the config file, fails before any provider is created.
+  docker is used only when no adapter is selected at all.
+  The selected policy file is loaded once and enforced by every command that can reach a provider
+  (run, sandbox, job, service, machine, edge, neon, preview), including preview children; policy
+  explain reports the same policy. A missing or invalid selected policy file fails before any provider call.
 
 Output:
   Report commands default to human-readable tables. Add --json for stable automation output.
@@ -2636,12 +2949,15 @@ export function applyCapsuleConfig(parsed: ParsedArgs, config: CapsuleConfigFile
   if (!config) {
     return parsed;
   }
+  assertCapsuleConfigShape(config);
   const resolved: ParsedArgs = { ...parsed };
   if (resolved.adapter === undefined && typeof config.adapter === "string") {
     resolved.adapter = config.adapter;
+    resolved.adapterSource = "config";
   }
   if (resolved.policyFile === undefined && typeof config.policyFile === "string") {
     resolved.policyFile = config.policyFile;
+    resolved.policyFileSource = "config";
   }
   if (resolved.receiptFile === undefined && config.receipts?.enabled !== false && typeof config.receipts?.path === "string") {
     resolved.receiptFile = config.receipts.path;
@@ -2649,120 +2965,96 @@ export function applyCapsuleConfig(parsed: ParsedArgs, config: CapsuleConfigFile
   return resolved;
 }
 
+// Fails closed on a present but wrongly typed field. Dropping it would silently turn, for example,
+// policyFile: ["capsule.policy.json"] into "no policy" or adapter: {"name": "e2b"} into the docker
+// default on the local host. Null is not an omission either: only a missing key means "not configured".
+function assertCapsuleConfigShape(config: CapsuleConfigFile): void {
+  const record = config as unknown as Record<string, unknown>;
+  for (const key of ["adapter", "policyFile"] as const) {
+    if (Object.hasOwn(record, key) && typeof record[key] !== "string") {
+      throw new Error(`capsule.config.json ${key} must be a string when present.`);
+    }
+  }
+  if (!Object.hasOwn(record, "receipts")) {
+    return;
+  }
+  const receipts = assertJsonObject(record.receipts, "capsule.config.json receipts");
+  if (Object.hasOwn(receipts, "enabled") && typeof receipts.enabled !== "boolean") {
+    throw new Error("capsule.config.json receipts.enabled must be a boolean when present.");
+  }
+  if (Object.hasOwn(receipts, "path") && typeof receipts.path !== "string") {
+    throw new Error("capsule.config.json receipts.path must be a string when present.");
+  }
+}
+
+// Only a missing file means "no config". Any other read failure (EACCES, EISDIR, ...) is surfaced, since
+// treating an unreadable config as absent would silently drop its adapter and policy selection.
 async function readCapsuleConfigFile(cwd: string = process.cwd()): Promise<CapsuleConfigFile | undefined> {
   const path = join(cwd, "capsule.config.json");
   let text: string;
   try {
     text = await readFile(path, "utf8");
-  } catch {
-    return undefined;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") {
+      return undefined;
+    }
+    throw new Error(`Could not read ${path}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
-  return assertJsonObject(JSON.parse(text), path) as CapsuleConfigFile;
+  const config = assertJsonObject(JSON.parse(text), path) as CapsuleConfigFile;
+  assertCapsuleConfigShape(config);
+  return config;
 }
 
-function createCapsule(parsed: ParsedArgs): Capsule {
+const defaultExecutionAdapter = "docker";
+
+function executionAdapterNames(): string[] {
+  return [...comparableProviders, ...Object.keys(mockAdapterFactories)];
+}
+
+// Fails closed: only an omitted adapter selection falls back to the documented docker default. An
+// explicit flag, config, or preview adapter name that Capsule does not know is rejected before any
+// provider client is constructed, so a typo can never silently run work on the local host.
+function resolveExecutionAdapterName(parsed: ParsedArgs): string {
+  if (parsed.adapter === undefined) {
+    return defaultExecutionAdapter;
+  }
+  if (!executionAdapterNames().includes(parsed.adapter)) {
+    const shown = parsed.adapter.length > 64 ? `${parsed.adapter.slice(0, 64)}...` : parsed.adapter;
+    throw new Error(
+      `Unknown adapter ${JSON.stringify(shown)} (from ${adapterSelectionSourceLabels[parsed.adapterSource ?? "flag"]}). Valid adapters: ${executionAdapterNames().join(", ")}.`
+    );
+  }
+  return parsed.adapter;
+}
+
+async function createCapsule(parsed: ParsedArgs, policy?: CapsulePolicy): Promise<Capsule> {
+  const adapterName = resolveExecutionAdapterName(parsed);
+  const mockFactory = mockAdapterFactories[adapterName];
+  if (!mockFactory && !isProviderAdapterName(adapterName)) {
+    throw new Error(`Adapter "${adapterName}" has no execution factory.`);
+  }
+  const adapter = mockFactory ? mockFactory() : await loadProviderAdapter(adapterName as (typeof providerAdapterNames)[number], parsed);
   const receiptStore = parsed.receiptFile ? jsonlReceiptStore(parsed.receiptFile) : undefined;
-  if (parsed.adapter === "neon") {
-    return new Capsule({
-      adapter: neon({ databaseName: parsed.database, roleName: parsed.role }),
-      receipts: true,
-      receiptStore
-    });
+  return new Capsule({ adapter, policy, receipts: true, receiptStore });
+}
+
+const neonCommandAdapters = new Set(["neon", "mock-neon"]);
+
+// Dedicated `capsule neon ...` commands bind to Neon. Precedence: an explicit --adapter flag wins over
+// capsule.config.json, and whichever one is present must name a Neon adapter (neon or mock-neon); a
+// contradictory selection is rejected rather than silently rerouted. With no selection, Neon is used.
+function selectNeonCommandAdapter(parsed: ParsedArgs): ParsedArgs {
+  if (parsed.adapter === undefined) {
+    return { ...parsed, adapter: "neon" };
   }
-  if (parsed.adapter === "e2b") {
-    return new Capsule({ adapter: e2b(), receipts: true, receiptStore });
+  if (neonCommandAdapters.has(parsed.adapter)) {
+    return parsed;
   }
-  if (parsed.adapter === "daytona") {
-    return new Capsule({ adapter: daytona({ apiUrl: parsed.apiUrl, target: parsed.target }), receipts: true, receiptStore });
-  }
-  if (parsed.adapter === "modal") {
-    return new Capsule({ adapter: modal({ appName: parsed.appName, defaultImage: parsed.image }), receipts: true, receiptStore });
-  }
-  if (parsed.adapter === "cloudflare") {
-    return new Capsule({
-      adapter: cloudflare({ compatibilityDate: parsed.compatibilityDate, workersDevSubdomain: parsed.workersDevSubdomain, zoneId: parsed.zoneId }),
-      receipts: true,
-      receiptStore
-    });
-  }
-  if (parsed.adapter === "cloud-run") {
-    return new Capsule({
-      adapter: cloudRun({ projectId: parsed.projectId, location: parsed.location }),
-      receipts: true,
-      receiptStore
-    });
-  }
-  if (parsed.adapter === "vercel") {
-    return new Capsule({
-      adapter: vercel({ project: parsed.projectName, target: parsed.target }),
-      receipts: true,
-      receiptStore
-    });
-  }
-  if (parsed.adapter === "kubernetes") {
-    return new Capsule({
-      adapter: kubernetes({ namespace: parsed.namespace, context: parsed.context, kubeconfigPath: parsed.kubeconfig }),
-      receipts: true,
-      receiptStore
-    });
-  }
-  if (parsed.adapter === "lambda") {
-    return new Capsule({
-      adapter: lambda({ region: parsed.region, functionName: parsed.functionName }),
-      receipts: true,
-      receiptStore
-    });
-  }
-  if (parsed.adapter === "ecs") {
-    if (!parsed.cluster || !parsed.taskDefinition || !parsed.containerName) {
-      throw new Error("ECS adapter requires --cluster, --task-definition, and --container-name");
-    }
-    return new Capsule({
-      adapter: ecs({
-        region: parsed.region,
-        cluster: parsed.cluster,
-        taskDefinition: parsed.taskDefinition,
-        containerName: parsed.containerName,
-        subnets: parsed.subnets,
-        securityGroups: parsed.securityGroups
-      }),
-      receipts: true,
-      receiptStore
-    });
-  }
-  if (parsed.adapter === "ec2") {
-    return new Capsule({
-      adapter: ec2({
-        region: parsed.region,
-        imageId: parsed.imageId,
-        instanceType: parsed.instanceType,
-        subnetId: parsed.subnetId,
-        securityGroupIds: parsed.securityGroups
-      }),
-      receipts: true,
-      receiptStore
-    });
-  }
-  if (parsed.adapter === "fly") {
-    return new Capsule({
-      adapter: fly({ appName: parsed.appName, region: parsed.region, defaultImage: parsed.image }),
-      receipts: true,
-      receiptStore
-    });
-  }
-  if (parsed.adapter === "azure-container-apps") {
-    return new Capsule({
-      adapter: azureContainerApps({
-        subscriptionId: parsed.subscriptionId,
-        resourceGroupName: parsed.resourceGroup,
-        location: parsed.location,
-        environmentId: parsed.environmentId
-      }),
-      receipts: true,
-      receiptStore
-    });
-  }
-  return new Capsule({ adapter: docker(), receipts: true, receiptStore });
+  const source = adapterSelectionSourceLabels[parsed.adapterSource ?? "flag"];
+  const shown = parsed.adapter.length > 64 ? `${parsed.adapter.slice(0, 64)}...` : parsed.adapter;
+  throw new Error(
+    `neon commands require the neon adapter, but ${source} selects ${JSON.stringify(shown)}. Pass --adapter neon (or mock-neon), or remove the conflicting selection.`
+  );
 }
 
 function requireCapability(capsule: Capsule, adapter: string | undefined, path: CapabilityPath): void {
@@ -2788,7 +3080,7 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "neon": {
-      const capsule = createCapsule(parsed);
+      const capsule = await createCapsule(selectNeonCommandAdapter(parsed), await loadEffectivePolicy(parsed));
       const action = parsed.rest[0];
       const project = parsed.project;
       if (!project) {
@@ -2844,7 +3136,7 @@ export async function main(argv: string[]): Promise<void> {
       throw new Error("Unknown live-test command. Use plan or validate.");
     }
     case "capabilities": {
-      const capsule = createCapsule(parsed);
+      const capsule = await createCapsule(parsed);
       const capabilities = capsule.capabilities();
       const report = createCapabilityReport(capsule.adapterName(), capabilities);
       console.log(parsed.json ? JSON.stringify(report, null, 2) : formatCapabilityTable(report, { explain: parsed.explain }));
@@ -2991,7 +3283,7 @@ export async function main(argv: string[]): Promise<void> {
           `Unknown provider selection recipe "${parsed.recipe}". Recipes: sandbox, agent-code-execution, preview-web-db, edge-web, service-api, machine`
         );
       }
-      const report = selectProvidersForRecipe(parsed.recipe);
+      const report = await selectProvidersForRecipe(parsed.recipe);
       printReport(parsed, report, formatProviderSelectionReport(report));
       return;
     }
@@ -3005,15 +3297,15 @@ export async function main(argv: string[]): Promise<void> {
       if (!left || !right) {
         throw new Error("Missing providers. Use capsule compare providers --left docker --right e2b.");
       }
-      const report = compareProviderCapabilities(left, right);
+      const report = await compareProviderCapabilities(left, right);
       printReport(parsed, report, formatProviderComparisonReport(report));
       return;
     }
     case "edge": {
-      const capsule = createCapsule(parsed);
       if (parsed.adapter !== "cloudflare" && parsed.adapter !== "vercel") {
         throw new Error("edge currently requires --adapter cloudflare or --adapter vercel");
       }
+      const capsule = await createCapsule(parsed, await loadEffectivePolicy(parsed));
       if (!parsed.name) {
         throw new Error("Missing --name");
       }
@@ -3031,7 +3323,7 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "job": {
-      const capsule = createCapsule(parsed);
+      const capsule = await createCapsule(parsed, await loadEffectivePolicy(parsed));
       const action = parsed.rest[0] === "run" || parsed.rest[0] === "status" || parsed.rest[0] === "cancel" ? parsed.rest[0] : "run";
       if (action === "status") {
         const id = parsed.id ?? parsed.name ?? parsed.rest[1];
@@ -3065,11 +3357,11 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "service": {
-      const capsule = createCapsule(parsed);
       const action = parsed.rest[0] === "deploy" || parsed.rest[0] === "status" || parsed.rest[0] === "delete" ? parsed.rest[0] : "deploy";
       if (parsed.adapter !== "cloud-run" && parsed.adapter !== "kubernetes" && parsed.adapter !== "ecs" && parsed.adapter !== "azure-container-apps") {
         throw new Error("service currently requires --adapter cloud-run, --adapter kubernetes, --adapter ecs, or --adapter azure-container-apps");
       }
+      const capsule = await createCapsule(parsed, await loadEffectivePolicy(parsed));
       if (action === "status") {
         const id = parsed.id ?? parsed.name ?? parsed.rest[1];
         if (!id) {
@@ -3104,10 +3396,10 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "machine": {
-      const capsule = createCapsule(parsed);
       if (parsed.adapter !== "ec2" && parsed.adapter !== "fly") {
         throw new Error("machine currently requires --adapter ec2 or --adapter fly");
       }
+      const capsule = await createCapsule(parsed, await loadEffectivePolicy(parsed));
       if (!parsed.name) {
         throw new Error("Missing --name");
       }
@@ -3121,7 +3413,7 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "run": {
-      const capsule = createCapsule(parsed);
+      const capsule = await createCapsule(parsed, await loadEffectivePolicy(parsed));
       const image = parsed.image ?? "node:22";
       const command = parsed.rest.length > 0 ? parsed.rest : ["node", "-e", "console.log('hello from capsule')"];
       const result = await capsule.job.run({ image, command });
@@ -3133,7 +3425,7 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "sandbox": {
-      const capsule = createCapsule(parsed);
+      const capsule = await createCapsule(parsed, await loadEffectivePolicy(parsed));
       const image = parsed.image ?? "node:22";
       const sandbox = await capsule.sandbox.create({ image });
       try {
@@ -3153,7 +3445,20 @@ export async function main(argv: string[]): Promise<void> {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// True when this file is the program node was started with. npm installs the bin as a symlink and /tmp is
+// a symlink on macOS, so process.argv[1] can name a link while import.meta.url names the real file;
+// comparing the strings made the CLI exit 0 without running any command. Both sides are resolved.
+function invokedAsProgram(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return realpathSync(entry) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (invokedAsProgram()) {
   main(process.argv.slice(2)).catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

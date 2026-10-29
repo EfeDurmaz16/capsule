@@ -225,3 +225,78 @@ test("live cleanup sweep dry-run command emits JSON and exits without credential
   assert.equal(report.providers[0]?.status, "blocked");
   assert.deepEqual(report.providers[0]?.missingEnv, ["FLY_API_TOKEN", "FLY_APP_NAME"]);
 });
+
+function staleFlyFetch(calls) {
+  return async (url, init = {}) => {
+    calls.push({ url: String(url), method: init.method ?? "GET" });
+    if ((init.method ?? "GET") === "DELETE") return response(undefined);
+    return response([
+      {
+        id: "machine-stale",
+        name: "capsule-live-fly-machine-old",
+        config: { metadata: { capsule_live_test: "true", capsule_expires_at: "1780140000" } }
+      }
+    ]);
+  };
+}
+
+const flyEnvWithAck = { FLY_API_TOKEN: "fixture-fly-token", FLY_APP_NAME: "capsule-app", CAPSULE_LIVE_CLEANUP_ACK: "1" };
+
+test("TOOL-01: the imported sweep refuses an omitted mode before any provider request", async () => {
+  const calls = [];
+  await assert.rejects(
+    createLiveCleanupSweep({ provider: "fly", now: new Date("2026-05-30T12:00:00.000Z"), env: flyEnvWithAck, fetch: staleFlyFetch(calls) }),
+    /without dryRun or delete/
+  );
+  assert.deepEqual(calls, []);
+});
+
+test("TOOL-01: the imported sweep refuses contradictory modes before any provider request", async () => {
+  const calls = [];
+  await assert.rejects(
+    createLiveCleanupSweep({
+      provider: "fly",
+      dryRun: true,
+      delete: true,
+      yes: true,
+      now: new Date("2026-05-30T12:00:00.000Z"),
+      env: flyEnvWithAck,
+      fetch: staleFlyFetch(calls)
+    }),
+    /either dryRun or delete/
+  );
+  assert.deepEqual(calls, []);
+});
+
+test("TOOL-01: delete through the imported function requires yes as well as the environment acknowledgement", async () => {
+  const calls = [];
+  await assert.rejects(
+    createLiveCleanupSweep({ provider: "fly", delete: true, now: new Date("2026-05-30T12:00:00.000Z"), env: flyEnvWithAck, fetch: staleFlyFetch(calls) }),
+    /yes/
+  );
+  assert.deepEqual(calls, []);
+});
+
+test("TOOL-01: dry run never issues DELETE even with every delete acknowledgement present", async () => {
+  const calls = [];
+  const report = await createLiveCleanupSweep({
+    provider: "fly",
+    dryRun: true,
+    yes: true,
+    now: new Date("2026-05-30T12:00:00.000Z"),
+    env: flyEnvWithAck,
+    fetch: staleFlyFetch(calls)
+  });
+  assert.deepEqual(
+    calls.map((call) => call.method),
+    ["GET"]
+  );
+  assert.equal(report.summary.deleted, 0);
+  assert.equal(report.providers[0]?.resources[0]?.action, "would-delete");
+});
+
+test("TOOL-01: mode flags must be real booleans, not truthy strings", async () => {
+  const calls = [];
+  await assert.rejects(createLiveCleanupSweep({ provider: "fly", delete: "false", yes: "no", env: flyEnvWithAck, fetch: staleFlyFetch(calls) }), /boolean/);
+  assert.deepEqual(calls, []);
+});
