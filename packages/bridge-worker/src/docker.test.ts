@@ -603,4 +603,96 @@ describe("docker profile on a fake engine", () => {
     expect(await connection.next()).toMatchObject({ error: { code: "denied", reason: "scope_mismatch", effect: "none" } });
     expect(engine.calls.map((call) => call[0])).toEqual(["context"]);
   });
+
+  describe("attach", () => {
+    const attach = (n: number, waitMs: number, operationId = "01K8W3A0000000000000000D01", key = "key-docker-1") => ({
+      type: "attach",
+      request_id: `r-${n}`,
+      operation_id: operationId,
+      key,
+      scope,
+      action: "sandbox.create",
+      wait_ms: waitMs
+    });
+    const searched = { provider: "docker", scope: engineScope, kind: "container" };
+
+    test("a create whose answer died with its worker is found by its operation label, absent until it lands, never created again", async () => {
+      const engine = new FakeEngine();
+      engine.delays.create = 600;
+      const first = connect(engine);
+      await handshake(first);
+      first.send(create(1));
+      // The worker dies with docker create in flight; the client goes on and the container lands later.
+      first.session.kill();
+      const second = connect(engine);
+      await handshake(second);
+      second.send(attach(2, 100));
+      const absent = await second.nextWithin(2_000);
+      expect(checkWorkerMessage(absent, { profile: dockerProfile })).toBeUndefined();
+      // Wall time decides how many looks fit in wait_ms, so the count is not pinned here; the fixture scenarios pin it.
+      expect(absent).toEqual({
+        type: "error",
+        request_id: "r-2",
+        operation_id: "01K8W3A0000000000000000D01",
+        error: {
+          code: "unknown",
+          reason: "absent",
+          message: expect.any(String),
+          effect: "unknown",
+          observations: expect.any(Number),
+          deadline_ms: 100,
+          searched
+        }
+      });
+      for (let turn = 0; turn < 100 && ![...engine.containers.values()].some((container) => container.status === "running"); turn += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      const [id] = [...engine.containers.keys()];
+      second.send(attach(3, 2_000));
+      expect(await second.nextWithin(3_000)).toEqual({
+        type: "result",
+        request_id: "r-3",
+        operation_id: "01K8W3A0000000000000000D01",
+        state: "completed",
+        resource: target(id!),
+        output: { status: "ready" },
+        replayed: false,
+        receipts: []
+      });
+      expect(engine.calls.filter((call) => call[0] === "create" || call[0] === "start")).toHaveLength(2);
+      expect(engine.containers.size).toBe(1);
+    });
+
+    test("a look still in the docker CLI at wait_ms is answered absent in time", async () => {
+      const engine = new FakeEngine();
+      const connection = connect(engine, { binding: engineScope });
+      await handshake(connection);
+      engine.delays.ps = 1_000;
+      const started = Date.now();
+      connection.send(attach(1, 200));
+      const answer = await connection.nextWithin(2_000);
+      expect(Date.now() - started).toBeLessThan(800);
+      expect(answer).toMatchObject({ error: { code: "unknown", reason: "absent", effect: "unknown", observations: 0, deadline_ms: 200, searched } });
+    });
+
+    test("an engine that cannot be read is a failed look, never provider_failed: an attach makes no effect to fail", async () => {
+      const engine = new FakeEngine();
+      const connection = connect(engine);
+      await handshake(connection);
+      engine.down.add("context");
+      connection.send(attach(1, 1_000));
+      const unbound = await connection.nextWithin(2_000);
+      expect(unbound).toEqual({
+        type: "error",
+        request_id: "r-1",
+        operation_id: "01K8W3A0000000000000000D01",
+        error: { code: "unknown", reason: "observation_failed", message: expect.any(String), effect: "unknown" }
+      });
+      engine.down.delete("context");
+      engine.down.add("ps");
+      connection.send(attach(2, 1_000));
+      expect(await connection.nextWithin(2_000)).toMatchObject({ error: { code: "unknown", reason: "observation_failed", effect: "unknown" } });
+      expect(engine.calls.some((call) => ["create", "start", "rm"].includes(call[0]!))).toBe(false);
+    });
+  });
 });
