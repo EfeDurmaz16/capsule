@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Runs every repository gate defined in package.json and .github/workflows/ci.yml in CI order
 // and writes a plain-text record (command, exit code, duration, output tail) for baseline evidence.
-// Usage: node benchmarks/run-gates.mjs [--root <checkout>] --out benchmarks/baseline/gates-<sha>.txt
+// Usage: node benchmarks/run-gates.mjs [--root <checkout>] [--only <gate>,<gate>] --out benchmarks/baseline/gates-<sha>.txt
 import { spawnSync } from "node:child_process";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -19,7 +19,10 @@ const gates = [
   ["provider-matrix-check", "pnpm capsule:gap:check"],
   ["format", "pnpm format:check"],
   ["typecheck", "pnpm typecheck"],
-  ["test", "pnpm test"],
+  // CI runs the tests on a fresh checkout, before any build. A local checkout keeps the dist/ of an
+  // earlier build, which can let a test that reads dist/ pass against code the source no longer has, so
+  // the test gate removes build output first. Gates that need dist/ run after the build gate, as in CI.
+  ["test", "pnpm clean:build && pnpm test"],
   ["build", "pnpm build"],
   ["release-audit", "pnpm release:audit"],
   ["api-reference-current", "pnpm docs:api:check"],
@@ -27,6 +30,16 @@ const gates = [
   ["pack-smoke-compatible", "pnpm release:pack-smoke:compatible"],
   ["benchmark-bounds", "pnpm bench:bounds"]
 ];
+
+const onlyIndex = process.argv.indexOf("--only");
+const only = onlyIndex > 0 ? (process.argv[onlyIndex + 1] ?? "").split(",").filter(Boolean) : undefined;
+for (const name of only ?? []) {
+  if (!gates.some(([gate]) => gate === name)) {
+    process.stderr.write(`unknown gate "${name}"; gates: ${gates.map(([gate]) => gate).join(", ")}\n`);
+    process.exit(2);
+  }
+}
+const selected = only ? gates.filter(([name]) => only.includes(name)) : gates;
 
 function git(args) {
   const r = spawnSync("git", args, { cwd: root, encoding: "utf8" });
@@ -42,11 +55,15 @@ lines.push(
 );
 lines.push(`node: ${process.version}`);
 lines.push(`pnpm: ${spawnSync("pnpm", ["-v"], { cwd: root, encoding: "utf8" }).stdout.trim()}`);
-lines.push(`gates: same commands as the .github/workflows/ci.yml jobs (verify, Node compatibility, benchmark bounds), run locally in order`);
+lines.push(
+  only
+    ? `gates: only ${selected.map(([name]) => name).join(", ")}, in CI order`
+    : `gates: same commands as the .github/workflows/ci.yml jobs (verify, Node compatibility, benchmark bounds), run locally in order`
+);
 lines.push("");
 
 const summary = [];
-for (const [name, command] of gates) {
+for (const [name, command] of selected) {
   const started = performance.now();
   const r = spawnSync("bash", ["-lc", command], { cwd: root, encoding: "utf8", maxBuffer: 256 * 2 ** 20, env: { ...process.env, CI: "1", FORCE_COLOR: "0" } });
   const seconds = ((performance.now() - started) / 1000).toFixed(1);
