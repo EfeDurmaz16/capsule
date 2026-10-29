@@ -61,7 +61,7 @@ interface KubernetesPodList {
 
 interface BatchApi {
   createNamespacedJob(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
-  readNamespacedJob?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
+  readNamespacedJob?(input: { namespace: string; name: string }, options?: KubernetesRequestOptions): Promise<KubernetesObject>;
   deleteNamespacedJob?(input: {
     namespace: string;
     name: string;
@@ -152,9 +152,10 @@ export interface KubernetesAdapterOptions {
   context?: string;
   /**
    * Injected API clients, for example from KubeConfig.makeApiClient. Reads that a deadline bounds (the
-   * service.delete observation, and the pod list and pod log reads of a log capture) get a second
-   * argument: per-request options whose middleware attaches the deadline's AbortSignal, so the
-   * installed client cancels the request. A client that ignores it is abandoned at the deadline instead.
+   * service.delete observation, and the Service or Job selector read, pod list and pod log reads of a
+   * log capture) get a second argument: per-request options whose middleware attaches the deadline's
+   * AbortSignal, so the installed client cancels the request. A client that ignores it is abandoned at
+   * the deadline instead.
    */
   clients?: KubernetesClients;
   /**
@@ -835,7 +836,9 @@ async function collectPodLogs(
   core: CoreApi,
   input: {
     namespace: string;
-    selector: string | undefined;
+    /** Reads the Service or Job that names the pod selector. It is a request of the capture too. */
+    readOwner: (options: KubernetesRequestOptions) => Promise<KubernetesObject>;
+    selectorOf: (owner: KubernetesObject) => string | undefined;
     selectorSource: string;
     id: string;
     since?: string;
@@ -846,10 +849,15 @@ async function collectPodLogs(
     bounds?: CaptureBounds;
     context: AdapterContext;
   }
-): Promise<{ logs: LogEntry[]; nextCursor?: string; truncation: CaptureTruncation; metadata: Record<string, unknown> }> {
-  if (!input.selector) {
-    throw new AdapterExecutionError(`Kubernetes ${input.selectorSource} logs require a pod selector for ${input.id}.`);
-  }
+): Promise<{
+  /** The Service or Job read for the selector; undefined when the deadline expired before it answered. */
+  owner: KubernetesObject | undefined;
+  name: string;
+  logs: LogEntry[];
+  nextCursor?: string;
+  truncation: CaptureTruncation;
+  metadata: Record<string, unknown>;
+}> {
   if (input.follow) {
     throw new AdapterExecutionError("Kubernetes logs follow mode is not supported yet; call logs again to fetch newer entries.");
   }
@@ -866,8 +874,8 @@ async function collectPodLogs(
   // server-side byte cap (limitBytes), so no single source can return an unbounded transcript.
   const cap = Math.min(input.limit ?? bounds.maxRecords, bounds.maxRecords);
   const capFromBounds = input.limit === undefined || input.limit > bounds.maxRecords;
-  // The deadline bounds every provider request of the capture, the pod list included; the byte and
-  // record budget is applied afterwards to what arrived.
+  // The deadline bounds every provider request of the capture, the selector read and the pod list
+  // included; the byte and record budget is applied afterwards to what arrived.
   const deadlineAt = Date.now() + bounds.deadlineMs;
   const budget = new CaptureBudget({ ...bounds, deadlineMs: Number.MAX_SAFE_INTEGER, overflow: "truncate" });
   // One deadline timer for every request instead of one per read (PERF-05). When it fires, the waits
@@ -899,6 +907,9 @@ async function collectPodLogs(
     }
   };
 
+  let owner: KubernetesObject | undefined;
+  let name = input.id;
+  let selector: string | undefined;
   let pods: KubernetesObject[] = [];
   let nextCursor: string | undefined;
   const fallbackTimestamp = new Date().toISOString();
@@ -929,13 +940,23 @@ async function collectPodLogs(
     );
   };
   try {
+    owner = await untilDeadline(input.readOwner(requestOptions));
+    if (owner !== undefined || !capture.signal.aborted) {
+      name = owner?.metadata?.name ?? input.id;
+      selector = input.selectorOf(owner ?? {});
+      if (!selector) {
+        throw new AdapterExecutionError(`Kubernetes ${input.selectorSource} logs require a pod selector for ${name}.`);
+      }
+    }
     // Pagination rides the pod list continue token: one page of matched pods per call, their logs
     // fanned out with at most bounds.concurrency reads in flight and tagged with source.
-    const podList = await untilDeadline(
-      listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: input.selector, _continue: input.cursor }, requestOptions)
-    );
+    const podList =
+      selector === undefined
+        ? undefined
+        : await untilDeadline(listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: selector, _continue: input.cursor }, requestOptions));
     if (podList === undefined && capture.signal.aborted) {
-      // No pod was listed in time. The page was not read, so the next call asks for it again.
+      // The selector or the pods were not read in time. The page was not read, so the next call asks
+      // for it again.
       deadlineHit = true;
       nextCursor = input.cursor;
     } else {
@@ -1030,12 +1051,14 @@ async function collectPodLogs(
     throw new CaptureLimitError(`Kubernetes ${input.selectorSource} logs exceeded capture bounds: ${truncation.reason}.`, truncation);
   }
   return {
+    owner,
+    name,
     logs: selected,
     nextCursor,
     truncation,
     metadata: {
       namespace: input.namespace,
-      selector: input.selector,
+      selector,
       selectorSource: input.selectorSource,
       podNames: pods.map((pod) => pod.metadata?.name).filter(Boolean),
       redactedFromPodEnv: redactionValues.size > 0
@@ -1291,13 +1314,12 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
         const startedAt = new Date();
         const clients = getClients();
         const readNamespacedJob = requireBatchMethod(clients.batch, "readNamespacedJob");
-        const job = await readNamespacedJob.call(clients.batch, { namespace, name: spec.id });
-        const name = job.metadata?.name ?? spec.id;
         const result = await collectPodLogs(clients.core, {
           namespace,
-          selector: labelSelectorFromJobSpec(job.spec),
+          readOwner: (options) => readNamespacedJob.call(clients.batch, { namespace, name: spec.id }, options),
+          selectorOf: (job) => labelSelectorFromJobSpec(job.spec),
           selectorSource: "job.spec.selector",
-          id: name,
+          id: spec.id,
           since: spec.since,
           until: spec.until,
           limit: spec.limit,
@@ -1306,6 +1328,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
           bounds: spec.bounds,
           context
         });
+        const { owner: job, name } = result;
         const policy = context.evaluatePolicy();
         const receipt = context.receipts
           ? context.createReceipt({
@@ -1322,8 +1345,8 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
                   "Kubernetes follow-mode log streaming is intentionally rejected until Capsule exposes bounded streaming semantics."
                 ]
               },
-              resource: { id: name, name, status: jobStatus(job) },
-              metadata: kubernetesReceiptMetadata("batch/v1+v1", { ...result.metadata, kubernetesName: name, uid: job.metadata?.uid })
+              resource: { id: name, name, status: job ? jobStatus(job) : undefined },
+              metadata: kubernetesReceiptMetadata("batch/v1+v1", { ...result.metadata, kubernetesName: name, uid: job?.metadata?.uid })
             })
           : undefined;
         return { id: name, provider, logs: result.logs, truncation: result.truncation, nextCursor: result.nextCursor, metadata: result.metadata, receipt };
@@ -1485,13 +1508,12 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
         const startedAt = new Date();
         const clients = getClients();
         const readNamespacedService = requireCoreMethod(clients.core, "readNamespacedService");
-        const service = await readNamespacedService.call(clients.core, { namespace, name: spec.id });
-        const name = service.metadata?.name ?? spec.id;
         const result = await collectPodLogs(clients.core, {
           namespace,
-          selector: serviceSelector(service),
+          readOwner: (options) => readNamespacedService.call(clients.core, { namespace, name: spec.id }, options),
+          selectorOf: serviceSelector,
           selectorSource: "service.spec.selector",
-          id: name,
+          id: spec.id,
           since: spec.since,
           until: spec.until,
           limit: spec.limit,
@@ -1500,6 +1522,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
           bounds: spec.bounds,
           context
         });
+        const { owner: service, name } = result;
         const policy = context.evaluatePolicy();
         const receipt = context.receipts
           ? context.createReceipt({
@@ -1517,7 +1540,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
                 ]
               },
               resource: { id: name, name },
-              metadata: kubernetesReceiptMetadata("v1", { ...result.metadata, serviceName: name, uid: service.metadata?.uid })
+              metadata: kubernetesReceiptMetadata("v1", { ...result.metadata, serviceName: name, uid: service?.metadata?.uid })
             })
           : undefined;
         return {

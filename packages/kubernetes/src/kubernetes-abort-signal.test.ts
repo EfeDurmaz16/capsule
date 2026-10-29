@@ -3,7 +3,7 @@
 // No cluster or network is contacted.
 import * as k8s from "@kubernetes/client-node";
 import { describe, expect, it } from "vitest";
-import { Capsule, PendingOperationError } from "@capsule-sdk/core";
+import { Capsule, CaptureLimitError, PendingOperationError } from "@capsule-sdk/core";
 import { kubernetes } from "./index.js";
 
 type RequestOptions = { middleware?: Array<{ pre(context: unknown): { toPromise(): Promise<unknown> } }>; middlewareMergeStrategy?: string };
@@ -131,6 +131,55 @@ describe("kubernetes log capture signal", () => {
     expect(signals).toHaveLength(2);
     expect(signals.every((signal) => signal?.aborted === true)).toBe(true);
   });
+
+  // The Service or Job read that names the pod selector is a provider request of the capture too. A
+  // read that never answers ends at the deadline with no logs, and the next call asks for the same page.
+  it.each(["service", "job"] as const)("bounds the %s selector read with the capture deadline and aborts it", async (kind) => {
+    const signals: Array<AbortSignal | undefined> = [];
+    let listed = false;
+    const hangingRead = async (_input: unknown, options?: RequestOptions) => {
+      const signal = await attachedSignal(options);
+      signals.push(signal);
+      return await untilAborted(signal);
+    };
+    const core = {
+      readNamespacedService: hangingRead,
+      listNamespacedPod: async () => {
+        listed = true;
+        return { items: [pod] };
+      },
+      readNamespacedPodLog: async () => "2026-10-29T10:00:00Z never read\n"
+    };
+    const capsule = new Capsule({
+      adapter: kubernetes({ clients: { batch: { readNamespacedJob: hangingRead } as never, apps: {} as never, core: core as never } })
+    });
+    const spec = { id: "owner", cursor: "page-2", bounds: { deadlineMs: 40 } };
+    const result = await Promise.race([
+      kind === "service" ? capsule.service.logs(spec) : capsule.job.logs(spec),
+      new Promise<"still pending">((resolve) => setTimeout(() => resolve("still pending"), 1_000))
+    ]);
+    expect(result).not.toBe("still pending");
+    if (result === "still pending") return;
+    expect(result.logs).toEqual([]);
+    expect(result.truncation).toMatchObject({ truncated: true, reason: "deadline", limit: 40 });
+    expect(result.nextCursor).toBe("page-2");
+    expect(listed).toBe(false);
+    expect(signals).toHaveLength(1);
+    expect(signals[0]?.aborted).toBe(true);
+  });
+
+  it("throws CaptureLimitError when the selector read misses the deadline and overflow is error", async () => {
+    const capsule = logsCapsule({
+      readNamespacedService: async (_input: unknown, options?: RequestOptions) => await untilAborted(await attachedSignal(options)),
+      listNamespacedPod: async () => ({ items: [pod] }),
+      readNamespacedPodLog: async () => "2026-10-29T10:00:00Z never read\n"
+    });
+    const outcome = await Promise.race([
+      capsule.service.logs({ id: "svc", bounds: { deadlineMs: 40, overflow: "error" } }).catch((caught: unknown) => caught),
+      new Promise<"still pending">((resolve) => setTimeout(() => resolve("still pending"), 1_000))
+    ]);
+    expect(outcome).toBeInstanceOf(CaptureLimitError);
+  });
 });
 
 // The same paths through the installed client's generated API classes: the per-request middleware must
@@ -162,7 +211,7 @@ describe("kubernetes request signal through @kubernetes/client-node", () => {
         }
       ]
     });
-    return { sent, apps: new k8s.AppsV1Api(configuration), core: new k8s.CoreV1Api(configuration) };
+    return { sent, apps: new k8s.AppsV1Api(configuration), batch: new k8s.BatchV1Api(configuration), core: new k8s.CoreV1Api(configuration) };
   }
 
   const json = (body: unknown) =>
@@ -206,6 +255,29 @@ describe("kubernetes request signal through @kubernetes/client-node", () => {
       const bounded = sent.filter((request) => !new URL(request.url).pathname.endsWith("/services/svc"));
       expect(bounded.at(-1)?.url).toContain(hanging === "pods" ? "/namespaces/default/pods?labelSelector=app%3Dsvc" : "/pods/pod-0/log?");
       expect(bounded.every((request) => request.staticHeader === "kept" && request.signal?.aborted === true)).toBe(true);
+    }
+  });
+
+  it("aborts the Service and Job selector reads at the capture deadline", async () => {
+    for (const kind of ["service", "job"] as const) {
+      const { sent, batch, core } = sdkClients(() => undefined);
+      const capsule = new Capsule({ adapter: kubernetes({ clients: { batch, apps: {} as never, core } as never }) });
+      const spec = { id: "owner", bounds: { deadlineMs: 40 } };
+      const result = await Promise.race([
+        kind === "service" ? capsule.service.logs(spec) : capsule.job.logs(spec),
+        new Promise<"still pending">((resolve) => setTimeout(() => resolve("still pending"), 1_000))
+      ]);
+      expect(result).not.toBe("still pending");
+      if (result === "still pending") return;
+      expect(result.truncation).toMatchObject({ truncated: true, reason: "deadline" });
+      expect(sent).toHaveLength(1);
+      expect(sent[0]?.url).toBe(
+        kind === "service"
+          ? "https://kubernetes.test/api/v1/namespaces/default/services/owner"
+          : "https://kubernetes.test/apis/batch/v1/namespaces/default/jobs/owner"
+      );
+      expect(sent[0]?.staticHeader).toBe("kept");
+      expect(sent[0]?.signal?.aborted).toBe(true);
     }
   });
 });
