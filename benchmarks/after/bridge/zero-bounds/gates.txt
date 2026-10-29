@@ -1,0 +1,35 @@
+# Capsule gates with the zero exec bound cases
+
+commit: 105c2fe7a4e8649aa33bce244579fcd94f76e5d8 (546e9f7 adds the two v1 cases and moves the pin; 105c2fe updates docs/bridge-protocol.md)
+host: darwin 25.6.0 arm64, Apple M5 Pro, 18 cpus, load average 8 to 12 from other work
+pnpm: 10.32.1
+gates: the commands of .github/workflows/ci.yml, run locally, except bench:bounds, which only the performance phase runs
+worker source: unchanged since 1e2e1cf; the commits change fixtures, tests and docs only
+
+## Node 22.23.2
+PASS  pnpm install --frozen-lockfile
+PASS  pnpm capsule:gap:check
+PASS  pnpm format:check
+PASS  pnpm typecheck
+PASS  pnpm test                              vitest: 82 files passed, 11 skipped; 1077 tests passed, 20 skipped. node --test: 62 of 62 pass
+PASS  pnpm build
+PASS  pnpm release:audit                     pack smoke passed for 23 packages, packed capsule-bridge-worker round trip, refusal before effect and oversize hello
+PASS  pnpm docs:api:check
+PASS  pnpm test:package-exports
+PASS  pnpm release:pack-smoke:compatible     22 packages
+PASS  node --test scripts/bridge-fixtures.test.mjs   manifest pinned at 5390b6b5c520e7d2a7a4fb46527f32e440c7f346eb5bc31e1ab85803e96cd63e, the same pin as Fabric
+
+## Node 24.19.0
+PASS  pnpm test                              vitest: 82 files passed, 11 skipped; 1077 tests passed, 20 skipped. node --test passes
+PASS  pnpm test:package-exports
+PASS  pnpm release:pack-smoke:compatible     23 packages
+
+## The new cases are sensitive
+packages/bridge-worker/src/protocol.test.ts with the lower bound of params.timeout_ms and params.max_output_bytes
+lowered from 1 to 0 in validate.ts: request_exec_timeout_zero and request_exec_output_bytes_zero fail, 77 others pass.
+With validate.ts as committed: 79 of 79 pass.
+
+## Fabric's client against this worker
+PASS  Fabric ba950db, cargo test -p fabric-bridge --test capsule_worker -- --ignored, against packages/bridge-worker/dist/bin.js
+      built by pnpm build above, with CAPSULE_BRIDGE_DOCKER_IMAGE=debian:bookworm-slim on OrbStack, Docker 29.4.0, the image
+      already present and never pulled: 8 of 8 pass (fabric-interop.log); no container left with a fabric.job label

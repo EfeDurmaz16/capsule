@@ -78,3 +78,10 @@ Docker and Fabric:
 - `fabric-interop.log`: Fabric `0b6b3a3` `crates/fabric-bridge/tests/capsule_worker.rs` against this worker, 8 of 8 pass, the Docker profile included. Fabric `0b6b3a3` sends consecutive scenario frames in one write, as Capsule's runner does; that removed the `shutdown_reports_unresolved` flake described above (100 of 100 runs pass, against 39 of 40 before).
 
 M1 then moved to `ff0b42a`, which fixed the CLI bin entry test the same way `c5ff306` had. `9e80135` merges it again and takes M1's version of that test. On that merge the Docker smoke passes all 11 checks (`merge-m1/docker-smoke-node22-merge2.json`) and Fabric's interop tests pass 8 of 8 against a fresh clone built with Fabric's CI steps (`merge-m1/fabric-interop-merge2.log`). `merge-m1/gates.txt` records the gates, including one M1 store-sqlite test that times out on this host's fsync under load, on M1 alone too.
+
+## The zero exec bound rule
+
+On 2026-10-29 the specification ruled an exec `timeout_ms` or `max_output_bytes` of 0 invalid. The worker already refused both as `invalid`/`limit`; `546e9f7` carries Fabric's two new shared cases and the moved manifest pin. `zero-bounds/` holds what was run on `105c2fe`:
+
+- `gates.txt`: every CI gate on Node 22 and the Node compatibility gates on Node 24 pass, and the new cases fail when the worker accepts 0. `bench:bounds` was not run here; timing belongs to the performance phase, and no worker source changed.
+- `fabric-interop.log`: Fabric `ba950db` `crates/fabric-bridge/tests/capsule_worker.rs` against this worker, 8 of 8 pass, the Docker profile on the local engine included.
