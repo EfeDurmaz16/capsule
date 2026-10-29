@@ -21,6 +21,8 @@ export function frame(message) {
 export function startWorker({ command, args, cwd, env, timeoutMs = 20_000 }) {
   const spawnedAt = performance.now();
   const child = spawn(command, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
+  // A worker that refused a frame exits; a write after that fails with EPIPE, which is not the smoke's finding.
+  child.stdin.on("error", () => undefined);
   let buffered = Buffer.alloc(0);
   let stdoutBytes = 0;
   let stderr = "";
@@ -84,7 +86,9 @@ export function startWorker({ command, args, cwd, env, timeoutMs = 20_000 }) {
       child.stdin.end();
     },
     stdoutBytes: () => stdoutBytes,
-    stderr: () => stderr
+    stderr: () => stderr,
+    /** Frames decoded and not yet taken by next(). */
+    queued: () => queue.length
   };
 }
 
