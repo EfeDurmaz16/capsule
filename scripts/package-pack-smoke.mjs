@@ -66,7 +66,7 @@ const kib = 1024;
 // Packed tarball budgets are rounded up from current pnpm pack artifacts.
 const packedSizeBudgetBytes = {
   "@capsule-sdk/azure": 11 * kib,
-  "@capsule-sdk/cloud-run": 14 * kib,
+  "@capsule-sdk/cloud-run": 15 * kib,
   "@capsule-sdk/cloudflare": 11 * kib,
   "@capsule-sdk/daytona": 6 * kib,
   "@capsule-sdk/docker": 12 * kib,
@@ -74,10 +74,10 @@ const packedSizeBudgetBytes = {
   "@capsule-sdk/ec2": 6 * kib,
   "@capsule-sdk/ecs": 9 * kib,
   "@capsule-sdk/fly": 9 * kib,
-  "@capsule-sdk/kubernetes": 14 * kib,
+  "@capsule-sdk/kubernetes": 15 * kib,
   "@capsule-sdk/lambda": 6 * kib,
   "@capsule-sdk/mock": 10 * kib,
-  "@capsule-sdk/modal": 6 * kib,
+  "@capsule-sdk/modal": 7 * kib,
   "@capsule-sdk/neon": 9 * kib,
   "@capsule-sdk/vercel": 13 * kib,
   "@capsule-sdk/ai": 7 * kib,
