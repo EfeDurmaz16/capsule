@@ -18,6 +18,11 @@ export interface ResourceState {
 
 /** Per-operation hooks the driver's adapter may use. */
 export interface OperationHooks {
+  /**
+   * The operation this adapter acts for. A provider that labels its effects records this id on each,
+   * the way the Docker profile labels a container with fabric.operation.
+   */
+  readonly operation: { readonly id: string; readonly key: string };
   /** Aborted when Fabric cancels this request and the profile allows cancel for the action. */
   cancel: AbortSignal;
   /** Reports that the action is running at the provider, so Fabric can record the locator early. */

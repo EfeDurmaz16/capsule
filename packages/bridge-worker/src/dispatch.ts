@@ -480,6 +480,7 @@ async function dispatchChecked(
   const { driver } = context;
   const { binding } = prepared;
   const hooks: OperationHooks = {
+    operation: { id: request.operation.id, key: request.operation.key },
     cancel: runtime.cancel,
     onRunning: (state) => {
       if ("target" in request) runtime.progress(state, request.target);

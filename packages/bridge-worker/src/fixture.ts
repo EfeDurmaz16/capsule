@@ -20,7 +20,8 @@ import type { BridgeAction } from "./wire.js";
 
 // The deterministic, stateful fixture provider (draft P12 layer L1). It lives in memory, starts from
 // a seed (a scenario's provider_state), and records every mutating call in `effects`, so a test can
-// prove that a refused request reached no provider. Reads, cancels and settles are not effects.
+// prove that a refused request reached no provider. Reads, cancels and settles are not effects. Every
+// effect carries the id of the operation that made it, as the Docker profile labels a container.
 // Native ids are fx-<operation key>, so the provider deduplicates creates on the key.
 
 export interface FixtureSandboxState {
@@ -35,6 +36,8 @@ export interface FixtureSandboxState {
 export interface FixtureEffect {
   call: "create" | "exec" | "destroy";
   native_id: string;
+  /** The operation id the call was made for. */
+  operation: string;
 }
 
 export type FixtureBehavior = "fail" | "apply_then_lose_reply" | "fail_receipt" | "run_until_cancelled" | "stay_stopping_until_settle";
@@ -115,8 +118,8 @@ export class FixtureProvider {
     return this.script.get(`${action} ${nativeId}`);
   }
 
-  create(nativeId: string, labels: Record<string, string>): void {
-    this.effects.push({ call: "create", native_id: nativeId });
+  create(nativeId: string, labels: Record<string, string>, operation: string): void {
+    this.effects.push({ call: "create", native_id: nativeId, operation });
     const behavior = this.behavior("sandbox.create", nativeId);
     if (behavior === "fail") {
       throw new ProviderValidationError("fixture provider refused the create", { category: "validation", retryable: false, code: "refused" });
@@ -134,15 +137,15 @@ export class FixtureProvider {
     }
   }
 
-  destroy(nativeId: string): void {
-    this.effects.push({ call: "destroy", native_id: nativeId });
+  destroy(nativeId: string, operation: string): void {
+    this.effects.push({ call: "destroy", native_id: nativeId, operation });
     const sandbox = this.sandboxes.get(nativeId);
     if (!sandbox) throw new ProviderValidationError(`fixture sandbox ${nativeId} not found`, { category: "validation", retryable: false, code: "not_found" });
     sandbox.status = this.behavior("sandbox.destroy", nativeId) === "stay_stopping_until_settle" ? "stopping" : "destroyed";
   }
 
   async exec(nativeId: string, spec: ExecSpec, hooks: OperationHooks): Promise<ExecResult> {
-    this.effects.push({ call: "exec", native_id: nativeId });
+    this.effects.push({ call: "exec", native_id: nativeId, operation: hooks.operation.id });
     const status = this.sandboxes.get(nativeId)?.status;
     if (status !== "ready") {
       // Like a container that is no longer running, a sandbox that is stopping or gone runs nothing.
@@ -252,7 +255,7 @@ class FixtureSandbox implements Sandbox {
   }
 
   async destroy(): Promise<void> {
-    this.provider.destroy(this.handle.id);
+    this.provider.destroy(this.handle.id, this.hooks.operation.id);
   }
 }
 
@@ -267,7 +270,7 @@ export function fixtureAdapter(provider: FixtureProvider, hooks: OperationHooks)
       create: async (spec: CreateSandboxSpec, context: AdapterContext): Promise<Sandbox> => {
         const nativeId = `fx-${spec.idempotencyKey ?? spec.name ?? "anonymous"}`;
         const startedAt = new Date(0);
-        provider.create(nativeId, spec.labels ?? {});
+        provider.create(nativeId, spec.labels ?? {}, hooks.operation.id);
         if (provider.behavior("sandbox.create", nativeId) === "apply_then_lose_reply") {
           throw new BridgeUnknownError("reply_lost", {
             operation: "sandbox.create",

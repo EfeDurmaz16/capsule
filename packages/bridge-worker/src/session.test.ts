@@ -34,6 +34,23 @@ async function started(state: Partial<ScenarioState> = {}) {
   return { world, connection };
 }
 
+describe("fixture effects", () => {
+  test("every fixture effect carries the operation it was made for, as Docker labels a container", async () => {
+    const { world, connection } = await started({ sandboxes: [] });
+    connection.send(createRequest);
+    expect(await connection.next()).toMatchObject({ type: "result", state: "completed" });
+    connection.send(execRequest);
+    expect(await connection.next()).toMatchObject({ type: "result", state: "completed" });
+    connection.send(destroyRequest);
+    expect(await connection.next()).toMatchObject({ type: "result", state: "completed" });
+    expect(world.provider.effects).toEqual([
+      { call: "create", native_id: "fx-key-create-1", operation: "01K8W3A00000000000000000P1" },
+      { call: "exec", native_id: "fx-key-create-1", operation: "01K8W3A00000000000000000P2" },
+      { call: "destroy", native_id: "fx-key-create-1", operation: "01K8W3A00000000000000000P3" }
+    ]);
+  });
+});
+
 describe("admission", () => {
   test("a request beyond the negotiated in-flight cap is busy and reaches no provider", async () => {
     const { world, connection } = await started({ script: [longExec] });
@@ -107,7 +124,7 @@ describe("admission", () => {
     expect(await connection.next()).toMatchObject({ type: "error", error: { code: "provider_failed", reason: "not_found", effect: "none" } });
     connection.send({ ...destroyRequest, request_id: "r-4", operation: { id: "01K8W3A00000000000000000P4", key: "key-destroy-9", digest: "ab".repeat(32) } });
     expect(await connection.next()).toMatchObject({ type: "error", error: { code: "provider_failed", reason: "not_found", effect: "none" } });
-    expect(world.provider.effects).toEqual([{ call: "destroy", native_id: "fx-key-create-1" }]);
+    expect(world.provider.effects).toEqual([{ call: "destroy", native_id: "fx-key-create-1", operation: "01K8W3A00000000000000000P3" }]);
   });
 
   test("a sandbox that is stopping refuses exec at the provider and reports no output", async () => {

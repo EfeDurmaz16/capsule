@@ -104,7 +104,7 @@ describe("scenario properties the steps imply", () => {
     connection.session.kill();
     expect(await connection.drain()).toEqual([]);
     expect(world.provider.cancels).toEqual([]);
-    expect(world.provider.effects).toEqual([{ call: "exec", native_id: "fx-key-create-1" }]);
+    expect(world.provider.effects).toEqual([{ call: "exec", native_id: "fx-key-create-1", operation: "01K8W3A00000000000000000P2" }]);
   });
 
   test("every refusal in the scenarios happened before any effect", async () => {
