@@ -39,7 +39,15 @@ for (const name of only ?? []) {
     process.exit(2);
   }
 }
-const selected = only ? gates.filter(([name]) => only.includes(name)) : gates;
+// Gates that read dist/. In CI each runs after `pnpm build` in its job, so --only adds the build gate
+// when one of them is selected without it: otherwise it would pass or fail against the dist/ of an
+// earlier build (or none, after the test gate removed it) instead of the source being recorded.
+const readsDist = new Set(["release-audit", "package-exports", "pack-smoke-compatible", "benchmark-bounds"]);
+const needBuild = (only ?? []).filter((name) => readsDist.has(name));
+const addBuild = only !== undefined && needBuild.length > 0 && !only.includes("build");
+const chosen = addBuild ? [...only, "build"] : only;
+const selected = chosen ? gates.filter(([name]) => chosen.includes(name)) : gates;
+if (addBuild) process.stderr.write(`adding the build gate: ${needBuild.join(", ")} read${needBuild.length === 1 ? "s" : ""} dist/\n`);
 
 function git(args) {
   const r = spawnSync("git", args, { cwd: root, encoding: "utf8" });
@@ -57,7 +65,7 @@ lines.push(`node: ${process.version}`);
 lines.push(`pnpm: ${spawnSync("pnpm", ["-v"], { cwd: root, encoding: "utf8" }).stdout.trim()}`);
 lines.push(
   only
-    ? `gates: only ${selected.map(([name]) => name).join(", ")}, in CI order`
+    ? `gates: only ${selected.map(([name]) => name).join(", ")}, in CI order${addBuild ? ` (build added: ${needBuild.join(", ")} read${needBuild.length === 1 ? "s" : ""} dist/)` : ""}`
     : `gates: same commands as the .github/workflows/ci.yml jobs (verify, Node compatibility, benchmark bounds), run locally in order`
 );
 lines.push("");
