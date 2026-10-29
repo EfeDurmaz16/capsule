@@ -4,8 +4,9 @@ Capsule can run as a provider worker for [Fabric](https://github.com/EfeDurmaz16
 
 - Specification: Fabric `docs/bridge-protocol.md` (bridge protocol v1).
 - Decision record: Fabric `docs/adr/0021-capsule-provider-bridge.md`, adopting drafts P09 (scoped provider identity and truthful outcomes) and P10 (Capsule worker protocol) as Proposed.
+- Reconciliation: Fabric `docs/adr/0022-reconciliation-and-cleanup-authorization.md`, adopting draft P11 (unknown outcomes, reconciliation and cleanup authorization) as Proposed, and the specification's section "Reconciliation (M4)".
 
-Status: proposed, 2026-10-27; amended 2026-10-29 (an exec bound of 0 is invalid; an observe carries the original operation's scope; both profiles observe an exec; fixture seeds carry the operation label). The worker is implemented in [`@capsule-sdk/bridge-worker`](../packages/bridge-worker) and passes every shared fixture; it is not released yet.
+Status: proposed, 2026-10-27; amended 2026-10-29 (an exec bound of 0 is invalid; an observe carries the original operation's scope; both profiles observe an exec; fixture seeds carry the operation label); amended again 2026-10-29 by Fabric ADR 0022 for M4 (the `attach` message; see "Reconciliation (M4)" below). The worker is implemented in [`@capsule-sdk/bridge-worker`](../packages/bridge-worker) and passes every M3 shared fixture; the M4 fixtures were added ahead of it and fail until it carries M4. It is not released yet.
 
 ## What Capsule owns
 
@@ -27,6 +28,16 @@ The worker keeps no durable job state. A worker restart is transport loss, never
 ## Fixtures
 
 `protocol/bridge/v1` in this repository is a byte-identical copy of Fabric's `protocol/bridge/v1`: framed byte cases, message cases, scenarios for the deterministic fixture provider, and the v1 capability profiles for the fixture provider and local Docker. `scripts/bridge-fixtures.test.mjs` checks every file against `manifest.sha256` and pins the manifest's own sha256; Fabric pins the same digest. Never edit these files in one repository alone: a change lands byte for byte in both, with the pin, in linked pull requests. Fabric's text stays the source of truth; the 2026-10-29 fixtures for observe scope, exec observe and seed operation labels were written here and copied to Fabric. Until v1 first ships, a correction goes into v1 this way rather than into a v2 (the specification's Versioning section). Prettier ignores the directory so its bytes stay exact.
+
+## Reconciliation (M4)
+
+Fabric's specification, section "Reconciliation (M4)", is the source of truth; this is what it asks of the worker. Reconciliation only reads: Fabric never sends a request again, and the worker never retries one.
+
+- `attach` finds the resource an earlier create of an operation made, by that operation's identity, for an operation whose answer never reached Fabric. It carries `operation_id`, `key`, the original `scope`, the original `action` and `wait_ms`, and never a resource. It is supported for exactly the actions whose profile `effect` is `create` and whose `dedupe` is `provider_key` or `label_query`: `sandbox.create` in both profiles. Any other action in the profile is `unsupported`/`attach`.
+- The worker looks for the resource with the driver's `findCreated` at each observe interval until `wait_ms`, reads its labels before it reports anything (another job, or another operation, is `denied`/`owner_mismatch`), then observes it as an observe of the action does. Answers: `completed` with the locator; `pending`/`observation_deadline` with the locator when it is found but not terminal; `unknown`/`absent` with `searched` (the profile's provider, the worker's bound scope and the resource kind) when nothing carries the operation's identity; `unknown`/`observation_failed` when a read fails. Absence settles nothing: a Docker create may still land after its worker ended.
+- A cleanup is an ordinary destroy with a fresh grant scoped to `sandbox.destroy` on that resource; nothing changes in the worker for it.
+- The fixture provider accepts a seed sandbox with `status: "starting"`, which is not terminal for a create and becomes `ready` at `advance: settle`.
+- A scenario may carry a `journal_state` header for Fabric's journal; the worker's scenario run ignores it.
 
 ## The worker
 
