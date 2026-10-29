@@ -148,7 +148,7 @@ describe("cases", () => {
   const names = fixtureNames("cases");
 
   test("the case set is the v1 set", () => {
-    expect(names).toHaveLength(46);
+    expect(names).toHaveLength(48);
   });
 
   for (const name of names) {
