@@ -9,7 +9,6 @@ import { dockerDriver } from "./docker.js";
 import { readFixture, TestConnection } from "./harness.test.support.js";
 import { checkWorkerMessage } from "./outbound.js";
 import { dockerProfile } from "./profiles.js";
-import type { CapabilityProfile } from "./wire.js";
 
 // The Docker profile against an in-memory stand-in for the docker CLI. It proves the mapping (labels,
 // pull never, scope, ownership, dedupe by label, receipts) without a daemon. The physical proof against
@@ -177,7 +176,6 @@ function connect(
     secrets?: string[];
     binding?: { engine: string };
     realAvailability?: boolean;
-    profile?: CapabilityProfile;
   } = {}
 ) {
   const config = parseWorkerConfig(
@@ -191,7 +189,7 @@ function connect(
     ...(options.receiptsPath ? { receipts: { store: new JsonlReceiptStore({ path: options.receiptsPath }), durable: true } } : {}),
     secret: (name) => (options.secrets?.includes(name) ? `value-of-${name}` : undefined)
   });
-  return new TestConnection(options.profile ? { ...driver, profile: options.profile } : driver, config);
+  return new TestConnection(driver, config);
 }
 
 async function handshake(connection: TestConnection) {
@@ -273,6 +271,28 @@ describe("docker profile on a fake engine", () => {
     connection.send(create(2));
     expect(await connection.next()).toMatchObject({ error: { code: "provider_failed", reason: "not_found", effect: "none" } });
     expect(engine.containers.size).toBe(1);
+  });
+
+  test("an observe of a create answers only a container labelled with that operation, not one with this job's label alone", async () => {
+    const engine = new FakeEngine();
+    const labels = { "fabric.job": scope.job, "fabric.attempt": scope.attempt, "fabric.generation": scope.generation };
+    engine.containers.set("job-only", { id: "job-only", name: "job-only", image: "debian:bookworm-slim", labels, env: [], status: "running" });
+    const connection = connect(engine);
+    await handshake(connection);
+    const observe = (n: number, operationId: string) => ({
+      type: "observe",
+      request_id: `r-${n}`,
+      operation_id: operationId,
+      scope,
+      action: "sandbox.create",
+      resource: target("job-only"),
+      wait_ms: 1_000
+    });
+    connection.send(observe(1, "01K8W3A0000000000000000D01"));
+    expect(await connection.next()).toMatchObject({ type: "error", error: { code: "denied", reason: "owner_mismatch", effect: "none" } });
+    engine.containers.get("job-only")!.labels["fabric.operation"] = "01K8W3A0000000000000000D01";
+    connection.send(observe(2, "01K8W3A0000000000000000D01"));
+    expect(await connection.nextWithin(2_000)).toMatchObject({ type: "result", request_id: "r-2", state: "completed" });
   });
 
   test("a container without this job's labels is never acted on", async () => {
@@ -426,8 +446,7 @@ describe("docker profile on a fake engine", () => {
 
   test("an exec answered running at its deadline is reported by observe once the command ends, and never run again", async () => {
     const engine = new FakeEngine();
-    const profile = { ...dockerProfile, actions: dockerProfile.actions.map((a) => (a.action === "sandbox.exec" ? { ...a, observe: true } : a)) };
-    const connection = connect(engine, { profile });
+    const connection = connect(engine);
     await handshake(connection);
     connection.send(create(1));
     const id = ((await connection.next()).resource as { native_id: string }).native_id;
@@ -445,6 +464,7 @@ describe("docker profile on a fake engine", () => {
       type: "observe",
       request_id: `r-${n}`,
       operation_id: "01K8W3A0000000000000000D02",
+      scope,
       action: "sandbox.exec",
       resource: target(id),
       wait_ms: waitMs
@@ -493,6 +513,7 @@ describe("docker profile on a fake engine", () => {
       type: "observe",
       request_id: "r-2",
       operation_id: "01K8W3A0000000000000000D01",
+      scope,
       action: "sandbox.create",
       resource: named,
       wait_ms: 2_000

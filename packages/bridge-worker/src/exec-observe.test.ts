@@ -6,7 +6,6 @@ import { FixtureProvider, fixtureDriver } from "./fixture.js";
 import { readFixture, TestConnection, type ScenarioState } from "./harness.test.support.js";
 import { checkWorkerMessage } from "./outbound.js";
 import { fixtureProfile } from "./profiles.js";
-import type { CapabilityProfile } from "./wire.js";
 
 // Observe of an exec: the worker's ledger reports how an exec it sent ended, after an answer of
 // `running` or one that never reached Fabric, and never runs the command again.
@@ -19,14 +18,9 @@ const owned = { native_id: "fx-key-create-1", project: "proj-1", owner_job: job,
 const other = { native_id: "fx-key-other-1", project: "proj-1", owner_job: job, operation: "01K8W3A00000000000000000P9", status: "ready" };
 const locator = (nativeId: string) => ({ provider: "fixture", scope: { account: "acct-a", project: "proj-1" }, kind: "sandbox", native_id: nativeId });
 
-/** The profile with exec observe on, whatever the shipped document says. */
-function observable(profile: CapabilityProfile): CapabilityProfile {
-  return { ...profile, actions: profile.actions.map((action) => (action.action === "sandbox.exec" ? { ...action, observe: true } : action)) };
-}
-
 function world(script: unknown[] = []) {
   const provider = new FixtureProvider(base.binding, { sandboxes: [owned, other], script });
-  const driver: BridgeDriver = { ...fixtureDriver(provider), profile: observable(fixtureProfile) };
+  const driver: BridgeDriver = fixtureDriver(provider);
   const config = parseWorkerConfig({ binding: base.binding, policy: base.policy, approvals: base.approvals }, fixtureProfile);
   const connect = async () => {
     const connection = new TestConnection(driver, config);
@@ -38,10 +32,12 @@ function world(script: unknown[] = []) {
 }
 
 const exec = (argv: string[]) => ({ ...execRequest, params: { ...(execRequest.params as object), argv } });
-const observe = (requestId: string, nativeId = "fx-key-create-1", waitMs = 3000) => ({
+const scopeOf = (jobId: string) => ({ job: jobId, task: "01K8W3A00000000000000000T1", attempt: "01K8W3A00000000000000000A1", generation: "1" });
+const observe = (requestId: string, nativeId = "fx-key-create-1", waitMs = 3000, jobId = job) => ({
   type: "observe",
   request_id: requestId,
   operation_id: "01K8W3A00000000000000000P2",
+  scope: scopeOf(jobId),
   action: "sandbox.exec",
   resource: locator(nativeId),
   wait_ms: waitMs
@@ -136,13 +132,17 @@ describe("exec observe on the fixture provider", () => {
     expect(provider.providerCalls).toBe(1);
   });
 
-  test("an exec observe that names another sandbox is refused and reports nothing about the exec", async () => {
+  test("an exec observe that names another sandbox or another job is refused and reports nothing about the exec", async () => {
     const { driver, connect } = world([{ action: "sandbox.exec", native_id: "fx-key-create-1", behavior: "run_until_settle" }]);
     const connection = await connect();
     connection.send(exec(["echo", "settled"]));
     expect(await answer(connection, driver)).toMatchObject({ type: "result", state: "running" });
     connection.send(observe("r-3", "fx-key-other-1"));
     expect(await answer(connection, driver)).toMatchObject({ type: "error", error: { code: "denied", reason: "owner_mismatch", effect: "none" } });
+    connection.send(observe("r-4", "fx-key-create-1", 3000, "01K8W3A00000000000000000J2"));
+    const refused = await answer(connection, driver);
+    expect(refused).toMatchObject({ type: "error", error: { code: "denied", reason: "owner_mismatch", effect: "none" } });
+    expect(refused.error).not.toHaveProperty("state");
   });
 
   test("an exec answered running holds its in-flight slot until it ends", async () => {

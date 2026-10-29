@@ -12,6 +12,7 @@ import {
   type Hello,
   type HelloRefusedCode,
   type Observe,
+  type RequestScope,
   type Shutdown,
   type WireLocator
 } from "./wire.js";
@@ -229,6 +230,17 @@ export function correlation(message: Json): { requestId: string; operationId: st
   return isUlid(operationId) ? { requestId, operationId } : undefined;
 }
 
+/** The managed identities an effect belongs to: a request's own, or for an observe the original operation's. */
+function parseScope(value: unknown): RequestScope {
+  const body = fields(value, ["job", "task", "attempt", "generation"], ["job", "task", "attempt", "generation"], "scope");
+  return {
+    job: id(body.job, ULID, "scope.job"),
+    task: id(body.task, ULID, "scope.task"),
+    attempt: id(body.attempt, ULID, "scope.attempt"),
+    generation: generation(body.generation)
+  };
+}
+
 const REQUEST_FIELDS = ["type", "request_id", "operation", "scope", "action", "target", "params", "approval", "policy", "deadline_ms"] as const;
 const REQUEST_REQUIRED = ["type", "request_id", "operation", "scope", "action", "params", "approval", "deadline_ms"] as const;
 
@@ -241,13 +253,7 @@ export function parseRequest(message: Json, profile: CapabilityProfile): BridgeR
     key: id(operation.key, KEY, "operation.key"),
     digest: id(operation.digest, DIGEST, "operation.digest")
   };
-  const scopeBody = fields(body.scope, ["job", "task", "attempt", "generation"], ["job", "task", "attempt", "generation"], "scope");
-  const scope = {
-    job: id(scopeBody.job, ULID, "scope.job"),
-    task: id(scopeBody.task, ULID, "scope.task"),
-    attempt: id(scopeBody.attempt, ULID, "scope.attempt"),
-    generation: generation(scopeBody.generation)
-  };
+  const scope = parseScope(body.scope);
   const action = body.action;
   if (typeof action !== "string" || !(ACTIONS as readonly string[]).includes(action) || !actionCapability(profile, action)) {
     throw new Refusal("unsupported", "action", `action ${typeof action === "string" ? action : "?"} is not in the negotiated profile`);
@@ -321,17 +327,18 @@ export function parseRequest(message: Json, profile: CapabilityProfile): BridgeR
 }
 
 export function parseObserve(message: Json, profile: CapabilityProfile): Observe {
-  const keys = ["type", "request_id", "operation_id", "action", "resource", "wait_ms"] as const;
+  const keys = ["type", "request_id", "operation_id", "scope", "action", "resource", "wait_ms"] as const;
   const body = fields(message, keys, keys, "observe");
   const requestId = id(body.request_id, KEY, "request_id");
   const operationId = id(body.operation_id, ULID, "operation_id");
+  const scope = parseScope(body.scope);
   const action = body.action;
   const capability = typeof action === "string" ? actionCapability(profile, action) : undefined;
   if (!capability) throw new Refusal("unsupported", "action", "observe names an action outside the negotiated profile");
   if (!capability.observe) throw new Refusal("unsupported", "observe", `${capability.action} has observe: false in this profile`);
   const resource = parseLocator(body.resource, profile, "resource");
   const waitMs = bounded(body.wait_ms, 1, profile.limits.max_observe_wait_ms, "wait_ms");
-  return { type: "observe", request_id: requestId, operation_id: operationId, action: capability.action, resource, wait_ms: waitMs };
+  return { type: "observe", request_id: requestId, operation_id: operationId, scope, action: capability.action, resource, wait_ms: waitMs };
 }
 
 export function parseCancel(message: Json): Cancel {

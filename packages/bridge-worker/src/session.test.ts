@@ -14,7 +14,13 @@ const createRequest = readFixture<{ message: Record<string, unknown> }>("cases/r
 const execRequest = readFixture<{ message: Record<string, unknown> }>("cases/request_exec_valid.json").message;
 const destroyRequest = readFixture<{ message: Record<string, unknown> }>("cases/request_destroy_valid.json").message;
 const base = readFixture<{ provider_state: ScenarioState }>("scenarios/create_exec_destroy.json").provider_state;
-const owned = { native_id: "fx-key-create-1", project: "proj-1", owner_job: "01K8W3A00000000000000000J1", status: "ready" };
+const owned = {
+  native_id: "fx-key-create-1",
+  project: "proj-1",
+  owner_job: "01K8W3A00000000000000000J1",
+  operation: "01K8W3A00000000000000000P1",
+  status: "ready"
+};
 const longExec = { action: "sandbox.exec", native_id: "fx-key-create-1", behavior: "run_until_cancelled" };
 
 function exec(n: number, overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -300,10 +306,12 @@ describe("outputs", () => {
 
 describe("observe", () => {
   const locator = (nativeId: string) => ({ provider: "fixture", scope: { account: "acct-a", project: "proj-1" }, kind: "sandbox", native_id: nativeId });
-  const observe = (requestId: string, operationId: string, action: string, nativeId: string) => ({
+  const scopeOf = (job: string) => ({ job, task: "01K8W3A00000000000000000T1", attempt: "01K8W3A00000000000000000A1", generation: "1" });
+  const observe = (requestId: string, operationId: string, action: string, nativeId: string, job = "01K8W3A00000000000000000J1") => ({
     type: "observe",
     request_id: requestId,
     operation_id: operationId,
+    scope: scopeOf(job),
     action,
     resource: locator(nativeId),
     wait_ms: 1000
@@ -334,10 +342,47 @@ describe("observe", () => {
       status: "ready"
     };
     const { connection } = await started({ sandboxes: [seeded] });
-    connection.send(observe("r-10", "01K8W3A00000000000000000Q1", "sandbox.create", "fx-other-job"));
+    connection.send(observe("r-10", "01K8W3A00000000000000000Q1", "sandbox.create", "fx-other-job", seeded.owner_job));
     expect(await connection.next()).toMatchObject({ type: "error", error: { code: "denied", reason: "owner_mismatch", effect: "none" } });
-    connection.send(observe("r-11", "01K8W3A00000000000000000Q2", "sandbox.create", "fx-other-job"));
+    connection.send(observe("r-11", "01K8W3A00000000000000000Q2", "sandbox.create", "fx-other-job", seeded.owner_job));
     expect(await connection.next()).toMatchObject({ type: "result", state: "completed" });
+  });
+
+  test("an observe of a destroy refuses a resource another job made, without reporting its state", async () => {
+    const seeded = { ...owned, owner_job: "01K8W3A00000000000000000J2" };
+    const { world, connection } = await started({
+      sandboxes: [seeded],
+      script: [{ action: "sandbox.destroy", native_id: "fx-key-create-1", behavior: "stay_stopping_until_settle" }]
+    });
+    connection.send(observe("r-10", "01K8W3A00000000000000000P3", "sandbox.destroy", "fx-key-create-1"));
+    const answer = await connection.next();
+    expect(answer).toMatchObject({ type: "error", error: { code: "denied", reason: "owner_mismatch", effect: "none" } });
+    expect(answer.error).not.toHaveProperty("state");
+    // The owning job's observe of the same resource is answered.
+    connection.send(observe("r-11", "01K8W3A00000000000000000P3", "sandbox.destroy", "fx-key-create-1", seeded.owner_job));
+    expect(await connection.next()).toMatchObject({ type: "error", error: { code: "pending", state: "ready" } });
+    expect(world.provider.effects).toEqual([]);
+  });
+
+  test("an observe of a create on a resource no job labelled is refused", async () => {
+    const { connection } = await started({ sandboxes: [{ native_id: "fx-unlabelled", project: "proj-1", status: "ready" }] });
+    connection.send(observe("r-10", "01K8W3A00000000000000000P1", "sandbox.create", "fx-unlabelled"));
+    expect(await connection.next()).toMatchObject({ type: "error", error: { code: "denied", reason: "owner_mismatch", effect: "none" } });
+  });
+
+  test("an observe without the original operation's scope is refused as missing_field before any read", async () => {
+    const { world, connection } = await started();
+    const { scope, ...unscoped } = observe("r-10", "01K8W3A00000000000000000P3", "sandbox.destroy", "fx-key-create-1");
+    expect(scope.job).toBe("01K8W3A00000000000000000J1");
+    connection.send(unscoped);
+    expect(await connection.next()).toMatchObject({ type: "error", error: { code: "invalid", reason: "missing_field", effect: "none" } });
+    expect(world.provider.effects).toEqual([]);
+  });
+
+  test("a fixture seed with a job label and no operation label is refused, as the worker never makes one", () => {
+    expect(() =>
+      fixtureWorld({ ...base, sandboxes: [{ native_id: "fx-half", project: "proj-1", owner_job: "01K8W3A00000000000000000J1" }], script: [] })
+    ).toThrow(/owner_job and operation together/);
   });
 
   test("an observe of a destroy refuses a resource no Fabric job made, without reporting its state", async () => {

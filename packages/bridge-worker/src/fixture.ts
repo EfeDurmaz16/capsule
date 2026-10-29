@@ -85,12 +85,18 @@ export class FixtureProvider {
       }
       const status = entry.status ?? "ready";
       if (status !== "ready" && status !== "stopping") throw new Error(`fixture sandboxes[${index}].status must be ready or stopping`);
+      // A sandbox a job made carries the creating operation too, as every container the Docker profile
+      // creates carries fabric.operation beside fabric.job. A seed with one label and not the other
+      // models a resource the worker never makes.
+      if ((typeof entry.owner_job === "string") !== (typeof entry.operation === "string")) {
+        throw new Error(`fixture sandboxes[${index}] needs owner_job and operation together, or neither`);
+      }
       this.sandboxes.set(entry.native_id, {
         native_id: entry.native_id,
         account: typeof entry.account === "string" ? entry.account : binding.account,
         project: entry.project,
         ...(typeof entry.owner_job === "string" ? { owner_job: entry.owner_job } : {}),
-        // The creating operation's label, as a real provider would keep it across a worker restart.
+        // The creating operation's label, as a provider keeps it across a worker restart.
         ...(typeof entry.operation === "string" ? { operation: entry.operation } : {}),
         status
       });

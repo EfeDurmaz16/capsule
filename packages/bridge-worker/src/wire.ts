@@ -102,6 +102,8 @@ export interface Observe {
   type: "observe";
   request_id: string;
   operation_id: string;
+  /** The original operation's scope. The worker refuses a resource another job made (owner_mismatch). */
+  scope: RequestScope;
   action: BridgeAction;
   resource: WireLocator;
   wait_ms: number;

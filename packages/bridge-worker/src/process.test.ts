@@ -88,7 +88,13 @@ function spawnWorker(config: Record<string, unknown>, options: { profile?: strin
   };
 }
 
-const owned = { native_id: "fx-key-create-1", project: "proj-1", owner_job: "01K8W3A00000000000000000J1", status: "ready" };
+const owned = {
+  native_id: "fx-key-create-1",
+  project: "proj-1",
+  owner_job: "01K8W3A00000000000000000J1",
+  operation: "01K8W3A00000000000000000P1",
+  status: "ready"
+};
 const exec = readFixture<{ message: Record<string, unknown> }>("cases/request_exec_valid.json").message;
 
 describe("worker process on stdio", () => {

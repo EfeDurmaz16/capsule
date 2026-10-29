@@ -80,7 +80,7 @@ describe("bridge v1 shared scenarios against the fixture provider", () => {
   const names = fixtureNames("scenarios");
 
   test("the scenario set is the v1 set", () => {
-    expect(names).toHaveLength(15);
+    expect(names).toHaveLength(18);
   });
 
   for (const name of names) {

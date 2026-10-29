@@ -766,20 +766,20 @@ export async function dispatchObserve(context: DispatchContext, runtime: Operati
   const resource = observe.resource;
   try {
     // Who made the resource is settled before anything about it is reported. The worker labels what
-    // it creates with the creating operation and its job. A resource no job made was never the target
-    // of any operation. A create is answered only when the resource's operation label is the observing
-    // operation; a fixture seed may lack that label, and is then judged by its job label alone. A
-    // destroy's own id is on no label, so a destroy observe can only check that some job made it.
+    // it creates with the creating operation and its job, and the observe names the original
+    // operation's scope. A resource another job made, or no job, is refused for every action. A create
+    // is answered only when the resource's operation label is the observing operation. A destroy's or
+    // an exec's own id is on no resource label, so the job label is their check, and an exec's ledger
+    // record adds its own.
     const state = await guarded(runtime, driver.read(resource.native_id));
     if (observe.action === "sandbox.create" && !state.exists) {
       // A create that never happened has nothing to observe: report it as a definite not found.
       return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("provider_failed", "not_found"));
     }
-    const operation = state.owner?.operation;
-    if (
-      state.exists &&
-      (state.owner?.job === undefined || (observe.action === "sandbox.create" && operation !== undefined && operation !== observe.operation_id))
-    ) {
+    if (state.exists && state.owner?.job !== observe.scope.job) {
+      return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("denied", "owner_mismatch", "the resource was not created by this job"));
+    }
+    if (state.exists && observe.action === "sandbox.create" && state.owner?.operation !== observe.operation_id) {
       return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("denied", "owner_mismatch", "the resource was not created by this operation"));
     }
     if (observe.action === "sandbox.exec") return await observeExec(context, runtime, observe);
@@ -822,8 +822,8 @@ async function observeExec(context: DispatchContext, runtime: OperationRuntime, 
   const resource = observe.resource;
   const record = context.execs.get(observe.operation_id);
   if (!record) return errorAnswer(runtime, { code: "unknown", reason: "observation_failed", effect: "unknown", resource });
-  if (record.target !== resource.native_id) {
-    return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("denied", "owner_mismatch", "the resource is not the target of this exec"));
+  if (record.target !== resource.native_id || record.job !== observe.scope.job) {
+    return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("denied", "owner_mismatch", "the exec is not this job's exec on this resource"));
   }
   if (!record.done) {
     await observeUntilTerminal({
