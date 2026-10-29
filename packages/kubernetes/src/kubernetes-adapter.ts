@@ -73,7 +73,7 @@ interface BatchApi {
 
 interface AppsApi {
   createNamespacedDeployment(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
-  readNamespacedDeployment?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
+  readNamespacedDeployment?(input: { namespace: string; name: string }, options?: KubernetesRequestOptions): Promise<KubernetesObject>;
   deleteNamespacedDeployment?(input: {
     namespace: string;
     name: string;
@@ -85,7 +85,7 @@ interface AppsApi {
 
 interface CoreApi {
   createNamespacedService(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
-  readNamespacedService?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
+  readNamespacedService?(input: { namespace: string; name: string }, options?: KubernetesRequestOptions): Promise<KubernetesObject>;
   deleteNamespacedService?(input: {
     namespace: string;
     name: string;
@@ -107,6 +107,33 @@ interface CoreApi {
   }): Promise<string>;
 }
 
+/**
+ * Per-request options of the @kubernetes/client-node 1.x API methods. Capsule passes only a request
+ * middleware that attaches an AbortSignal, so a deadline cancels the HTTP request instead of leaving it
+ * running. Injected clients may ignore it; Capsule still stops waiting at the deadline.
+ */
+type KubernetesRequestOptions = k8s.ConfigurationOptions<k8s.ObservableMiddleware>;
+
+// The client has no signal parameter. Its HTTP library sends RequestContext.getSignal() to fetch, and a
+// request middleware is the only place to set it. The generated API classes hand per-request options to
+// their Observable layer unwrapped, so pre and post return the client's Observable, as the client's own
+// setHeaderOptions does (a Promise-returning middleware fails there). "append" keeps the middleware the
+// client was built with; the default "replace" would drop it.
+function abortableRequest(signal: AbortSignal): KubernetesRequestOptions {
+  return {
+    middleware: [
+      {
+        pre: (request) => {
+          request.setSignal(signal);
+          return new k8s.Observable(Promise.resolve(request));
+        },
+        post: (response) => new k8s.Observable(Promise.resolve(response))
+      }
+    ],
+    middlewareMergeStrategy: "append"
+  };
+}
+
 interface KubernetesClients {
   batch: BatchApi;
   apps: AppsApi;
@@ -117,11 +144,18 @@ export interface KubernetesAdapterOptions {
   namespace?: string;
   kubeconfigPath?: string;
   context?: string;
+  /**
+   * Injected API clients, for example from KubeConfig.makeApiClient. Reads that a deadline bounds (the
+   * service.delete observation) get a second argument: per-request options whose middleware attaches
+   * the deadline's AbortSignal, so the installed client cancels the request. A client that ignores it is
+   * abandoned at the deadline instead.
+   */
   clients?: KubernetesClients;
   /**
    * Client-side budget in milliseconds for observing that an accepted foreground DELETE has finished
    * (the object is gone, after finalizers ran). Default 120000. When it expires, service.delete throws
-   * PendingOperationError instead of reporting deleted.
+   * PendingOperationError instead of reporting deleted, and an observation GET still in flight is
+   * cancelled.
    */
   operationDeadlineMs?: number;
   /** Delay between deletion observations in milliseconds. Default 1000. */
@@ -1060,11 +1094,14 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
 
   // Observes accepted foreground deletions until every object is gone (GET returns 404). Finalizers and
   // dependents can keep an object terminating for a long time, so this is bounded; on expiry the
-  // caller gets PendingOperationError with the last observed state, never a fabricated deleted.
+  // caller gets PendingOperationError with the last observed state, never a fabricated deleted. Each GET
+  // carries the observation signal, so the deadline cancels a read that is still in flight.
   const observeAbsence = async (clients: KubernetesClients, name: string, kinds: ResourceKind[]): Promise<void> => {
-    const readers: Record<ResourceKind, (() => Promise<KubernetesObject>) | undefined> = {
-      deployment: clients.apps.readNamespacedDeployment ? () => clients.apps.readNamespacedDeployment!({ namespace, name }) : undefined,
-      service: clients.core.readNamespacedService ? () => clients.core.readNamespacedService!({ namespace, name }) : undefined
+    const readers: Record<ResourceKind, ((signal: AbortSignal) => Promise<KubernetesObject>) | undefined> = {
+      deployment: clients.apps.readNamespacedDeployment
+        ? (signal) => clients.apps.readNamespacedDeployment!({ namespace, name }, abortableRequest(signal))
+        : undefined,
+      service: clients.core.readNamespacedService ? (signal) => clients.core.readNamespacedService!({ namespace, name }, abortableRequest(signal)) : undefined
     };
     const resource = locate("service", name);
     const unobservable = kinds.filter((kind) => !readers[kind]);
@@ -1076,12 +1113,12 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
     }
     let remaining = [...kinds];
     await observeUntilTerminal<void>(
-      async () => {
+      async ({ signal }) => {
         const states: string[] = [];
         const stillPresent: ResourceKind[] = [];
         for (const kind of remaining) {
           try {
-            const object = await readers[kind]!();
+            const object = await readers[kind]!(signal);
             stillPresent.push(kind);
             states.push(`${kind}=${object.metadata?.deletionTimestamp ? "terminating" : "present"}`);
           } catch (error) {
