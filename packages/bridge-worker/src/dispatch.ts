@@ -59,6 +59,14 @@ class DeadlineInterrupt extends Error {
   }
 }
 
+/** Interrupts the wait for an exec when the provider has accepted it and runs it on its own. */
+class DetachInterrupt extends Error {
+  constructor() {
+    super("the provider runs the exec on");
+    this.name = "DetachInterrupt";
+  }
+}
+
 /** The in-flight state the dispatcher needs from the session. */
 export interface OperationRuntime {
   readonly requestId: string;
@@ -160,10 +168,82 @@ export class IdempotencyTable {
   }
 }
 
+/** One exec this worker sent to its provider, and its answer once the command ended. */
+export interface ExecRecord {
+  /** The native id of the sandbox the exec ran in. */
+  readonly target: string;
+  /** The job the exec belongs to. */
+  readonly job: string;
+  /** The exec's own answer once it ended: a completed or cancelled result, or an error. */
+  done?: Answer;
+}
+
+/**
+ * Every exec this worker sent to its provider, by operation id, so an observe can report how an exec
+ * ended after its answer was `running` or was lost. Bounded twice, like the idempotency table: by
+ * record count, and by the output text the ended records hold. Past either bound the oldest ended
+ * record is dropped whole, and an observe of it answers unknown. A record in progress is never
+ * dropped; there are at most max_in_flight of those. The ledger does not survive the worker, so an
+ * exec another worker process ran is unknown here too.
+ */
+export class ExecLedger {
+  private readonly records = new Map<string, ExecRecord>();
+  /** Ended records, oldest first, with the size counted for each. */
+  private readonly ended = new Map<string, number>();
+  private endedTotal = 0;
+
+  constructor(
+    private readonly capacity = 1024,
+    private readonly textBudget = 16 << 20
+  ) {}
+
+  /** Output text characters the ended records hold; at most the budget. */
+  get heldChars(): number {
+    return this.endedTotal;
+  }
+
+  get size(): number {
+    return this.records.size;
+  }
+
+  get(operationId: string): ExecRecord | undefined {
+    return this.records.get(operationId);
+  }
+
+  begin(operationId: string, target: string, job: string): ExecRecord {
+    // An id seen before starts over: its ended record leaves the accounting, so eviction never
+    // reaches the new record while it runs.
+    const size = this.ended.get(operationId);
+    if (size !== undefined) {
+      this.ended.delete(operationId);
+      this.endedTotal -= size;
+    }
+    const record: ExecRecord = { target, job };
+    this.records.set(operationId, record);
+    return record;
+  }
+
+  finish(operationId: string, record: ExecRecord, answer: Answer): void {
+    record.done = answer;
+    // A record dropped while its exec ran is not brought back.
+    if (this.records.get(operationId) !== record) return;
+    const size = heldSize(answer);
+    this.ended.set(operationId, size);
+    this.endedTotal += size;
+    for (const [oldest, oldestSize] of this.ended) {
+      if (this.endedTotal <= this.textBudget && this.records.size <= this.capacity) break;
+      this.ended.delete(oldest);
+      this.endedTotal -= oldestSize;
+      this.records.delete(oldest);
+    }
+  }
+}
+
 export interface DispatchContext {
   driver: BridgeDriver;
   config: WorkerConfig;
   idempotency: IdempotencyTable;
+  execs: ExecLedger;
   diagnostic(text: string): void;
 }
 
@@ -479,12 +559,14 @@ async function dispatchChecked(
 ): Promise<Answer> {
   const { driver } = context;
   const { binding } = prepared;
+  const detached = new AbortController();
   const hooks: OperationHooks = {
     operation: { id: request.operation.id, key: request.operation.key },
     cancel: runtime.cancel,
     onRunning: (state) => {
       if ("target" in request) runtime.progress(state, request.target);
-    }
+    },
+    detach: () => detached.abort()
   };
   const capsule = new Capsule({
     adapter: driver.adapter(hooks),
@@ -556,6 +638,9 @@ async function dispatchChecked(
     const params = request.params;
     startEffect(runtime);
     phase = "effect";
+    // The ledger holds the exec from the moment it is sent, so an observe by the operation id can
+    // report how it ended even when this request's answer was `running` or never reached Fabric.
+    const record = context.execs.begin(request.operation.id, resource.native_id, request.scope.job);
     const exec = sandbox.exec({
       command: params.argv,
       ...(params.cwd === null ? {} : { cwd: params.cwd }),
@@ -566,12 +651,24 @@ async function dispatchChecked(
       idempotencyKey: request.operation.key,
       bounds: { maxBytes: params.max_output_bytes }
     });
+    const ended: Promise<Answer> = exec.then(
+      (output) => result(runtime, "completed", resource, execOutput(output), evidence),
+      (error: unknown) =>
+        error instanceof ExecCancelledError
+          ? result(runtime, "cancelled", resource, { exit_code: null, stdout: emptyStream, stderr: emptyStream }, evidence)
+          : outcomeAnswer(runtime, error, driver, binding, resource, context.diagnostic)
+    );
+    void ended.then((answer) => context.execs.finish(request.operation.id, record, answer));
     try {
-      return result(runtime, "completed", resource, execOutput(await guarded(runtime, exec)), evidence);
+      return await untilAborted(ended, [
+        [runtime.drained, () => new DrainInterrupt()],
+        [runtime.deadline, () => new DeadlineInterrupt()],
+        [detached.signal, () => new DetachInterrupt()]
+      ]);
     } catch (error) {
-      if (!(error instanceof DeadlineInterrupt)) throw error;
+      if (!(error instanceof DeadlineInterrupt || error instanceof DetachInterrupt)) throw error;
       // Not terminal-only: answer what is known, a running command, and leave it running. It still
-      // holds its in-flight slot until it ends. v1 has no observe for exec, so its exit is not reported.
+      // holds its in-flight slot until it ends, and an observe of the operation reports its end.
       runtime.linger(exec);
       return result(runtime, "running", resource, { exit_code: null, stdout: emptyStream, stderr: emptyStream }, evidence);
     }
@@ -685,6 +782,7 @@ export async function dispatchObserve(context: DispatchContext, runtime: Operati
     ) {
       return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("denied", "owner_mismatch", "the resource was not created by this operation"));
     }
+    if (observe.action === "sandbox.exec") return await observeExec(context, runtime, observe);
     await observeUntilTerminal({
       timer: runtime.timer,
       intervalMs: driver.profile.observe_interval_ms,
@@ -712,4 +810,37 @@ export async function dispatchObserve(context: DispatchContext, runtime: Operati
     }
     return errorAnswer(runtime, { code: "unknown", reason: "observation_failed", effect: "unknown", resource });
   }
+}
+
+/**
+ * Observes an exec through the ledger: how the command this worker sent ended, waiting at most wait_ms
+ * for one still running. An exec the ledger does not hold is unknown, never run again: another worker
+ * process ran it, or the record was dropped for memory.
+ */
+async function observeExec(context: DispatchContext, runtime: OperationRuntime, observe: Observe): Promise<Answer> {
+  const { driver } = context;
+  const resource = observe.resource;
+  const record = context.execs.get(observe.operation_id);
+  if (!record) return errorAnswer(runtime, { code: "unknown", reason: "observation_failed", effect: "unknown", resource });
+  if (record.target !== resource.native_id) {
+    return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("denied", "owner_mismatch", "the resource is not the target of this exec"));
+  }
+  if (!record.done) {
+    await observeUntilTerminal({
+      timer: runtime.timer,
+      intervalMs: driver.profile.observe_interval_ms,
+      budgetMs: observe.wait_ms,
+      drainAt: () => runtime.drainAt(),
+      operation: observe.action,
+      resource: coreLocator(resource),
+      initialState: "running",
+      read: async () => (record.done ? { terminal: true } : { terminal: false, state: "running" }),
+      ...readInterrupts(runtime, driver)
+    });
+  }
+  // The exec's own answer, addressed to this observe. A result reports the exec's end; it is not a replay.
+  const done = record.done!;
+  return done.type === "result"
+    ? { ...done, request_id: runtime.requestId, operation_id: runtime.operationId, replayed: false }
+    : { ...done, request_id: runtime.requestId, operation_id: runtime.operationId };
 }

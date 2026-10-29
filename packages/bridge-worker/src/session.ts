@@ -1,6 +1,15 @@
 import { redactSensitiveText } from "@capsule-sdk/core";
 import type { WorkerConfig } from "./config.js";
-import { dispatchObserve, dispatchRequest, IdempotencyTable, refusalAnswer, type Answer, type DispatchContext, type OperationRuntime } from "./dispatch.js";
+import {
+  dispatchObserve,
+  dispatchRequest,
+  ExecLedger,
+  IdempotencyTable,
+  refusalAnswer,
+  type Answer,
+  type DispatchContext,
+  type OperationRuntime
+} from "./dispatch.js";
 import type { BridgeDriver } from "./driver.js";
 import { decodeBody, encodeFrame, FrameError, FrameReader } from "./frame.js";
 import type { OperationTimer } from "./observe.js";
@@ -100,6 +109,7 @@ export class WorkerSession {
       driver: options.driver,
       config: options.config,
       idempotency: this.idempotency,
+      execs: new ExecLedger(),
       diagnostic: (text) => this.diagnostic(text)
     };
     this.exited = new Promise((resolve) => {

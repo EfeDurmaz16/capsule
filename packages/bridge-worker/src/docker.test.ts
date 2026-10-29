@@ -9,6 +9,7 @@ import { dockerDriver } from "./docker.js";
 import { readFixture, TestConnection } from "./harness.test.support.js";
 import { checkWorkerMessage } from "./outbound.js";
 import { dockerProfile } from "./profiles.js";
+import type { CapabilityProfile } from "./wire.js";
 
 // The Docker profile against an in-memory stand-in for the docker CLI. It proves the mapping (labels,
 // pull never, scope, ownership, dedupe by label, receipts) without a daemon. The physical proof against
@@ -170,7 +171,14 @@ const target = (id: string) => ({ provider: "docker", scope: engineScope, kind: 
 
 function connect(
   engine: FakeEngine,
-  options: { receiptsPath?: string; approvals?: unknown[]; secrets?: string[]; binding?: { engine: string }; realAvailability?: boolean } = {}
+  options: {
+    receiptsPath?: string;
+    approvals?: unknown[];
+    secrets?: string[];
+    binding?: { engine: string };
+    realAvailability?: boolean;
+    profile?: CapabilityProfile;
+  } = {}
 ) {
   const config = parseWorkerConfig(
     { policy: { images: ["debian:bookworm-slim"], ...(options.secrets ? { secrets: { allowed: options.secrets } } : {}) }, approvals: options.approvals ?? [] },
@@ -183,7 +191,7 @@ function connect(
     ...(options.receiptsPath ? { receipts: { store: new JsonlReceiptStore({ path: options.receiptsPath }), durable: true } } : {}),
     secret: (name) => (options.secrets?.includes(name) ? `value-of-${name}` : undefined)
   });
-  return new TestConnection(driver, config);
+  return new TestConnection(options.profile ? { ...driver, profile: options.profile } : driver, config);
 }
 
 async function handshake(connection: TestConnection) {
@@ -414,6 +422,50 @@ describe("docker profile on a fake engine", () => {
     await connection.drain();
     connection.send(execRequest(4));
     expect(await connection.nextWithin(2_000)).toMatchObject({ type: "result", request_id: "r-4", state: "completed" });
+  });
+
+  test("an exec answered running at its deadline is reported by observe once the command ends, and never run again", async () => {
+    const engine = new FakeEngine();
+    const profile = { ...dockerProfile, actions: dockerProfile.actions.map((a) => (a.action === "sandbox.exec" ? { ...a, observe: true } : a)) };
+    const connection = connect(engine, { profile });
+    await handshake(connection);
+    connection.send(create(1));
+    const id = ((await connection.next()).resource as { native_id: string }).native_id;
+    let release: () => void = () => undefined;
+    engine.execGate = new Promise((resolve) => (release = resolve));
+    connection.send({
+      ...request(2, "sandbox.exec", {
+        target: target(id),
+        params: { argv: ["echo", "late"], stdin: null, cwd: null, timeout_ms: 600_000, max_output_bytes: 64, secret_names: [] }
+      }),
+      deadline_ms: 250
+    });
+    expect(await connection.nextWithin(2_000)).toMatchObject({ type: "result", request_id: "r-2", state: "running", output: { exit_code: null } });
+    const observe = (n: number, waitMs: number) => ({
+      type: "observe",
+      request_id: `r-${n}`,
+      operation_id: "01K8W3A0000000000000000D02",
+      action: "sandbox.exec",
+      resource: target(id),
+      wait_ms: waitMs
+    });
+    connection.send(observe(3, 300));
+    expect(await connection.nextWithin(2_000)).toMatchObject({
+      type: "error",
+      request_id: "r-3",
+      error: { code: "pending", reason: "observation_deadline", effect: "pending", state: "running", deadline_ms: 300 }
+    });
+    release();
+    engine.execGate = undefined;
+    connection.send(observe(4, 2_000));
+    expect(await connection.nextWithin(3_000)).toMatchObject({
+      type: "result",
+      request_id: "r-4",
+      state: "completed",
+      output: { exit_code: 0, stdout: { text: "late\n" } },
+      replayed: false
+    });
+    expect(engine.calls.filter((call) => call[0] === "exec")).toHaveLength(1);
   });
 
   test("a create still in the docker CLI at deadline_ms is answered unknown with the name it was given, in time", async () => {

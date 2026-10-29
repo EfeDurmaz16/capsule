@@ -27,6 +27,11 @@ export interface OperationHooks {
   cancel: AbortSignal;
   /** Reports that the action is running at the provider, so Fabric can record the locator early. */
   onRunning(state: string): void;
+  /**
+   * Says the provider accepted an exec and runs it on its own. The worker answers `running` at once;
+   * the exec keeps its in-flight slot until it ends, and an observe of the operation reports its end.
+   */
+  detach(): void;
 }
 
 export interface BridgeDriver {

@@ -40,9 +40,16 @@ export interface FixtureEffect {
   operation: string;
 }
 
-export type FixtureBehavior = "fail" | "apply_then_lose_reply" | "fail_receipt" | "run_until_cancelled" | "stay_stopping_until_settle";
+export type FixtureBehavior = "fail" | "apply_then_lose_reply" | "fail_receipt" | "run_until_cancelled" | "run_until_settle" | "stay_stopping_until_settle";
 
-const behaviors: readonly FixtureBehavior[] = ["fail", "apply_then_lose_reply", "fail_receipt", "run_until_cancelled", "stay_stopping_until_settle"];
+const behaviors: readonly FixtureBehavior[] = [
+  "fail",
+  "apply_then_lose_reply",
+  "fail_receipt",
+  "run_until_cancelled",
+  "run_until_settle",
+  "stay_stopping_until_settle"
+];
 
 export interface FixtureSeed {
   sandboxes?: unknown[];
@@ -65,6 +72,8 @@ export class FixtureProvider {
   readonly receipts: FixtureReceiptStore;
   private readonly sandboxes = new Map<string, FixtureSandboxState>();
   private readonly script = new Map<string, FixtureBehavior>();
+  /** Execs the provider accepted and runs on until the next settle. */
+  private running: Array<() => void> = [];
 
   constructor(
     readonly binding: { account: string; project: string },
@@ -107,11 +116,14 @@ export class FixtureProvider {
     return this.sandboxes.get(nativeId);
   }
 
-  /** Scripted transitional states become terminal. */
+  /** Scripted transitional states become terminal, and execs the provider runs on end. */
   settle(): void {
     for (const sandbox of this.sandboxes.values()) {
       if (sandbox.status === "stopping") sandbox.status = "destroyed";
     }
+    const running = this.running;
+    this.running = [];
+    for (const end of running) end();
   }
 
   behavior(action: BridgeAction, nativeId: string): FixtureBehavior | undefined {
@@ -163,6 +175,12 @@ export class FixtureProvider {
       });
       this.cancels.push(nativeId);
       throw new ExecCancelledError();
+    }
+    if (this.behavior("sandbox.exec", nativeId) === "run_until_settle") {
+      // An accepted command the provider runs on its own, like a background command: the worker
+      // answers running now, and the command ends with its normal output at the next settle.
+      hooks.detach();
+      await new Promise<void>((resolve) => this.running.push(resolve));
     }
     const argv = Array.isArray(spec.command) ? spec.command : [spec.command];
     const [program, ...args] = argv;
