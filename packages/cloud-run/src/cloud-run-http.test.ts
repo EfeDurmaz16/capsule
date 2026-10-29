@@ -2,7 +2,7 @@
 // fetch is an injected fake and GoogleAuth.getClient is stubbed; no Google endpoint is contacted.
 import { GoogleAuth } from "google-auth-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AdapterExecutionError, Capsule, ProviderRetryableError, UnknownOutcomeError } from "@capsule-sdk/core";
+import { AdapterExecutionError, Capsule, PendingOperationError, ProviderRetryableError, UnknownOutcomeError } from "@capsule-sdk/core";
 import { CloudRunClient, cloudRun } from "./index.js";
 
 const execution = "projects/p/locations/l/jobs/j/executions/e";
@@ -113,5 +113,61 @@ describe("cloud-run auth reuse (PERF-06)", () => {
     await expect(capsule.job.status({ id: execution })).rejects.toThrow("metadata server not reachable yet");
     await expect(capsule.job.status({ id: execution })).resolves.toMatchObject({ status: "running" });
     expect(getClient).toHaveBeenCalledTimes(2);
+  });
+});
+
+// google-auth-library's getRequestHeaders takes no signal, so an ADC token refresh cannot be cancelled.
+// The request that needs the token still ends at its timeout or the observation deadline, and a token
+// that arrives later sends nothing.
+describe("cloud-run token refresh bounds", () => {
+  function hungAuth(answered = 0) {
+    const release: Array<() => void> = [];
+    let calls = 0;
+    vi.spyOn(GoogleAuth.prototype, "getClient").mockImplementation((async () => ({
+      getRequestHeaders: () => {
+        calls += 1;
+        const headers = new Headers({ authorization: "Bearer synthetic-token" });
+        if (calls <= answered) return Promise.resolve(headers);
+        return new Promise<Headers>((resolve) => release.push(() => resolve(headers)));
+      }
+    })) as never);
+    return { releaseAll: () => release.splice(0).forEach((resolve) => resolve()) };
+  }
+
+  function recordingFetch(urls: string[]): typeof fetch {
+    return (async (url: string | URL | Request) => {
+      urls.push(String(url));
+      return new Response(JSON.stringify({ name: "projects/p/locations/l/operations/delete", done: false }), { status: 200 });
+    }) as typeof fetch;
+  }
+
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  it.each([
+    { call: "a read", run: (capsule: Capsule) => capsule.job.status({ id: execution }) },
+    { call: "a mutation", run: (capsule: Capsule) => capsule.job.run({ name: "j", image: "i" }) }
+  ])("ends $call at the request timeout as retryable when the token refresh hangs, and sends nothing later", async ({ run }) => {
+    const auth = hungAuth();
+    const urls: string[] = [];
+    const capsule = new Capsule({ adapter: cloudRun({ projectId: "p", location: "l", requestTimeoutMs: 30, fetch: recordingFetch(urls) }) });
+    const error = await run(capsule).catch((caught: unknown) => caught);
+    // Nothing was sent, so even a mutation is safe to retry rather than an unknown outcome.
+    expect(error).toBeInstanceOf(ProviderRetryableError);
+    auth.releaseAll();
+    await settle();
+    expect(urls).toEqual([]);
+  });
+
+  it("ends a delete observation at its deadline when the token refresh hangs, and sends no wait later", async () => {
+    const auth = hungAuth(1);
+    const urls: string[] = [];
+    const capsule = new Capsule({
+      adapter: cloudRun({ projectId: "p", location: "l", operationDeadlineMs: 40, operationPollIntervalMs: 1, fetch: recordingFetch(urls) })
+    });
+    const error = await capsule.service.delete({ id: "s" }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(PendingOperationError);
+    auth.releaseAll();
+    await settle();
+    expect(urls).toEqual(["https://run.googleapis.com/v2/projects/p/locations/l/services/s"]);
   });
 });

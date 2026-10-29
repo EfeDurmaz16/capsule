@@ -61,7 +61,7 @@ interface KubernetesPodList {
 
 interface BatchApi {
   createNamespacedJob(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
-  readNamespacedJob?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
+  readNamespacedJob?(input: { namespace: string; name: string }, options?: KubernetesRequestOptions): Promise<KubernetesObject>;
   deleteNamespacedJob?(input: {
     namespace: string;
     name: string;
@@ -73,7 +73,7 @@ interface BatchApi {
 
 interface AppsApi {
   createNamespacedDeployment(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
-  readNamespacedDeployment?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
+  readNamespacedDeployment?(input: { namespace: string; name: string }, options?: KubernetesRequestOptions): Promise<KubernetesObject>;
   deleteNamespacedDeployment?(input: {
     namespace: string;
     name: string;
@@ -85,7 +85,7 @@ interface AppsApi {
 
 interface CoreApi {
   createNamespacedService(input: { namespace: string; body: unknown }): Promise<KubernetesObject>;
-  readNamespacedService?(input: { namespace: string; name: string }): Promise<KubernetesObject>;
+  readNamespacedService?(input: { namespace: string; name: string }, options?: KubernetesRequestOptions): Promise<KubernetesObject>;
   deleteNamespacedService?(input: {
     namespace: string;
     name: string;
@@ -93,18 +93,51 @@ interface CoreApi {
     propagationPolicy?: string;
     body?: unknown;
   }): Promise<KubernetesObject>;
-  listNamespacedPod?(input: { namespace: string; labelSelector?: string; limit?: number; _continue?: string }): Promise<KubernetesPodList>;
-  readNamespacedPodLog?(input: {
-    namespace: string;
-    name: string;
-    container?: string;
-    follow?: boolean;
-    sinceSeconds?: number;
-    stream?: "Stdout" | "Stderr";
-    tailLines?: number;
-    limitBytes?: number;
-    timestamps?: boolean;
-  }): Promise<string>;
+  listNamespacedPod?(
+    input: { namespace: string; labelSelector?: string; limit?: number; _continue?: string },
+    options?: KubernetesRequestOptions
+  ): Promise<KubernetesPodList>;
+  readNamespacedPodLog?(
+    input: {
+      namespace: string;
+      name: string;
+      container?: string;
+      follow?: boolean;
+      sinceSeconds?: number;
+      stream?: "Stdout" | "Stderr";
+      tailLines?: number;
+      limitBytes?: number;
+      timestamps?: boolean;
+    },
+    options?: KubernetesRequestOptions
+  ): Promise<string>;
+}
+
+/**
+ * Per-request options of the @kubernetes/client-node 1.x API methods. Capsule passes only a request
+ * middleware that attaches an AbortSignal, so a deadline cancels the HTTP request instead of leaving it
+ * running. Injected clients may ignore it; Capsule still stops waiting at the deadline.
+ */
+type KubernetesRequestOptions = k8s.ConfigurationOptions<k8s.ObservableMiddleware>;
+
+// The client has no signal parameter. Its HTTP library sends RequestContext.getSignal() to fetch, and a
+// request middleware is the only place to set it. The generated API classes hand per-request options to
+// their Observable layer unwrapped, so pre and post return the client's Observable, as the client's own
+// setHeaderOptions does (a Promise-returning middleware fails there). "append" keeps the middleware the
+// client was built with; the default "replace" would drop it.
+function abortableRequest(signal: AbortSignal): KubernetesRequestOptions {
+  return {
+    middleware: [
+      {
+        pre: (request) => {
+          request.setSignal(signal);
+          return new k8s.Observable(Promise.resolve(request));
+        },
+        post: (response) => new k8s.Observable(Promise.resolve(response))
+      }
+    ],
+    middlewareMergeStrategy: "append"
+  };
 }
 
 interface KubernetesClients {
@@ -117,11 +150,19 @@ export interface KubernetesAdapterOptions {
   namespace?: string;
   kubeconfigPath?: string;
   context?: string;
+  /**
+   * Injected API clients, for example from KubeConfig.makeApiClient. Reads that a deadline bounds (the
+   * service.delete observation, and the Service or Job selector read, pod list and pod log reads of a
+   * log capture) get a second argument: per-request options whose middleware attaches the deadline's
+   * AbortSignal, so the installed client cancels the request. A client that ignores it is abandoned at
+   * the deadline instead.
+   */
   clients?: KubernetesClients;
   /**
    * Client-side budget in milliseconds for observing that an accepted foreground DELETE has finished
    * (the object is gone, after finalizers ran). Default 120000. When it expires, service.delete throws
-   * PendingOperationError instead of reporting deleted.
+   * PendingOperationError instead of reporting deleted, and an observation GET still in flight is
+   * cancelled.
    */
   operationDeadlineMs?: number;
   /** Delay between deletion observations in milliseconds. Default 1000. */
@@ -795,7 +836,9 @@ async function collectPodLogs(
   core: CoreApi,
   input: {
     namespace: string;
-    selector: string | undefined;
+    /** Reads the Service or Job that names the pod selector. It is a request of the capture too. */
+    readOwner: (options: KubernetesRequestOptions) => Promise<KubernetesObject>;
+    selectorOf: (owner: KubernetesObject) => string | undefined;
     selectorSource: string;
     id: string;
     since?: string;
@@ -806,10 +849,15 @@ async function collectPodLogs(
     bounds?: CaptureBounds;
     context: AdapterContext;
   }
-): Promise<{ logs: LogEntry[]; nextCursor?: string; truncation: CaptureTruncation; metadata: Record<string, unknown> }> {
-  if (!input.selector) {
-    throw new AdapterExecutionError(`Kubernetes ${input.selectorSource} logs require a pod selector for ${input.id}.`);
-  }
+): Promise<{
+  /** The Service or Job read for the selector; undefined when the deadline expired before it answered. */
+  owner: KubernetesObject | undefined;
+  name: string;
+  logs: LogEntry[];
+  nextCursor?: string;
+  truncation: CaptureTruncation;
+  metadata: Record<string, unknown>;
+}> {
   if (input.follow) {
     throw new AdapterExecutionError("Kubernetes logs follow mode is not supported yet; call logs again to fetch newer entries.");
   }
@@ -826,22 +874,45 @@ async function collectPodLogs(
   // server-side byte cap (limitBytes), so no single source can return an unbounded transcript.
   const cap = Math.min(input.limit ?? bounds.maxRecords, bounds.maxRecords);
   const capFromBounds = input.limit === undefined || input.limit > bounds.maxRecords;
-  // The deadline bounds provider reads; the byte and record budget is applied afterwards to what arrived.
+  // The deadline bounds every provider request of the capture, the selector read and the pod list
+  // included; the byte and record budget is applied afterwards to what arrived.
   const deadlineAt = Date.now() + bounds.deadlineMs;
   const budget = new CaptureBudget({ ...bounds, deadlineMs: Number.MAX_SAFE_INTEGER, overflow: "truncate" });
-  // Pagination rides the pod list continue token: one page of matched pods per call, their logs
-  // fanned out with at most bounds.concurrency reads in flight and tagged with source.
-  const podList = await listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: input.selector, _continue: input.cursor });
-  const pods = podList.items ?? [];
-  const nextCursor = typeof podList.metadata?.["continue"] === "string" && podList.metadata["continue"] ? (podList.metadata["continue"] as string) : undefined;
-  const fallbackTimestamp = new Date().toISOString();
-  const targets = pods.flatMap((pod) => {
-    const podName = pod.metadata?.name;
-    if (!podName) return [];
-    const podContainers = containers(pod);
-    return (podContainers.length > 0 ? podContainers : [undefined]).map((container) => ({ podName, container }));
+  // One deadline timer for every request instead of one per read (PERF-05). When it fires, the waits
+  // stop and the capture signal cancels the requests still in flight; the capture also aborts it when it
+  // ends early on an error, so no read outlives the call. Node caps timer delays at 2^31 - 1 ms and
+  // fires a longer one after 1 ms, so a longer deadline waits for the largest delay.
+  const capture = new AbortController();
+  const requestOptions = abortableRequest(capture.signal);
+  let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+  const deadlineReached = new Promise<undefined>((resolve) => {
+    deadlineTimer = setTimeout(
+      () => {
+        resolve(undefined);
+        capture.abort(new Error(`Kubernetes log capture deadline of ${bounds.deadlineMs}ms expired.`));
+      },
+      Math.min(bounds.deadlineMs, maxTimerDelayMs)
+    );
   });
+  // Waits for one request until the deadline. Resolves undefined when the deadline comes first, including
+  // when the deadline's abort is what failed the request. An injected client may ignore the signal; its
+  // request is then abandoned rather than cancelled, and an answer after the deadline is never used.
+  const untilDeadline = async <T>(request: Promise<T>): Promise<T | undefined> => {
+    request.catch(() => undefined);
+    try {
+      return await Promise.race([request, deadlineReached]);
+    } catch (error) {
+      if (capture.signal.aborted) return undefined;
+      throw error;
+    }
+  };
 
+  let owner: KubernetesObject | undefined;
+  let name = input.id;
+  let selector: string | undefined;
+  let pods: KubernetesObject[] = [];
+  let nextCursor: string | undefined;
+  const fallbackTimestamp = new Date().toISOString();
   const newest = new NewestWindow<OrderedLog>(cap, compareOrderedLogs);
   let candidates = 0;
   let sourceAtTailCap = false;
@@ -851,28 +922,54 @@ async function collectPodLogs(
   // One bounded read: a tail of `tailLines` lines with a server-side byte cap. Resolves undefined when
   // the client deadline expires first.
   const readTail = async (podName: string, container: string | undefined, tailLines: number): Promise<string | undefined> => {
-    const remainingMs = deadlineAt - Date.now();
-    if (remainingMs <= 0) return undefined;
-    const read = readNamespacedPodLog.call(core, {
-      namespace: input.namespace,
-      name: podName,
-      container,
-      sinceSeconds,
-      tailLines,
-      limitBytes: bounds.maxBytes,
-      timestamps: true
-    });
-    // A read that outlives the deadline is abandoned, not cancelled: the injected API has no abort hook.
-    read.catch(() => undefined);
-    return await Promise.race([read, deadlineReached]);
+    if (capture.signal.aborted || Date.now() >= deadlineAt) return undefined;
+    return await untilDeadline(
+      readNamespacedPodLog.call(
+        core,
+        {
+          namespace: input.namespace,
+          name: podName,
+          container,
+          sinceSeconds,
+          tailLines,
+          limitBytes: bounds.maxBytes,
+          timestamps: true
+        },
+        requestOptions
+      )
+    );
   };
-  // One deadline timer for every read instead of one per read (PERF-05). Node caps timer delays at
-  // 2^31 - 1 ms and fires a longer one after 1 ms, so a longer deadline waits for the largest delay.
-  let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
-  const deadlineReached = new Promise<undefined>((resolve) => {
-    deadlineTimer = setTimeout(() => resolve(undefined), Math.min(Math.max(0, deadlineAt - Date.now()), maxTimerDelayMs));
-  });
   try {
+    owner = await untilDeadline(input.readOwner(requestOptions));
+    if (owner !== undefined || !capture.signal.aborted) {
+      name = owner?.metadata?.name ?? input.id;
+      selector = input.selectorOf(owner ?? {});
+      if (!selector) {
+        throw new AdapterExecutionError(`Kubernetes ${input.selectorSource} logs require a pod selector for ${name}.`);
+      }
+    }
+    // Pagination rides the pod list continue token: one page of matched pods per call, their logs
+    // fanned out with at most bounds.concurrency reads in flight and tagged with source.
+    const podList =
+      selector === undefined
+        ? undefined
+        : await untilDeadline(listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: selector, _continue: input.cursor }, requestOptions));
+    if (podList === undefined && capture.signal.aborted) {
+      // The selector or the pods were not read in time. The page was not read, so the next call asks
+      // for it again.
+      deadlineHit = true;
+      nextCursor = input.cursor;
+    } else {
+      pods = podList?.items ?? [];
+      const continueToken = podList?.metadata?.["continue"];
+      nextCursor = typeof continueToken === "string" && continueToken ? continueToken : undefined;
+    }
+    const targets = pods.flatMap((pod) => {
+      const podName = pod.metadata?.name;
+      if (!podName) return [];
+      const podContainers = containers(pod);
+      return (podContainers.length > 0 ? podContainers : [undefined]).map((container) => ({ podName, container }));
+    });
     await mapWithConcurrency(targets, bounds.concurrency, async ({ podName, container }, target) => {
       if (cap === 0) return;
       // Kubelet seeks to the start of the tail and then counts limitBytes forward, so a tail larger than
@@ -917,6 +1014,7 @@ async function collectPodLogs(
     });
   } finally {
     clearTimeout(deadlineTimer);
+    capture.abort(new Error("Kubernetes log capture ended."));
   }
   const kept = newest.result();
 
@@ -953,12 +1051,14 @@ async function collectPodLogs(
     throw new CaptureLimitError(`Kubernetes ${input.selectorSource} logs exceeded capture bounds: ${truncation.reason}.`, truncation);
   }
   return {
+    owner,
+    name,
     logs: selected,
     nextCursor,
     truncation,
     metadata: {
       namespace: input.namespace,
-      selector: input.selector,
+      selector,
       selectorSource: input.selectorSource,
       podNames: pods.map((pod) => pod.metadata?.name).filter(Boolean),
       redactedFromPodEnv: redactionValues.size > 0
@@ -1060,11 +1160,14 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
 
   // Observes accepted foreground deletions until every object is gone (GET returns 404). Finalizers and
   // dependents can keep an object terminating for a long time, so this is bounded; on expiry the
-  // caller gets PendingOperationError with the last observed state, never a fabricated deleted.
+  // caller gets PendingOperationError with the last observed state, never a fabricated deleted. Each GET
+  // carries the observation signal, so the deadline cancels a read that is still in flight.
   const observeAbsence = async (clients: KubernetesClients, name: string, kinds: ResourceKind[]): Promise<void> => {
-    const readers: Record<ResourceKind, (() => Promise<KubernetesObject>) | undefined> = {
-      deployment: clients.apps.readNamespacedDeployment ? () => clients.apps.readNamespacedDeployment!({ namespace, name }) : undefined,
-      service: clients.core.readNamespacedService ? () => clients.core.readNamespacedService!({ namespace, name }) : undefined
+    const readers: Record<ResourceKind, ((signal: AbortSignal) => Promise<KubernetesObject>) | undefined> = {
+      deployment: clients.apps.readNamespacedDeployment
+        ? (signal) => clients.apps.readNamespacedDeployment!({ namespace, name }, abortableRequest(signal))
+        : undefined,
+      service: clients.core.readNamespacedService ? (signal) => clients.core.readNamespacedService!({ namespace, name }, abortableRequest(signal)) : undefined
     };
     const resource = locate("service", name);
     const unobservable = kinds.filter((kind) => !readers[kind]);
@@ -1076,12 +1179,12 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
     }
     let remaining = [...kinds];
     await observeUntilTerminal<void>(
-      async () => {
+      async ({ signal }) => {
         const states: string[] = [];
         const stillPresent: ResourceKind[] = [];
         for (const kind of remaining) {
           try {
-            const object = await readers[kind]!();
+            const object = await readers[kind]!(signal);
             stillPresent.push(kind);
             states.push(`${kind}=${object.metadata?.deletionTimestamp ? "terminating" : "present"}`);
           } catch (error) {
@@ -1211,13 +1314,12 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
         const startedAt = new Date();
         const clients = getClients();
         const readNamespacedJob = requireBatchMethod(clients.batch, "readNamespacedJob");
-        const job = await readNamespacedJob.call(clients.batch, { namespace, name: spec.id });
-        const name = job.metadata?.name ?? spec.id;
         const result = await collectPodLogs(clients.core, {
           namespace,
-          selector: labelSelectorFromJobSpec(job.spec),
+          readOwner: (options) => readNamespacedJob.call(clients.batch, { namespace, name: spec.id }, options),
+          selectorOf: (job) => labelSelectorFromJobSpec(job.spec),
           selectorSource: "job.spec.selector",
-          id: name,
+          id: spec.id,
           since: spec.since,
           until: spec.until,
           limit: spec.limit,
@@ -1226,6 +1328,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
           bounds: spec.bounds,
           context
         });
+        const { owner: job, name } = result;
         const policy = context.evaluatePolicy();
         const receipt = context.receipts
           ? context.createReceipt({
@@ -1242,8 +1345,8 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
                   "Kubernetes follow-mode log streaming is intentionally rejected until Capsule exposes bounded streaming semantics."
                 ]
               },
-              resource: { id: name, name, status: jobStatus(job) },
-              metadata: kubernetesReceiptMetadata("batch/v1+v1", { ...result.metadata, kubernetesName: name, uid: job.metadata?.uid })
+              resource: { id: name, name, status: job ? jobStatus(job) : undefined },
+              metadata: kubernetesReceiptMetadata("batch/v1+v1", { ...result.metadata, kubernetesName: name, uid: job?.metadata?.uid })
             })
           : undefined;
         return { id: name, provider, logs: result.logs, truncation: result.truncation, nextCursor: result.nextCursor, metadata: result.metadata, receipt };
@@ -1405,13 +1508,12 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
         const startedAt = new Date();
         const clients = getClients();
         const readNamespacedService = requireCoreMethod(clients.core, "readNamespacedService");
-        const service = await readNamespacedService.call(clients.core, { namespace, name: spec.id });
-        const name = service.metadata?.name ?? spec.id;
         const result = await collectPodLogs(clients.core, {
           namespace,
-          selector: serviceSelector(service),
+          readOwner: (options) => readNamespacedService.call(clients.core, { namespace, name: spec.id }, options),
+          selectorOf: serviceSelector,
           selectorSource: "service.spec.selector",
-          id: name,
+          id: spec.id,
           since: spec.since,
           until: spec.until,
           limit: spec.limit,
@@ -1420,6 +1522,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
           bounds: spec.bounds,
           context
         });
+        const { owner: service, name } = result;
         const policy = context.evaluatePolicy();
         const receipt = context.receipts
           ? context.createReceipt({
@@ -1437,7 +1540,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
                 ]
               },
               resource: { id: name, name },
-              metadata: kubernetesReceiptMetadata("v1", { ...result.metadata, serviceName: name, uid: service.metadata?.uid })
+              metadata: kubernetesReceiptMetadata("v1", { ...result.metadata, serviceName: name, uid: service?.metadata?.uid })
             })
           : undefined;
         return {

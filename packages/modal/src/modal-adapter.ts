@@ -71,9 +71,16 @@ export interface ModalAdapterOptions {
   environment?: string;
   client?: ModalClientLike;
   /**
-   * Client-side budget for observing sandbox termination after the terminate request, in milliseconds.
-   * When it expires destroy rejects with PendingOperationError and writes no deleted receipt.
-   * Defaults to 60000.
+   * Client-side budget for sandbox termination, in milliseconds: the terminate request and the wait for
+   * the sandbox to stop. When it expires destroy rejects with PendingOperationError and writes no
+   * deleted receipt; a create rollback reports its cleanup as pending. Defaults to 60000.
+   *
+   * SDK limit: the installed modal SDK's Sandbox.terminate, wait and poll accept no AbortSignal or
+   * timeout, so Capsule stops waiting at the deadline but cannot cancel the SDK call. That call keeps
+   * running in the background: it polls Modal (sandboxWait, about every 10 s) until the sandbox exits,
+   * which can keep a Node process alive, and its late result is ignored. Because the SDK sends the
+   * terminate request and waits in one call, a PendingOperationError at the deadline does not prove
+   * Modal accepted the request; observe the sandbox before relying on it.
    */
   terminateDeadlineMs?: number;
 }
@@ -217,9 +224,13 @@ function sandboxLocator(sandboxId: string) {
 /**
  * Requests termination and waits for the sandbox to reach a terminal state through the SDK's
  * terminate({ wait: true }), which resolves with the sandbox exit code only after it has stopped.
- * The wait is bounded on the client: if it expires the termination is known to be requested but not
- * confirmed, and PendingOperationError carries the sandbox locator. A rejected request or wait is a
- * termination failure and is thrown as a provider error.
+ * The wait is bounded on the client: if it expires, PendingOperationError carries the sandbox locator.
+ * A rejected request or wait is a termination failure and is thrown as a provider error.
+ *
+ * The observation signal is not passed on: terminate, wait and poll take no signal or timeout in the
+ * installed SDK (modal 0.7.x). At the deadline the SDK call is abandoned, not cancelled; it keeps
+ * polling until the sandbox exits and its late result or error is ignored. Only the SDK's non-public
+ * gRPC client accepts a signal. See ModalAdapterOptions.terminateDeadlineMs.
  */
 async function terminateUntilStopped(sandbox: ModalSandboxLike, operation: string, deadlineMs: number): Promise<number | undefined> {
   return await observeUntilTerminal<number | undefined>(
