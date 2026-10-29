@@ -93,18 +93,24 @@ interface CoreApi {
     propagationPolicy?: string;
     body?: unknown;
   }): Promise<KubernetesObject>;
-  listNamespacedPod?(input: { namespace: string; labelSelector?: string; limit?: number; _continue?: string }): Promise<KubernetesPodList>;
-  readNamespacedPodLog?(input: {
-    namespace: string;
-    name: string;
-    container?: string;
-    follow?: boolean;
-    sinceSeconds?: number;
-    stream?: "Stdout" | "Stderr";
-    tailLines?: number;
-    limitBytes?: number;
-    timestamps?: boolean;
-  }): Promise<string>;
+  listNamespacedPod?(
+    input: { namespace: string; labelSelector?: string; limit?: number; _continue?: string },
+    options?: KubernetesRequestOptions
+  ): Promise<KubernetesPodList>;
+  readNamespacedPodLog?(
+    input: {
+      namespace: string;
+      name: string;
+      container?: string;
+      follow?: boolean;
+      sinceSeconds?: number;
+      stream?: "Stdout" | "Stderr";
+      tailLines?: number;
+      limitBytes?: number;
+      timestamps?: boolean;
+    },
+    options?: KubernetesRequestOptions
+  ): Promise<string>;
 }
 
 /**
@@ -146,9 +152,9 @@ export interface KubernetesAdapterOptions {
   context?: string;
   /**
    * Injected API clients, for example from KubeConfig.makeApiClient. Reads that a deadline bounds (the
-   * service.delete observation) get a second argument: per-request options whose middleware attaches
-   * the deadline's AbortSignal, so the installed client cancels the request. A client that ignores it is
-   * abandoned at the deadline instead.
+   * service.delete observation, and the pod list and pod log reads of a log capture) get a second
+   * argument: per-request options whose middleware attaches the deadline's AbortSignal, so the
+   * installed client cancels the request. A client that ignores it is abandoned at the deadline instead.
    */
   clients?: KubernetesClients;
   /**
@@ -860,22 +866,42 @@ async function collectPodLogs(
   // server-side byte cap (limitBytes), so no single source can return an unbounded transcript.
   const cap = Math.min(input.limit ?? bounds.maxRecords, bounds.maxRecords);
   const capFromBounds = input.limit === undefined || input.limit > bounds.maxRecords;
-  // The deadline bounds provider reads; the byte and record budget is applied afterwards to what arrived.
+  // The deadline bounds every provider request of the capture, the pod list included; the byte and
+  // record budget is applied afterwards to what arrived.
   const deadlineAt = Date.now() + bounds.deadlineMs;
   const budget = new CaptureBudget({ ...bounds, deadlineMs: Number.MAX_SAFE_INTEGER, overflow: "truncate" });
-  // Pagination rides the pod list continue token: one page of matched pods per call, their logs
-  // fanned out with at most bounds.concurrency reads in flight and tagged with source.
-  const podList = await listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: input.selector, _continue: input.cursor });
-  const pods = podList.items ?? [];
-  const nextCursor = typeof podList.metadata?.["continue"] === "string" && podList.metadata["continue"] ? (podList.metadata["continue"] as string) : undefined;
-  const fallbackTimestamp = new Date().toISOString();
-  const targets = pods.flatMap((pod) => {
-    const podName = pod.metadata?.name;
-    if (!podName) return [];
-    const podContainers = containers(pod);
-    return (podContainers.length > 0 ? podContainers : [undefined]).map((container) => ({ podName, container }));
+  // One deadline timer for every request instead of one per read (PERF-05). When it fires, the waits
+  // stop and the capture signal cancels the requests still in flight; the capture also aborts it when it
+  // ends early on an error, so no read outlives the call. Node caps timer delays at 2^31 - 1 ms and
+  // fires a longer one after 1 ms, so a longer deadline waits for the largest delay.
+  const capture = new AbortController();
+  const requestOptions = abortableRequest(capture.signal);
+  let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+  const deadlineReached = new Promise<undefined>((resolve) => {
+    deadlineTimer = setTimeout(
+      () => {
+        resolve(undefined);
+        capture.abort(new Error(`Kubernetes log capture deadline of ${bounds.deadlineMs}ms expired.`));
+      },
+      Math.min(bounds.deadlineMs, maxTimerDelayMs)
+    );
   });
+  // Waits for one request until the deadline. Resolves undefined when the deadline comes first, including
+  // when the deadline's abort is what failed the request. An injected client may ignore the signal; its
+  // request is then abandoned rather than cancelled, and an answer after the deadline is never used.
+  const untilDeadline = async <T>(request: Promise<T>): Promise<T | undefined> => {
+    request.catch(() => undefined);
+    try {
+      return await Promise.race([request, deadlineReached]);
+    } catch (error) {
+      if (capture.signal.aborted) return undefined;
+      throw error;
+    }
+  };
 
+  let pods: KubernetesObject[] = [];
+  let nextCursor: string | undefined;
+  const fallbackTimestamp = new Date().toISOString();
   const newest = new NewestWindow<OrderedLog>(cap, compareOrderedLogs);
   let candidates = 0;
   let sourceAtTailCap = false;
@@ -885,28 +911,44 @@ async function collectPodLogs(
   // One bounded read: a tail of `tailLines` lines with a server-side byte cap. Resolves undefined when
   // the client deadline expires first.
   const readTail = async (podName: string, container: string | undefined, tailLines: number): Promise<string | undefined> => {
-    const remainingMs = deadlineAt - Date.now();
-    if (remainingMs <= 0) return undefined;
-    const read = readNamespacedPodLog.call(core, {
-      namespace: input.namespace,
-      name: podName,
-      container,
-      sinceSeconds,
-      tailLines,
-      limitBytes: bounds.maxBytes,
-      timestamps: true
-    });
-    // A read that outlives the deadline is abandoned, not cancelled: the injected API has no abort hook.
-    read.catch(() => undefined);
-    return await Promise.race([read, deadlineReached]);
+    if (capture.signal.aborted || Date.now() >= deadlineAt) return undefined;
+    return await untilDeadline(
+      readNamespacedPodLog.call(
+        core,
+        {
+          namespace: input.namespace,
+          name: podName,
+          container,
+          sinceSeconds,
+          tailLines,
+          limitBytes: bounds.maxBytes,
+          timestamps: true
+        },
+        requestOptions
+      )
+    );
   };
-  // One deadline timer for every read instead of one per read (PERF-05). Node caps timer delays at
-  // 2^31 - 1 ms and fires a longer one after 1 ms, so a longer deadline waits for the largest delay.
-  let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
-  const deadlineReached = new Promise<undefined>((resolve) => {
-    deadlineTimer = setTimeout(() => resolve(undefined), Math.min(Math.max(0, deadlineAt - Date.now()), maxTimerDelayMs));
-  });
   try {
+    // Pagination rides the pod list continue token: one page of matched pods per call, their logs
+    // fanned out with at most bounds.concurrency reads in flight and tagged with source.
+    const podList = await untilDeadline(
+      listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: input.selector, _continue: input.cursor }, requestOptions)
+    );
+    if (podList === undefined && capture.signal.aborted) {
+      // No pod was listed in time. The page was not read, so the next call asks for it again.
+      deadlineHit = true;
+      nextCursor = input.cursor;
+    } else {
+      pods = podList?.items ?? [];
+      const continueToken = podList?.metadata?.["continue"];
+      nextCursor = typeof continueToken === "string" && continueToken ? continueToken : undefined;
+    }
+    const targets = pods.flatMap((pod) => {
+      const podName = pod.metadata?.name;
+      if (!podName) return [];
+      const podContainers = containers(pod);
+      return (podContainers.length > 0 ? podContainers : [undefined]).map((container) => ({ podName, container }));
+    });
     await mapWithConcurrency(targets, bounds.concurrency, async ({ podName, container }, target) => {
       if (cap === 0) return;
       // Kubelet seeks to the start of the tail and then counts limitBytes forward, so a tail larger than
@@ -951,6 +993,7 @@ async function collectPodLogs(
     });
   } finally {
     clearTimeout(deadlineTimer);
+    capture.abort(new Error("Kubernetes log capture ended."));
   }
   const kept = newest.result();
 
