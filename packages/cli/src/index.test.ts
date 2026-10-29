@@ -938,22 +938,29 @@ describe("CLI capsule.config.json resolution", () => {
     expect(applyCapsuleConfig({ rest: [], adapter: "docker" }, undefined)).toEqual({ rest: [], adapter: "docker" });
   });
 
-  test("a command run from a directory with capsule.config.json auto-applies the configured adapter", async () => {
+  test("a command run from a directory with capsule.config.json auto-applies the configured adapter", async ({ onTestFinished }) => {
     const root = await mkdtemp(join(tmpdir(), "capsule-config-apply-"));
     const previousCwd = process.cwd();
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    try {
-      await writeFile(join(root, "capsule.config.json"), JSON.stringify({ adapter: "e2b" }), "utf8");
-      process.chdir(root);
-
-      await main(["capabilities", "--json"]);
-      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as { adapter: string };
-      expect(output.adapter).toBe("e2b");
-    } finally {
-      process.chdir(previousCwd);
-      log.mockRestore();
-      await rm(root, { recursive: true, force: true });
-    }
+    const run = (async () => {
+      try {
+        await writeFile(join(root, "capsule.config.json"), JSON.stringify({ adapter: "e2b" }), "utf8");
+        process.chdir(root);
+        await main(["capabilities", "--json"]);
+        return String(log.mock.calls[0]?.[0]);
+      } finally {
+        process.chdir(previousCwd);
+        log.mockRestore();
+        await rm(root, { recursive: true, force: true });
+      }
+    })();
+    // cwd and console belong to the whole process. A timeout does not stop this run, so the test waits for
+    // it to restore them before the next test starts, and a slow run fails only this test.
+    onTestFinished(async () => {
+      await run.catch(() => undefined);
+    });
+    const output = JSON.parse(await run) as { adapter: string };
+    expect(output.adapter).toBe("e2b");
   });
 });
 
