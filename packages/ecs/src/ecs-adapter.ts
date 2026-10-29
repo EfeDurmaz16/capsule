@@ -380,9 +380,10 @@ function defaultClient(options: ECSAdapterOptions): ECSClientLike {
 
 function classifiedClient(client: ECSClientLike): ECSClientLike {
   return {
-    send: async (command) => {
+    // Forward every argument: the options carry the observation abortSignal to the SDK request.
+    send: async (...args: Parameters<ECSClientLike["send"]>) => {
       try {
-        return await client.send(command);
+        return await client.send(...args);
       } catch (error) {
         throw asProviderError(error, "ECS API request failed.");
       }

@@ -589,6 +589,35 @@ describe("ecs adapter", () => {
     expect(error).toMatchObject({ operation: "service.delete", state: "ACTIVE runningCount=1 pendingCount=0" });
     expect(sent).not.toContain("DeleteServiceCommand");
   });
+
+  // The observation deadline aborts the in-flight DescribeServices through its abortSignal, so the
+  // injected client must receive send()'s options through the error-classifying wrapper.
+  it.each([
+    { phase: "scale-down drain", force: false },
+    { phase: "INACTIVE observation", force: true }
+  ])("hands the observation abortSignal to the client during the $phase", async ({ force }) => {
+    const describeOptions: Array<{ abortSignal?: AbortSignal } | undefined> = [];
+    const client = {
+      send: async (command: any, options?: { abortSignal?: AbortSignal }) => {
+        const name = command.constructor.name;
+        if (name === "UpdateServiceCommand")
+          return { service: { serviceArn: "arn:service/api", status: "ACTIVE", desiredCount: 0, runningCount: 1, pendingCount: 0 } };
+        if (name === "DeleteServiceCommand") return { service: { serviceArn: "arn:service/api", status: "DRAINING" } };
+        describeOptions.push(options);
+        // Like the SDK, settle only when the request is aborted.
+        return new Promise((_resolve, reject) => options?.abortSignal?.addEventListener("abort", () => reject(options.abortSignal?.reason)));
+      }
+    };
+    const capsule = new Capsule({
+      adapter: ecs({ cluster: "cluster-a", taskDefinition: "api:3", containerName: "main", deleteObservation: { deadlineMs: 30, intervalMs: 5 }, client })
+    });
+    const error = await capsule.service.delete({ id: "api", force }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(PendingOperationError);
+    expect(describeOptions).toHaveLength(1);
+    expect(describeOptions[0]?.abortSignal).toBeInstanceOf(AbortSignal);
+    expect(describeOptions[0]?.abortSignal?.aborted).toBe(true);
+  });
+
   it("maps a job idempotency key to a hashed RunTask clientToken scoped to region and cluster", async () => {
     const inputs: any[] = [];
     const runWith = async (options: { region?: string; cluster: string }, idempotencyKey?: string) => {

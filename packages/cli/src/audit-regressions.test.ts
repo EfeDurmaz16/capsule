@@ -4,7 +4,7 @@
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { main } from "./index.js";
 
 const fakeDocker = `#!/bin/sh
@@ -26,10 +26,59 @@ interface FakeDockerProject {
   logs: string[];
 }
 
-// Runs the real CLI entry point from a scratch project directory with a fake docker on PATH.
-async function runInFakeDockerProject(argv: string[], files: Record<string, unknown> = {}): Promise<FakeDockerProject> {
+interface FetchCall {
+  method: string;
+  url: string;
+}
+
+// Process state a CLI run changes, captured once when the file loads. A run restores this snapshot, never
+// a value it read at its own start, which can be the leftover of a run that is still going.
+const pristine = {
+  cwd: process.cwd(),
+  path: process.env.PATH,
+  fakeDockerLog: process.env.CAPSULE_FAKE_DOCKER_LOG,
+  neonApiKey: process.env.NEON_API_KEY,
+  exitCode: process.exitCode
+};
+
+// cwd, PATH, env, console and fetch belong to the whole process, so two CLI runs must never overlap. A test
+// that times out does not stop its run, so each run starts only after the previous one has restored state.
+let lastRun: Promise<unknown> = Promise.resolve();
+
+// The run of a test that timed out finishes in that test's own afterEach, so the failure stays with that
+// test and the next test starts from the pristine state with its whole timeout.
+afterEach(() => lastRun);
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}
+
+// Answers with the Neon v2 API response shapes the adapter reads: POST/DELETE branch return
+// { branch, operations }. No network is contacted and the API key is a fixture value.
+function fakeNeonFetch(calls: FetchCall[]) {
+  return async (input: string | URL, init: RequestInit = {}) => {
+    const url = String(input);
+    const method = init.method ?? "GET";
+    calls.push({ method, url });
+    const branchId = method === "DELETE" ? (url.split("/branches/")[1]?.split("?")[0] ?? "br_fixture") : "br_fixture";
+    return new Response(JSON.stringify({ branch: { id: branchId, name: "audit", parent_id: "br_main", current_state: "ready" }, operations: [] }), {
+      status: 200,
+      headers: { "content-type": "application/json" }
+    });
+  };
+}
+
+// Runs the real CLI entry point from a scratch project directory with a fake docker on PATH. With
+// neonCalls, fetch is a fake Neon API that records into it. Runs are queued so they never overlap.
+function runInFakeDockerProject(argv: string[], files: Record<string, unknown> = {}, neonCalls?: FetchCall[]): Promise<FakeDockerProject> {
+  const run = lastRun.then(() => runAlone(argv, files, neonCalls));
+  lastRun = run.catch(() => undefined);
+  return run;
+}
+
+async function runAlone(argv: string[], files: Record<string, unknown>, neonCalls: FetchCall[] | undefined): Promise<FakeDockerProject> {
   const root = await mkdtemp(join(tmpdir(), "capsule-cli-audit-"));
-  const previous = { cwd: process.cwd(), path: process.env.PATH, log: process.env.CAPSULE_FAKE_DOCKER_LOG, exitCode: process.exitCode };
   const logs: string[] = [];
   const quiet = [
     vi.spyOn(console, "log").mockImplementation((value: unknown) => {
@@ -49,6 +98,10 @@ async function runInFakeDockerProject(argv: string[], files: Record<string, unkn
       }
       await writeFile(join(root, name), typeof value === "string" ? value : JSON.stringify(value), "utf8");
     }
+    if (neonCalls) {
+      vi.stubGlobal("fetch", fakeNeonFetch(neonCalls));
+      process.env.NEON_API_KEY = "fixture-neon-key";
+    }
     process.env.PATH = `${root}:/usr/bin:/bin`;
     process.env.CAPSULE_FAKE_DOCKER_LOG = callLog;
     process.chdir(root);
@@ -63,11 +116,12 @@ async function runInFakeDockerProject(argv: string[], files: Record<string, unkn
     const calls = (await readFile(callLog, "utf8")).split("\n").filter(Boolean);
     return { outcome, error, calls, logs };
   } finally {
-    process.chdir(previous.cwd);
-    process.env.PATH = previous.path;
-    process.exitCode = previous.exitCode;
-    if (previous.log === undefined) delete process.env.CAPSULE_FAKE_DOCKER_LOG;
-    else process.env.CAPSULE_FAKE_DOCKER_LOG = previous.log;
+    process.chdir(pristine.cwd);
+    process.env.PATH = pristine.path;
+    process.exitCode = pristine.exitCode;
+    restoreEnv("CAPSULE_FAKE_DOCKER_LOG", pristine.fakeDockerLog);
+    restoreEnv("NEON_API_KEY", pristine.neonApiKey);
+    vi.unstubAllGlobals();
     quiet.forEach((spy) => spy.mockRestore());
     await rm(root, { recursive: true, force: true });
   }
@@ -260,85 +314,50 @@ describe("M1 audit regressions: cli", () => {
   });
 
   describe("CLI-03: dedicated neon commands select Neon", () => {
-    interface FetchCall {
-      method: string;
-      url: string;
-    }
-
-    // Answers with the Neon v2 API response shapes the adapter reads: POST/DELETE branch return
-    // { branch, operations }. No network is contacted and the API key is a fixture value.
-    async function withFakeNeon<T>(run: (calls: FetchCall[]) => Promise<T>): Promise<T> {
-      const calls: FetchCall[] = [];
-      const previousKey = process.env.NEON_API_KEY;
-      process.env.NEON_API_KEY = "fixture-neon-key";
-      vi.stubGlobal("fetch", async (input: string | URL, init: RequestInit = {}) => {
-        const url = String(input);
-        const method = init.method ?? "GET";
-        calls.push({ method, url });
-        const branchId = method === "DELETE" ? (url.split("/branches/")[1]?.split("?")[0] ?? "br_fixture") : "br_fixture";
-        return new Response(JSON.stringify({ branch: { id: branchId, name: "audit", parent_id: "br_main", current_state: "ready" }, operations: [] }), {
-          status: 200,
-          headers: { "content-type": "application/json" }
-        });
-      });
-      try {
-        return await run(calls);
-      } finally {
-        vi.unstubAllGlobals();
-        if (previousKey === undefined) delete process.env.NEON_API_KEY;
-        else process.env.NEON_API_KEY = previousKey;
-      }
-    }
-
     it("runs the advertised branch-create shape against Neon with no adapter flag", async () => {
-      await withFakeNeon(async (calls) => {
-        const result = await runInFakeDockerProject(["neon", "branch-create", "--project", "audit", "--name", "audit"]);
-        expect(result.outcome).toBe("resolved");
-        expect(calls).toEqual([{ method: "POST", url: "https://console.neon.tech/api/v2/projects/audit/branches" }]);
-        expect(JSON.parse(result.logs[0] ?? "{}")).toMatchObject({ id: "br_fixture", provider: "neon", project: "audit" });
-        expect(result.calls).toEqual([]);
-      });
+      const calls: FetchCall[] = [];
+      const result = await runInFakeDockerProject(["neon", "branch-create", "--project", "audit", "--name", "audit"], {}, calls);
+      expect(result.outcome).toBe("resolved");
+      expect(calls).toEqual([{ method: "POST", url: "https://console.neon.tech/api/v2/projects/audit/branches" }]);
+      expect(JSON.parse(result.logs[0] ?? "{}")).toMatchObject({ id: "br_fixture", provider: "neon", project: "audit" });
+      expect(result.calls).toEqual([]);
     });
 
     it("runs the advertised branch-delete shape against Neon with no adapter flag", async () => {
-      await withFakeNeon(async (calls) => {
-        const result = await runInFakeDockerProject(["neon", "branch-delete", "--project", "audit", "--branch-id", "br_xxx", "--hard-delete"]);
-        expect(result.outcome).toBe("resolved");
-        expect(calls).toEqual([{ method: "DELETE", url: "https://console.neon.tech/api/v2/projects/audit/branches/br_xxx?hard_delete=true" }]);
-        expect(result.calls).toEqual([]);
-      });
+      const calls: FetchCall[] = [];
+      const result = await runInFakeDockerProject(["neon", "branch-delete", "--project", "audit", "--branch-id", "br_xxx", "--hard-delete"], {}, calls);
+      expect(result.outcome).toBe("resolved");
+      expect(calls).toEqual([{ method: "DELETE", url: "https://console.neon.tech/api/v2/projects/audit/branches/br_xxx?hard_delete=true" }]);
+      expect(result.calls).toEqual([]);
     });
 
     it("rejects a contradictory --adapter instead of rerouting", async () => {
-      await withFakeNeon(async (calls) => {
-        const result = await runInFakeDockerProject(["neon", "branch-create", "--adapter", "docker", "--project", "audit", "--name", "audit"]);
-        expect(result.outcome).toBe("rejected");
-        expect(errorMessage(result.error)).toMatch(/neon commands require the neon adapter, but --adapter selects "docker"/);
-        expect(calls).toEqual([]);
-        expect(result.calls).toEqual([]);
-      });
+      const calls: FetchCall[] = [];
+      const result = await runInFakeDockerProject(["neon", "branch-create", "--adapter", "docker", "--project", "audit", "--name", "audit"], {}, calls);
+      expect(result.outcome).toBe("rejected");
+      expect(errorMessage(result.error)).toMatch(/neon commands require the neon adapter, but --adapter selects "docker"/);
+      expect(calls).toEqual([]);
+      expect(result.calls).toEqual([]);
     });
 
     it("rejects a contradictory configured adapter, and an explicit --adapter neon overrides it", async () => {
-      await withFakeNeon(async (calls) => {
-        const files = { "capsule.config.json": { adapter: "docker" } };
-        const rejected = await runInFakeDockerProject(["neon", "branch-create", "--project", "audit", "--name", "audit"], files);
-        expect(rejected.outcome).toBe("rejected");
-        expect(errorMessage(rejected.error)).toMatch(/capsule\.config\.json selects "docker"/);
-        expect(calls).toEqual([]);
+      const calls: FetchCall[] = [];
+      const files = { "capsule.config.json": { adapter: "docker" } };
+      const rejected = await runInFakeDockerProject(["neon", "branch-create", "--project", "audit", "--name", "audit"], files, calls);
+      expect(rejected.outcome).toBe("rejected");
+      expect(errorMessage(rejected.error)).toMatch(/capsule\.config\.json selects "docker"/);
+      expect(calls).toEqual([]);
 
-        const accepted = await runInFakeDockerProject(["neon", "branch-create", "--adapter", "neon", "--project", "audit", "--name", "audit"], files);
-        expect(accepted.outcome).toBe("resolved");
-        expect(calls).toHaveLength(1);
-      });
+      const accepted = await runInFakeDockerProject(["neon", "branch-create", "--adapter", "neon", "--project", "audit", "--name", "audit"], files, calls);
+      expect(accepted.outcome).toBe("resolved");
+      expect(calls).toHaveLength(1);
     });
 
     it("accepts the mock-neon adapter for offline use", async () => {
-      await withFakeNeon(async (calls) => {
-        const result = await runInFakeDockerProject(["neon", "branch-create", "--adapter", "mock-neon", "--project", "audit", "--name", "audit"]);
-        expect(result.outcome).toBe("resolved");
-        expect(calls).toEqual([]);
-      });
+      const calls: FetchCall[] = [];
+      const result = await runInFakeDockerProject(["neon", "branch-create", "--adapter", "mock-neon", "--project", "audit", "--name", "audit"], {}, calls);
+      expect(result.outcome).toBe("resolved");
+      expect(calls).toEqual([]);
     });
   });
 });
