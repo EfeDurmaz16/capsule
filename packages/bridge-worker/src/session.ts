@@ -1,6 +1,7 @@
 import { redactSensitiveText } from "@capsule-sdk/core";
 import type { WorkerConfig } from "./config.js";
 import {
+  dispatchAttach,
   dispatchObserve,
   dispatchRequest,
   ExecLedger,
@@ -14,7 +15,7 @@ import type { BridgeDriver } from "./driver.js";
 import { decodeBody, encodeFrame, FrameError, FrameReader } from "./frame.js";
 import type { OperationTimer } from "./observe.js";
 import { actionCapability } from "./profiles.js";
-import { correlation, HelloRefusal, isKey, parseCancel, parseHello, parseObserve, parseRequest, parseShutdown, Refusal } from "./validate.js";
+import { correlation, HelloRefusal, isKey, parseAttach, parseCancel, parseHello, parseObserve, parseRequest, parseShutdown, Refusal } from "./validate.js";
 import {
   MAX_FRAME_BYTES,
   MAX_REQUEST_BYTES,
@@ -22,8 +23,11 @@ import {
   WORKER_ID,
   WORKER_MAX_IN_FLIGHT,
   WORKER_MAX_STDERR_BYTES,
+  type Attach,
   type BridgeAction,
+  type CapabilityProfile,
   type HelloLimits,
+  type Observe,
   type ProtocolErrorCode,
   type Unresolved,
   type WireLocator,
@@ -54,9 +58,12 @@ export interface SessionOptions {
   io: SessionIO;
 }
 
+/** A request makes an effect; an observe or an attach only reads. */
+type WorkKind = "request" | "observe" | "attach";
+
 interface InFlight extends OperationRuntime {
   action: BridgeAction;
-  kind: "request" | "observe";
+  kind: WorkKind;
   cancelController: AbortController;
   drainController: AbortController;
   /** Ends the deadline signal on a wall clock; cleared once the operation is answered. */
@@ -188,7 +195,9 @@ export class WorkerSession {
       case "request":
         return this.request(message);
       case "observe":
-        return this.observe(message);
+        return this.read(message, "observe", parseObserve, dispatchObserve);
+      case "attach":
+        return this.read(message, "attach", parseAttach, dispatchAttach);
       case "cancel":
         return this.cancel(message);
       case "shutdown":
@@ -247,22 +256,32 @@ export class WorkerSession {
     this.run(runtime, dispatchRequest(this.context, runtime, request));
   }
 
-  private observe(message: Record<string, unknown>): void {
+  /**
+   * An observe or an attach: a read of an earlier operation that changes nothing at the provider. It
+   * counts against max_in_flight like a request, and a cancel of it is unsupported.
+   */
+  private read<M extends Observe | Attach>(
+    message: Record<string, unknown>,
+    kind: "observe" | "attach",
+    parse: (message: Record<string, unknown>, profile: CapabilityProfile) => M,
+    dispatch: (context: DispatchContext, runtime: OperationRuntime, message: M) => Promise<Answer>
+  ): void {
     const ids = correlation(message);
-    if (!ids) return this.fail("malformed", "an observe needs a valid request_id and operation_id to be answered");
+    if (!ids) return this.fail("malformed", `an ${kind} needs a valid request_id and operation_id to be answered`);
     const refused = this.admission(ids.requestId);
     if (refused) return this.answerNow(refusalAnswer(ids.requestId, ids.operationId, refused));
-    let observe;
+    let parsed: M;
     try {
-      observe = parseObserve(message, this.options.driver.profile);
+      parsed = parse(message, this.options.driver.profile);
     } catch (error) {
       if (error instanceof Refusal) return this.answerNow(refusalAnswer(ids.requestId, ids.operationId, error));
       throw error;
     }
     const capacity = this.capacity();
     if (capacity) return this.answerNow(refusalAnswer(ids.requestId, ids.operationId, capacity));
-    const runtime = this.track(ids.requestId, ids.operationId, observe.action, "observe", observe.resource, observe.wait_ms);
-    this.run(runtime, dispatchObserve(this.context, runtime, observe));
+    // An attach names no resource: it has none until a look finds one.
+    const runtime = this.track(ids.requestId, ids.operationId, parsed.action, kind, parsed.type === "observe" ? parsed.resource : undefined, parsed.wait_ms);
+    this.run(runtime, dispatch(this.context, runtime, parsed));
   }
 
   private cancel(message: Record<string, unknown>): void {
@@ -282,7 +301,7 @@ export class WorkerSession {
     let state: "requested" | "not_found" | "already_answered" | "unsupported";
     if (!target || target.operationId !== cancel.operation_id) {
       state = !target && this.answered.has(cancel.cancels) ? "already_answered" : "not_found";
-    } else if (target.kind === "observe" || !actionCapability(this.options.driver.profile, target.action)?.cancel) {
+    } else if (target.kind !== "request" || !actionCapability(this.options.driver.profile, target.action)?.cancel) {
       // The worker keeps waiting; the cancelled request still gets its own answer.
       state = "unsupported";
     } else {
@@ -333,18 +352,11 @@ export class WorkerSession {
     work.then(settled, settled);
   }
 
-  private track(
-    requestId: string,
-    operationId: string,
-    action: BridgeAction,
-    kind: "request" | "observe",
-    resource: WireLocator | undefined,
-    budgetMs: number
-  ): InFlight {
+  private track(requestId: string, operationId: string, action: BridgeAction, kind: WorkKind, resource: WireLocator | undefined, budgetMs: number): InFlight {
     const timer: OperationTimer = this.options.driver.clock.timer();
     const cancelController = new AbortController();
     const drainController = new AbortController();
-    // deadline_ms (wait_ms for an observe) counts from reading the frame. On a wall clock its end
+    // deadline_ms (wait_ms for an observe or an attach) counts from reading the frame. On a wall clock its end
     // interrupts every wait, so the answer is never later than Fabric's own deadline. Virtual time
     // never runs out by itself, so the fixture profile has no such timer.
     const deadlineController = new AbortController();

@@ -5,7 +5,7 @@ import { decodeBody, FrameError, FrameReader } from "./frame.js";
 import { fixtureNames, fixturesRoot, fixtureWorld, readFixture, type ScenarioState } from "./harness.test.support.js";
 import { checkWorkerMessage } from "./outbound.js";
 import { dockerProfile, fixtureProfile } from "./profiles.js";
-import { HelloRefusal, parseCancel, parseHello, parseObserve, parseRequest, parseShutdown, Refusal } from "./validate.js";
+import { HelloRefusal, parseAttach, parseCancel, parseHello, parseObserve, parseRequest, parseShutdown, Refusal } from "./validate.js";
 import { MAX_FRAME_BYTES, MAX_REQUEST_BYTES } from "./wire.js";
 
 // The shared frame, case and profile fixtures, checked against this implementation. Fabric checks the
@@ -148,7 +148,7 @@ describe("cases", () => {
   const names = fixtureNames("cases");
 
   test("the case set is the v1 set", () => {
-    expect(names).toHaveLength(50);
+    expect(names).toHaveLength(58);
   });
 
   for (const name of names) {
@@ -169,9 +169,11 @@ describe("cases", () => {
               ? parseRequest(message, fixtureProfile)
               : message.type === "observe"
                 ? parseObserve(message, fixtureProfile)
-                : message.type === "cancel"
-                  ? parseCancel(message)
-                  : parseShutdown(message);
+                : message.type === "attach"
+                  ? parseAttach(message, fixtureProfile)
+                  : message.type === "cancel"
+                    ? parseCancel(message)
+                    : parseShutdown(message);
         // An accepted message writes back to the same JSON.
         expect(JSON.stringify(parsed)).toBe(JSON.stringify(message));
         return;
@@ -195,7 +197,7 @@ describe("cases", () => {
         return;
       }
       // A refused session message: the parser refuses it, and the session answers an error with effect none.
-      const parse = message.type === "observe" ? parseObserve : parseRequest;
+      const parse = message.type === "observe" ? parseObserve : message.type === "attach" ? parseAttach : parseRequest;
       let refusal: unknown;
       try {
         parse(message, fixtureProfile);
@@ -214,6 +216,18 @@ describe("cases", () => {
       expect(world.provider.effects).toEqual([]);
     });
   }
+});
+
+describe("searched", () => {
+  test("rides only on an absent answer, and names the negotiated profile's provider and scope", () => {
+    const absent = readFixture<CaseFixture>("cases/error_unknown_absent_valid.json").message;
+    const error = absent.error as Record<string, unknown>;
+    const check = (body: Record<string, unknown>) => checkWorkerMessage({ ...absent, error: body }, { profile: fixtureProfile });
+    expect(check(error)).toBeUndefined();
+    expect(check({ ...error, reason: "observation_failed" })).toMatchObject({ reason: "unknown_field" });
+    expect(check({ ...error, searched: { provider: "docker", scope: { engine: "e" }, kind: "container" } })).toMatchObject({ reason: "bad_value" });
+    expect(check({ ...error, searched: { provider: "fixture", scope: { account: "acct-a" }, kind: "sandbox" } })).toMatchObject({ reason: "missing_field" });
+  });
 });
 
 describe("profiles", () => {

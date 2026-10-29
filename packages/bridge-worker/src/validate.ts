@@ -1,10 +1,11 @@
 import { NOT_AN_INTEGER } from "./frame.js";
-import { actionCapability } from "./profiles.js";
+import { actionCapability, attachable } from "./profiles.js";
 import {
   ACTIONS,
   MAX_DRAIN_MS,
   MAX_FRAME_BYTES,
   MAX_REQUEST_BYTES,
+  type Attach,
   type BridgeAction,
   type BridgeRequest,
   type CapabilityProfile,
@@ -339,6 +340,26 @@ export function parseObserve(message: Json, profile: CapabilityProfile): Observe
   const resource = parseLocator(body.resource, profile, "resource");
   const waitMs = bounded(body.wait_ms, 1, profile.limits.max_observe_wait_ms, "wait_ms");
   return { type: "observe", request_id: requestId, operation_id: operationId, scope, action: capability.action, resource, wait_ms: waitMs };
+}
+
+/**
+ * Parses an attach. Schema first (an attach with a resource is unknown_field: a caller with a locator
+ * observes instead), then the action: outside the profile it is unsupported/action, in it but not a
+ * create the profile can find again it is unsupported/attach. Then wait_ms within the profile's limit.
+ */
+export function parseAttach(message: Json, profile: CapabilityProfile): Attach {
+  const keys = ["type", "request_id", "operation_id", "key", "scope", "action", "wait_ms"] as const;
+  const body = fields(message, keys, keys, "attach");
+  const requestId = id(body.request_id, KEY, "request_id");
+  const operationId = id(body.operation_id, ULID, "operation_id");
+  const key = id(body.key, KEY, "key");
+  const scope = parseScope(body.scope);
+  const action = body.action;
+  const capability = typeof action === "string" ? actionCapability(profile, action) : undefined;
+  if (!capability) throw new Refusal("unsupported", "action", "attach names an action outside the negotiated profile");
+  if (!attachable(capability)) throw new Refusal("unsupported", "attach", `${capability.action} cannot be attached in this profile`);
+  const waitMs = bounded(body.wait_ms, 1, profile.limits.max_observe_wait_ms, "wait_ms");
+  return { type: "attach", request_id: requestId, operation_id: operationId, key, scope, action: capability.action, wait_ms: waitMs };
 }
 
 export function parseCancel(message: Json): Cancel {

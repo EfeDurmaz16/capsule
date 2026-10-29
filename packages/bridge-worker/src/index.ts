@@ -16,6 +16,7 @@ export {
 } from "./fixture.js";
 export { decodeBody, encodeFrame, FrameError, FrameReader, NOT_AN_INTEGER } from "./frame.js";
 export {
+  BridgeAbsentError,
   BridgePendingError,
   BridgeUnknownError,
   observeUntilTerminal,
@@ -29,8 +30,19 @@ export {
   type UnknownReason
 } from "./observe.js";
 export { checkWorkerMessage, type OutboundContext, type OutboundViolation } from "./outbound.js";
-export { actionCapability, dockerProfile, fixtureProfile, profiles } from "./profiles.js";
+export { actionCapability, attachable, dockerProfile, fixtureProfile, profiles } from "./profiles.js";
 export { WorkerSession, type SessionIO, type SessionOptions } from "./session.js";
 export { buildDriver, runStdioWorker, type StdioWorkerOptions } from "./stdio.js";
-export { correlation, HelloRefusal, parseCancel, parseHello, parseLocator, parseObserve, parseRequest, parseShutdown, Refusal } from "./validate.js";
+export {
+  correlation,
+  HelloRefusal,
+  parseAttach,
+  parseCancel,
+  parseHello,
+  parseLocator,
+  parseObserve,
+  parseRequest,
+  parseShutdown,
+  Refusal
+} from "./validate.js";
 export * from "./wire.js";

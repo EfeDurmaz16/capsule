@@ -21,10 +21,20 @@ import {
 import { resolveApproval, type WorkerConfig } from "./config.js";
 import type { BridgeDriver, OperationHooks, ResourceState } from "./driver.js";
 import { ExecCancelledError } from "./fixture.js";
-import { BridgePendingError, BridgeUnknownError, observeUntilTerminal, untilAborted, type OperationTimer } from "./observe.js";
+import {
+  BridgeAbsentError,
+  BridgePendingError,
+  BridgeUnknownError,
+  observeUntilTerminal,
+  untilAborted,
+  type ObservationStep,
+  type OperationTimer,
+  type PendingReason
+} from "./observe.js";
 import { actionCapability } from "./profiles.js";
 import { Refusal } from "./validate.js";
 import type {
+  Attach,
   BridgeAction,
   BridgeRequest,
   CleanupReport,
@@ -35,6 +45,7 @@ import type {
   ReceiptRef,
   Result,
   ResultOutput,
+  Searched,
   WireLocator
 } from "./wire.js";
 
@@ -75,7 +86,7 @@ export interface OperationRuntime {
   readonly cancel: AbortSignal;
   /** Aborted when the shutdown drain for this operation ends. */
   readonly drained: AbortSignal;
-  /** Aborted when deadline_ms (wait_ms for an observe) has passed since the frame was read. Never on a virtual clock. */
+  /** Aborted when deadline_ms (wait_ms for an observe or an attach) has passed since the frame was read. Never on a virtual clock. */
   readonly deadline: AbortSignal;
   /** Drain end in the timer's time; undefined while not draining. */
   drainAt(): number | undefined;
@@ -388,6 +399,17 @@ function outcomeAnswer(
       ...(error.state === undefined ? {} : { state: error.state }),
       ...(error.observations === undefined ? {} : { observations: error.observations }),
       ...(error.deadlineMs === undefined ? {} : { deadline_ms: error.deadlineMs })
+    });
+  }
+  if (error instanceof BridgeAbsentError) {
+    // Nothing carried the operation's identity: no resource, and the scope searched instead.
+    return errorAnswer(runtime, {
+      code: "unknown",
+      reason: "absent",
+      effect: "unknown",
+      observations: error.observations,
+      deadline_ms: error.deadlineMs,
+      searched: error.searched
     });
   }
   if (error instanceof UnknownOutcomeError) {
@@ -843,4 +865,85 @@ async function observeExec(context: DispatchContext, runtime: OperationRuntime, 
   return done.type === "result"
     ? { ...done, request_id: runtime.requestId, operation_id: runtime.operationId, replayed: false }
     : { ...done, request_id: runtime.requestId, operation_id: runtime.operationId };
+}
+
+/**
+ * Runs one attach to its answer: finds what an earlier create of this operation made, by the
+ * operation's identity under the profile's dedupe (driver.findCreated), checks who made it, then reads
+ * its state as an observe of the create does. It makes no mutating call, needs no approval and never
+ * creates, so a create whose answer was lost is found, not made again. Looks run at elapsed 0, then
+ * every observe_interval_ms while below wait_ms and the drain's end; `observations` counts the looks
+ * that finished. Nothing found is `absent` with the scope searched, which settles nothing.
+ */
+export async function dispatchAttach(context: DispatchContext, runtime: OperationRuntime, attach: Attach): Promise<Answer> {
+  const { driver } = context;
+  let binding: Record<string, string>;
+  try {
+    binding = await guarded(runtime, driver.binding());
+  } catch (error) {
+    if (error instanceof DrainInterrupt) return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("unavailable", "shutting_down"));
+    // Without the bound scope there is nowhere to look and no scope to name. An attach makes no effect
+    // that could fail, so this is a failed look, never provider_failed.
+    if (!(error instanceof DeadlineInterrupt)) context.diagnostic(`binding failed: ${error instanceof Error ? error.message : String(error)}`);
+    return errorAnswer(runtime, { code: "unknown", reason: "observation_failed", effect: "unknown" });
+  }
+  const searched: Searched = { provider: driver.profile.provider, scope: { ...binding }, kind: driver.profile.resource_kinds[0]! };
+  // Reads are interrupted only on a wall clock, as for an observe; on the virtual clock the loop's bounds decide.
+  const look = <T>(work: Promise<T>): Promise<T> => (driver.clock.kind === "wall" ? guarded(runtime, work) : work);
+  const { timer } = runtime;
+  let found: WireLocator | undefined;
+  let state: string | undefined;
+  let observations = 0;
+  const unfinished = (reason: PendingReason): Answer => {
+    const outcome = found
+      ? new BridgePendingError(reason, {
+          operation: attach.action,
+          resource: coreLocator(found),
+          ...(state === undefined ? {} : { state }),
+          deadlineMs: attach.wait_ms,
+          observations
+        })
+      : new BridgeAbsentError({ operation: attach.action, searched, observations, deadlineMs: attach.wait_ms });
+    return outcomeAnswer(runtime, outcome, driver, binding, found, context.diagnostic);
+  };
+  while (true) {
+    const now = timer.elapsed();
+    const drainAt = runtime.drainAt();
+    if (drainAt !== undefined && now >= drainAt) return unfinished("shutting_down");
+    if (now >= attach.wait_ms) return unfinished("observation_deadline");
+    let step: ObservationStep;
+    try {
+      if (found) {
+        step = driver.terminal(attach.action, await look(driver.read(found.native_id)));
+      } else {
+        const nativeId = await look(driver.findCreated(attach.operation_id, attach.key));
+        const read = nativeId === undefined ? undefined : await look(driver.read(nativeId));
+        if (nativeId === undefined || !read?.exists) {
+          // Nothing made by this operation, or it is gone already: a destroyed resource is not found.
+          step = { terminal: false };
+        } else {
+          // Who made it is settled before anything about it is reported, as for an observe of a create.
+          if (read.owner?.job !== attach.scope.job || read.owner?.operation !== attach.operation_id) {
+            return refusalAnswer(
+              runtime.requestId,
+              runtime.operationId,
+              new Refusal("denied", "owner_mismatch", "the resource was not created by this operation")
+            );
+          }
+          found = wireLocator(nativeId, driver, binding);
+          step = driver.terminal(attach.action, read);
+        }
+      }
+    } catch (error) {
+      if (error instanceof DrainInterrupt) return unfinished("shutting_down");
+      if (error instanceof DeadlineInterrupt) return unfinished("observation_deadline");
+      context.diagnostic(`attach read failed: ${error instanceof Error ? error.message : String(error)}`);
+      return errorAnswer(runtime, { code: "unknown", reason: "observation_failed", effect: "unknown", ...(found ? { resource: found } : {}) });
+    }
+    observations += 1;
+    if (found && step.terminal) return result(runtime, "completed", found, { status: "ready" });
+    if (found && !step.terminal && step.state !== undefined) state = step.state;
+    const left = Math.min(attach.wait_ms, runtime.drainAt() ?? Number.POSITIVE_INFINITY) - timer.elapsed();
+    if (left > 0) await timer.sleep(Math.min(driver.profile.observe_interval_ms, left));
+  }
 }

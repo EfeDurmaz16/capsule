@@ -102,6 +102,14 @@ export const dockerProfile: CapabilityProfile = Object.freeze({
 
 export const profiles: Readonly<Record<string, CapabilityProfile>> = Object.freeze({ fixture: fixtureProfile, docker: dockerProfile });
 
+/**
+ * Whether an attach of this action is in the profile: a create whose dedupe lets the worker find what
+ * the operation made after a restart, by key (provider_key) or by its operation label (label_query).
+ */
+export function attachable(capability: ActionCapability): boolean {
+  return capability.effect === "create" && capability.dedupe !== "none";
+}
+
 export function actionCapability(profile: CapabilityProfile, action: string): ActionCapability | undefined {
   return profile.actions.find((entry) => entry.action === (action as BridgeAction));
 }

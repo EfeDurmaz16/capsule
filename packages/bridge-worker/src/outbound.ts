@@ -45,6 +45,17 @@ function locator(value: unknown, context: OutboundContext, what: string): void {
   }
 }
 
+/** An absent answer's searched: the negotiated profile's provider, a scope of exactly its scope_keys, one of its kinds. */
+function searched(value: unknown, context: OutboundContext): void {
+  const body = only(value, ["provider", "scope", "kind"], ["provider", "scope", "kind"], "error.searched");
+  if (body.provider !== context.profile.provider) throw new Violation("bad_value", "error.searched.provider");
+  if (typeof body.kind !== "string" || !context.profile.resource_kinds.includes(body.kind)) throw new Violation("bad_value", "error.searched.kind");
+  const scope = only(body.scope, context.profile.scope_keys, context.profile.scope_keys, "error.searched.scope");
+  for (const [key, entry] of Object.entries(scope)) {
+    if (typeof entry !== "string" || entry.length < 1 || entry.length > 512) throw new Violation("bad_value", `error.searched.scope.${key}`);
+  }
+}
+
 function count(value: unknown, what: string): void {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) throw new Violation("bad_value", `${what} must be an integer`);
 }
@@ -134,7 +145,7 @@ function check(message: unknown, context: OutboundContext): void {
       correlate(body);
       const error = only(
         body.error,
-        ["code", "reason", "message", "effect", "resource", "state", "observations", "deadline_ms", "cleanup"],
+        ["code", "reason", "message", "effect", "resource", "state", "observations", "deadline_ms", "cleanup", "searched"],
         ["code", "reason", "message", "effect"],
         "error"
       );
@@ -143,6 +154,14 @@ function check(message: unknown, context: OutboundContext): void {
       if (!ERROR_REASONS[code].includes(error.reason as string)) throw new Violation("unknown_variant", "error.reason");
       if (!ERROR_EFFECTS[code].includes(error.effect as never)) throw new Violation("effect_mismatch", `${code} with effect ${String(error.effect)}`);
       if (typeof error.message !== "string" || error.message.length > 1024) throw new Violation("bad_value", "error.message");
+      // An absent answer names where it looked and no resource; no other error carries searched.
+      if (error.reason === "absent") {
+        if (!("searched" in error)) throw new Violation("missing_field", "error.searched");
+        if ("resource" in error) throw new Violation("unknown_field", "error.resource");
+        searched(error.searched, context);
+      } else if ("searched" in error) {
+        throw new Violation("unknown_field", "error.searched");
+      }
       const locatorRequired = code === "pending" || (code === "provider_failed" && error.effect === "applied");
       if (locatorRequired && !("resource" in error)) throw new Violation("missing_field", "error.resource");
       if ("resource" in error) locator(error.resource, context, "error.resource");
