@@ -1,0 +1,72 @@
+# Capsule gates for the M3 reconciliation
+
+commit: 16d97ed0cb9808b87e332432373162371182306c (the last code commit; this file is recorded after it)
+host:   darwin 25.6.0 arm64, Apple M5 Pro, 18 cpus, load average 8 to 13 from other work
+pnpm:   10.32.1
+gates:  the commands of .github/workflows/ci.yml, run locally, except bench:bounds, which only the performance
+        phase runs. No timing was measured here: no benchmark, A/B script or stress loop ran, and no Docker
+        image was built or pulled.
+
+## What was reconciled
+
+- protocol/bridge/v1 is byte-identical to Fabric's copy (diff -r is empty against Fabric afac988), and both
+  pins name manifest af9a31d70699b1e0fc1ffec8ede50eafbb3bd8fcb35d7b1dd99a9826098d7556 (here
+  scripts/bridge-fixtures.test.mjs, in Fabric crates/fabric-client/tests/bridge_fixtures.rs). The fixtures
+  did not change.
+- Fabric's specification requires a worker to keep out of its process group any process whose end would end
+  or abort a provider effect, and Fabric now sends SIGKILL to a lost worker's group after the kill grace. The
+  Docker profile started its create, start and rm clients in the worker's group. b333df7 adds runDocker's
+  `detached`; 16d97ed starts those three clients detached. Exec clients and reads stay in the group.
+
+## Node 22.23.2
+PASS  pnpm install --frozen-lockfile (offline: the store already held every package)
+PASS  pnpm capsule:gap:check
+PASS  pnpm format:check
+PASS  pnpm typecheck
+PASS  pnpm test                              vitest: 83 files passed, 11 skipped; 1100 tests passed, 20 skipped
+                                             (3 new). node --test: 70 of 70 pass
+PASS  pnpm build
+PASS  pnpm release:audit                     metadata, licenses, markers; pack smoke passed for 23 packages,
+                                             packed capsule-bridge-worker round trip, refusal before effect and
+                                             oversize hello. The first run failed: @capsule-sdk/docker packed to
+                                             12326 B against its 12288 B budget, from the new option's doc
+                                             comment. The comment was cut to one line; the budget is unchanged.
+PASS  pnpm docs:api:check
+PASS  pnpm test:package-exports
+PASS  pnpm release:pack-smoke:compatible     22 packages
+PASS  node --test scripts/bridge-fixtures.test.mjs   manifest pinned at af9a31d70699b1e0fc1ffec8ede50eafbb3bd8fcb35d7b1dd99a9826098d7556
+PASS  actionlint .github/workflows/ci.yml
+
+## Node 24.19.0
+PASS  pnpm test                              vitest 83 files passed, 11 skipped; 1100 tests passed, 20 skipped.
+                                             node --test: 70 of 70 pass
+PASS  pnpm test:package-exports
+PASS  pnpm release:pack-smoke:compatible     23 packages
+
+## Node 26.7.0: the steps of the CI job bridge-artifact, on this host
+PASS  pnpm --filter "@capsule-sdk/bridge-worker..." run build, pnpm bridge:sea, pnpm bridge:artifact-smoke
+      (artifact-smoke-darwin-arm64.json): a 143820864 byte executable, run from a fresh directory with PATH set
+      to an empty directory, passed all 18 shared scenarios, refused the 8 Fabric-to-worker frame fixtures with
+      one protocol_error and exit 2, and passed SIGTERM and SIGINT.
+
+## Docker profile, digest-pinned image
+PASS  node scripts/bridge-docker-smoke.mjs --image debian@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8
+      --execs 3 --require on OrbStack, Docker 29.4.0, the image already present (docker-smoke-checks.json): all
+      11 checks pass with the detached create, start and rm clients; no container left with a fabric.job label.
+
+## Fabric's client against this worker, both ways
+Fabric afac988 (crates/fabric-bridge/tests/capsule_worker.rs, run with --ignored) against this worker built in
+the worktree at 16d97ed, both worktrees clean. Each run: 8 passed, 0 failed, and no container left with a
+fabric.job label.
+- dist/bin.js through Node 22.23.2, with CAPSULE_BRIDGE_DOCKER_IMAGE=debian:bookworm-slim and without it
+- the single executable above, copied to a fresh directory, with PATH holding only a docker link, /usr/bin and
+  /bin (none of node, nodejs, bun, pnpm, npm, npx or deno reachable), with the Docker image and without it
+The logs are in Fabric docs/evidence/m3-reconcile.
+
+## Each new check fails first (fails-first.log)
+- On c3f924d with the three new tests: packages/docker/src/docker-cli.test.ts "a detached client leads a
+  process group of its own" (the child shares the test's group), packages/bridge-worker/src/docker.test.ts
+  "create, start and rm clients run in a process group of their own" (create was not detached), and
+  packages/bridge-worker/src/process.test.ts "a docker create client in flight finishes when the worker's
+  process group is killed" (the create never finished): 3 of 38 fail.
+- With runDocker ignoring `detached` while the driver passes it: the runDocker test and the process test fail.
