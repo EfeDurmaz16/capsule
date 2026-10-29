@@ -44,11 +44,15 @@ class FakeEngine {
   execsPeak = 0;
   private next = 1;
 
-  runner = async (given: string[], _options?: RunDockerOptions): Promise<DockerCommandResult> => {
+  /** The options each call was given, in call order. */
+  readonly options: Array<RunDockerOptions | undefined> = [];
+
+  runner = async (given: string[], options?: RunDockerOptions): Promise<DockerCommandResult> => {
     const route = given[0]?.startsWith("--context=") ? given[0].slice("--context=".length) : undefined;
     const args = route === undefined ? given : given.slice(1);
     this.calls.push(args);
     this.routed.push(route);
+    this.options.push(options);
     const delay = this.delays[args[0]!];
     if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
     if (this.down.has(args[0]!)) {
@@ -241,6 +245,32 @@ describe("docker profile on a fake engine", () => {
     connection.send({ ...request(3, "sandbox.destroy", { target: target(id), params: {} }), approval: { ref: "apr-destroy" } });
     expect(await connection.next()).toMatchObject({ type: "result", state: "completed", output: { status: "destroyed" }, resource: target(id) });
     expect(engine.containers.size).toBe(0);
+  });
+
+  test("create, start and rm clients run in a process group of their own; exec and every read stay in the worker's", async () => {
+    // Fabric ends a lost worker's process group (docs/bridge-protocol.md). A client whose end could abort
+    // the daemon's work must be out of that group; an attached exec client and the reads must not be.
+    const engine = new FakeEngine();
+    const connection = connect(engine, { approvals: [{ ref: "apr-destroy", action: "sandbox.destroy", native_id: null }] });
+    await handshake(connection);
+    connection.send(create(1));
+    const id = ((await connection.next()).resource as { native_id: string }).native_id;
+    connection.send(
+      request(2, "sandbox.exec", {
+        target: target(id),
+        params: { argv: ["echo", "hi"], stdin: null, cwd: null, timeout_ms: 10_000, max_output_bytes: 1024, secret_names: [] }
+      })
+    );
+    expect(await connection.next()).toMatchObject({ type: "result", state: "completed" });
+    connection.send({ ...request(3, "sandbox.destroy", { target: target(id), params: {} }), approval: { ref: "apr-destroy" } });
+    expect(await connection.next()).toMatchObject({ type: "result", state: "completed", output: { status: "destroyed" } });
+
+    const effects = new Set(["create", "start", "rm"]);
+    const seen = engine.calls.map((call, index) => ({ command: call[0]!, detached: engine.options[index]?.detached === true }));
+    expect(new Set(seen.map((call) => call.command))).toEqual(new Set(["context", "ps", "create", "start", "inspect", "exec", "rm"]));
+    for (const call of seen) expect(call).toEqual({ command: call.command, detached: effects.has(call.command) });
+    // The exec client is still the one the session kills when it ends.
+    expect(engine.options[engine.calls.findIndex((call) => call[0] === "exec")]?.signal).toBeInstanceOf(AbortSignal);
   });
 
   test("a docker rm that timed out is an unknown destroy with the target locator, so Fabric can observe it", async () => {

@@ -39,7 +39,10 @@ interface Worker {
   stderr(): string;
 }
 
-function spawnWorker(config: Record<string, unknown>, options: { profile?: string; path?: string; env?: Record<string, string> } = {}): Worker {
+function spawnWorker(
+  config: Record<string, unknown>,
+  options: { profile?: string; path?: string; env?: Record<string, string>; ownGroup?: boolean } = {}
+): Worker {
   const dir = mkdtempSync(join(tmpdir(), "capsule-bridge-proc-"));
   scratch.push(dir);
   const configPath = join(dir, "config.json");
@@ -47,7 +50,9 @@ function spawnWorker(config: Record<string, unknown>, options: { profile?: strin
   const child = spawn(process.execPath, ["--import", "tsx", bin, "--profile", options.profile ?? "fixture", "--config", configPath], {
     cwd: repoRoot,
     env: { PATH: options.path ?? process.env.PATH ?? "", TSX_TSCONFIG_PATH: join(repoRoot, "tsconfig.typecheck.json"), ...options.env },
-    stdio: ["pipe", "pipe", "pipe"]
+    stdio: ["pipe", "pipe", "pipe"],
+    // As Fabric starts it: the leader of a process group of its own.
+    ...(options.ownGroup ? { detached: true } : {})
   });
   children.push(child);
   const reader = new FrameReader(() => MAX_FRAME_BYTES);
@@ -159,7 +164,8 @@ describe("worker process on stdio", () => {
 
 // A stand-in docker CLI for the Docker profile: enough of context, version, inspect and exec for one
 // governed exec. Its exec records its pid and then runs for two minutes, like a long command whose
-// docker exec client stays attached.
+// docker exec client stays attached. Its create records its pid, takes a second, as a daemon's answer
+// can, and records that it finished.
 const fakeDocker = `#!/bin/sh
 case "$1" in --context=*) shift ;; esac
 case "$1" in
@@ -171,6 +177,12 @@ case "$1" in
       *) printf '%s\\t%s\\n' '{"Status":"running","Running":true}' '{"fabric.job":"01K8W3A00000000000000000J1"}' ;;
     esac ;;
   exec) echo $$ > "$FAKE_DOCKER_PIDS/exec.pid"; exec sleep 120 ;;
+  ps) ;;
+  create)
+    echo $$ > "$FAKE_DOCKER_PIDS/create.pid"
+    sleep 1
+    echo finished > "$FAKE_DOCKER_PIDS/create.done"
+    echo cccccccccccc ;;
   *) echo "fake docker: unexpected $*" >&2; exit 1 ;;
 esac
 `;
@@ -222,4 +234,26 @@ describe.skipIf(process.platform === "win32")("docker CLI clients when the worke
       expect(await until(() => !alive(pid), 2_000)).toBe(true);
     }, 30_000);
   }
+
+  test("a docker create client in flight finishes when the worker's process group is killed", async () => {
+    // Fabric ends a lost worker's process group with SIGKILL. Killing a create client could abort the
+    // daemon's work, so the worker starts it outside its group, and it ends when the daemon answers.
+    const dir = mkdtempSync(join(tmpdir(), "capsule-bridge-fake-docker-"));
+    scratch.push(dir);
+    writeFileSync(join(dir, "docker"), fakeDocker, { mode: 0o755 });
+    const worker = spawnWorker(
+      { binding: { engine: "fake-engine" }, policy: { images: ["debian:bookworm-slim"] }, approvals: [] },
+      { profile: "docker", path: `${dir}:${process.env.PATH ?? ""}`, env: { FAKE_DOCKER_PIDS: dir }, ownGroup: true }
+    );
+    worker.child.stdin.write(frameOf({ ...hello, profile: "docker" }));
+    expect(await worker.next()).toMatchObject({ type: "hello_ack" });
+    const create = readFixture<{ message: Record<string, unknown> }>("cases/request_create_valid.json").message;
+    worker.child.stdin.write(frameOf({ ...create, params: { image: "debian:bookworm-slim", env: {}, secret_names: [], labels: {} } }));
+    const pidFile = join(dir, "create.pid");
+    expect(await until(() => existsSync(pidFile) && readFileSync(pidFile, "utf8").trim() !== "", 15_000)).toBe(true);
+    strays.push(Number(readFileSync(pidFile, "utf8")));
+    process.kill(-worker.child.pid!, "SIGKILL");
+    expect(await worker.exit).toBeNull();
+    expect(await until(() => existsSync(join(dir, "create.done")), 5_000)).toBe(true);
+  }, 30_000);
 });

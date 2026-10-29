@@ -29,6 +29,9 @@ export interface DockerDriverOptions {
   secret?: (name: string) => string | undefined;
 }
 
+/** The docker subcommands the bridge sends that change the engine's state, other than exec. */
+const effectCommands = new Set(["create", "start", "rm"]);
+
 interface InspectedState {
   Status?: string;
   Running?: boolean;
@@ -54,12 +57,23 @@ export function dockerDriver(options: DockerDriverOptions = {}): BridgeDriver {
   // a running worker. The = form keeps the name one argument whatever it holds.
   // A docker exec client stays attached for as long as the command runs, and only runDocker's timer in
   // this process would end it, so it would outlive the worker. Killing that client does not stop the
-  // command in the daemon, so it is killed when the session ends. Clients of create, start and rm are
-  // left alone: killing one could abort the daemon's work, and they end when the daemon answers.
+  // command in the daemon, so it is killed when the session ends, and it stays in the worker's process
+  // group, which Fabric ends when it loses the worker. Clients of create, start and rm are left alone:
+  // killing one could abort the daemon's work, so each runs in a process group of its own, which neither
+  // the session's end nor Fabric's signal to the worker's group reaches, and ends when the daemon
+  // answers. Reads (context, version, ps, inspect, cp out of a container) change nothing and stay in
+  // the group.
   const lifetime = new AbortController();
   const runner: DockerRunner = async (args, runOptions) => {
     const { engine } = await binding();
-    return cli([`--context=${engine}`, ...args], args[0] === "exec" ? { ...runOptions, signal: lifetime.signal } : runOptions);
+    const command = args[0];
+    const placed =
+      command === "exec"
+        ? { ...runOptions, signal: lifetime.signal }
+        : command !== undefined && effectCommands.has(command)
+          ? { ...runOptions, detached: true }
+          : runOptions;
+    return cli([`--context=${engine}`, ...args], placed);
   };
   const checkAvailable =
     options.checkAvailable ??
