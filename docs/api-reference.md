@@ -69,6 +69,7 @@ Exports:
 - `ActionCapability` (interface)
 - `ACTIONS` (const)
 - `Answer` (type)
+- `ApprovalUses` (type)
 - `Attach` (interface)
 - `attachable` (function)
 - `BoundedObservation` (interface)

@@ -18,7 +18,7 @@ import {
   type ReceiptStore,
   type ResourceLocator
 } from "@capsule-sdk/core";
-import { resolveApproval, type WorkerConfig } from "./config.js";
+import { resolveApproval, type ApprovalUses, type WorkerConfig } from "./config.js";
 import type { BridgeDriver, OperationHooks, ResourceState } from "./driver.js";
 import { ExecCancelledError } from "./fixture.js";
 import {
@@ -255,6 +255,8 @@ export interface DispatchContext {
   config: WorkerConfig;
   idempotency: IdempotencyTable;
   execs: ExecLedger;
+  /** Which operation each approval ref has resolved for; a ref is never resolved for a second one. */
+  approvalUses: ApprovalUses;
   diagnostic(text: string): void;
 }
 
@@ -505,7 +507,9 @@ async function prepare(context: DispatchContext, runtime: OperationRuntime, requ
       request.action,
       driver.profile.provider,
       "target" in request ? request.target.native_id : undefined,
-      driver.now()
+      driver.now(),
+      request.operation.id,
+      context.approvalUses
     );
   } else if (capability.approval === "required") {
     throw new Refusal("denied", "approval_required", "this action needs a fresh approval");

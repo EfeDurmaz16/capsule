@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { parseWorkerConfig, resolveApproval } from "./config.js";
 import { IdempotencyTable, type Answer } from "./dispatch.js";
 import type { BridgeDriver } from "./driver.js";
 import { fixtureDriver } from "./fixture.js";
@@ -106,6 +107,32 @@ describe("admission", () => {
     connection.send({ ...destroyRequest, approval: { ref: "apr-other" } });
     expect(await connection.next()).toMatchObject({ error: { code: "denied", reason: "approval_scope", effect: "none" } });
     expect(world.provider.effects).toEqual([]);
+  });
+
+  test("an approval ref is per operation: resolved once, it is out of scope for every other operation", async () => {
+    // Rule 7. Without the binding one ref would authorize the same action again and again for as long
+    // as the worker lives; Fabric stores no ref, but the caller can repeat one and the worker must not accept it.
+    const { world, connection } = await started({
+      approvals: [{ ref: "apr-once", action: "sandbox.exec", native_id: "fx-key-create-1", expired: false }]
+    });
+    connection.send(exec(1, { approval: { ref: "apr-once" } }));
+    expect(await connection.next()).toMatchObject({ type: "result", request_id: "r-1", state: "completed" });
+    connection.send(exec(2, { approval: { ref: "apr-once" } }));
+    expect(await connection.next()).toMatchObject({ request_id: "r-2", error: { code: "denied", reason: "approval_scope", effect: "none" } });
+    expect(world.provider.effects.filter((effect) => effect.call === "exec")).toHaveLength(1);
+  });
+
+  test("a bound approval ref still resolves for the operation it was bound to", () => {
+    const config = parseWorkerConfig(
+      { approvals: [{ ref: "apr-once", action: "sandbox.destroy", native_id: "fx-key-create-1", expired: false }] },
+      fixtureProfile
+    );
+    const uses = new Map<string, string>();
+    const resolve = (operationId: string) =>
+      resolveApproval(config, "apr-once", "sandbox.destroy", "fixture", "fx-key-create-1", new Date(), operationId, uses);
+    expect(resolve("01K8W3A0000000000000000D01")).toMatchObject({ approved: true, capabilities: ["sandbox.destroy"] });
+    expect(resolve("01K8W3A0000000000000000D01")).toMatchObject({ approved: true });
+    expect(() => resolve("01K8W3A0000000000000000D02")).toThrow(/another operation/);
   });
 
   test("an unknown approval ref is no approval", async () => {

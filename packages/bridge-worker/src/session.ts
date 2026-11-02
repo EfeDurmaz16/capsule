@@ -117,6 +117,7 @@ export class WorkerSession {
       config: options.config,
       idempotency: this.idempotency,
       execs: new ExecLedger(),
+      approvalUses: new Map(),
       diagnostic: (text) => this.diagnostic(text)
     };
     this.exited = new Promise((resolve) => {

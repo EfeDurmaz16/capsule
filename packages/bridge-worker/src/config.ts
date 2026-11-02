@@ -110,11 +110,18 @@ function parseApproval(value: unknown, index: number): WorkerApproval {
   };
 }
 
+/** The operation id each approval ref has resolved for, kept by the session for its lifetime. */
+export type ApprovalUses = Map<string, string>;
+
 /**
  * Resolves an approval ref for one action on one resource into a Capsule grant scoped to exactly that
  * capability and resource, or refuses with the v1 reason. A grant never stretches: a create grant
  * never authorizes destroy, a grant for one sandbox never covers another, an expired grant covers
- * nothing. The ref itself is a name, never a credential, and is not logged.
+ * nothing, and a ref is per operation (protocol rule 7): once it has resolved for one operation id it
+ * is `approval_scope` for every other, so a retry of that operation may carry it again and nothing
+ * else can. The binding is made when the checks pass, before the effect, and stays even if the effect
+ * is then refused by a drain, so a ref never widens. The ref itself is a name, never a credential,
+ * and is not logged.
  */
 export function resolveApproval(
   config: WorkerConfig,
@@ -122,16 +129,23 @@ export function resolveApproval(
   action: BridgeAction,
   provider: string,
   nativeId: string | undefined,
-  now: Date
+  now: Date,
+  operationId: string,
+  uses: ApprovalUses
 ): CapsuleApprovalGrant {
   const approval = config.approvals.find((entry) => entry.ref === ref);
   if (!approval) throw new Refusal("denied", "approval_required", "the approval ref names no grant this worker holds");
   if (approval.action !== action || (approval.native_id !== null && approval.native_id !== nativeId)) {
     throw new Refusal("denied", "approval_scope", "the grant does not cover this action on this resource");
   }
+  const usedBy = uses.get(ref);
+  if (usedBy !== undefined && usedBy !== operationId) {
+    throw new Refusal("denied", "approval_scope", "the grant was already resolved for another operation");
+  }
   if (approval.expired === true || (approval.expires_at !== undefined && Date.parse(approval.expires_at) <= now.getTime())) {
     throw new Refusal("denied", "approval_expired", "the grant has expired");
   }
+  uses.set(ref, operationId);
   // The ref stays out of the grant: Capsule records a grant's id in policy notes and receipts.
   return {
     approved: true,
