@@ -70,7 +70,7 @@ const packedSizeBudgetBytes = {
   "@capsule-sdk/cloud-run": 15 * kib,
   "@capsule-sdk/cloudflare": 11 * kib,
   "@capsule-sdk/daytona": 6 * kib,
-  "@capsule-sdk/docker": 12 * kib,
+  "@capsule-sdk/docker": 13 * kib,
   "@capsule-sdk/e2b": 6 * kib,
   "@capsule-sdk/ec2": 6 * kib,
   "@capsule-sdk/ecs": 9 * kib,
