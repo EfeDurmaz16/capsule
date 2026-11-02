@@ -1,0 +1,107 @@
+# Capsule synthetic benchmark: control-baseline-7d3a28a
+# mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls
+# commit=7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7 packagesTree=66b109a5e72fdc418d86eb0b060443863ebcf346 dirtyPackages=false date=2026-10-27T14:12:04.586Z
+# host=darwin 25.6.0 arm64 cpus=18 (Apple M5 Pro) mem=48GiB node=v22.23.2
+# raw: benchmarks/raw/control-baseline-7d3a28a/ (one JSON per case, every repetition kept)
+
+perf-01-core-receipts              long-lived-best-effort         final.receiptsStillReachable       median=20000 p95=20000
+perf-01-core-receipts              long-lived-best-effort         final.heapBytesPerOperation        median=1855 p95=1855
+perf-01-core-receipts              long-lived-best-effort         opsPerSecond                       median=130227 p95=141370
+perf-01-core-receipts              long-lived-required            final.receiptsStillReachable       median=20000 p95=20000
+perf-01-core-receipts              long-lived-required            final.heapBytesPerOperation        median=2175 p95=2175
+perf-01-core-receipts              long-lived-required            opsPerSecond                       median=123832 p95=125495
+perf-01-core-receipts              parallel-required-delayed-a    bLatencyMs.p50                     median=52.225 p95=52.347
+perf-01-core-receipts              parallel-required-delayed-a    bLatencyMs.p95                     median=52.984 p95=53.084
+perf-01-core-receipts              parallel-required-delayed-a    bSettlesBeforeA                    false
+perf-01-core-receipts              parallel-required-failing-a    outcomes.bRejectedWithAError       median=40 p95=40
+perf-01-core-receipts              parallel-required-failing-a    outcomes.aRejected                 median=40 p95=40
+perf-01-core-receipts              parallel-required-failing-a    bLatencyMs.p50                     median=6.871 p95=6.934
+perf-01-core-receipts              required-inflight-bookkeeping  heapBytesPerOperation              median=2119 p95=2119
+perf-01-core-receipts              required-inflight-bookkeeping  failures                           median=0 p95=0
+perf-02-artifact-collection        large-file-tiny-limit          bytesRead                          median=16777216 p95=16777216
+perf-02-artifact-collection        large-file-tiny-limit          peakRssGrowthBytes                 median=16859136 p95=16891904
+perf-02-artifact-collection        large-file-tiny-limit          truncationReason                   "maxBytes"
+perf-02-artifact-collection        large-file-within-budget       bytesRead                          median=50331648 p95=50331648
+perf-02-artifact-collection        large-file-within-budget       peakRssGrowthBytes                 median=50429952 p95=50429952
+perf-02-artifact-collection        large-file-within-budget       elapsedMs                          median=19.324 p95=19.4
+perf-02-artifact-collection        large-file-within-budget       hashMatches                        true
+perf-02-artifact-collection        many-small-files               elapsedMs                          median=16.798 p95=17.765
+perf-02-artifact-collection        many-small-files               collectedFiles                     median=1000 p95=1000
+perf-02-artifact-collection        many-small-files               inventoryDigest                    "50758fbb91a29981fc3e90bf25da02b02297172b4e30636792a509ea0b91140d"
+perf-03-aws-client-reuse           ec2-owned-client               uniqueSdkClients                   median=50 p95=50
+perf-03-aws-client-reuse           ec2-owned-client               sendCalls                          median=50 p95=50
+perf-03-aws-client-reuse           ec2-owned-client               firstCallMs                        median=1.936 p95=1.978
+perf-03-aws-client-reuse           ec2-owned-client               warmCallMedianMs                   median=0.04 p95=0.048
+perf-03-aws-client-reuse           ec2-injected-client            uniqueSdkClients                   median=0 p95=0
+perf-03-aws-client-reuse           ec2-injected-client            injectedClientCalls                median=50 p95=50
+perf-03-aws-client-reuse           ecs-owned-client               uniqueSdkClients                   median=50 p95=50
+perf-03-aws-client-reuse           ecs-owned-client               sendCalls                          median=50 p95=50
+perf-03-aws-client-reuse           ecs-owned-client               firstCallMs                        median=2.012 p95=2.106
+perf-03-aws-client-reuse           ecs-owned-client               warmCallMedianMs                   median=0.047 p95=0.048
+perf-03-aws-client-reuse           ecs-injected-client            uniqueSdkClients                   median=0 p95=0
+perf-03-aws-client-reuse           ecs-injected-client            injectedClientCalls                median=50 p95=50
+perf-03-aws-client-reuse           lambda-owned-client            uniqueSdkClients                   median=50 p95=50
+perf-03-aws-client-reuse           lambda-owned-client            sendCalls                          median=50 p95=50
+perf-03-aws-client-reuse           lambda-owned-client            firstCallMs                        median=2.818 p95=3.155
+perf-03-aws-client-reuse           lambda-owned-client            warmCallMedianMs                   median=0.056 p95=0.06
+perf-03-aws-client-reuse           lambda-injected-client         uniqueSdkClients                   median=0 p95=0
+perf-03-aws-client-reuse           lambda-injected-client         injectedClientCalls                median=50 p95=50
+perf-04-vercel-log-streams         finite-array                   outcome                            "resolved"
+perf-04-vercel-log-streams         finite-array                   entriesReturned                    median=2000 p95=2000
+perf-04-vercel-log-streams         finite-array                   entriesWithinLimit                 false
+perf-04-vercel-log-streams         finite-array                   settleMs                           median=17.691 p95=17.775
+perf-04-vercel-log-streams         ndjson-fragmented              outcome                            "resolved"
+perf-04-vercel-log-streams         ndjson-fragmented              entriesReturned                    median=2000 p95=2000
+perf-04-vercel-log-streams         ndjson-fragmented              entriesWithinLimit                 false
+perf-04-vercel-log-streams         ndjson-fragmented              settleMs                           median=32.185 p95=32.331
+perf-04-vercel-log-streams         ndjson-malformed               outcome                            "rejected"
+perf-04-vercel-log-streams         ndjson-malformed               error.name                         "SyntaxError"
+perf-04-vercel-log-streams         ndjson-malformed               entriesReturned                    null
+perf-04-vercel-log-streams         endless-limit-10               outcome                            "timeout"
+perf-04-vercel-log-streams         endless-limit-10               settleMs                           median=3001 p95=3001
+perf-04-vercel-log-streams         endless-limit-10               bytesEmitted                       median=67109012 p95=67109012
+perf-04-vercel-log-streams         endless-limit-10               bodyCancelled                      false
+perf-04-vercel-log-streams         endless-limit-10               peakRssGrowthBytes                 median=211173376 p95=211189760
+perf-04-vercel-log-streams         idle-limit-10                  outcome                            "timeout"
+perf-04-vercel-log-streams         idle-limit-10                  settleMs                           median=3002 p95=3002
+perf-04-vercel-log-streams         idle-limit-10                  bodyCancelled                      false
+perf-05-kubernetes-logs            40-pods-3-containers-all       maxOutstandingRequests             median=1 p95=1
+perf-05-kubernetes-logs            40-pods-3-containers-all       elapsedMs                          median=683 p95=685
+perf-05-kubernetes-logs            40-pods-3-containers-all       leakedSecrets                      median=119 p95=119
+perf-05-kubernetes-logs            40-pods-3-containers-all       globallyAscendingTimestamps        false
+perf-05-kubernetes-logs            40-pods-3-containers-limit-20  maxOutstandingRequests             median=1 p95=1
+perf-05-kubernetes-logs            40-pods-3-containers-limit-20  elapsedMs                          median=685 p95=695
+perf-05-kubernetes-logs            40-pods-3-containers-limit-20  leakedSecrets                      median=0 p95=0
+perf-05-kubernetes-logs            40-pods-3-containers-limit-20  matchesGlobalNewestSet             false
+perf-05-kubernetes-logs            40-pods-3-containers-limit-20  matchesGlobalNewestInOrder         false
+perf-09-cli-cold-start             help                           exitCode                           median=0 p95=0
+perf-09-cli-cold-start             help                           wallMs.p50                         median=404 p95=404
+perf-09-cli-cold-start             help                           maxRssBytes.p50                    median=220774400 p95=220839936
+perf-09-cli-cold-start             help                           stdoutDigest                       "a265d4ba0baf8908d441e4ac311c903b3697c5381cab38d84324121d0931f697"
+perf-09-cli-cold-start             capabilities-json              exitCode                           median=0 p95=0
+perf-09-cli-cold-start             capabilities-json              wallMs.p50                         median=399 p95=406
+perf-09-cli-cold-start             capabilities-json              maxRssBytes.p50                    median=220184576 p95=221020160
+perf-09-cli-cold-start             capabilities-json              stdoutDigest                       "bf5b808fa910cd4223b348dd3c1c55c04c556a28e487270769c324ca4e5c90a0"
+perf-09-cli-cold-start             preset-list-json               exitCode                           median=0 p95=0
+perf-09-cli-cold-start             preset-list-json               wallMs.p50                         median=401 p95=402
+perf-09-cli-cold-start             preset-list-json               maxRssBytes.p50                    median=220381184 p95=221544448
+perf-09-cli-cold-start             preset-list-json               stdoutDigest                       "dacbc3f2fa6984e9a128b2052b6958f845e6d255498a400792bf9429d89b9feb"
+perf-09-cli-cold-start             completion-bash                exitCode                           median=0 p95=0
+perf-09-cli-cold-start             completion-bash                wallMs.p50                         median=403 p95=404
+perf-09-cli-cold-start             completion-bash                maxRssBytes.p50                    median=220086272 p95=220217344
+perf-09-cli-cold-start             completion-bash                stdoutDigest                       "6a7531d56d89835aef72147594c2c0f22daef56b5362ce4b70477f62993b6bfc"
+perf-10-docker-output              stdout-10MiB                   outcome                            "resolved"
+perf-10-docker-output              stdout-10MiB                   stdoutLengthReturned               median=10485760 p95=10485760
+perf-10-docker-output              stdout-10MiB                   peakRssGrowthBytes                 median=39665664 p95=40239104
+perf-10-docker-output              stdout-10MiB                   elapsedMs                          median=139 p95=142
+perf-10-docker-output              stdout-100MiB                  outcome                            "resolved"
+perf-10-docker-output              stdout-100MiB                  stdoutLengthReturned               median=104857600 p95=104857600
+perf-10-docker-output              stdout-100MiB                  peakRssGrowthBytes                 median=345784320 p95=348291072
+perf-10-docker-output              stdout-100MiB                  elapsedMs                          median=1317 p95=1323
+perf-11-jsonl-read                 read-50k                       receiptsRead                       median=50000 p95=50000
+perf-11-jsonl-read                 read-50k                       fileBytes                          median=21883890 p95=21883890
+perf-11-jsonl-read                 read-50k                       peakRssGrowthBytes                 median=87343104 p95=87392256
+perf-11-jsonl-read                 read-50k                       elapsedMs                          median=51.365 p95=51.952
+perf-11-jsonl-read                 corrupt-line-25000             outcome                            "rejected"
+perf-11-jsonl-read                 corrupt-line-25000             errorNamesCorruptLine              true
+perf-11-jsonl-read                 corrupt-line-25000             peakRssGrowthBytes                 median=72204288 p95=72335360

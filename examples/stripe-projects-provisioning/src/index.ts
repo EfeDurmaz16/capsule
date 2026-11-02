@@ -57,15 +57,42 @@ export function createProvisioningCapsule(): Capsule {
   });
 }
 
-// The payment intent id is also the idempotency key. A retry with the same intent must converge to
-// the same result and must not provision twice, so results are cached by intent id. After an
-// irreversible external action, swallow-and-alert rather than re-raising a double-provision.
+// In-flight provisioning per ledger, keyed by intent id. Concurrent calls for the same intent in one
+// process share one provisioning attempt instead of racing past the ledger check.
+const inFlightByLedger = new WeakMap<Map<string, ProvisionOutcome>, Map<string, Promise<ProvisionOutcome>>>();
+
+// The payment intent id is also the idempotency key. Within one process, a retry or a concurrent
+// duplicate with the same intent converges to one provisioning: completed results are cached in the
+// ledger and an attempt still in flight is shared. A failed attempt is not cached, so a later retry can
+// provision. This is process-local only. It does not survive a restart and does not coordinate several
+// processes; exactly-once fulfillment needs a durable ledger and provider reconciliation.
 export async function provisionProject(capsule: Capsule, ledger: Map<string, ProvisionOutcome>, intent: StripePaymentIntent): Promise<ProvisionOutcome> {
   const existing = ledger.get(intent.id);
   if (existing) {
     return { ...existing, decision: "reused" };
   }
 
+  let inFlight = inFlightByLedger.get(ledger);
+  if (!inFlight) {
+    inFlight = new Map();
+    inFlightByLedger.set(ledger, inFlight);
+  }
+  const pending = inFlight.get(intent.id);
+  if (pending) {
+    const shared = await pending;
+    return shared.decision === "provisioned" ? { ...shared, decision: "reused" } : shared;
+  }
+
+  const attempt = provisionOnce(capsule, ledger, intent);
+  inFlight.set(intent.id, attempt);
+  try {
+    return await attempt;
+  } finally {
+    inFlight.delete(intent.id);
+  }
+}
+
+async function provisionOnce(capsule: Capsule, ledger: Map<string, ProvisionOutcome>, intent: StripePaymentIntent): Promise<ProvisionOutcome> {
   try {
     const deployment = await capsule.service.deploy({
       name: intent.projectSlug,

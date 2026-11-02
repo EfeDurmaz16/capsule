@@ -230,8 +230,8 @@ describe("CLI capability explanations", () => {
     });
   });
 
-  test("ranks comparable providers for a built-in recipe", () => {
-    const report = selectProvidersForRecipe("service-api");
+  test("ranks comparable providers for a built-in recipe", async () => {
+    const report = await selectProvidersForRecipe("service-api");
 
     expect(report.recipe.id).toBe("service-api");
     expect(report.results[0]).toMatchObject({
@@ -246,7 +246,7 @@ describe("CLI capability explanations", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     try {
       await main(["select", "provider", "--recipe", "sandbox", "--json"]);
-      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as ReturnType<typeof selectProvidersForRecipe>;
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as Awaited<ReturnType<typeof selectProvidersForRecipe>>;
 
       expect(output.recipe.id).toBe("sandbox");
       expect(output.results[0]?.provider).toBe("docker");
@@ -274,8 +274,8 @@ describe("CLI capability explanations", () => {
     });
   });
 
-  test("compares provider capabilities with diff and compatibility scores", () => {
-    const report = compareProviderCapabilities("docker", "e2b");
+  test("compares provider capabilities with diff and compatibility scores", async () => {
+    const report = await compareProviderCapabilities("docker", "e2b");
 
     expect(report.left.provider).toBe("docker");
     expect(report.right.provider).toBe("e2b");
@@ -318,12 +318,12 @@ describe("CLI capability explanations", () => {
     expect(output.diff).toEqual(expect.arrayContaining([expect.objectContaining({ path: "sandbox.exposePort" })]));
   });
 
-  test("rejects unknown provider comparison names", () => {
-    expect(() => compareProviderCapabilities("dockre", "e2b")).toThrow('Unknown provider "dockre"');
+  test("rejects unknown provider comparison names", async () => {
+    await expect(compareProviderCapabilities("dockre", "e2b")).rejects.toThrow('Unknown provider "dockre"');
   });
 
-  test("compares ECS capabilities without requiring deployment options", () => {
-    expect(() => compareProviderCapabilities("ecs", "e2b")).not.toThrow();
+  test("compares ECS capabilities without requiring deployment options", async () => {
+    await expect(compareProviderCapabilities("ecs", "e2b")).resolves.toMatchObject({ left: { provider: "ecs" } });
   });
 
   test("prints remediation hints for unsupported CLI capabilities", async () => {
@@ -709,6 +709,40 @@ describe("CLI receipt verify", () => {
     }
   });
 
+  test("a corrupt line part-way through the store reports it unreadable with no partial results", async () => {
+    // Receipts are verified while the store streams (PERF-11); a later read error must still discard the
+    // reports of the receipts read before it, as reading the whole file first did.
+    const root = await mkdtemp(join(tmpdir(), "capsule-receipt-verify-"));
+    const receiptFile = join(root, "receipts.jsonl");
+    const receipt = createReceipt({
+      type: "job.run",
+      provider: "test",
+      adapter: "test",
+      capabilityPath: "job.run",
+      supportLevel: "native",
+      startedAt: new Date("2026-01-01T00:00:00.000Z"),
+      policy: { decision: "allowed", applied: {} }
+    });
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      await writeFile(receiptFile, `${JSON.stringify(receipt)}\n{"id":"truncated\n${JSON.stringify(receipt)}\n`, "utf8");
+      await main(["receipt", "verify", "--receipt-file", receiptFile]);
+      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as {
+        store: { readable: boolean; receiptCount: number; error?: string };
+        summary: { valid: boolean; checked: number; failed: number };
+        receipts: unknown[];
+      };
+      expect(output.store).toMatchObject({ readable: false, receiptCount: 0, error: `Invalid JSONL receipt at ${receiptFile}:2.` });
+      expect(output.summary).toEqual({ valid: false, checked: 0, failed: 0 });
+      expect(output.receipts).toEqual([]);
+      expect(process.exitCode).toBe(1);
+    } finally {
+      log.mockRestore();
+      process.exitCode = undefined;
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   test("fails receipt verification without leaking unredacted values", async () => {
     const root = await mkdtemp(join(tmpdir(), "capsule-receipt-verify-"));
     const receiptFile = join(root, "receipts.jsonl");
@@ -904,22 +938,29 @@ describe("CLI capsule.config.json resolution", () => {
     expect(applyCapsuleConfig({ rest: [], adapter: "docker" }, undefined)).toEqual({ rest: [], adapter: "docker" });
   });
 
-  test("a command run from a directory with capsule.config.json auto-applies the configured adapter", async () => {
+  test("a command run from a directory with capsule.config.json auto-applies the configured adapter", async ({ onTestFinished }) => {
     const root = await mkdtemp(join(tmpdir(), "capsule-config-apply-"));
     const previousCwd = process.cwd();
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    try {
-      await writeFile(join(root, "capsule.config.json"), JSON.stringify({ adapter: "e2b" }), "utf8");
-      process.chdir(root);
-
-      await main(["capabilities", "--json"]);
-      const output = JSON.parse(String(log.mock.calls[0]?.[0])) as { adapter: string };
-      expect(output.adapter).toBe("e2b");
-    } finally {
-      process.chdir(previousCwd);
-      log.mockRestore();
-      await rm(root, { recursive: true, force: true });
-    }
+    const run = (async () => {
+      try {
+        await writeFile(join(root, "capsule.config.json"), JSON.stringify({ adapter: "e2b" }), "utf8");
+        process.chdir(root);
+        await main(["capabilities", "--json"]);
+        return String(log.mock.calls[0]?.[0]);
+      } finally {
+        process.chdir(previousCwd);
+        log.mockRestore();
+        await rm(root, { recursive: true, force: true });
+      }
+    })();
+    // cwd and console belong to the whole process. A timeout does not stop this run, so the test waits for
+    // it to restore them before the next test starts, and a slow run fails only this test.
+    onTestFinished(async () => {
+      await run.catch(() => undefined);
+    });
+    const output = JSON.parse(await run) as { adapter: string };
+    expect(output.adapter).toBe("e2b");
   });
 });
 

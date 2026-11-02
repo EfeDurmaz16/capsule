@@ -1,6 +1,11 @@
 import {
   type AdapterContext,
   AdapterExecutionError,
+  CleanupFailureError,
+  PartialEffectsError,
+  UnknownOutcomeError,
+  resourceLocator,
+  type PartialEffects,
   type CapsuleAdapter,
   type CapabilityMap,
   providerErrorStatus,
@@ -21,14 +26,65 @@ export interface NeonAdapterOptions extends NeonClientOptions {
   createEndpoint?: boolean;
 }
 
+interface NeonOperation {
+  id: string;
+  action?: string;
+  status?: string;
+}
+
 interface NeonBranchResponse {
   branch: {
     id: string;
     name: string;
     parent_id?: string;
     current_state?: string;
+    pending_state?: string;
   };
   endpoints?: Array<{ id: string; host?: string; type?: string }>;
+  operations?: NeonOperation[];
+}
+
+// Neon branch mutations return immediately with background operations. A branch is ready only when its
+// current state is ready, no pending state is set and every returned operation reached a non-failed
+// terminal status (EDGE-04). Operation statuses: scheduling, running, finished, failed, error,
+// cancelling, cancelled, skipped.
+const settledOperationStatuses = new Set(["finished", "skipped", "cancelled"]);
+const failedOperationStatuses = new Set(["failed", "error"]);
+
+interface BranchProgress {
+  phase: "ready" | "in-progress" | "failed";
+  currentState?: string;
+  pendingState?: string;
+  operationIds: string[];
+  pendingOperationIds: string[];
+  failedOperationIds: string[];
+}
+
+function branchProgress(response: NeonBranchResponse): BranchProgress {
+  const operations = response.operations ?? [];
+  const pendingOperationIds = operations
+    .filter((operation) => !settledOperationStatuses.has(operation.status ?? "") && !failedOperationStatuses.has(operation.status ?? ""))
+    .map((operation) => operation.id);
+  const failedOperationIds = operations.filter((operation) => failedOperationStatuses.has(operation.status ?? "")).map((operation) => operation.id);
+  const currentState = response.branch.current_state;
+  const pendingState = response.branch.pending_state;
+  const phase =
+    currentState === "failed" || failedOperationIds.length > 0
+      ? "failed"
+      : currentState === "ready" && !pendingState && pendingOperationIds.length === 0
+        ? "ready"
+        : "in-progress";
+  return { phase, currentState, pendingState, operationIds: operations.map((operation) => operation.id), pendingOperationIds, failedOperationIds };
+}
+
+function progressMetadata(progress: BranchProgress): Record<string, unknown> {
+  return {
+    currentState: progress.currentState,
+    ...(progress.pendingState ? { pendingState: progress.pendingState } : {}),
+    ...(progress.operationIds.length > 0 ? { operationIds: progress.operationIds } : {}),
+    ...(progress.pendingOperationIds.length > 0 ? { pendingOperationIds: progress.pendingOperationIds } : {}),
+    ...(progress.failedOperationIds.length > 0 ? { failedOperationIds: progress.failedOperationIds } : {})
+  };
 }
 
 interface NeonConnectionUriResponse {
@@ -118,6 +174,38 @@ async function getConnectionString(client: NeonClient, project: string, branchId
   return response.uri ?? response.connection_uri;
 }
 
+/**
+ * Deletes a branch created by this call after a later step failed (EDGE-06b). A successful or already
+ * absent delete lets the caller rethrow the primary error unchanged. A failed or unresolved delete throws
+ * a structured error that keeps the primary error, the created branch locator and the cleanup outcome.
+ */
+async function cleanupCreatedBranch(client: NeonClient, project: string, branchId: string, primaryError: unknown): Promise<void> {
+  const branch = resourceLocator({ provider, kind: "branch", nativeId: branchId, scope: { project } });
+  try {
+    await client.request<unknown>({
+      method: "DELETE",
+      path: `/projects/${encodeURIComponent(project)}/branches/${encodeURIComponent(branchId)}`,
+      query: { hard_delete: true }
+    });
+    return;
+  } catch (cleanupError) {
+    if (providerErrorStatus(cleanupError) === 404) return;
+    const unresolved = cleanupError instanceof UnknownOutcomeError;
+    const effects: PartialEffects = {
+      operation: "database.branchCreate",
+      outcome: "failed",
+      resources: [branch],
+      primaryError,
+      cleanup: { status: unresolved ? "unknown" : "failed", resources: [branch], residual: [branch], error: cleanupError }
+    };
+    const detail = `Neon branch ${branchId} in project ${project} was created, connection URI retrieval failed, and deleting the branch ${
+      unresolved ? "did not confirm" : "failed"
+    }; the branch may still exist.`;
+    if (unresolved) throw new PartialEffectsError(detail, effects);
+    throw new CleanupFailureError(detail, { project, branchId, error: cleanupError }, primaryError, effects);
+  }
+}
+
 export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
   const getClient = () => new NeonClient(options);
   return {
@@ -139,15 +227,11 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
           try {
             connectionString = await getConnectionString(client, spec.project, response.branch.id, options);
           } catch (error) {
-            await client
-              .request<unknown>({
-                method: "DELETE",
-                path: `/projects/${encodeURIComponent(spec.project)}/branches/${encodeURIComponent(response.branch.id)}`,
-                query: { hard_delete: true }
-              })
-              .catch(() => undefined);
+            await cleanupCreatedBranch(client, spec.project, response.branch.id, error);
             throw error;
           }
+          const progress = branchProgress(response);
+          const status: DatabaseBranch["status"] = progress.phase === "ready" ? "ready" : progress.phase === "failed" ? "failed" : "creating";
           const receipt = context.receipts
             ? context.createReceipt({
                 type: "database.branch.create",
@@ -160,15 +244,17 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
                     "Neon branch creation is native.",
                     connectionString
                       ? "Connection URI retrieved from Neon API."
-                      : "Connection URI not requested; configure databaseName and roleName to retrieve it."
+                      : "Connection URI not requested; configure databaseName and roleName to retrieve it.",
+                    ...(status === "creating" ? ["Neon is still running branch operations; the branch is creating, not ready."] : [])
                   ]
                 },
                 resource: {
                   id: response.branch.id,
                   name: response.branch.name,
-                  status: response.branch.current_state ?? "ready"
+                  status
                 },
                 metadata: neonReceiptMetadata({
+                  ...progressMetadata(progress),
                   parent: response.branch.parent_id,
                   endpointIds: response.endpoints?.map((endpoint) => endpoint.id),
                   ttlMs: spec.ttlMs,
@@ -183,7 +269,7 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
             name: response.branch.name,
             parent: response.branch.parent_id,
             connectionString,
-            status: "ready",
+            status,
             receipt
           };
         },
@@ -234,6 +320,8 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
             path: `/projects/${encodeURIComponent(spec.project)}/branches/${encodeURIComponent(spec.branchId)}/restore`,
             body
           });
+          const progress = branchProgress(response);
+          const status: ResetDatabaseBranch["status"] = progress.phase === "ready" ? "ready" : progress.phase === "failed" ? "failed" : "resetting";
           const receipt = context.receipts
             ? context.createReceipt({
                 type: "database.branch.reset",
@@ -251,9 +339,10 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
                 resource: {
                   id: response.branch.id,
                   name: response.branch.name,
-                  status: response.branch.current_state ?? "ready"
+                  status
                 },
                 metadata: neonReceiptMetadata({
+                  ...progressMetadata(progress),
                   project: spec.project,
                   sourceBranchId: body.source_branch_id,
                   sourceTimestamp: spec.pointInTime,
@@ -270,9 +359,10 @@ export function neon(options: NeonAdapterOptions = {}): CapsuleAdapter {
             provider,
             project: spec.project,
             parent: response.branch.parent_id,
-            status: response.branch.current_state === "failed" ? "failed" : "ready",
+            status,
             receipt,
             metadata: {
+              ...progressMetadata(progress),
               name: response.branch.name,
               sourceBranchId: body.source_branch_id,
               preserveUnderName: spec.preserveUnderName

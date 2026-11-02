@@ -24,8 +24,9 @@ vi.mock("./docker-cli.js", () => ({
     if (command === "exec" && args.includes("mkdir")) {
       return { exitCode: 0, stdout: "", stderr: "" };
     }
-    if (command === "exec" && args.some((arg) => arg.includes("find") && arg.includes("/workspace"))) {
-      return { exitCode: 0, stdout: "hello.txt\t/workspace/hello.txt\tf\t5\n", stderr: "" };
+    if (command === "exec" && args[2] === "find" && args[3] === "/workspace") {
+      // find -printf '%f\0%p\0%y\0%s\0' emits NUL-separated fields.
+      return { exitCode: 0, stdout: "hello.txt\0/workspace/hello.txt\0f\x005\0", stderr: "" };
     }
     if (command === "exec") {
       return { exitCode: 0, stdout: "ok\n", stderr: "" };

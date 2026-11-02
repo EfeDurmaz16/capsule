@@ -1,0 +1,159 @@
+{
+  "meta": {
+    "label": "control-after-85506c1",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "85506c1b5a77ae4e3092cdf17b792201373492d4",
+    "packagesTree": "deea6cd305e943c057dec39258545a4e6052eaec",
+    "dirty": false,
+    "date": "2026-10-27T14:13:48.220Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56",
+      "execArgv": [
+        "--expose-gc"
+      ]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": null,
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workload": {
+    "id": "perf-04-vercel-log-streams",
+    "perfIds": [
+      "PERF-04"
+    ],
+    "manifestIds": [
+      "EDGE-02",
+      "EDGE-03"
+    ]
+  },
+  "case": "finite-array",
+  "description": "JSON array body with 2000 records, limit 100.",
+  "params": {
+    "records": 2000,
+    "limit": 100,
+    "deadlineMs": 5000
+  },
+  "runs": [
+    {
+      "rep": 0,
+      "childWallMs": 58.15187499999956,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 18.68825,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 565781,
+        "recordsEmitted": 2000,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 2694376,
+        "peakRssGrowthBytes": 13516800
+      },
+      "caseDurationMs": 23.86425,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5056792,
+          "rss": 47628288,
+          "external": 2077708,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8101832,
+          "rss": 65110016,
+          "external": 4633616,
+          "arrayBuffers": 67954
+        },
+        "maxRssBytes": 65617920
+      }
+    },
+    {
+      "rep": 1,
+      "childWallMs": 57.779207999999926,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 18.347667,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 565781,
+        "recordsEmitted": 2000,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 2673152,
+        "peakRssGrowthBytes": 13123584
+      },
+      "caseDurationMs": 23.433875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5056792,
+          "rss": 47759360,
+          "external": 2077708,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8080608,
+          "rss": 64962560,
+          "external": 4633616,
+          "arrayBuffers": 67954
+        },
+        "maxRssBytes": 65470464
+      }
+    },
+    {
+      "rep": 2,
+      "childWallMs": 58.7410830000008,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 18.585499999999996,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 565781,
+        "recordsEmitted": 2000,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 2708288,
+        "peakRssGrowthBytes": 13467648
+      },
+      "caseDurationMs": 23.650957999999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5009432,
+          "rss": 47693824,
+          "external": 2077708,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8115744,
+          "rss": 65093632,
+          "external": 4633616,
+          "arrayBuffers": 67954
+        },
+        "maxRssBytes": 65585152
+      }
+    }
+  ]
+}

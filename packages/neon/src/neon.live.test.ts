@@ -31,7 +31,9 @@ describe("neon live smoke", () => {
           labels: liveResource.labels
         });
         branchId = branch.id;
-        expect(branch.status).toBe("ready");
+        // Neon returns a new branch in init with background operations, so creating is the expected
+        // truthful status right after create; ready is possible when the operations already settled.
+        expect(["creating", "ready"]).toContain(branch.status);
         if (process.env.NEON_DATABASE && process.env.NEON_ROLE) {
           expect(branch.connectionString).toContain("postgres");
         } else {

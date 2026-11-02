@@ -1,9 +1,12 @@
 import type {
+  ActionOutcome,
   Capsule,
+  CapsuleApprovalResourceScope,
   CapsuleDomain,
   CapsuleReceipt,
   CapabilityPath,
   CapabilityRequirementResult,
+  CleanupApprovalResolver,
   CreateDatabaseBranchSpec,
   CreatePreviewSpec,
   DatabaseBranch,
@@ -14,10 +17,21 @@ import type {
   JobRun,
   PreviewEnvironment,
   PreviewUrlEntry,
+  PolicyInput,
+  ResourceLocator,
   RunJobSpec,
   ServiceDeployment
 } from "@capsule-sdk/core";
-import { createReceipt, evaluateCapabilityRequirements } from "@capsule-sdk/core";
+import { randomBytes } from "node:crypto";
+import {
+  createReceipt,
+  evaluateCapabilityRequirements,
+  evaluatePolicy,
+  partialEffectsOf,
+  PendingOperationError,
+  UnknownOutcomeError,
+  UnsupportedCapabilityError
+} from "@capsule-sdk/core";
 
 export type PreviewResourceKind = "database" | "service" | "edge" | "job";
 export type PreviewCleanupDisposition = "cleaned" | "partial" | "unsupported" | "leaked";
@@ -87,7 +101,30 @@ export interface PreviewCleanupDispositionRecord {
   notes?: string[];
 }
 
+/**
+ * A provider resource that a failed create step may have left behind. The adapter reported it through
+ * its structured partial-effects record (or an unknown or pending outcome) instead of returning a
+ * result, so the preview never received a normal resource for it. It is kept so cleanup and recovery do
+ * not report "cleaned" while it may still exist.
+ */
+export interface PreviewResidualEffect {
+  /** Position of the failed step in plan order (databases, services, edges, then jobs). */
+  order: number;
+  /** Capability path of the failed step, for example "database.branchCreate". */
+  operation: CapabilityPath;
+  /** What the adapter knew about the failed step's primary action. */
+  outcome: ActionOutcome;
+  /** Safe provider locator of the resource that may still exist. */
+  locator: ResourceLocator;
+}
+
 export interface PreviewResourceRecord {
+  /**
+   * Graph-local resource reference assigned at creation, unique within one preview graph. It is the
+   * authoritative join key between a resource, its cleanup action and its receipts. Provider-native ids
+   * (`id`) are not unique across providers or across projects of one provider.
+   */
+  ref?: string;
   type: CapsuleDomain;
   kind: PreviewResourceKind;
   id: string;
@@ -98,6 +135,11 @@ export interface PreviewResourceRecord {
   receipt?: CapsuleReceipt;
   cleanup?: PreviewCleanupAction;
   cleanupDisposition?: PreviewCleanupDisposition;
+  /**
+   * Set when this record stands for a resource that a failed create step may have left behind. When
+   * Capsule cannot build a cleanup action for it, cleanup reports it as leaked rather than cleaned.
+   */
+  residual?: PreviewResidualEffect;
 }
 
 export interface PreviewCleanupAction {
@@ -111,8 +153,18 @@ export interface PreviewCleanupPlanAction {
   actionId: string;
   cleanupOrder: number;
   kind: PreviewResourceKind;
+  /**
+   * Graph-local reference of the resource this action cleans up. Always set on plans created by this
+   * package. Plans serialized before it existed omit it and are accepted only when their action can be
+   * matched to exactly one resource with the same cleanup identity.
+   */
+  resourceRef?: string;
   resourceId: string;
   resourceProvider: string;
+  /** Adapter name of the Capsule that created the resource. */
+  resourceAdapter?: string;
+  /** Provider scope that disambiguates resourceId, for example the database project. */
+  resourceScope?: Record<string, string>;
   resourceName?: string;
   capabilityPath: CapabilityPath;
   spec: Record<string, unknown>;
@@ -121,6 +173,7 @@ export interface PreviewCleanupPlanAction {
 }
 
 export interface PreviewCleanupPlanResource {
+  ref?: string;
   order: number;
   cleanupOrder?: number;
   type: CapsuleDomain;
@@ -143,12 +196,15 @@ export interface PreviewCleanupPlan {
   cleanupOrder: "reverse-create-order";
   cleanupActionCount: number;
   unsupportedCleanupCount: number;
+  /** Caller-stable operation identity from PreviewPlan.operationId, when one was supplied. */
+  operationId?: string;
   resources: PreviewCleanupPlanResource[];
   actions: PreviewCleanupPlanAction[];
 }
 
 export interface CreatePreviewCleanupPlanOptions {
   createdAt?: Date;
+  operationId?: string;
 }
 
 export interface PreviewResourceGroup<TSpec> {
@@ -156,10 +212,26 @@ export interface PreviewResourceGroup<TSpec> {
   spec: TSpec;
 }
 
+/**
+ * How a preview TTL is handled. `record-only` (the default) records `ttlMs` in plan and receipt
+ * metadata; nothing deletes the preview when it expires and the value is not copied into child
+ * resource specs. `required` asks for enforced expiry, which this package cannot provide, so creation
+ * is rejected before any provider call.
+ */
+export type PreviewTtlEnforcement = "record-only" | "required";
+
 export interface PreviewPlan {
   name: string;
+  /**
+   * Caller-stable identity of the logical preview operation, for example a pull request number plus
+   * commit. It is recorded on the cleanup plan and the preview.create receipt so retries of one
+   * operation can be correlated. It is not the run id: every run still gets a unique preview id, and
+   * cleanup idempotency keys stay scoped to that run so a retry never reuses another run's keys.
+   */
+  operationId?: string;
   source?: CreatePreviewSpec["source"];
   ttlMs?: number;
+  ttlEnforcement?: PreviewTtlEnforcement;
   requireRealProviders?: boolean;
   allowMockProviders?: boolean;
   databases?: Array<PreviewResourceGroup<CreateDatabaseBranchSpec>>;
@@ -185,6 +257,18 @@ export interface PreviewCleanupResult {
 export interface CleanupPreviewEnvironmentOptions {
   cleanupPlan?: PreviewCleanupPlan;
   startedAt?: Date;
+  /**
+   * Resolves a fresh approval grant for each cleanup action right before it runs. The grant is passed
+   * on that delete spec only. Returning undefined denies that cleanup: no delete is sent and the
+   * resource is reported as leaked (residual). A create grant is never reused for cleanup. When this
+   * option is omitted, deletes are sent without an approval grant, as before.
+   */
+  approval?: CleanupApprovalResolver;
+}
+
+export interface CreatePreviewEnvironmentWithCleanupOptions {
+  /** Fresh approval resolver for the compensation cleanup that runs when creation fails. */
+  cleanupApproval?: CleanupApprovalResolver;
 }
 
 export interface PreviewOrchestrationResult {
@@ -194,17 +278,63 @@ export interface PreviewOrchestrationResult {
   receipts: CapsuleReceipt[];
 }
 
+/**
+ * Thrown when preview creation fails part-way. It keeps everything needed to clean up the resources
+ * that were created before the failure: `resources` with their cleanup bindings (each bound to the
+ * Capsule that created it), a `cleanupPlan` for exactly those resources, and their provider
+ * `receipts`. When the failing step itself reported resources it may have left behind (a structured
+ * partial-effects record, or an unknown or pending outcome with a locator), they are appended to
+ * `resources` with `residual` set, so they are never lost. A policy or capability refusal found before
+ * the first provider call is also reported as this error, with no resources. Pass them to `cleanupPreviewEnvironment(error.preview, error.resources, { cleanupPlan:
+ * error.cleanupPlan })`. `createPreviewEnvironmentWithCleanup` has already attempted that cleanup and
+ * reports it on `cleanup`.
+ */
 export class PreviewCreationError extends Error {
   readonly preview: PreviewEnvironment;
   readonly cleanup?: PreviewCleanupResult;
+  readonly resources: PreviewResourceRecord[];
+  readonly cleanupPlan?: PreviewCleanupPlan;
+  readonly receipts: CapsuleReceipt[];
   readonly cause: unknown;
 
-  constructor(message: string, options: { preview: PreviewEnvironment; cleanup?: PreviewCleanupResult; cause: unknown }) {
+  constructor(
+    message: string,
+    options: {
+      preview: PreviewEnvironment;
+      cleanup?: PreviewCleanupResult;
+      cause: unknown;
+      resources?: PreviewResourceRecord[];
+      cleanupPlan?: PreviewCleanupPlan;
+      receipts?: CapsuleReceipt[];
+    }
+  ) {
     super(message);
     this.name = "PreviewCreationError";
     this.preview = options.preview;
     this.cleanup = options.cleanup;
+    this.resources = options.resources ?? [];
+    this.cleanupPlan = options.cleanupPlan;
+    this.receipts = options.receipts ?? [];
     this.cause = options.cause;
+  }
+}
+
+/**
+ * Thrown before any cleanup effect when a supplied cleanup plan does not belong to the preview, or when a
+ * plan action cannot be bound to exactly one resource with the same kind, capability, provider and cleanup
+ * identity. Cleanup never falls back to another resource's action.
+ */
+export class PreviewCleanupPlanError extends Error {
+  readonly previewId: string;
+  readonly planPreviewId: string;
+  readonly resourceRef?: string;
+
+  constructor(message: string, options: { previewId: string; planPreviewId: string; resourceRef?: string }) {
+    super(message);
+    this.name = "PreviewCleanupPlanError";
+    this.previewId = options.previewId;
+    this.planPreviewId = options.planPreviewId;
+    this.resourceRef = options.resourceRef;
   }
 }
 
@@ -241,13 +371,18 @@ const previewResourceCapabilities: Record<PreviewResourceKind, { create: Capabil
   }
 };
 
+/**
+ * Returns a unique run id for one preview creation. The time component keeps ids roughly sortable and
+ * the random component keeps two runs with the same name in the same millisecond distinct. A run id is
+ * not an idempotency key; use PreviewPlan.operationId for caller-stable operation identity.
+ */
 export function createPreviewId(name: string): string {
   const safeName =
     name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "") || "preview";
-  return `preview_${safeName}_${Date.now().toString(36)}`;
+  return `preview_${safeName}_${Date.now().toString(36)}_${randomBytes(6).toString("hex")}`;
 }
 
 export function compilePreviewSpec(spec: CreatePreviewSpec): PreviewCompiledPlan {
@@ -351,6 +486,7 @@ export function createPreviewDryRunReceiptBundle(plan: PreviewPlan, options: Cre
       dryRun: true,
       source: compiledPlan.source,
       ttlMs: compiledPlan.ttlMs,
+      ...(compiledPlan.ttlMs === undefined ? {} : { ttl: ttlRecord(compiledPlan.ttlMs) }),
       labels: compiledPlan.labels,
       resources: compiledPlan.resources.map((resource) => ({
         order: resource.order,
@@ -440,6 +576,25 @@ function isMockCapsule(capsule: Capsule): boolean {
   return typeof raw === "object" && raw !== null && "mock" in raw && (raw as { mock?: unknown }).mock === true;
 }
 
+function assertTtlEnforcementSupported(plan: PreviewPlan): void {
+  if (plan.ttlEnforcement === "required") {
+    throw new UnsupportedCapabilityError(
+      "preview.ttl",
+      '@capsule-sdk/preview records ttlMs but has no expiry controller. Use ttlEnforcement "record-only" and schedule cleanup outside Capsule, or rely on a provider-native expiry.'
+    );
+  }
+}
+
+function ttlRecord(ttlMs: number | undefined): Record<string, unknown> | undefined {
+  return ttlMs === undefined
+    ? undefined
+    : {
+        requestedMs: ttlMs,
+        enforcement: "record-only",
+        note: "Recorded only. @capsule-sdk/preview does not delete the preview at expiry and does not pass ttlMs to child resources."
+      };
+}
+
 function assertRealProviders(plan: PreviewPlan): void {
   if (!plan.requireRealProviders || plan.allowMockProviders) {
     return;
@@ -493,19 +648,25 @@ export function createPreviewCleanupPlan(
 ): PreviewCleanupPlan {
   const createdAt = options.createdAt ?? new Date();
   const planId = `cleanup_${preview.id}`;
-  const actions = [...resources]
+  const refs = resources.map((resource, index) => resourceRefOf(resource, index));
+  const actions = resources
+    .map((resource, index) => ({ resource, ref: refs[index] }))
     .reverse()
-    .filter((resource) => resource.cleanup)
-    .map((resource, cleanupOrder): PreviewCleanupPlanAction => {
+    .filter((entry) => entry.resource.cleanup)
+    .map(({ resource, ref }, cleanupOrder): PreviewCleanupPlanAction => {
       const cleanup = resource.cleanup!;
-      const actionId = `${preview.id}:cleanup:${cleanup.kind}:${resource.id}:${cleanup.capabilityPath}`;
+      const actionId = `${preview.id}:cleanup:${ref}:${cleanup.kind}:${cleanup.capabilityPath}`;
       const idempotencyKey = actionId;
+      const scope = cleanupScope(cleanup);
       return {
         actionId,
         cleanupOrder,
         kind: cleanup.kind,
+        resourceRef: ref,
         resourceId: resource.id,
         resourceProvider: resource.provider,
+        resourceAdapter: cleanup.capsule.adapterName(),
+        ...(scope ? { resourceScope: scope } : {}),
         resourceName: resource.name,
         capabilityPath: cleanup.capabilityPath,
         spec: { ...cleanup.spec, idempotencyKey },
@@ -513,7 +674,7 @@ export function createPreviewCleanupPlan(
         reversible: true
       };
     });
-  const actionByResourceId = new Map(actions.map((action) => [action.resourceId, action]));
+  const actionByRef = new Map(actions.map((action) => [action.resourceRef, action]));
 
   return {
     schema: previewCleanupPlanSchema,
@@ -523,9 +684,11 @@ export function createPreviewCleanupPlan(
     cleanupOrder: "reverse-create-order",
     cleanupActionCount: actions.length,
     unsupportedCleanupCount: resources.length - actions.length,
+    ...(options.operationId === undefined ? {} : { operationId: options.operationId }),
     resources: resources.map((resource, order) => {
-      const action = actionByResourceId.get(resource.id);
+      const action = actionByRef.get(refs[order]);
       return {
+        ref: refs[order],
         order,
         cleanupOrder: action?.cleanupOrder,
         type: resource.type,
@@ -544,12 +707,133 @@ export function createPreviewCleanupPlan(
   };
 }
 
+function resourceRefOf(resource: PreviewResourceRecord, index: number): string {
+  return resource.ref ?? `resource-${index}`;
+}
+
+// Fields of a cleanup spec that name the provider resource. A plan action may only be bound to a
+// resource whose own cleanup spec carries the same values, so a plan cannot redirect deletion.
+const cleanupIdentityFields: Record<PreviewResourceKind, readonly string[]> = {
+  database: ["project", "branchId"],
+  service: ["id"],
+  edge: [],
+  job: []
+};
+
+function cleanupScope(cleanup: PreviewCleanupAction): Record<string, string> | undefined {
+  if (cleanup.kind === "database" && typeof cleanup.spec.project === "string") {
+    return { project: cleanup.spec.project };
+  }
+  return undefined;
+}
+
+function cleanupApprovalScope(resource: PreviewResourceRecord, cleanup: PreviewCleanupAction): CapsuleApprovalResourceScope {
+  // Exactly the resource hint Capsule core evaluates for database.branchDelete and service.delete
+  // (including the provider), so a resolver can scope its grant to this request's resource and have it
+  // match, and a grant scoped to one provider never matches a same-id resource on another.
+  if (cleanup.kind === "database") {
+    return { type: "database", project: String(cleanup.spec.project), id: String(cleanup.spec.branchId), provider: resource.provider };
+  }
+  return { type: "service", id: String(cleanup.spec.id), provider: resource.provider };
+}
+
+function sameCleanupIdentity(spec: Record<string, unknown>, cleanup: PreviewCleanupAction): boolean {
+  return cleanupIdentityFields[cleanup.kind].every((field) => spec[field] === cleanup.spec[field]);
+}
+
+function actionMatchesResource(action: PreviewCleanupPlanAction, resource: PreviewResourceRecord, cleanup: PreviewCleanupAction): boolean {
+  return (
+    action.kind === cleanup.kind &&
+    action.capabilityPath === cleanup.capabilityPath &&
+    action.resourceId === resource.id &&
+    action.resourceProvider === resource.provider &&
+    typeof action.spec === "object" &&
+    action.spec !== null &&
+    sameCleanupIdentity(action.spec, cleanup)
+  );
+}
+
+/**
+ * Binds every cleanup-capable resource to at most one action of a supplied plan, before any effect.
+ * Resources with a graph-local ref bind by ref. Resources or plan actions without a ref (plans
+ * serialized before refs existed) bind only when exactly one action has the same kind, capability,
+ * provider, native id and cleanup identity. Anything else throws PreviewCleanupPlanError.
+ */
+function bindCleanupPlan(
+  preview: PreviewEnvironment,
+  resources: PreviewResourceRecord[],
+  plan: PreviewCleanupPlan
+): Map<PreviewResourceRecord, PreviewCleanupPlanAction | undefined> {
+  const context = { previewId: preview.id, planPreviewId: String(plan.previewId) };
+  if (plan.previewId !== preview.id) {
+    throw new PreviewCleanupPlanError(`Cleanup plan belongs to preview ${String(plan.previewId)}, not ${preview.id}.`, context);
+  }
+  if (!Array.isArray(plan.actions)) {
+    throw new PreviewCleanupPlanError("Cleanup plan actions must be an array.", context);
+  }
+  const actionsByRef = new Map<string, PreviewCleanupPlanAction>();
+  const legacyActions: PreviewCleanupPlanAction[] = [];
+  for (const action of plan.actions) {
+    if (action.resourceRef === undefined) {
+      legacyActions.push(action);
+      continue;
+    }
+    if (actionsByRef.has(action.resourceRef)) {
+      throw new PreviewCleanupPlanError(`Cleanup plan has more than one action for resource ${action.resourceRef}.`, {
+        ...context,
+        resourceRef: action.resourceRef
+      });
+    }
+    actionsByRef.set(action.resourceRef, action);
+  }
+
+  const bindings = new Map<PreviewResourceRecord, PreviewCleanupPlanAction | undefined>();
+  for (const [index, resource] of resources.entries()) {
+    const cleanup = resource.cleanup;
+    if (!cleanup) continue;
+    if (resource.ref === undefined) {
+      // createPreviewCleanupPlan gives a ref-less record the positional ref "resource-<index>". When the
+      // plan carries that action and it matches this record's identity, it is this record's own action;
+      // only otherwise fall back to the legacy identity search below.
+      const positional = actionsByRef.get(resourceRefOf(resource, index));
+      if (positional && actionMatchesResource(positional, resource, cleanup)) {
+        bindings.set(resource, positional);
+        continue;
+      }
+    } else {
+      const action = actionsByRef.get(resource.ref);
+      if (action) {
+        if (!actionMatchesResource(action, resource, cleanup)) {
+          throw new PreviewCleanupPlanError(`Cleanup plan action for resource ${resource.ref} does not match that resource's kind, provider or identity.`, {
+            ...context,
+            resourceRef: resource.ref
+          });
+        }
+        bindings.set(resource, action);
+        continue;
+      }
+    }
+    const pool = resource.ref === undefined ? plan.actions : legacyActions;
+    const candidates = pool.filter((action) => actionMatchesResource(action, resource, cleanup));
+    if (candidates.length > 1) {
+      throw new PreviewCleanupPlanError(`Cleanup plan is ambiguous for ${resource.kind} resource ${resource.id}; refusing to guess which action applies.`, {
+        ...context,
+        resourceRef: resource.ref
+      });
+    }
+    bindings.set(resource, candidates[0]);
+  }
+  return bindings;
+}
+
 function previewCreateReceipt(
   preview: PreviewEnvironment,
   resources: PreviewResourceRecord[],
   cleanupPlan: PreviewCleanupPlan,
-  startedAt: Date
+  startedAt: Date,
+  ttlMs?: number
 ): CapsuleReceipt {
+  const ttl = ttlRecord(ttlMs);
   return createReceipt({
     type: "preview.create",
     provider: "capsule-preview",
@@ -563,14 +847,17 @@ function previewCreateReceipt(
       status: preview.status
     },
     metadata: {
+      ...(cleanupPlan.operationId === undefined ? {} : { operationId: cleanupPlan.operationId }),
+      ...(ttl ? { ttl } : {}),
       resourceCount: resources.length,
-      resources: resources.map((resource) => ({
+      resources: resources.map((resource, index) => ({
+        ref: cleanupPlan.resources[index]?.ref,
         id: resource.id,
         kind: resource.kind,
         provider: resource.provider,
         name: resource.name,
         receiptId: resource.receipt?.id,
-        cleanupActionId: cleanupPlan.resources.find((entry) => entry.id === resource.id)?.cleanupActionId,
+        cleanupActionId: cleanupPlan.resources[index]?.cleanupActionId,
         cleanupCapabilityPath: resource.cleanup?.capabilityPath
       })),
       cleanupPlan: {
@@ -584,6 +871,7 @@ function previewCreateReceipt(
           cleanupOrder: action.cleanupOrder,
           kind: action.kind,
           capabilityPath: action.capabilityPath,
+          resourceRef: action.resourceRef,
           resourceId: action.resourceId,
           idempotencyKey: action.idempotencyKey
         }))
@@ -627,10 +915,12 @@ function createCleanupReceipt(
         cleanupOrder: action.cleanupOrder,
         kind: action.kind,
         capabilityPath: action.capabilityPath,
+        resourceRef: action.resourceRef,
         resourceId: action.resourceId,
         idempotencyKey: action.idempotencyKey
       })),
       resources: dispositions.map((entry) => ({
+        ref: entry.resource.ref,
         id: entry.resource.id,
         kind: entry.resource.kind,
         provider: entry.resource.provider,
@@ -638,7 +928,8 @@ function createCleanupReceipt(
         disposition: entry.disposition,
         receiptId: entry.receipt?.id,
         error: entry.error,
-        notes: entry.notes
+        notes: entry.notes,
+        ...(entry.resource.residual === undefined ? {} : { residual: entry.resource.residual })
       }))
     },
     policy: {
@@ -666,7 +957,7 @@ function serviceRecord(resource: ServiceDeployment, capsule: Capsule): PreviewRe
       kind: "service",
       capsule,
       capabilityPath: "service.delete",
-      spec: { id: resource.id, name: resource.name }
+      spec: Object.freeze({ id: resource.id, name: resource.name })
     }
   };
 }
@@ -697,7 +988,7 @@ function databaseRecord(resource: DatabaseBranch, capsule: Capsule): PreviewReso
       kind: "database",
       capsule,
       capabilityPath: "database.branchDelete",
-      spec: { project: resource.project, branchId: resource.id }
+      spec: Object.freeze({ project: resource.project, branchId: resource.id })
     }
   };
 }
@@ -713,7 +1004,10 @@ function jobRecord(resource: JobRun): PreviewResourceRecord {
   };
 }
 
-const failedResourceStatuses = new Set(["failed", "error", "errored", "crashed"]);
+// A cancelled required check never passed, so it cannot make a preview ready. Running services stay
+// ready-eligible. Running jobs and unknown statuses keep the existing behavior (they do not block
+// ready); callers that need passed checks should require a terminal "succeeded" job status.
+const failedResourceStatuses = new Set(["failed", "error", "errored", "crashed", "cancelled", "canceled"]);
 const pendingResourceStatuses = new Set(["creating", "pending", "provisioning", "queued", "deploying"]);
 
 export function aggregatePreviewStatus(resources: PreviewResourceRecord[]): PreviewEnvironment["status"] {
@@ -734,6 +1028,10 @@ export function previewUrlRegistry(resources: PreviewResourceRecord[]): PreviewU
   return resources
     .filter((resource): resource is PreviewResourceRecord & { url: string } => typeof resource.url === "string")
     .map((resource) => ({ resourceId: resource.id, type: resource.type, provider: resource.provider, url: resource.url }));
+}
+
+function withRef(record: PreviewResourceRecord, index: number): PreviewResourceRecord {
+  return { ref: `resource-${index}`, ...record };
 }
 
 function previewFromResources(id: string, plan: PreviewPlan, status: PreviewEnvironment["status"], resources: PreviewResourceRecord[]): PreviewEnvironment {
@@ -758,39 +1056,192 @@ export async function createPreviewEnvironment(plan: PreviewPlan): Promise<Previ
   return (await createPreviewGraph(plan)).preview;
 }
 
+// The policy input Capsule core evaluates for each preview create capability, built from the same spec
+// fields. Used only for the preflight below; each operation still runs its own check when it starts.
+function createPolicyInput(kind: PreviewResourceKind, spec: PreviewPlannedResourceSpec): Omit<PolicyInput, "capabilityPath" | "supportLevel"> {
+  const scope = (fields: CapsuleApprovalResourceScope): CapsuleApprovalResourceScope =>
+    Object.fromEntries(Object.entries(fields).filter((entry) => entry[1] !== undefined)) as CapsuleApprovalResourceScope;
+  switch (kind) {
+    case "database": {
+      const database = spec as CreateDatabaseBranchSpec;
+      return { ttlMs: database.ttlMs, approval: database.approval, resource: scope({ type: "database", project: database.project, name: database.name }) };
+    }
+    case "service": {
+      const service = spec as DeployServiceSpec;
+      return { env: service.env, approval: service.approval, resource: scope({ type: "service", name: service.name }) };
+    }
+    case "edge": {
+      const edge = spec as DeployEdgeSpec;
+      return { env: edge.env, approval: edge.approval, resource: scope({ type: "edge", name: edge.name }) };
+    }
+    case "job": {
+      const job = spec as RunJobSpec;
+      return { env: job.env, timeoutMs: job.timeoutMs, approval: job.approval, resource: scope({ type: "job", name: job.name }) };
+    }
+  }
+}
+
+// Checks capability support and policy for every child before the first provider call. Without this,
+// a denial of child N (for example a secret its env names) is found only after children 0..N-1 already
+// exist at the provider.
+function assertPreviewChildrenAllowed(plan: PreviewPlan): void {
+  for (const entry of resourceGroups(plan)) {
+    const path = previewResourceCapabilities[entry.kind].create;
+    if (!entry.capsule.supports(path)) {
+      throw new UnsupportedCapabilityError(path);
+    }
+    evaluatePolicy(entry.capsule.policy(), {
+      ...createPolicyInput(entry.kind, entry.spec),
+      capabilityPath: path,
+      supportLevel: entry.capsule.supportLevel(path),
+      networkPolicySupport: entry.capsule.capabilities().sandbox?.networkPolicy
+    });
+  }
+}
+
+const residualCleanupStatuses = new Set(["not-attempted", "failed", "pending", "unknown"]);
+
+function locatorKey(locator: ResourceLocator): string {
+  return JSON.stringify([locator.provider, locator.kind, locator.nativeId, locator.scope ?? {}]);
+}
+
+// Resources a failed step reported it may have left behind. A partial-effects record names them
+// explicitly (cleanup.residual), or implicitly when its own compensation did not succeed. Resources the
+// compensation never targeted (for example a Kubernetes Service whose create outcome is unknown) may
+// exist whatever the cleanup status. An unknown or pending outcome carries the one locator Capsule knows.
+function residualEffectsOf(error: unknown): { outcome: ActionOutcome; locators: readonly ResourceLocator[] } | undefined {
+  const effects = partialEffectsOf(error);
+  if (effects) {
+    const { cleanup } = effects;
+    const targeted = new Set((cleanup.resources ?? []).map(locatorKey));
+    const untargeted = cleanup.resources === undefined ? [] : effects.resources.filter((locator) => !targeted.has(locatorKey(locator)));
+    const residual = cleanup.residual ?? (residualCleanupStatuses.has(cleanup.status) ? effects.resources : []);
+    const unique = new Map([...residual, ...untargeted].map((locator) => [locatorKey(locator), locator]));
+    return { outcome: effects.outcome, locators: [...unique.values()] };
+  }
+  if (error instanceof UnknownOutcomeError && error.resource) {
+    return { outcome: "unknown", locators: [error.resource] };
+  }
+  if (error instanceof PendingOperationError) {
+    return { outcome: "pending", locators: [error.resource] };
+  }
+  return undefined;
+}
+
+function residualRecord(kind: PreviewResourceKind, capsule: Capsule, spec: PreviewPlannedResourceSpec, residual: PreviewResidualEffect): PreviewResourceRecord {
+  const { locator } = residual;
+  const project = locator.scope?.project;
+  // Only a Neon-shaped database branch locator maps onto the preview's own cleanup action
+  // (database.branchDelete with project and branchId). Other locators (Kubernetes Deployments,
+  // Cloudflare Workers and routes) have no matching preview cleanup action, so they are reported as
+  // leaked with their locator instead of guessing a delete.
+  const cleanup: PreviewCleanupAction | undefined =
+    kind === "database" && locator.kind === "branch" && typeof project === "string"
+      ? { kind: "database", capsule, capabilityPath: "database.branchDelete", spec: Object.freeze({ project, branchId: locator.nativeId }) }
+      : undefined;
+  return {
+    type: kind,
+    kind,
+    id: locator.nativeId,
+    provider: locator.provider,
+    name: resourceName(spec),
+    ...(cleanup ? { cleanup } : {}),
+    residual
+  };
+}
+
+// Provisions the plan in its fixed order (databases, services, edges, jobs) and appends each created
+// resource to `resources` as soon as it exists, so a failure part-way leaves the created prefix intact.
+// When the failing step reports resources it may have left behind, they are appended as residual
+// records before the error is rethrown.
+async function provisionPreviewResources(plan: PreviewPlan, resources: PreviewResourceRecord[]): Promise<void> {
+  let order = 0;
+  for (const entry of resourceGroups(plan)) {
+    let record: PreviewResourceRecord;
+    try {
+      record = await createPreviewChild(entry.kind, entry.capsule, entry.spec);
+    } catch (error) {
+      const residual = residualEffectsOf(error);
+      for (const locator of residual?.locators ?? []) {
+        const effect: PreviewResidualEffect = { order, operation: previewResourceCapabilities[entry.kind].create, outcome: residual!.outcome, locator };
+        resources.push(withRef(residualRecord(entry.kind, entry.capsule, entry.spec, effect), resources.length));
+      }
+      throw error;
+    }
+    resources.push(withRef(record, resources.length));
+    order += 1;
+  }
+}
+
+async function createPreviewChild(kind: PreviewResourceKind, capsule: Capsule, spec: PreviewPlannedResourceSpec): Promise<PreviewResourceRecord> {
+  switch (kind) {
+    case "database":
+      return databaseRecord(await capsule.database.branch.create(spec as CreateDatabaseBranchSpec), capsule);
+    case "service":
+      return serviceRecord(await capsule.service.deploy(spec as DeployServiceSpec), capsule);
+    case "edge":
+      return edgeRecord(await capsule.edge.deploy(spec as DeployEdgeSpec));
+    case "job":
+      return jobRecord(await capsule.job.run(spec as RunJobSpec));
+  }
+}
+
+// Runs the preflight and reports a refusal as PreviewCreationError with no resources, the same error
+// type callers already handle for a failure part-way.
+function preflightPreviewChildren(plan: PreviewPlan, id: string): void {
+  try {
+    assertPreviewChildrenAllowed(plan);
+  } catch (error) {
+    const refusedPreview = previewFromResources(id, plan, "failed", []);
+    throw new PreviewCreationError("Preview environment creation was refused before any provider call.", {
+      preview: refusedPreview,
+      cause: error,
+      resources: [],
+      cleanupPlan: createPreviewCleanupPlan(refusedPreview, [], { operationId: plan.operationId }),
+      receipts: []
+    });
+  }
+}
+
+function resourceReceipts(resources: PreviewResourceRecord[]): CapsuleReceipt[] {
+  return resources.map((resource) => resource.receipt).filter((entry): entry is CapsuleReceipt => entry !== undefined);
+}
+
 export async function createPreviewGraph(plan: PreviewPlan): Promise<PreviewOrchestrationResult> {
   assertRealProviders(plan);
+  assertTtlEnforcementSupported(plan);
+  // Aggregate timing starts before the first provisioning call so the preview.create receipt
+  // duration covers the provider work it summarizes.
+  const startedAt = new Date();
   const id = createPreviewId(plan.name);
   const resources: PreviewResourceRecord[] = [];
+  preflightPreviewChildren(plan, id);
 
   try {
-    for (const entry of plan.databases ?? []) {
-      resources.push(databaseRecord(await entry.capsule.database.branch.create(entry.spec), entry.capsule));
-    }
-    for (const entry of plan.services ?? []) {
-      resources.push(serviceRecord(await entry.capsule.service.deploy(entry.spec), entry.capsule));
-    }
-    for (const entry of plan.edges ?? []) {
-      resources.push(edgeRecord(await entry.capsule.edge.deploy(entry.spec)));
-    }
-    for (const entry of plan.jobs ?? []) {
-      resources.push(jobRecord(await entry.capsule.job.run(entry.spec)));
-    }
-
-    const preview = previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
-    const cleanupPlan = createPreviewCleanupPlan(preview, resources);
-    const receipt = previewCreateReceipt(preview, resources, cleanupPlan, new Date());
-
-    return {
-      preview,
-      resources,
-      cleanupPlan,
-      receipts: [...resources.map((resource) => resource.receipt).filter((entry): entry is CapsuleReceipt => entry !== undefined), receipt]
-    };
+    await provisionPreviewResources(plan, resources);
   } catch (error) {
+    // The basic API does not clean up. It hands back the created resources, their cleanup bindings,
+    // a cleanup plan and receipts so the caller can clean up without reconstructing provider identity.
     const failedPreview = previewFromResources(id, plan, "failed", resources);
-    throw new PreviewCreationError("Preview environment creation failed.", { preview: failedPreview, cause: error });
+    throw new PreviewCreationError("Preview environment creation failed.", {
+      preview: failedPreview,
+      cause: error,
+      resources,
+      cleanupPlan: createPreviewCleanupPlan(failedPreview, resources, { operationId: plan.operationId }),
+      receipts: resourceReceipts(resources)
+    });
   }
+
+  const preview = previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
+  const cleanupPlan = createPreviewCleanupPlan(preview, resources, { operationId: plan.operationId });
+  const receipt = previewCreateReceipt(preview, resources, cleanupPlan, startedAt, plan.ttlMs);
+
+  return {
+    preview,
+    resources,
+    cleanupPlan,
+    receipts: [...resourceReceipts(resources), receipt]
+  };
 }
 
 export async function cleanupPreviewEnvironment(
@@ -799,13 +1250,33 @@ export async function cleanupPreviewEnvironment(
   options: CleanupPreviewEnvironmentOptions = {}
 ): Promise<PreviewCleanupResult> {
   const startedAt = options.startedAt ?? new Date();
+  // A plan generated here from these same records gives every record its own action (by ref, or by
+  // position for ref-less records), so binding it can never be ambiguous.
   const cleanupPlan = options.cleanupPlan ?? createPreviewCleanupPlan(preview, resources, { createdAt: startedAt });
+  // Bind every resource to its own plan action (or none) before the first delete, so a foreign or
+  // ambiguous plan fails without effects instead of routing one resource's spec to another Capsule.
+  const bindings = bindCleanupPlan(preview, resources, cleanupPlan);
   const cleaned: PreviewResourceRecord[] = [];
   const failed: PreviewCleanupResult["failed"] = [];
   const receipts: CapsuleReceipt[] = [];
   const dispositions: PreviewCleanupDispositionRecord[] = [];
 
   for (const resource of [...resources].reverse()) {
+    if (!resource.cleanup && resource.residual) {
+      const leakedResource = cloneWithDisposition(resource, "leaked");
+      const { locator } = resource.residual;
+      const error = new Error(
+        `A failed ${resource.residual.operation} step may have left ${locator.provider} ${locator.kind} ${locator.nativeId} behind, and Capsule has no cleanup action for it.`
+      );
+      failed.push({ resource: leakedResource, error });
+      dispositions.push({
+        resource: leakedResource,
+        disposition: "leaked",
+        error: error.message,
+        notes: ["Residual from a failed create step; remove it at the provider using its locator."]
+      });
+      continue;
+    }
     if (!resource.cleanup) {
       const unsupported = cloneWithDisposition(resource, "unsupported");
       dispositions.push({
@@ -817,10 +1288,38 @@ export async function cleanupPreviewEnvironment(
     }
     try {
       let receipt: CapsuleReceipt | undefined;
-      const cleanupAction = cleanupPlan.actions.find(
-        (action) => action.resourceId === resource.id && action.capabilityPath === resource.cleanup?.capabilityPath
-      );
-      const cleanupSpec = cleanupAction?.spec ?? resource.cleanup.spec;
+      const action = bindings.get(resource);
+      let cleanupSpec: Record<string, unknown> = action?.spec ?? resource.cleanup.spec;
+      if (options.approval) {
+        const scope = cleanupScope(resource.cleanup);
+        const ref = resource.ref ?? action?.resourceRef;
+        const grant = await options.approval({
+          capabilityPath: resource.cleanup.capabilityPath,
+          resource: cleanupApprovalScope(resource, resource.cleanup),
+          reason: `Cleanup of preview ${preview.id}`,
+          context: {
+            provider: resource.provider,
+            adapter: resource.cleanup.capsule.adapterName(),
+            previewId: preview.id,
+            ...(ref === undefined ? {} : { resourceRef: ref }),
+            ...(action === undefined ? {} : { actionId: action.actionId }),
+            ...(scope === undefined ? {} : { scope })
+          }
+        });
+        if (!grant) {
+          const deniedResource = cloneWithDisposition(resource, "leaked");
+          const error = new Error(`Cleanup approval was not granted for ${resource.kind} resource ${resource.id}.`);
+          failed.push({ resource: deniedResource, error });
+          dispositions.push({
+            resource: deniedResource,
+            disposition: "leaked",
+            error: error.message,
+            notes: ["Cleanup was not attempted because no fresh cleanup approval was granted; the resource still exists at the provider."]
+          });
+          continue;
+        }
+        cleanupSpec = { ...cleanupSpec, approval: grant };
+      }
       if (resource.cleanup.kind === "database") {
         const result = await resource.cleanup.capsule.database.branch.delete(cleanupSpec as { project: string; branchId: string; hardDelete?: boolean });
         receipt = result.receipt;
@@ -858,33 +1357,35 @@ export async function cleanupPreviewEnvironment(
   };
 }
 
-export async function createPreviewEnvironmentWithCleanup(plan: PreviewPlan): Promise<PreviewEnvironment> {
+/**
+ * Creates the preview and, when creation throws part-way, attempts cleanup of the resources created so
+ * far before rethrowing. A preview that is created but aggregates to `failed` (for example a failed or
+ * cancelled check job) is returned, not cleaned up; callers decide whether to clean it up.
+ */
+export async function createPreviewEnvironmentWithCleanup(
+  plan: PreviewPlan,
+  options: CreatePreviewEnvironmentWithCleanupOptions = {}
+): Promise<PreviewEnvironment> {
   assertRealProviders(plan);
+  assertTtlEnforcementSupported(plan);
   const id = createPreviewId(plan.name);
   const resources: PreviewResourceRecord[] = [];
+  preflightPreviewChildren(plan, id);
 
   try {
-    for (const entry of plan.databases ?? []) {
-      resources.push(databaseRecord(await entry.capsule.database.branch.create(entry.spec), entry.capsule));
-    }
-    for (const entry of plan.services ?? []) {
-      resources.push(serviceRecord(await entry.capsule.service.deploy(entry.spec), entry.capsule));
-    }
-    for (const entry of plan.edges ?? []) {
-      resources.push(edgeRecord(await entry.capsule.edge.deploy(entry.spec)));
-    }
-    for (const entry of plan.jobs ?? []) {
-      resources.push(jobRecord(await entry.capsule.job.run(entry.spec)));
-    }
-    return previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
+    await provisionPreviewResources(plan, resources);
   } catch (error) {
     const failedPreview = previewFromResources(id, plan, "failed", resources);
-    const cleanupPlan = createPreviewCleanupPlan(failedPreview, resources);
-    const cleanup = await cleanupPreviewEnvironment(failedPreview, resources, { cleanupPlan });
+    const cleanupPlan = createPreviewCleanupPlan(failedPreview, resources, { operationId: plan.operationId });
+    const cleanup = await cleanupPreviewEnvironment(failedPreview, resources, { cleanupPlan, approval: options.cleanupApproval });
     throw new PreviewCreationError("Preview environment creation failed and cleanup was attempted.", {
       preview: failedPreview,
       cleanup,
-      cause: error
+      cause: error,
+      resources,
+      cleanupPlan,
+      receipts: resourceReceipts(resources)
     });
   }
+  return previewFromResources(id, plan, aggregatePreviewStatus(resources), resources);
 }

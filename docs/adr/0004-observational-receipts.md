@@ -35,3 +35,7 @@ What this loses:
 ## Follow-Up
 
 Signed receipts, append-only storage, and provider-native audit log correlation should be built as optional layers on top of the receipt schema.
+
+## Status Note
+
+Optional receipt signing has since shipped as such a layer: `ReceiptSigner`, `ReceiptVerifier`, `canonicalReceiptPayload` and `verifyReceipt` in `@capsule-sdk/core`, plus `capsule receipt verify --public-key`. Signing stays off by default, and a signature authenticates Capsule's unsigned receipt payload only. Append-only storage, provider audit log correlation and provider attestations remain future work; the evidence-grade profile is tracked in [ADR 0005](0005-evidence-grade-receipts.md). The decision above is unchanged.

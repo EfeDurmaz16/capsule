@@ -15,30 +15,31 @@ const adapterDefinitions = [
     displayName: "Docker",
     packageDir: "docker",
     notes:
-      "Local Docker is useful but not safe for hostile code by default. Sandbox port exposure is supported through local-only `127.0.0.1` Docker publish flags unless a caller explicitly opts into another bind IP. Sandbox snapshot/restore are unsupported because Capsule exposes no public restore API or portable Docker restore semantics today."
+      "Local Docker is useful but not safe for hostile code by default. Sandbox port exposure is supported through local-only `127.0.0.1` Docker publish flags unless a caller explicitly opts into another bind IP. Sandbox snapshot/restore are unsupported because Capsule exposes no public restore API or portable Docker restore semantics today. Sandbox artifacts are copied out with `docker cp`; `job.artifacts` is unsupported because jobs run with `docker run --rm`. A timed-out exec or job reports an unknown outcome unless container removal is confirmed."
   },
   {
     displayName: "E2B",
     packageDir: "e2b",
-    notes: "Cloud sandbox create, exec, file read/write/list, and destroy are implemented through the E2B SDK."
+    notes:
+      "Cloud sandbox create, exec, file read/write/list, and destroy are implemented through the E2B SDK. A nonzero exit is a normal result; exec input, artifacts and streaming logs are unsupported, and port exposure is experimental (per-port E2B hosts)."
   },
   {
     displayName: "Daytona",
     packageDir: "daytona",
     notes:
-      "Sandbox create, exec, file read/write/list, and delete are implemented through the Daytona SDK; job and preview wrappers are unsupported until implemented."
+      "Sandbox create, exec, file read/write/list, and delete are implemented through the Daytona SDK; job and preview wrappers are unsupported until implemented. Exec input, artifacts and snapshot are unsupported; `allowedHosts` accepts CIDR entries only (domains are rejected, empty blocks all)."
   },
   {
     displayName: "Modal",
     packageDir: "modal",
     notes:
-      "Sandbox create, exec, file read/write, and terminate are implemented through the Modal JS SDK; file listing and broader function/service workflows are unsupported."
+      "Sandbox create, exec (with stdin and EOF), file read/write, and terminate (observed with `wait: true` under a deadline) are implemented through the Modal JS SDK; file listing, artifacts, streaming logs, snapshot, port exposure and broader function/service workflows are unsupported. `allowedHosts` accepts CIDR entries only."
   },
   {
     displayName: "Cloud Run",
     packageDir: "cloud-run",
     notes:
-      "Cloud Run Jobs and Services are implemented via Admin API v2; service update uses `services.patch` with `forceNewRevision`, rollback migrates traffic to an explicit or selected previous revision, job/service logs use Cloud Logging `entries:list`; IAM/public access and preview orchestration are not faked."
+      "Cloud Run Jobs and Services are implemented via Admin API v2; service update uses `services.patch` with `forceNewRevision`, rollback migrates traffic to an explicit or selected previous revision, job/service logs use Cloud Logging `entries:list`; delete reports deleted only after the operation completes, otherwise `PendingOperationError`; command healthchecks are rejected; IAM/public access and preview orchestration are not faked."
   },
   {
     displayName: "Cloudflare Workers",
@@ -50,34 +51,37 @@ const adapterDefinitions = [
     displayName: "Vercel",
     packageDir: "vercel",
     notes:
-      "Inline deployment creation, deployment status, full alias release, bounded deployment event logs, and project runtime logs are implemented; runtime logs require `projectId`, traffic splits other than 100% and follow streaming are rejected, and service/preview wrappers, large file upload/SHA flow, env, routes, and rollback remain explicit future capabilities."
+      "Inline deployment creation, deployment status, full alias release, bounded deployment event logs, and project runtime logs are implemented; runtime logs require `projectId` and are read as a bounded live tail (`since`/`until` are rejected), traffic splits other than 100% and follow streaming are rejected, and service/preview wrappers, large file upload/SHA flow, env, routes, and rollback remain explicit future capabilities."
   },
   {
     displayName: "Neon",
     packageDir: "neon",
-    notes: "Database branch create/delete/reset and connection URI retrieval are implemented; migrations and preview orchestration remain unsupported."
+    notes:
+      "Database branch create/delete/reset and connection URI retrieval are implemented; a branch reports `creating` or `resetting` until its state and operations settle. Migrations, TTL and preview orchestration remain unsupported."
   },
   {
     displayName: "Kubernetes",
     packageDir: "kubernetes",
     notes:
-      "Jobs, Deployments, Services, and selector-based combined Pod logs are implemented through the official Kubernetes client; follow streaming is rejected, and sandbox/machine wrappers, ingress, and rollout remain explicit future work."
+      "Jobs, Deployments, Services, and selector-based combined Pod logs are implemented through the official Kubernetes client; follow streaming is rejected and log capture is bounded; delete is observed until the objects are gone; command healthchecks and an autoscaling `scale.max` are rejected, and sandbox/machine wrappers, ingress, and rollout remain explicit future work."
   },
   {
     displayName: "Lambda",
     packageDir: "lambda",
-    notes: "Existing Lambda function invocation is implemented as `job.run`; function deployment/env mutation is not faked."
+    notes:
+      "Existing Lambda function invocation is implemented as `job.run`; the `DryRun` invocation type is rejected; function deployment/env mutation is not faked."
   },
   {
     displayName: "ECS/Fargate",
     packageDir: "ecs",
     notes:
-      "RunTask and CreateService are implemented for existing task definitions; task-definition registration, previews, and load balancers are future work."
+      "RunTask and CreateService are implemented for existing task definitions. A task's result follows the configured main container; service delete waits for the drain and reports deleted only once the service is INACTIVE, otherwise `PendingOperationError`. Task-definition registration, previews, and load balancers are future work."
   },
   {
     displayName: "EC2",
     packageDir: "ec2",
-    notes: "`machine.create/status/start/stop/destroy` are implemented through EC2 APIs; job/service wrappers, exec, and snapshot remain explicit future work."
+    notes:
+      "`machine.create/status/start/stop/destroy` are implemented through EC2 APIs with transitional `stopping`/`destroying` statuses; `spec.region` must match the adapter region; env values are shell literals that do not persist past user data. Job/service wrappers, exec, and snapshot remain explicit future work."
   },
   {
     displayName: "Fly Machines",
@@ -89,7 +93,7 @@ const adapterDefinitions = [
     displayName: "Azure Container Apps",
     packageDir: "azure",
     notes:
-      "ARM APIs support Container App service create/status/delete and manual job create/start/status/stop; logs, secrets, registries, and generic service rollback remain explicit future work."
+      "ARM APIs support Container App service create/status/delete and manual job create/start/status/stop; a 202 delete is observed until it completes, otherwise `PendingOperationError`; healthchecks are rejected; logs, secrets, registries, and generic service rollback remain explicit future work."
   }
 ];
 

@@ -1,0 +1,1220 @@
+{
+  "meta": {
+    "label": "survey-cbe11d3",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 15,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "cbe11d3a7655196ad3871ad930176a8847225eb0",
+      "packagesTree": "56576949d4a805fe7008356ecbb6c9a6c64f8161",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "cbe11d3a7655196ad3871ad930176a8847225eb0",
+    "date": "2026-10-27T19:37:24.391Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        11.28564453125,
+        10.912109375,
+        7.83251953125
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)"
+  },
+  "workload": "perf-09-cli-cold-start",
+  "case": "capabilities-json",
+  "params": {
+    "args": [
+      "capabilities",
+      "--json"
+    ],
+    "samples": 10
+  },
+  "runs": [
+    {
+      "side": "A",
+      "pair": 0,
+      "childWallMs": 4285.749457999998,
+      "loadAverage1m": 9.994140625,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 409.00879199999986,
+          "p95": 558.408209,
+          "min": 393.3859999999995
+        },
+        "maxRssBytes": {
+          "p50": 218365952,
+          "max": 223477760
+        }
+      },
+      "caseDurationMs": 4244.751208000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46579712,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5041600,
+          "rss": 48627712,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48627712
+      }
+    },
+    {
+      "side": "B",
+      "pair": 0,
+      "childWallMs": 361.7004159999997,
+      "loadAverage1m": 9.994140625,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 32.10579200000001,
+          "p95": 36.22533399999999,
+          "min": 30.248082999999998
+        },
+        "maxRssBytes": {
+          "p50": 53805056,
+          "max": 54001664
+        }
+      },
+      "caseDurationMs": 330.278,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46186496,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5069592,
+          "rss": 48185344,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48185344
+      }
+    },
+    {
+      "side": "A",
+      "pair": 1,
+      "childWallMs": 4359.483041999993,
+      "loadAverage1m": 8.1474609375,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 428.98454200000015,
+          "p95": 448.02212499999996,
+          "min": 418.57375
+        },
+        "maxRssBytes": {
+          "p50": 218284032,
+          "max": 220053504
+        }
+      },
+      "caseDurationMs": 4320.5499580000005,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46366720,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5035408,
+          "rss": 48201728,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48201728
+      }
+    },
+    {
+      "side": "B",
+      "pair": 1,
+      "childWallMs": 389.6278330000059,
+      "loadAverage1m": 8.1474609375,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 32.887167,
+          "p95": 54.57133300000001,
+          "min": 31.05087500000002
+        },
+        "maxRssBytes": {
+          "p50": 53837824,
+          "max": 54165504
+        }
+      },
+      "caseDurationMs": 357.878875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46104576,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5059408,
+          "rss": 48316416,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48316416
+      }
+    },
+    {
+      "side": "A",
+      "pair": 2,
+      "childWallMs": 4383.695917000005,
+      "loadAverage1m": 10.4931640625,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 426.700584,
+          "p95": 473.60408300000006,
+          "min": 419.0304580000002
+        },
+        "maxRssBytes": {
+          "p50": 217563136,
+          "max": 224133120
+        }
+      },
+      "caseDurationMs": 4349.0037090000005,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46137344,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5044128,
+          "rss": 48070656,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48070656
+      }
+    },
+    {
+      "side": "B",
+      "pair": 2,
+      "childWallMs": 380.9465409999975,
+      "loadAverage1m": 10.13330078125,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 33.49995899999996,
+          "p95": 47.449208000000006,
+          "min": 30.356415999999996
+        },
+        "maxRssBytes": {
+          "p50": 53788672,
+          "max": 54214656
+        }
+      },
+      "caseDurationMs": 351.086792,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46137344,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5046712,
+          "rss": 48168960,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48168960
+      }
+    },
+    {
+      "side": "A",
+      "pair": 3,
+      "childWallMs": 6491.494584,
+      "loadAverage1m": 8.974609375,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 660.9969590000001,
+          "p95": 748.3453330000002,
+          "min": 487.2185419999996
+        },
+        "maxRssBytes": {
+          "p50": 220069888,
+          "max": 225902592
+        }
+      },
+      "caseDurationMs": 6444.838167,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5180048,
+          "rss": 46415872,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5044480,
+          "rss": 48693248,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48693248
+      }
+    },
+    {
+      "side": "B",
+      "pair": 3,
+      "childWallMs": 402.00741600000765,
+      "loadAverage1m": 8.974609375,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 35.62270799999999,
+          "p95": 41.058958000000004,
+          "min": 33.162874999999985
+        },
+        "maxRssBytes": {
+          "p50": 53837824,
+          "max": 54181888
+        }
+      },
+      "caseDurationMs": 365.90187499999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 45989888,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5075000,
+          "rss": 48201728,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48201728
+      }
+    },
+    {
+      "side": "A",
+      "pair": 4,
+      "childWallMs": 4588.164625000005,
+      "loadAverage1m": 8.86865234375,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 453.87962500000003,
+          "p95": 482.04045799999994,
+          "min": 439.0759170000001
+        },
+        "maxRssBytes": {
+          "p50": 218644480,
+          "max": 221134848
+        }
+      },
+      "caseDurationMs": 4555.529834,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46088192,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5046776,
+          "rss": 48152576,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48152576
+      }
+    },
+    {
+      "side": "B",
+      "pair": 4,
+      "childWallMs": 433.71650000000955,
+      "loadAverage1m": 8.86865234375,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 38.141999999999996,
+          "p95": 54.23316700000001,
+          "min": 33.97912499999998
+        },
+        "maxRssBytes": {
+          "p50": 53903360,
+          "max": 54149120
+        }
+      },
+      "caseDurationMs": 397.20408299999997,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46399488,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5046512,
+          "rss": 48283648,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48283648
+      }
+    },
+    {
+      "side": "A",
+      "pair": 5,
+      "childWallMs": 5163.4643750000105,
+      "loadAverage1m": 11.53466796875,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 500.559166,
+          "p95": 628.321625,
+          "min": 445.3310840000004
+        },
+        "maxRssBytes": {
+          "p50": 219971584,
+          "max": 223248384
+        }
+      },
+      "caseDurationMs": 5124.126749999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46366720,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5038808,
+          "rss": 48431104,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48431104
+      }
+    },
+    {
+      "side": "B",
+      "pair": 5,
+      "childWallMs": 374.2785830000066,
+      "loadAverage1m": 11.53466796875,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 33.55891599999998,
+          "p95": 34.29912499999995,
+          "min": 31.145749999999992
+        },
+        "maxRssBytes": {
+          "p50": 53837824,
+          "max": 54001664
+        }
+      },
+      "caseDurationMs": 338.848416,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5180120,
+          "rss": 45907968,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5046912,
+          "rss": 47923200,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 47923200
+      }
+    },
+    {
+      "side": "A",
+      "pair": 6,
+      "childWallMs": 4731.2881669999915,
+      "loadAverage1m": 8.80712890625,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 471.3784590000005,
+          "p95": 485.12883299999976,
+          "min": 445.10512500000004
+        },
+        "maxRssBytes": {
+          "p50": 218021888,
+          "max": 221003776
+        }
+      },
+      "caseDurationMs": 4698.060792,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46071808,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5044192,
+          "rss": 48021504,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48021504
+      }
+    },
+    {
+      "side": "B",
+      "pair": 6,
+      "childWallMs": 385.3852080000215,
+      "loadAverage1m": 8.80712890625,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 33.885875,
+          "p95": 38.444041,
+          "min": 33.03125
+        },
+        "maxRssBytes": {
+          "p50": 53788672,
+          "max": 53919744
+        }
+      },
+      "caseDurationMs": 352.320375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46186496,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5046056,
+          "rss": 48234496,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48234496
+      }
+    },
+    {
+      "side": "A",
+      "pair": 7,
+      "childWallMs": 4996.653208000003,
+      "loadAverage1m": 7.962890625,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 479.498583,
+          "p95": 675.494334,
+          "min": 422.20670900000005
+        },
+        "maxRssBytes": {
+          "p50": 217989120,
+          "max": 221609984
+        }
+      },
+      "caseDurationMs": 4961.326542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46104576,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5043560,
+          "rss": 48070656,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48070656
+      }
+    },
+    {
+      "side": "B",
+      "pair": 7,
+      "childWallMs": 375.03320900001563,
+      "loadAverage1m": 7.962890625,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 31.414166999999964,
+          "p95": 51.88345899999999,
+          "min": 30.176750000000027
+        },
+        "maxRssBytes": {
+          "p50": 53755904,
+          "max": 53919744
+        }
+      },
+      "caseDurationMs": 342.693,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46039040,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5047008,
+          "rss": 48037888,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48037888
+      }
+    },
+    {
+      "side": "A",
+      "pair": 8,
+      "childWallMs": 5323.262625000032,
+      "loadAverage1m": 8.5068359375,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 515.221333,
+          "p95": 653.6199160000001,
+          "min": 463.101042
+        },
+        "maxRssBytes": {
+          "p50": 218939392,
+          "max": 222101504
+        }
+      },
+      "caseDurationMs": 5291.610583000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46120960,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5047776,
+          "rss": 43597824,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 47988736
+      }
+    },
+    {
+      "side": "B",
+      "pair": 8,
+      "childWallMs": 388.84070800000336,
+      "loadAverage1m": 8.5068359375,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 35.378541,
+          "p95": 37.81970799999999,
+          "min": 32.734083
+        },
+        "maxRssBytes": {
+          "p50": 53805056,
+          "max": 53903360
+        }
+      },
+      "caseDurationMs": 356.000041,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46202880,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5069832,
+          "rss": 48185344,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48185344
+      }
+    },
+    {
+      "side": "A",
+      "pair": 9,
+      "childWallMs": 5595.425625000033,
+      "loadAverage1m": 11.2255859375,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 522.3270000000002,
+          "p95": 662.430625,
+          "min": 500.0089160000002
+        },
+        "maxRssBytes": {
+          "p50": 219152384,
+          "max": 225918976
+        }
+      },
+      "caseDurationMs": 5556.727209000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179944,
+          "rss": 46219264,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5050256,
+          "rss": 48283648,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48283648
+      }
+    },
+    {
+      "side": "B",
+      "pair": 9,
+      "childWallMs": 455.78141699999105,
+      "loadAverage1m": 11.2255859375,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 36.948499999999996,
+          "p95": 69.12462499999998,
+          "min": 34.794833
+        },
+        "maxRssBytes": {
+          "p50": 53903360,
+          "max": 54050816
+        }
+      },
+      "caseDurationMs": 416.575959,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46219264,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5039368,
+          "rss": 48463872,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48463872
+      }
+    },
+    {
+      "side": "A",
+      "pair": 10,
+      "childWallMs": 5144.938542000018,
+      "loadAverage1m": 9.61181640625,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 507.29324999999994,
+          "p95": 561.2833329999999,
+          "min": 468.3431660000001
+        },
+        "maxRssBytes": {
+          "p50": 219152384,
+          "max": 224526336
+        }
+      },
+      "caseDurationMs": 5105.873833,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46219264,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5046384,
+          "rss": 48365568,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48365568
+      }
+    },
+    {
+      "side": "B",
+      "pair": 10,
+      "childWallMs": 435.65904200001387,
+      "loadAverage1m": 9.61181640625,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 37.998375,
+          "p95": 50.06,
+          "min": 34.53358300000002
+        },
+        "maxRssBytes": {
+          "p50": 53968896,
+          "max": 54542336
+        }
+      },
+      "caseDurationMs": 400.563709,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46120960,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5040216,
+          "rss": 48463872,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48463872
+      }
+    },
+    {
+      "side": "A",
+      "pair": 11,
+      "childWallMs": 5653.6254999999655,
+      "loadAverage1m": 11.25146484375,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 520.5417499999999,
+          "p95": 696.580334,
+          "min": 498.386125
+        },
+        "maxRssBytes": {
+          "p50": 220364800,
+          "max": 225886208
+        }
+      },
+      "caseDurationMs": 5612.16775,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46366720,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5048664,
+          "rss": 48611328,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48611328
+      }
+    },
+    {
+      "side": "B",
+      "pair": 11,
+      "childWallMs": 521.3652079999447,
+      "loadAverage1m": 11.07080078125,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 43.738999999999976,
+          "p95": 55.65245900000002,
+          "min": 39.86391699999999
+        },
+        "maxRssBytes": {
+          "p50": 53985280,
+          "max": 54247424
+        }
+      },
+      "caseDurationMs": 475.69929099999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46563328,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5038352,
+          "rss": 48513024,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48513024
+      }
+    },
+    {
+      "side": "A",
+      "pair": 12,
+      "childWallMs": 4710.973999999929,
+      "loadAverage1m": 9.72509765625,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 464.8313330000001,
+          "p95": 520.6067499999999,
+          "min": 434.34629199999995
+        },
+        "maxRssBytes": {
+          "p50": 219004928,
+          "max": 223543296
+        }
+      },
+      "caseDurationMs": 4678.918625,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5180120,
+          "rss": 46088192,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5047184,
+          "rss": 48054272,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48054272
+      }
+    },
+    {
+      "side": "B",
+      "pair": 12,
+      "childWallMs": 369.58270899998024,
+      "loadAverage1m": 9.72509765625,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 33.359208000000024,
+          "p95": 35.205625,
+          "min": 31.932375000000008
+        },
+        "maxRssBytes": {
+          "p50": 53788672,
+          "max": 53919744
+        }
+      },
+      "caseDurationMs": 337.299292,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46104576,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5038384,
+          "rss": 48070656,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48070656
+      }
+    },
+    {
+      "side": "A",
+      "pair": 13,
+      "childWallMs": 4764.287499999977,
+      "loadAverage1m": 10.169921875,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 470.08837500000027,
+          "p95": 514.1413750000002,
+          "min": 442.855625
+        },
+        "maxRssBytes": {
+          "p50": 218775552,
+          "max": 220037120
+        }
+      },
+      "caseDurationMs": 4732.699542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46088192,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5038496,
+          "rss": 48119808,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48119808
+      }
+    },
+    {
+      "side": "B",
+      "pair": 13,
+      "childWallMs": 385.1733330000425,
+      "loadAverage1m": 10.169921875,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 35.081999999999994,
+          "p95": 36.834292,
+          "min": 31.486249999999984
+        },
+        "maxRssBytes": {
+          "p50": 53837824,
+          "max": 53936128
+        }
+      },
+      "caseDurationMs": 352.20912500000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46071808,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5073136,
+          "rss": 48070656,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48070656
+      }
+    },
+    {
+      "side": "A",
+      "pair": 14,
+      "childWallMs": 4469.881749999942,
+      "loadAverage1m": 11.126953125,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 430.1617919999999,
+          "p95": 502.345375,
+          "min": 416.92920900000036
+        },
+        "maxRssBytes": {
+          "p50": 219545600,
+          "max": 220676096
+        }
+      },
+      "caseDurationMs": 4433.425125000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46415872,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5044304,
+          "rss": 48431104,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48431104
+      }
+    },
+    {
+      "side": "B",
+      "pair": 14,
+      "childWallMs": 392.5440000001108,
+      "loadAverage1m": 11.126953125,
+      "ok": true,
+      "metrics": {
+        "command": "capsule capabilities --json",
+        "exitCode": 0,
+        "stdoutBytes": 0,
+        "stdoutDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutStableAcrossSamples": true,
+        "wallMs": {
+          "p50": 33.77283300000002,
+          "p95": 53.04975,
+          "min": 32.653583999999995
+        },
+        "maxRssBytes": {
+          "p50": 53805056,
+          "max": 54329344
+        }
+      },
+      "caseDurationMs": 360.596583,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5179976,
+          "rss": 46120960,
+          "external": 2099403,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 5047112,
+          "rss": 48119808,
+          "external": 2147254,
+          "arrayBuffers": 24967
+        },
+        "maxRssBytes": 48119808
+      }
+    }
+  ]
+}

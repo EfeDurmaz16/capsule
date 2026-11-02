@@ -1,0 +1,218 @@
+{
+  "meta": {
+    "label": "after-85506c1",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "85506c1b5a77ae4e3092cdf17b792201373492d4",
+    "packagesTree": "deea6cd305e943c057dec39258545a4e6052eaec",
+    "dirty": false,
+    "date": "2026-10-27T14:08:44.812Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56",
+      "execArgv": [
+        "--expose-gc"
+      ]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": null,
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workload": {
+    "id": "perf-02-artifact-collection",
+    "perfIds": [
+      "PERF-02"
+    ],
+    "manifestIds": [
+      "IO-01"
+    ]
+  },
+  "case": "large-file-within-budget",
+  "description": "One 48 MiB file under the default budget. Hash must equal an independent sha256.",
+  "params": {
+    "fileBytes": 50331648
+  },
+  "runs": [
+    {
+      "rep": 0,
+      "childWallMs": 87.14033399999971,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 19.745584,
+        "bytesRead": 50331648,
+        "readCalls": 769,
+        "peakRssBytes": 49709056,
+        "peakRssGrowthBytes": 65536,
+        "heapUsedDeltaBytes": 446240,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 1,
+        "truncated": false,
+        "truncationReason": null,
+        "hashMatches": true
+      },
+      "caseDurationMs": 57.65225,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5019016,
+          "rss": 45629440,
+          "external": 1965053,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 5211880,
+          "rss": 49758208,
+          "external": 3083169,
+          "arrayBuffers": 1130740
+        },
+        "maxRssBytes": 49758208
+      }
+    },
+    {
+      "rep": 1,
+      "childWallMs": 95.32870899999944,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 20.057792000000006,
+        "bytesRead": 50331648,
+        "readCalls": 769,
+        "peakRssBytes": 49610752,
+        "peakRssGrowthBytes": 65536,
+        "heapUsedDeltaBytes": 446240,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 1,
+        "truncated": false,
+        "truncationReason": null,
+        "hashMatches": true
+      },
+      "caseDurationMs": 63.897417000000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5019016,
+          "rss": 45760512,
+          "external": 1965053,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 5211880,
+          "rss": 49676288,
+          "external": 3083169,
+          "arrayBuffers": 1130740
+        },
+        "maxRssBytes": 49676288
+      }
+    },
+    {
+      "rep": 2,
+      "childWallMs": 89.96783399999913,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 19.752708,
+        "bytesRead": 50331648,
+        "readCalls": 769,
+        "peakRssBytes": 49627136,
+        "peakRssGrowthBytes": 65536,
+        "heapUsedDeltaBytes": 446240,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 1,
+        "truncated": false,
+        "truncationReason": null,
+        "hashMatches": true
+      },
+      "caseDurationMs": 60.644209000000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5019088,
+          "rss": 45629440,
+          "external": 1965053,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 5211952,
+          "rss": 49692672,
+          "external": 3083169,
+          "arrayBuffers": 1130740
+        },
+        "maxRssBytes": 49692672
+      }
+    },
+    {
+      "rep": 3,
+      "childWallMs": 94.31154199999946,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 19.449999999999996,
+        "bytesRead": 50331648,
+        "readCalls": 769,
+        "peakRssBytes": 49496064,
+        "peakRssGrowthBytes": 65536,
+        "heapUsedDeltaBytes": 446240,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 1,
+        "truncated": false,
+        "truncationReason": null,
+        "hashMatches": true
+      },
+      "caseDurationMs": 62.387375000000006,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5019016,
+          "rss": 45580288,
+          "external": 1965053,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 5211880,
+          "rss": 49577984,
+          "external": 3083169,
+          "arrayBuffers": 1130740
+        },
+        "maxRssBytes": 49577984
+      }
+    },
+    {
+      "rep": 4,
+      "childWallMs": 97.73675000000003,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 19.420459000000008,
+        "bytesRead": 50331648,
+        "readCalls": 769,
+        "peakRssBytes": 49512448,
+        "peakRssGrowthBytes": 81920,
+        "heapUsedDeltaBytes": 446240,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 1,
+        "truncated": false,
+        "truncationReason": null,
+        "hashMatches": true
+      },
+      "caseDurationMs": 65.731459,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5019016,
+          "rss": 45547520,
+          "external": 1965053,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 5211880,
+          "rss": 49561600,
+          "external": 3083169,
+          "arrayBuffers": 1130740
+        },
+        "maxRssBytes": 49561600
+      }
+    }
+  ]
+}

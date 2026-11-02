@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import { DatabaseSync, type StatementSync } from "node:sqlite";
 import type { CapsuleReceipt, ReceiptStore } from "@capsule-sdk/core";
 
 export interface SqliteReceiptStoreOptions {
@@ -24,6 +24,10 @@ export class SqliteReceiptStore implements ReceiptStore {
   private readonly db: DatabaseSync;
   private readonly tableName: string;
   private closed = false;
+  // Prepared once on first use and reused (PERF-12): preparing per call cost more than executing an
+  // INSERT. SQLite re-prepares a statement itself if the schema changes underneath it.
+  private insertStatement?: StatementSync;
+  private readAllStatement?: StatementSync;
 
   constructor(options: SqliteReceiptStoreOptions) {
     mkdirSync(dirname(options.path), { recursive: true });
@@ -52,9 +56,8 @@ export class SqliteReceiptStore implements ReceiptStore {
 
   write(receipt: CapsuleReceipt): void {
     this.assertOpen();
-    this.db
-      .prepare(
-        `INSERT OR REPLACE INTO ${this.tableName} (
+    this.insertStatement ??= this.db.prepare(
+      `INSERT OR REPLACE INTO ${this.tableName} (
           id,
           type,
           provider,
@@ -65,33 +68,31 @@ export class SqliteReceiptStore implements ReceiptStore {
           finished_at,
           receipt_json
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        receipt.id,
-        receipt.type,
-        receipt.provider,
-        receipt.adapter,
-        receipt.capabilityPath,
-        receipt.supportLevel,
-        receipt.startedAt,
-        receipt.finishedAt,
-        JSON.stringify(receipt)
-      );
+    );
+    this.insertStatement.run(
+      receipt.id,
+      receipt.type,
+      receipt.provider,
+      receipt.adapter,
+      receipt.capabilityPath,
+      receipt.supportLevel,
+      receipt.startedAt,
+      receipt.finishedAt,
+      JSON.stringify(receipt)
+    );
   }
 
   readAll(): CapsuleReceipt[] {
     this.assertOpen();
-    return this.db
-      .prepare(`SELECT id, receipt_json FROM ${this.tableName} ORDER BY started_at ASC, id ASC`)
-      .all()
-      .map((row) => {
-        const receiptRow = row as unknown as ReceiptRow;
-        try {
-          return JSON.parse(receiptRow.receipt_json) as CapsuleReceipt;
-        } catch (error) {
-          throw new Error(`Invalid SQLite receipt JSON for receipt ${receiptRow.id}.`, { cause: error });
-        }
-      });
+    this.readAllStatement ??= this.db.prepare(`SELECT id, receipt_json FROM ${this.tableName} ORDER BY started_at ASC, id ASC`);
+    return this.readAllStatement.all().map((row) => {
+      const receiptRow = row as unknown as ReceiptRow;
+      try {
+        return JSON.parse(receiptRow.receipt_json) as CapsuleReceipt;
+      } catch (error) {
+        throw new Error(`Invalid SQLite receipt JSON for receipt ${receiptRow.id}.`, { cause: error });
+      }
+    });
   }
 
   close(): void {
@@ -99,6 +100,8 @@ export class SqliteReceiptStore implements ReceiptStore {
       return;
     }
     this.closed = true;
+    this.insertStatement = undefined;
+    this.readAllStatement = undefined;
     this.db.close();
   }
 

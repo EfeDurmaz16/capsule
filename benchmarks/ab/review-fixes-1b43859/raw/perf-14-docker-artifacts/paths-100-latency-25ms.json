@@ -1,0 +1,1527 @@
+{
+  "meta": {
+    "label": "review-fixes-1b43859",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 20,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "1b43859d81d052de0784d9a795814af9557c576a",
+      "packagesTree": "fe78af81afaafa586b653ca94efafe57a6a1b006",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "1b43859d81d052de0784d9a795814af9557c576a",
+    "date": "2026-10-27T22:26:49.242Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        13.47119140625,
+        13.42822265625,
+        16.8271484375
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)"
+  },
+  "workload": "perf-14-docker-artifacts",
+  "case": "paths-100-latency-25ms",
+  "params": {
+    "paths": 100,
+    "latencySeconds": 0.025
+  },
+  "runs": [
+    {
+      "side": "A",
+      "pair": 0,
+      "childWallMs": 6531.2615000000005,
+      "loadAverage1m": 12.98876953125,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 5716.701292,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 2850816,
+        "heapUsedDeltaBytes": 1079512
+      },
+      "caseDurationMs": 6491.387834,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200904,
+          "rss": 46219264,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7706488,
+          "rss": 59342848,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 59342848
+      }
+    },
+    {
+      "side": "B",
+      "pair": 0,
+      "childWallMs": 2227.8683340000025,
+      "loadAverage1m": 12.98876953125,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 1534.927208,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3325952,
+        "heapUsedDeltaBytes": 1542184
+      },
+      "caseDurationMs": 2187.207209,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46088192,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8121064,
+          "rss": 60162048,
+          "external": 2285703,
+          "arrayBuffers": 157609
+        },
+        "maxRssBytes": 60162048
+      }
+    },
+    {
+      "side": "A",
+      "pair": 1,
+      "childWallMs": 6330.4573329999985,
+      "loadAverage1m": 16.01220703125,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 5595.134625,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 1540096,
+        "heapUsedDeltaBytes": 1091984
+      },
+      "caseDurationMs": 6289.5342089999995,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46333952,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7717136,
+          "rss": 55853056,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 58261504
+      }
+    },
+    {
+      "side": "B",
+      "pair": 1,
+      "childWallMs": 2218.617707999998,
+      "loadAverage1m": 15.2099609375,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 1596.754667,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3457024,
+        "heapUsedDeltaBytes": 1498512
+      },
+      "caseDurationMs": 2182.509958,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46153728,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8077712,
+          "rss": 60211200,
+          "external": 2285703,
+          "arrayBuffers": 157609
+        },
+        "maxRssBytes": 60211200
+      }
+    },
+    {
+      "side": "A",
+      "pair": 2,
+      "childWallMs": 7800.959000000003,
+      "loadAverage1m": 12.6552734375,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 6732.017583,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 2736128,
+        "heapUsedDeltaBytes": 1107632
+      },
+      "caseDurationMs": 7763.720917,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46284800,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7733536,
+          "rss": 59523072,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 59523072
+      }
+    },
+    {
+      "side": "B",
+      "pair": 2,
+      "childWallMs": 2613.6467919999996,
+      "loadAverage1m": 12.4423828125,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 1690.736667,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3293184,
+        "heapUsedDeltaBytes": 1664344
+      },
+      "caseDurationMs": 2565.796166,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46383104,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8245592,
+          "rss": 60243968,
+          "external": 2285703,
+          "arrayBuffers": 157609
+        },
+        "maxRssBytes": 60243968
+      }
+    },
+    {
+      "side": "A",
+      "pair": 3,
+      "childWallMs": 6822.329792000004,
+      "loadAverage1m": 10.6474609375,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 6013.9505420000005,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 2818048,
+        "heapUsedDeltaBytes": 1124120
+      },
+      "caseDurationMs": 6789.024165999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46137344,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7750072,
+          "rss": 59457536,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 59457536
+      }
+    },
+    {
+      "side": "B",
+      "pair": 3,
+      "childWallMs": 2793.611208000002,
+      "loadAverage1m": 14.43896484375,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 1878.012208,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3358720,
+        "heapUsedDeltaBytes": 1660032
+      },
+      "caseDurationMs": 2758.7348749999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46088192,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8240408,
+          "rss": 60162048,
+          "external": 2285703,
+          "arrayBuffers": 157609
+        },
+        "maxRssBytes": 60162048
+      }
+    },
+    {
+      "side": "A",
+      "pair": 4,
+      "childWallMs": 6892.583542000008,
+      "loadAverage1m": 12.72119140625,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 5547.722542,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 2736128,
+        "heapUsedDeltaBytes": 1094488
+      },
+      "caseDurationMs": 6844.580167,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46202880,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7721808,
+          "rss": 59342848,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 59342848
+      }
+    },
+    {
+      "side": "B",
+      "pair": 4,
+      "childWallMs": 5983.288625000016,
+      "loadAverage1m": 12.0224609375,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 2529.186542,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 327680,
+        "heapUsedDeltaBytes": 1721208
+      },
+      "caseDurationMs": 5940.6317500000005,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46071808,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8304248,
+          "rss": 57245696,
+          "external": 2285993,
+          "arrayBuffers": 157899
+        },
+        "maxRssBytes": 57245696
+      }
+    },
+    {
+      "side": "A",
+      "pair": 5,
+      "childWallMs": 6651.2784159999865,
+      "loadAverage1m": 11.388671875,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 5551.429999999999,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 2457600,
+        "heapUsedDeltaBytes": 1091248
+      },
+      "caseDurationMs": 6615.197333,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46137344,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7716280,
+          "rss": 56033280,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 58949632
+      }
+    },
+    {
+      "side": "B",
+      "pair": 5,
+      "childWallMs": 2375.1611250000133,
+      "loadAverage1m": 11.388671875,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 2197.785208,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3276800,
+        "heapUsedDeltaBytes": 1638304
+      },
+      "caseDurationMs": 2331.231417,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46252032,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8219376,
+          "rss": 60129280,
+          "external": 2285703,
+          "arrayBuffers": 157609
+        },
+        "maxRssBytes": 60129280
+      }
+    },
+    {
+      "side": "A",
+      "pair": 6,
+      "childWallMs": 6507.945874999976,
+      "loadAverage1m": 13.8076171875,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 6188.032875,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 1032192,
+        "heapUsedDeltaBytes": 1086288
+      },
+      "caseDurationMs": 6466.247915999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200904,
+          "rss": 46022656,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7712032,
+          "rss": 56131584,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 57573376
+      }
+    },
+    {
+      "side": "B",
+      "pair": 6,
+      "childWallMs": 2293.653874999989,
+      "loadAverage1m": 13.8076171875,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 1730.065,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3424256,
+        "heapUsedDeltaBytes": 1519216
+      },
+      "caseDurationMs": 2248.6849589999997,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46546944,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8104600,
+          "rss": 60506112,
+          "external": 2285703,
+          "arrayBuffers": 157609
+        },
+        "maxRssBytes": 60506112
+      }
+    },
+    {
+      "side": "A",
+      "pair": 7,
+      "childWallMs": 7083.980417000013,
+      "loadAverage1m": 13.78076171875,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 6311.081792,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 1589248,
+        "heapUsedDeltaBytes": 1016912
+      },
+      "caseDurationMs": 7039.2525000000005,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46186496,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7639752,
+          "rss": 56049664,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 57868288
+      }
+    },
+    {
+      "side": "B",
+      "pair": 7,
+      "childWallMs": 2718.691958999989,
+      "loadAverage1m": 14.8388671875,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 1831.9208339999998,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3571712,
+        "heapUsedDeltaBytes": 1326496
+      },
+      "caseDurationMs": 2680.468958,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46039040,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7912024,
+          "rss": 60342272,
+          "external": 2285332,
+          "arrayBuffers": 157238
+        },
+        "maxRssBytes": 60342272
+      }
+    },
+    {
+      "side": "A",
+      "pair": 8,
+      "childWallMs": 6703.464333000011,
+      "loadAverage1m": 14.173828125,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 6003.9622500000005,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 1982464,
+        "heapUsedDeltaBytes": 1115320
+      },
+      "caseDurationMs": 6657.520667,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46366720,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7738112,
+          "rss": 55836672,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 58474496
+      }
+    },
+    {
+      "side": "B",
+      "pair": 8,
+      "childWallMs": 3142.337750000006,
+      "loadAverage1m": 14.173828125,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 2083.7837919999997,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3276800,
+        "heapUsedDeltaBytes": 1699176
+      },
+      "caseDurationMs": 3074.692875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46628864,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8277768,
+          "rss": 60391424,
+          "external": 2285993,
+          "arrayBuffers": 157899
+        },
+        "maxRssBytes": 60391424
+      }
+    },
+    {
+      "side": "A",
+      "pair": 9,
+      "childWallMs": 12685.882541000028,
+      "loadAverage1m": 19.01220703125,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 8407.088124999998,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 1671168,
+        "heapUsedDeltaBytes": 685008
+      },
+      "caseDurationMs": 12594.936708,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200976,
+          "rss": 46645248,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 6395208,
+          "rss": 54575104,
+          "external": 2186692,
+          "arrayBuffers": 58598
+        },
+        "maxRssBytes": 58228736
+      }
+    },
+    {
+      "side": "B",
+      "pair": 9,
+      "childWallMs": 7778.400249999948,
+      "loadAverage1m": 19.3310546875,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 4323.6875,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 229376,
+        "heapUsedDeltaBytes": 1664760
+      },
+      "caseDurationMs": 7687.4075,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46628864,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8245872,
+          "rss": 56950784,
+          "external": 2285703,
+          "arrayBuffers": 157609
+        },
+        "maxRssBytes": 57049088
+      }
+    },
+    {
+      "side": "A",
+      "pair": 10,
+      "childWallMs": 5648.630833000003,
+      "loadAverage1m": 19.294921875,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 4897.772290999999,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 2736128,
+        "heapUsedDeltaBytes": 1202536
+      },
+      "caseDurationMs": 5573.268,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46514176,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7826208,
+          "rss": 59572224,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 59572224
+      }
+    },
+    {
+      "side": "B",
+      "pair": 10,
+      "childWallMs": 1793.4662920000264,
+      "loadAverage1m": 19.294921875,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 1443.664791,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3063808,
+        "heapUsedDeltaBytes": 1715624
+      },
+      "caseDurationMs": 1737.1837500000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200976,
+          "rss": 46432256,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8299072,
+          "rss": 60440576,
+          "external": 2285993,
+          "arrayBuffers": 157899
+        },
+        "maxRssBytes": 60440576
+      }
+    },
+    {
+      "side": "A",
+      "pair": 11,
+      "childWallMs": 9654.991249999963,
+      "loadAverage1m": 20.33251953125,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 7200.121915999999,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 2228224,
+        "heapUsedDeltaBytes": 922624
+      },
+      "caseDurationMs": 9595.248916,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46563328,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7545384,
+          "rss": 57081856,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 58802176
+      }
+    },
+    {
+      "side": "B",
+      "pair": 11,
+      "childWallMs": 5370.286625000008,
+      "loadAverage1m": 19.6650390625,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 2668.6296660000003,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3293184,
+        "heapUsedDeltaBytes": 1694424
+      },
+      "caseDurationMs": 5316.209042,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46596096,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8272752,
+          "rss": 60555264,
+          "external": 2285993,
+          "arrayBuffers": 157899
+        },
+        "maxRssBytes": 60555264
+      }
+    },
+    {
+      "side": "A",
+      "pair": 12,
+      "childWallMs": 5215.831750000012,
+      "loadAverage1m": 15.89404296875,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 5016.123875,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 2768896,
+        "heapUsedDeltaBytes": 1048384
+      },
+      "caseDurationMs": 5176.285334,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46366720,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7671232,
+          "rss": 59539456,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 59539456
+      }
+    },
+    {
+      "side": "B",
+      "pair": 12,
+      "childWallMs": 1779.9936250000028,
+      "loadAverage1m": 15.89404296875,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 1589.265625,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3473408,
+        "heapUsedDeltaBytes": 1667152
+      },
+      "caseDurationMs": 1740.286167,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46268416,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8245896,
+          "rss": 60456960,
+          "external": 2285703,
+          "arrayBuffers": 157609
+        },
+        "maxRssBytes": 60456960
+      }
+    },
+    {
+      "side": "A",
+      "pair": 13,
+      "childWallMs": 5813.225250000018,
+      "loadAverage1m": 16.08251953125,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 5154.388207999999,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 2850816,
+        "heapUsedDeltaBytes": 1081216
+      },
+      "caseDurationMs": 5780.469333,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200976,
+          "rss": 46153728,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7705680,
+          "rss": 59424768,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 59424768
+      }
+    },
+    {
+      "side": "B",
+      "pair": 13,
+      "childWallMs": 1467.4363330000197,
+      "loadAverage1m": 15.43505859375,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 1275.296,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3538944,
+        "heapUsedDeltaBytes": 1695544
+      },
+      "caseDurationMs": 1433.2853750000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46186496,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8278368,
+          "rss": 60456960,
+          "external": 2285993,
+          "arrayBuffers": 157899
+        },
+        "maxRssBytes": 60456960
+      }
+    },
+    {
+      "side": "A",
+      "pair": 14,
+      "childWallMs": 5057.52679199999,
+      "loadAverage1m": 13.154296875,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 4959.439875,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 2686976,
+        "heapUsedDeltaBytes": 1080760
+      },
+      "caseDurationMs": 5023.073125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46088192,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7705832,
+          "rss": 59228160,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 59228160
+      }
+    },
+    {
+      "side": "B",
+      "pair": 14,
+      "childWallMs": 1651.5083340000128,
+      "loadAverage1m": 13.154296875,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 1362.7714999999998,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3325952,
+        "heapUsedDeltaBytes": 1531256
+      },
+      "caseDurationMs": 1608.551875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46137344,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8113424,
+          "rss": 60194816,
+          "external": 2285703,
+          "arrayBuffers": 157609
+        },
+        "maxRssBytes": 60194816
+      }
+    },
+    {
+      "side": "A",
+      "pair": 15,
+      "childWallMs": 4984.780374999973,
+      "loadAverage1m": 11.7568359375,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 4707.348667,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 2916352,
+        "heapUsedDeltaBytes": 1003960
+      },
+      "caseDurationMs": 4950.202541,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200904,
+          "rss": 46268416,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7626944,
+          "rss": 59506688,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 59506688
+      }
+    },
+    {
+      "side": "B",
+      "pair": 15,
+      "childWallMs": 1476.549958000076,
+      "loadAverage1m": 11.93603515625,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 1227.4041659999998,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3768320,
+        "heapUsedDeltaBytes": 1126304
+      },
+      "caseDurationMs": 1442.505625,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46170112,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7707312,
+          "rss": 60424192,
+          "external": 2285003,
+          "arrayBuffers": 156909
+        },
+        "maxRssBytes": 60424192
+      }
+    },
+    {
+      "side": "A",
+      "pair": 16,
+      "childWallMs": 5550.673291999963,
+      "loadAverage1m": 13.54736328125,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 4824.658666,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 2785280,
+        "heapUsedDeltaBytes": 1171744
+      },
+      "caseDurationMs": 5515.5626250000005,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46219264,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7793320,
+          "rss": 59588608,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 59588608
+      }
+    },
+    {
+      "side": "B",
+      "pair": 16,
+      "childWallMs": 1358.7512500000885,
+      "loadAverage1m": 13.54736328125,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 1208.972125,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3457024,
+        "heapUsedDeltaBytes": 1696808
+      },
+      "caseDurationMs": 1321.7927499999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46235648,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8278264,
+          "rss": 60375040,
+          "external": 2285993,
+          "arrayBuffers": 157899
+        },
+        "maxRssBytes": 60375040
+      }
+    },
+    {
+      "side": "A",
+      "pair": 17,
+      "childWallMs": 5508.564499999979,
+      "loadAverage1m": 12.08447265625,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 5048.9818749999995,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 1835008,
+        "heapUsedDeltaBytes": 1193208
+      },
+      "caseDurationMs": 5469.775583000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46137344,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7820656,
+          "rss": 56115200,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 58359808
+      }
+    },
+    {
+      "side": "B",
+      "pair": 17,
+      "childWallMs": 1648.5411250001052,
+      "loadAverage1m": 12.08447265625,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 1429.7329579999998,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3407872,
+        "heapUsedDeltaBytes": 1541528
+      },
+      "caseDurationMs": 1612.4251250000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46268416,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8120832,
+          "rss": 60194816,
+          "external": 2285703,
+          "arrayBuffers": 157609
+        },
+        "maxRssBytes": 60194816
+      }
+    },
+    {
+      "side": "A",
+      "pair": 18,
+      "childWallMs": 5162.9400000000605,
+      "loadAverage1m": 10.8828125,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 4654.877458,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 2605056,
+        "heapUsedDeltaBytes": 1169328
+      },
+      "caseDurationMs": 5129.432167,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46186496,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7793320,
+          "rss": 55246848,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 58966016
+      }
+    },
+    {
+      "side": "B",
+      "pair": 18,
+      "childWallMs": 1476.748332999996,
+      "loadAverage1m": 10.8828125,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 1276.1178340000001,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3375104,
+        "heapUsedDeltaBytes": 1619192
+      },
+      "caseDurationMs": 1442.970208,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200832,
+          "rss": 46088192,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8197912,
+          "rss": 60096512,
+          "external": 2285703,
+          "arrayBuffers": 157609
+        },
+        "maxRssBytes": 60096512
+      }
+    },
+    {
+      "side": "A",
+      "pair": 19,
+      "childWallMs": 6112.9248330000555,
+      "loadAverage1m": 9.66357421875,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 5364.240875,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": false,
+        "layoutDigest": "3be371d1443a00763fbd4fe1a08c7192d9f9a1e9d93df6cf727f88e56703c324",
+        "peakRssGrowthBytes": 2703360,
+        "heapUsedDeltaBytes": 1133264
+      },
+      "caseDurationMs": 6062.911749999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200976,
+          "rss": 46202880,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 7755416,
+          "rss": 59359232,
+          "external": 2190802,
+          "arrayBuffers": 62708
+        },
+        "maxRssBytes": 59359232
+      }
+    },
+    {
+      "side": "B",
+      "pair": 19,
+      "childWallMs": 3499.957541999989,
+      "loadAverage1m": 9.9306640625,
+      "ok": true,
+      "metrics": {
+        "paths": 100,
+        "requestedPaths": 100,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 2096.103792,
+        "dockerCpSpawns": 100,
+        "artifactsCollected": 100,
+        "bytesCollected": 409600,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "80b4db2f2e4552e1b085c3aee0754f74c2001687d9c45698ca31732816fdb316",
+        "peakRssGrowthBytes": 3260416,
+        "heapUsedDeltaBytes": 1667272
+      },
+      "caseDurationMs": 3454.306833,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5200904,
+          "rss": 46415872,
+          "external": 2099984,
+          "arrayBuffers": 25428
+        },
+        "endMemory": {
+          "heapUsed": 8245912,
+          "rss": 60243968,
+          "external": 2285703,
+          "arrayBuffers": 157609
+        },
+        "maxRssBytes": 60243968
+      }
+    }
+  ]
+}

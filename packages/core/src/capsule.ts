@@ -45,7 +45,7 @@ import type {
   VersionEdgeSpec
 } from "./types.js";
 import type { ReceiptSigner } from "./receipts.js";
-import type { ExecSpec, Sandbox } from "./types.js";
+import type { ExecSpec, Sandbox, SandboxDestroyOptions } from "./types.js";
 
 export interface CapsuleOptions {
   adapter: CapsuleAdapter;
@@ -66,13 +66,16 @@ interface ContextOptions extends PolicyInput {
   idempotencyKey?: string;
   idempotencyScope?: string;
   receiptCounter?: { count: number };
+  /**
+   * Required receipt writes owned by exactly one operation. Each operation awaits only its own list,
+   * and the list is dropped with the operation, so sibling operations never share completion waits.
+   */
+  pendingWrites?: Promise<void>[];
 }
 
 interface ContextRuntime {
   context: AdapterContext;
   defaultOptions: ContextOptions;
-  pendingWrites: Promise<void>[];
-  receipts: CapsuleReceipt[];
 }
 
 function receiptScope(type: CapsuleReceipt["type"], capabilityPath: CapabilityPath): ReceiptScope {
@@ -144,8 +147,10 @@ export class Capsule {
           throw redactError(error, spec.env, this.options.policy);
         }
         if (this.receiptPersistenceMode() === "required") {
-          await Promise.all(runtime.pendingWrites);
+          await Promise.all(runtime.defaultOptions.pendingWrites ?? []);
         }
+        // The create operation is finished: later sandbox operations own their own write lists.
+        runtime.defaultOptions = { ...runtime.defaultOptions, pendingWrites: undefined };
         return this.wrapSandbox(sandbox, runtime, spec.approval);
       }
     };
@@ -258,7 +263,13 @@ export class Capsule {
       },
       delete: async (spec: DeleteServiceSpec) => {
         this.require("service.delete");
-        const policyInput = { approval: spec.approval, idempotencyKey: spec.idempotencyKey, resource: approvalResource("service", { id: spec.id }) };
+        // The provider is part of the hint so a grant scoped to one provider's resource does not match a
+        // same-id resource on another provider. A grant without provider still matches as before.
+        const policyInput = {
+          approval: spec.approval,
+          idempotencyKey: spec.idempotencyKey,
+          resource: approvalResource("service", { id: spec.id, provider: this.options.adapter.provider })
+        };
         this.evaluateOperationPolicy("service.delete", policyInput);
         if (!this.options.adapter.service?.delete) {
           throw new UnsupportedCapabilityError("service.delete");
@@ -378,7 +389,7 @@ export class Capsule {
           const policyInput = {
             approval: spec.approval,
             idempotencyKey: spec.idempotencyKey,
-            resource: approvalResource("database", { project: spec.project, id: spec.branchId })
+            resource: approvalResource("database", { project: spec.project, id: spec.branchId, provider: this.options.adapter.provider })
           };
           this.evaluateOperationPolicy("database.branchDelete", policyInput);
           if (!this.options.adapter.database?.branch.delete) {
@@ -600,7 +611,7 @@ export class Capsule {
       throw redactError(error, options.env, this.options.policy);
     }
     if (this.receiptPersistenceMode() === "required") {
-      await Promise.all(runtime.pendingWrites);
+      await Promise.all(runtime.defaultOptions.pendingWrites ?? []);
     }
     return result;
   }
@@ -621,29 +632,28 @@ export class Capsule {
       capabilityPath,
       supportLevel:
         defaultOptions.supportLevel ?? (capabilityPath ? supportLevel(this.options.adapter.capabilities, capabilityPath as CapabilityPath) : undefined),
-      idempotencyScope: defaultOptions.idempotencyScope ?? (defaultOptions.idempotencyKey ? capabilityPath : undefined)
+      idempotencyScope: defaultOptions.idempotencyScope ?? (defaultOptions.idempotencyKey ? capabilityPath : undefined),
+      pendingWrites: []
     };
     const runtime: ContextRuntime = {
       context: undefined as unknown as AdapterContext,
-      defaultOptions: normalizedOptions,
-      pendingWrites: [],
-      receipts: []
+      defaultOptions: normalizedOptions
     };
     runtime.context = this.context(runtime);
     return runtime;
   }
 
-  private async withSandboxSubOperation<T>(runtime: ContextRuntime, options: ContextOptions, operation: () => Promise<T>): Promise<T> {
+  private async withSandboxSubOperation<T>(options: ContextOptions, operation: () => Promise<T>): Promise<T> {
     await this.preflightReceiptPersistence();
-    const pendingStart = runtime.pendingWrites.length;
+    const pendingWrites: Promise<void>[] = [];
     let result: T;
     try {
-      result = await this.contextOptions.run(options, operation);
+      result = await this.contextOptions.run({ ...options, pendingWrites }, operation);
     } catch (error) {
       throw redactError(error, options.env, this.options.policy);
     }
     if (this.receiptPersistenceMode() === "required") {
-      await Promise.all(runtime.pendingWrites.slice(pendingStart));
+      await Promise.all(pendingWrites);
     }
     return result;
   }
@@ -657,14 +667,16 @@ export class Capsule {
         const policyInput = {
           env: spec.env,
           timeoutMs: spec.timeoutMs,
-          approval,
+          // A fresh per-exec grant replaces the captured create grant for this operation only.
+          approval: spec.approval ?? approval,
           idempotencyKey: spec.idempotencyKey,
           resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider })
         };
         const policy = this.evaluateOperationPolicy("sandbox.exec", policyInput);
         const emitted = { count: 0 };
-        return this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxExecReceiptScope, receiptCounter: emitted }, async () => {
-          const result = await sandbox.exec({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) });
+        const { approval: _freshApproval, ...adapterSpec } = spec;
+        return this.withSandboxSubOperation({ ...policyInput, receiptScopes: sandboxExecReceiptScope, receiptCounter: emitted }, async () => {
+          const result = await sandbox.exec({ ...adapterSpec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) });
           if ((this.options.receipts ?? false) && emitted.count === 0) {
             const receipt = runtime.context.createReceipt({
               type: "sandbox.exec",
@@ -691,7 +703,7 @@ export class Capsule {
         const policyInput = { approval, resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider, path }) };
         const policy = this.evaluateOperationPolicy("sandbox.fileWrite", policyInput);
         const emitted = { count: 0 };
-        await this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxFileWriteReceiptScope, receiptCounter: emitted }, async () => {
+        await this.withSandboxSubOperation({ ...policyInput, receiptScopes: sandboxFileWriteReceiptScope, receiptCounter: emitted }, async () => {
           await sandbox.writeFile(path, data);
           if ((this.options.receipts ?? false) && emitted.count === 0) {
             runtime.context.createReceipt({
@@ -711,7 +723,7 @@ export class Capsule {
         const policyInput = { approval, resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider, path }) };
         const policy = this.evaluateOperationPolicy("sandbox.fileRead", policyInput);
         const emitted = { count: 0 };
-        return this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxFileReadReceiptScope, receiptCounter: emitted }, async () => {
+        return this.withSandboxSubOperation({ ...policyInput, receiptScopes: sandboxFileReadReceiptScope, receiptCounter: emitted }, async () => {
           const data = await sandbox.readFile(path);
           if ((this.options.receipts ?? false) && emitted.count === 0) {
             runtime.context.createReceipt({
@@ -732,7 +744,7 @@ export class Capsule {
         const policyInput = { approval, resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider, path }) };
         const policy = this.evaluateOperationPolicy("sandbox.fileList", policyInput);
         const emitted = { count: 0 };
-        return this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxFileListReceiptScope, receiptCounter: emitted }, async () => {
+        return this.withSandboxSubOperation({ ...policyInput, receiptScopes: sandboxFileListReceiptScope, receiptCounter: emitted }, async () => {
           const entries = await sandbox.listFiles(path);
           if ((this.options.receipts ?? false) && emitted.count === 0) {
             runtime.context.createReceipt({
@@ -747,13 +759,17 @@ export class Capsule {
           return entries;
         });
       },
-      destroy: async () => {
+      destroy: async (options?: SandboxDestroyOptions) => {
         this.require("sandbox.destroy");
         const startedAt = new Date();
-        const policyInput = { approval, resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider }) };
+        // A fresh destroy grant replaces the captured create grant; both are validated for sandbox.destroy.
+        const policyInput = {
+          approval: options?.approval ?? approval,
+          resource: approvalResource("sandbox", { id: sandbox.handle.id, provider: sandbox.handle.provider })
+        };
         const policy = this.evaluateOperationPolicy("sandbox.destroy", policyInput);
         const emitted = { count: 0 };
-        await this.withSandboxSubOperation(runtime, { ...policyInput, receiptScopes: sandboxDestroyReceiptScope, receiptCounter: emitted }, async () => {
+        await this.withSandboxSubOperation({ ...policyInput, receiptScopes: sandboxDestroyReceiptScope, receiptCounter: emitted }, async () => {
           await sandbox.destroy();
           if ((this.options.receipts ?? false) && emitted.count === 0) {
             runtime.context.createReceipt({
@@ -783,14 +799,14 @@ export class Capsule {
     await this.options.receiptStore.ready?.();
   }
 
-  private persistReceipt(receipt: CapsuleReceipt, pendingWrites: Promise<void>[]): Promise<void> {
+  private persistReceipt(receipt: CapsuleReceipt, pendingWrites: Promise<void>[] | undefined): Promise<void> {
     const mode = this.receiptPersistenceMode();
     if (!this.options.receiptStore) {
       if (mode === "best-effort") {
         return Promise.resolve();
       }
       const missingStore = Promise.reject(new Error("Receipt persistence is required but no receiptStore is configured."));
-      pendingWrites.push(missingStore);
+      pendingWrites?.push(missingStore);
       missingStore.catch(() => undefined);
       return missingStore;
     }
@@ -802,7 +818,7 @@ export class Capsule {
       write = Promise.reject(error);
     }
     if (mode === "required") {
-      pendingWrites.push(write);
+      pendingWrites?.push(write);
       write.catch(() => undefined);
       return write;
     }
@@ -818,7 +834,9 @@ export class Capsule {
       supportLevel: (path: string) => supportLevel(adapter.capabilities, path as CapabilityPath),
       evaluatePolicy: (input = {}) => {
         const options = this.contextOptions.getStore() ?? runtime.defaultOptions;
-        const capabilityPath = input.capabilityPath ?? options.capabilityPath;
+        // Sandbox sub-operations carry their capability through the receipt scope, so adapter-side checks
+        // validate a capability-scoped (fresh or captured) grant against the operation actually running.
+        const capabilityPath = input.capabilityPath ?? options.capabilityPath ?? defaultCapabilityPath(options.receiptScopes);
         return evaluatePolicy(this.options.policy, {
           ...input,
           approval: input.approval ?? options.approval,
@@ -842,11 +860,10 @@ export class Capsule {
           },
           this.options.receiptSigner
         );
-        runtime.receipts.push(receipt);
         if (options.receiptCounter) {
           options.receiptCounter.count += 1;
         }
-        void this.persistReceipt(receipt, runtime.pendingWrites);
+        void this.persistReceipt(receipt, options.pendingWrites);
         return receipt;
       }
     };

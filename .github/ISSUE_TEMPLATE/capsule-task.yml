@@ -82,7 +82,7 @@ body:
     attributes:
       label: Required verification
       value: |
-        - [ ] pnpm capsule:gap
+        - [ ] pnpm capsule:gap:check
         - [ ] pnpm typecheck
         - [ ] pnpm test
         - [ ] pnpm build

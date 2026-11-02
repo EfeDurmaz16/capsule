@@ -1,13 +1,24 @@
+import { isIP } from "node:net";
 import { Image, ModalClient } from "modal";
 import {
   AdapterExecutionError,
+  CleanupFailureError,
+  PartialEffectsError,
+  PendingOperationError,
+  PolicyViolationError,
+  UnknownOutcomeError,
+  asProviderError,
   callProvider,
+  observeUntilTerminal,
+  resourceLocator,
   logsFromOutput,
   providerRuntimeMetadata,
   redactSecrets,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
+  type CleanupOutcome,
+  type PartialEffects,
   type CreateSandboxSpec,
   type ExecResult,
   type ExecSpec,
@@ -20,7 +31,13 @@ interface ModalReadStreamLike {
   readText(): Promise<string>;
 }
 
+interface ModalWriteStreamLike {
+  writeText(text: string): Promise<void>;
+  close(): Promise<void>;
+}
+
 interface ModalProcessLike {
+  stdin: ModalWriteStreamLike;
   stdout: ModalReadStreamLike;
   stderr: ModalReadStreamLike;
   wait(): Promise<number>;
@@ -33,17 +50,28 @@ interface ModalFileLike {
   close(): Promise<void>;
 }
 
+interface ModalSandboxStatusLike {
+  sandboxId: string;
+  /** One zero-wait status request: null while the sandbox runs, else its exit code. */
+  poll(): Promise<number | null>;
+}
+
 interface ModalSandboxLike {
   sandboxId: string;
   exec(command: string[], params?: Record<string, unknown>): Promise<ModalProcessLike>;
   open(path: string, mode?: string): Promise<ModalFileLike>;
-  terminate(params?: { wait?: boolean }): Promise<void | number>;
+  /** Sends one terminate request (no wait). The installed SDK detaches the handle afterwards. */
+  terminate(): Promise<unknown>;
 }
 
 interface ModalClientLike {
   apps: { fromName(name: string, params?: Record<string, unknown>): Promise<unknown> };
   images: { fromRegistry(tag: string): unknown };
-  sandboxes: { create(app: unknown, image: unknown, params?: Record<string, unknown>): Promise<ModalSandboxLike> };
+  sandboxes: {
+    create(app: unknown, image: unknown, params?: Record<string, unknown>): Promise<ModalSandboxLike>;
+    /** Returns a fresh attached handle for a sandbox id, with one zero-wait status request. */
+    fromId(sandboxId: string): Promise<ModalSandboxStatusLike>;
+  };
 }
 
 export interface ModalAdapterOptions {
@@ -53,7 +81,27 @@ export interface ModalAdapterOptions {
   tokenSecret?: string;
   environment?: string;
   client?: ModalClientLike;
+  /**
+   * Client-side budget for sandbox termination, in milliseconds: one terminate() request (no wait), then
+   * poll() on a fresh client.sandboxes.fromId() handle about once a second until the sandbox has stopped;
+   * each poll is one zero-wait request. Defaults to 60000.
+   *
+   * The installed modal SDK's terminate, poll and fromId accept no AbortSignal or timeout, so the budget
+   * is enforced between calls: no call starts after the deadline; only the one in flight outlives it
+   * (with the SDK client's own retries of a transient gRPC status) and its late answer is ignored. At
+   * the deadline destroy rejects with PendingOperationError when Modal answered the terminate request
+   * or with UnknownOutcomeError when it did not; neither writes a deleted receipt. A terminate request
+   * the SDK gives up on unanswered (gRPC CANCELLED, UNKNOWN, DEADLINE_EXCEEDED or UNAVAILABLE) is also
+   * an UnknownOutcomeError. A create rollback reports its cleanup as pending or unknown in the same cases.
+   */
+  terminateDeadlineMs?: number;
 }
+
+const defaultTerminateDeadlineMs = 60_000;
+const terminatePollIntervalMs = 1_000;
+// gRPC statuses the SDK's client rejects with when a request got no answer, after its own retries:
+// CANCELLED, UNKNOWN, DEADLINE_EXCEEDED and UNAVAILABLE. Modal may or may not have received the request.
+const unansweredGrpcStatuses = new Set([1, 2, 4, 14]);
 
 const provider = "modal";
 const adapter = "modal";
@@ -67,14 +115,16 @@ export const modalCapabilities: CapabilityMap = {
     fileWrite: "native",
     fileList: "unsupported",
     destroy: "native",
-    snapshot: "experimental",
+    // Declarations describe what Capsule can invoke today, not provider potential: the Capsule Sandbox
+    // has no snapshot or streaming API, exposedPorts is not mapped and artifactPaths is not collected.
+    snapshot: "unsupported",
     restore: "unsupported",
-    exposePort: "experimental",
+    exposePort: "unsupported",
     networkPolicy: "native",
     filesystemPolicy: "emulated",
     secretMounting: "experimental",
-    streamingLogs: "native",
-    artifacts: "emulated"
+    streamingLogs: "unsupported",
+    artifacts: "unsupported"
   },
   job: {
     run: "unsupported",
@@ -139,19 +189,187 @@ function modalReceiptMetadata(metadata: Record<string, unknown> = {}): Record<st
   };
 }
 
+// Daytona and Modal enforce network allowlists as CIDR ranges only. A host or domain name cannot be
+// represented, so it is rejected before any provider call instead of being sent as a CIDR the provider
+// would misread or ignore. An allowlist with no entries allows nothing and maps to blocking all traffic.
+type CidrAllowlist = { kind: "block-all" } | { kind: "cidrs"; cidrs: string[] } | undefined;
+
+function cidrAllowlist(policy: AdapterContext["policy"], providerName: string): CidrAllowlist {
+  if (policy.network?.mode !== "allowlist") return undefined;
+  const entries = policy.network.allowedHosts ?? [];
+  if (entries.length === 0) return { kind: "block-all" };
+  const invalid = entries.filter((entry) => !isCidr(entry));
+  if (invalid.length > 0) {
+    throw new PolicyViolationError(
+      `${providerName} network allowlists accept CIDR ranges only (for example 203.0.113.0/24); these allowedHosts entries cannot be enforced: ${invalid.join(", ")}.`,
+      [`${providerName} cannot enforce host or domain allowlist entries; the sandbox was not created.`]
+    );
+  }
+  return { kind: "cidrs", cidrs: entries };
+}
+
+function isCidr(value: string): boolean {
+  const slash = value.indexOf("/");
+  if (slash <= 0 || slash !== value.lastIndexOf("/")) return false;
+  const address = value.slice(0, slash);
+  const prefix = value.slice(slash + 1);
+  if (!/^\d{1,3}$/.test(prefix)) return false;
+  const version = isIP(address);
+  const bits = Number(prefix);
+  return (version === 4 && bits <= 32) || (version === 6 && bits <= 128);
+}
+
 function policyNotes(context: AdapterContext): string[] {
   const notes = ["Modal sandbox isolation is provided by Modal, not by Capsule itself."];
   if (context.policy.network?.mode === "none") notes.push("Modal blockNetwork is requested for this sandbox.");
-  if (context.policy.network?.mode === "allowlist") notes.push("Modal cidrAllowlist is requested from Capsule allowedHosts.");
+  if (context.policy.network?.mode === "allowlist") {
+    notes.push(
+      (context.policy.network.allowedHosts ?? []).length === 0
+        ? "Modal blockNetwork is requested because the network allowlist is empty."
+        : "Modal cidrAllowlist is requested from the CIDR ranges in Capsule allowedHosts."
+    );
+  }
   if (context.policy.filesystem) notes.push("Filesystem policy is emulated at Capsule adapter boundaries.");
   return notes;
+}
+
+function sandboxLocator(sandboxId: string) {
+  return resourceLocator({ provider, kind: "sandbox", nativeId: sandboxId });
+}
+
+interface TerminationObserved {
+  exitCode: number;
+  polls: number;
+}
+
+/**
+ * Requests termination once through the SDK's terminate() (one sandboxTerminate request, no wait), then
+ * polls until the sandbox has stopped. The SDK detaches the handle terminate() was called on, so a fresh
+ * handle from client.sandboxes.fromId() is polled instead: fromId() is one zero-wait sandboxWait request
+ * made once, and each poll() is another; poll() returns null while the sandbox runs, else its exit code
+ * (137 when terminated, 124 when timed out, otherwise the entrypoint's code).
+ *
+ * None of these SDK calls takes a signal or timeout (modal 0.7.x), so the deadline is enforced between
+ * them: the observation signal is checked before each call, no call starts after it fires, and the one
+ * call in flight when it fires is abandoned with its late answer ignored. Inside that call the SDK's
+ * client retries a transient gRPC status up to three times (100, 200, 400 ms), so a few wire requests
+ * can follow the deadline; Capsule sends nothing new. At the deadline:
+ * - terminate() not yet answered: UnknownOutcomeError, since Modal may or may not have received it;
+ * - terminate() answered, sandbox still running: PendingOperationError with the sandbox locator.
+ * A terminate() the SDK gives up on with an unanswered status (see unansweredGrpcStatuses) is also an
+ * UnknownOutcomeError; any other rejected terminate() is a termination failure, thrown as the classified
+ * provider error. A rejected fromId() or poll() after an answered terminate() is an observation failure,
+ * reported as pending.
+ * See ModalAdapterOptions.terminateDeadlineMs.
+ */
+async function terminateUntilStopped(sandbox: ModalSandboxLike, client: ModalClientLike, operation: string, deadlineMs: number): Promise<TerminationObserved> {
+  const resource = sandboxLocator(sandbox.sandboxId);
+  let requested = false;
+  let handle: ModalSandboxStatusLike | undefined;
+  let polls = 0;
+  try {
+    const exitCode = await observeUntilTerminal<number>(
+      async ({ signal }) => {
+        if (!requested) {
+          try {
+            await sandbox.terminate();
+          } catch (error) {
+            const failure = asProviderError(error, "Modal sandbox termination failed.");
+            const code = (error as { code?: unknown } | null)?.code;
+            if (typeof code === "number" && unansweredGrpcStatuses.has(code)) {
+              return { done: "failed", error: unansweredTermination(sandbox.sandboxId, `got no answer (${failure.message})`, operation, failure) };
+            }
+            return { done: "failed", error: failure };
+          }
+          requested = true;
+        }
+        if (signal.aborted) return { done: false };
+        handle ??= await client.sandboxes.fromId(sandbox.sandboxId);
+        if (signal.aborted) return { done: false };
+        polls += 1;
+        const exitCode = await handle.poll();
+        return exitCode === null ? { done: false, state: "running" } : { done: true, value: exitCode };
+      },
+      { operation, resource, deadlineMs, intervalMs: terminatePollIntervalMs }
+    );
+    return { exitCode, polls };
+  } catch (error) {
+    if (error instanceof PendingOperationError && !requested) {
+      throw unansweredTermination(sandbox.sandboxId, `was not answered within ${deadlineMs}ms`, operation, error);
+    }
+    throw error;
+  }
+}
+
+// The terminate request got no answer, so whether Modal received it is unknown.
+function unansweredTermination(sandboxId: string, reason: string, operation: string, cause: unknown): UnknownOutcomeError {
+  return new UnknownOutcomeError(
+    `Modal sandbox termination request for ${sandboxId} ${reason}; whether Modal received it is unknown.`,
+    { operation, resource: sandboxLocator(sandboxId) },
+    cause
+  );
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function cleanupStatusOf(error: unknown): CleanupOutcome["status"] {
+  if (error instanceof PendingOperationError) return "pending";
+  if (error instanceof UnknownOutcomeError) return "unknown";
+  return "failed";
+}
+
+// Terminates a sandbox this create call allocated but could not hand back (for example when receipt
+// signing threw). The primary error and the cleanup outcome stay separate.
+async function rollbackCreatedSandbox(sandbox: ModalSandboxLike, client: ModalClientLike, primaryError: unknown, deadlineMs: number): Promise<never> {
+  const resources = [sandboxLocator(sandbox.sandboxId)];
+  let cleanup: CleanupOutcome;
+  try {
+    await terminateUntilStopped(sandbox, client, "sandbox.create", deadlineMs);
+    cleanup = { status: "succeeded", resources };
+  } catch (error) {
+    cleanup = { status: cleanupStatusOf(error), resources, residual: resources, error };
+  }
+  const effects: PartialEffects = { operation: "sandbox.create", outcome: "failed", resources, primaryError, cleanup };
+  if (cleanup.status === "failed") {
+    throw new CleanupFailureError(
+      `Modal sandbox cleanup failed after sandbox allocation: ${errorMessage(primaryError)}`,
+      { action: "terminate-created-sandbox", sandboxId: sandbox.sandboxId, status: "failed", error: errorMessage(cleanup.error) },
+      primaryError,
+      effects
+    );
+  }
+  const suffix =
+    cleanup.status === "succeeded"
+      ? "the sandbox was terminated"
+      : cleanup.status === "pending"
+        ? "sandbox termination is still pending"
+        : "whether the termination request reached Modal is unknown";
+  throw new PartialEffectsError(`Modal sandbox creation failed after sandbox allocation; ${suffix}: ${errorMessage(primaryError)}`, effects);
+}
+
+async function writeStdinAndClose(proc: ModalProcessLike, input: string, sandboxId: string): Promise<void> {
+  try {
+    if (input.length > 0) await proc.stdin.writeText(input);
+    await proc.stdin.close();
+  } catch (error) {
+    // The command already started; without confirmed stdin delivery its outcome is unknown.
+    throw new UnknownOutcomeError(
+      `Modal command stdin could not be delivered; the command outcome is unknown: ${errorMessage(error)}`,
+      { operation: "sandbox.exec", resource: sandboxLocator(sandboxId) },
+      asProviderError(error, "Modal stdin write failed.")
+    );
+  }
 }
 
 class ModalCapsuleSandbox implements Sandbox {
   constructor(
     private readonly sandbox: ModalSandboxLike,
+    private readonly client: ModalClientLike,
     readonly handle: SandboxHandle,
-    private readonly context: AdapterContext
+    private readonly context: AdapterContext,
+    private readonly terminateDeadlineMs: number
   ) {}
 
   async exec(spec: ExecSpec): Promise<ExecResult> {
@@ -160,6 +378,11 @@ class ModalCapsuleSandbox implements Sandbox {
     const proc = await callProvider("Modal command execution failed.", () =>
       this.sandbox.exec(command(spec.command), { workdir: spec.cwd, env: spec.env, timeoutMs: spec.timeoutMs, mode: "text" })
     );
+    if (spec.input !== undefined) {
+      // The installed SDK's ContainerProcess.stdin is a WritableStream: writeText sends the data and
+      // close() sends EOF. Without input stdin is left open, as before.
+      await writeStdinAndClose(proc, spec.input, this.handle.id);
+    }
     const [exitCode, stdoutRaw, stderrRaw] = await callProvider("Modal command execution failed.", () =>
       Promise.all([proc.wait(), proc.stdout.readText(), proc.stderr.readText()])
     );
@@ -212,7 +435,7 @@ class ModalCapsuleSandbox implements Sandbox {
 
   async destroy(): Promise<void> {
     const startedAt = new Date();
-    await this.sandbox.terminate();
+    const { exitCode, polls } = await terminateUntilStopped(this.sandbox, this.client, "sandbox.destroy", this.terminateDeadlineMs);
     if (this.context.receipts) {
       this.context.createReceipt({
         type: "sandbox.destroy",
@@ -220,7 +443,7 @@ class ModalCapsuleSandbox implements Sandbox {
         startedAt,
         policy: { decision: "allowed", applied: this.context.policy, notes: policyNotes(this.context) },
         resource: { id: this.handle.id, status: "deleted" },
-        metadata: modalReceiptMetadata({ terminateWait: false })
+        metadata: modalReceiptMetadata({ exitCode, polls })
       });
     }
   }
@@ -228,6 +451,7 @@ class ModalCapsuleSandbox implements Sandbox {
 
 export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
   const getClient = () => options.client ?? defaultClient(options);
+  const terminateDeadlineMs = options.terminateDeadlineMs ?? defaultTerminateDeadlineMs;
   return {
     name: adapter,
     provider,
@@ -237,6 +461,9 @@ export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
       create: async (spec: CreateSandboxSpec, context: AdapterContext): Promise<Sandbox> => {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
+        const allowlist = cidrAllowlist(context.policy, "Modal");
+        const blockNetwork = context.policy.network?.mode === "none" || allowlist?.kind === "block-all" ? true : undefined;
+        const cidrs = allowlist?.kind === "cidrs" ? allowlist.cidrs : undefined;
         const client = getClient();
         const appName = options.appName ?? "capsule";
         const imageTag = spec.image ?? options.defaultImage ?? "debian:bookworm-slim";
@@ -250,31 +477,36 @@ export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
             env: spec.env,
             timeoutMs: spec.timeoutMs,
             workdir: spec.cwd,
-            blockNetwork: context.policy.network?.mode === "none" ? true : undefined,
-            cidrAllowlist: context.policy.network?.mode === "allowlist" ? context.policy.network.allowedHosts : undefined
+            blockNetwork,
+            cidrAllowlist: cidrs
           })
         );
         const handle: SandboxHandle = { id: sandbox.sandboxId, provider, createdAt: new Date().toISOString(), metadata: { appName } };
-        if (context.receipts) {
-          context.createReceipt({
-            type: "sandbox.create",
-            capabilityPath: "sandbox.create",
-            startedAt,
-            image: imageTag,
-            policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
-            resource: { id: sandbox.sandboxId, name: spec.name, status: "running" },
-            metadata: modalReceiptMetadata(
-              removeUndefined({
-                appName,
-                environment: options.environment,
-                image: imageTag,
-                blockNetwork: context.policy.network?.mode === "none" ? true : undefined,
-                cidrAllowlist: context.policy.network?.mode === "allowlist" ? context.policy.network.allowedHosts : undefined
-              })
-            )
-          });
+        try {
+          if (context.receipts) {
+            context.createReceipt({
+              type: "sandbox.create",
+              capabilityPath: "sandbox.create",
+              startedAt,
+              image: imageTag,
+              policy: { ...policy, notes: [...policy.notes, ...policyNotes(context)] },
+              resource: { id: sandbox.sandboxId, name: spec.name, status: "running" },
+              metadata: modalReceiptMetadata(
+                removeUndefined({
+                  appName,
+                  environment: options.environment,
+                  image: imageTag,
+                  blockNetwork,
+                  cidrAllowlist: cidrs
+                })
+              )
+            });
+          }
+        } catch (error) {
+          // Allocation succeeded but the handle cannot be returned (for example receipt signing threw).
+          return await rollbackCreatedSandbox(sandbox, client, error, terminateDeadlineMs);
         }
-        return new ModalCapsuleSandbox(sandbox, handle, context);
+        return new ModalCapsuleSandbox(sandbox, client, handle, context, terminateDeadlineMs);
       }
     }
   };

@@ -162,7 +162,7 @@ describe("vercel adapter", () => {
 
     expect(logs.logs).toEqual([{ timestamp: "2025-11-12T00:00:02.000Z", stream: "stderr", message: "runtime failed" }]);
     expect(calls[0]).toMatchObject({
-      url: "https://api.vercel.com/v1/projects/prj_123/deployments/dpl_123/runtime-logs?teamId=team_1",
+      url: "https://api.vercel.com/v1/projects/prj_123/deployments/dpl_123/runtime-logs?format=lines&teamId=team_1",
       init: { method: "GET" }
     });
   });

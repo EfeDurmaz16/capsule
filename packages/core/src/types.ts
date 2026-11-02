@@ -1,3 +1,6 @@
+import type { CaptureBounds, CaptureTruncation } from "./bounds.js";
+import type { MachineStatus } from "./lifecycle.js";
+
 export type SupportLevel = "native" | "emulated" | "unsupported" | "experimental";
 
 export type CapsuleDomain = "sandbox" | "job" | "service" | "function" | "edge" | "database" | "machine" | "preview" | "resource";
@@ -178,6 +181,46 @@ export interface CapsuleApprovalGrant {
   metadata?: Record<string, string>;
 }
 
+/**
+ * Request for a fresh cleanup approval (CD-APPROVAL). Cleanup code asks a resolver for a grant scoped to
+ * the cleanup action instead of reusing the grant that authorized creation.
+ */
+export interface CleanupApprovalRequest {
+  /** Capability path of the cleanup action, for example "service.delete" or "sandbox.destroy". */
+  capabilityPath: string;
+  /** Resource the cleanup targets, in approval-scope form. */
+  resource: CapsuleApprovalResourceScope;
+  reason?: string;
+  /**
+   * Context that tells apart cleanup actions whose approval scope alone is identical, for example two
+   * services named "web" in different namespaces or on different providers. All fields are optional and
+   * informational: a resolver uses them to decide whether to grant this one action. The grant it returns
+   * is applied to this action only.
+   */
+  context?: CleanupApprovalContext;
+}
+
+export interface CleanupApprovalContext {
+  /** Provider of the resource, for example "neon" or "kubernetes". */
+  provider?: string;
+  /** Adapter name of the Capsule that created the resource and will run the cleanup. */
+  adapter?: string;
+  /** Graph-local resource reference, unique within one preview. */
+  resourceRef?: string;
+  /** Cleanup plan action id, unique within one preview run. */
+  actionId?: string;
+  /** Preview the resource belongs to. */
+  previewId?: string;
+  /** Provider scope that disambiguates the native id, for example the database project. */
+  scope?: Record<string, string>;
+}
+
+/**
+ * Supplies a fresh grant for one cleanup action. Returning undefined means no approval; the cleanup is
+ * then denied under an approval-required policy and reported as residual, never silently authorized.
+ */
+export type CleanupApprovalResolver = (request: CleanupApprovalRequest) => CapsuleApprovalGrant | undefined | Promise<CapsuleApprovalGrant | undefined>;
+
 export interface CapsuleApprovalResourceScope {
   type?: CapsuleDomain | string;
   id?: string;
@@ -298,6 +341,11 @@ export interface ExecResult {
   logs: LogEntry[];
   artifacts: Artifact[];
   receipt?: CapsuleReceipt;
+  /** Present when the adapter applied capture bounds; says per stream whether output was truncated. */
+  truncation?: {
+    stdout?: CaptureTruncation;
+    stderr?: CaptureTruncation;
+  };
 }
 
 export interface CreateSandboxSpec {
@@ -335,7 +383,29 @@ export interface ExecSpec {
   // Container paths to collect as artifacts after the command runs. Adapters that support artifact
   // collection copy these out and return them on ExecResult.artifacts; adapters that do not ignore it.
   artifactPaths?: string[];
+  /**
+   * Fresh approval for this exec only. When present it replaces the grant captured at sandbox.create
+   * for this operation and is validated against sandbox.exec and this sandbox. The captured create grant
+   * remains a compatibility fallback and is validated the same way. Capsule does not forward it to the
+   * adapter.
+   */
+  approval?: CapsuleApprovalGrant;
+  /**
+   * Output capture bounds. maxBytes applies to stdout and stderr separately; policy.limits.maxStdoutBytes
+   * and maxStderrBytes act as ceilings. Adapters that adopt bounds report truncation on ExecResult.
+   */
+  bounds?: CaptureBounds;
   providerOptions?: ProviderOptions;
+}
+
+/** Options for Sandbox.destroy. */
+export interface SandboxDestroyOptions {
+  /**
+   * Fresh approval for this destroy. When present it replaces the grant captured at sandbox.create and
+   * is validated against sandbox.destroy and this sandbox. A create-only grant never authorizes destroy.
+   */
+  approval?: CapsuleApprovalGrant;
+  reason?: string;
 }
 
 export interface FileEntry {
@@ -351,7 +421,7 @@ export interface Sandbox {
   writeFile(path: string, data: string | Uint8Array): Promise<void>;
   readFile(path: string): Promise<Uint8Array>;
   listFiles(path: string): Promise<FileEntry[]>;
-  destroy(): Promise<void>;
+  destroy(options?: SandboxDestroyOptions): Promise<void>;
 }
 
 export interface RunJobSpec {
@@ -418,6 +488,8 @@ export interface JobLogsSpec {
   follow?: boolean;
   /** Opaque cursor from a prior result's nextCursor to fetch the next page. Adapters without a paged log API ignore it. */
   cursor?: string;
+  /** Client-side capture bounds (bytes, records, deadline, concurrency). See CaptureBounds. */
+  bounds?: CaptureBounds;
   providerOptions?: ProviderOptions;
 }
 
@@ -425,6 +497,8 @@ export interface JobLogsResult {
   id: string;
   provider: string;
   logs: LogEntry[];
+  /** Present when the adapter applied capture bounds; states whether and why logs were cut short. */
+  truncation?: CaptureTruncation;
   /** Opaque cursor to pass back as spec.cursor for the next page. Absent when there are no more pages or the provider does not page logs. */
   nextCursor?: string;
   receipt?: CapsuleReceipt;
@@ -556,6 +630,8 @@ export interface ServiceLogsSpec {
   follow?: boolean;
   /** Opaque cursor from a prior result's nextCursor to fetch the next page. Adapters without a paged log API ignore it. */
   cursor?: string;
+  /** Client-side capture bounds (bytes, records, deadline, concurrency). See CaptureBounds. */
+  bounds?: CaptureBounds;
   providerOptions?: ProviderOptions;
 }
 
@@ -564,6 +640,8 @@ export interface ServiceLogsResult {
   provider: string;
   name?: string;
   logs: LogEntry[];
+  /** Present when the adapter applied capture bounds; states whether and why logs were cut short. */
+  truncation?: CaptureTruncation;
   /** Opaque cursor to pass back as spec.cursor for the next page. Absent when there are no more pages or the provider does not page logs. */
   nextCursor?: string;
   receipt?: CapsuleReceipt;
@@ -687,6 +765,8 @@ export interface EdgeLogsSpec {
   follow?: boolean;
   /** Opaque cursor from a prior result's nextCursor to fetch the next page. Adapters without a paged log API ignore it. */
   cursor?: string;
+  /** Client-side capture bounds (bytes, records, deadline, concurrency). See CaptureBounds. */
+  bounds?: CaptureBounds;
   providerOptions?: ProviderOptions;
 }
 
@@ -695,6 +775,8 @@ export interface EdgeLogsResult {
   provider: string;
   name?: string;
   logs: LogEntry[];
+  /** Present when the adapter applied capture bounds; states whether and why logs were cut short. */
+  truncation?: CaptureTruncation;
   /** Opaque cursor to pass back as spec.cursor for the next page. Absent when there are no more pages or the provider does not page logs. */
   nextCursor?: string;
   receipt?: CapsuleReceipt;
@@ -869,6 +951,8 @@ export interface PreviewLogsSpec {
   follow?: boolean;
   /** Opaque cursor from a prior result's nextCursor to fetch the next page. Adapters without a paged log API ignore it. */
   cursor?: string;
+  /** Client-side capture bounds (bytes, records, deadline, concurrency). See CaptureBounds. */
+  bounds?: CaptureBounds;
   providerOptions?: ProviderOptions;
 }
 
@@ -876,6 +960,8 @@ export interface PreviewLogsResult {
   id: string;
   provider: string;
   logs: LogEntry[];
+  /** Present when the adapter applied capture bounds; states whether and why logs were cut short. */
+  truncation?: CaptureTruncation;
   /** Opaque cursor to pass back as spec.cursor for the next page. Absent when there are no more pages or the provider does not page logs. */
   nextCursor?: string;
   receipt?: CapsuleReceipt;
@@ -938,7 +1024,11 @@ export interface Machine {
   id: string;
   provider: string;
   name: string;
-  status: "creating" | "running" | "stopped" | "failed" | "deleted";
+  /**
+   * Normalized status. Transitional values (creating, starting, stopping, destroying) are reported as
+   * observed instead of being collapsed into a stable or failed state. The native state stays in metadata.
+   */
+  status: MachineStatus;
   receipt?: CapsuleReceipt;
 }
 

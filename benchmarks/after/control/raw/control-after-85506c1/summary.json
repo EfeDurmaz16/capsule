@@ -1,0 +1,3031 @@
+{
+  "meta": {
+    "label": "control-after-85506c1",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "85506c1b5a77ae4e3092cdf17b792201373492d4",
+    "packagesTree": "deea6cd305e943c057dec39258545a4e6052eaec",
+    "dirty": false,
+    "date": "2026-10-27T14:13:48.220Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56",
+      "execArgv": [
+        "--expose-gc"
+      ]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": null,
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workloads": [
+    {
+      "id": "perf-01-core-receipts",
+      "perfIds": [
+        "PERF-01"
+      ],
+      "manifestIds": [
+        "CORE-01",
+        "CORE-02"
+      ],
+      "description": "Long-lived sandbox with increasing operations (retained receipts, heap, RSS) and parallel required persistence with delayed or failing A.",
+      "cases": [
+        {
+          "name": "long-lived-best-effort",
+          "description": "20k sequential exec operations on one live sandbox, receipts on, best-effort persistence to a non-retaining store.",
+          "params": {
+            "checkpoints": [
+              1000,
+              5000,
+              20000
+            ]
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "sandboxStillLive": {
+              "value": true,
+              "consistent": true,
+              "n": 5
+            },
+            "operations": {
+              "median": 20000,
+              "p95": 20000,
+              "min": 20000,
+              "max": 20000,
+              "n": 5
+            },
+            "opsPerSecond": {
+              "median": 213883.8212385116,
+              "p95": 214253.7675185932,
+              "min": 197461.06341806622,
+              "max": 214253.7675185932,
+              "n": 5
+            },
+            "final.operations": {
+              "median": 20000,
+              "p95": 20000,
+              "min": 20000,
+              "max": 20000,
+              "n": 5
+            },
+            "final.receiptsEmitted": {
+              "median": 20000,
+              "p95": 20000,
+              "min": 20000,
+              "max": 20000,
+              "n": 5
+            },
+            "final.receiptsStillReachable": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 5
+            },
+            "final.heapUsedDeltaBytes": {
+              "median": 1230936,
+              "p95": 1232696,
+              "min": 1230240,
+              "max": 1232696,
+              "n": 5
+            },
+            "final.rssDeltaBytes": {
+              "median": 69451776,
+              "p95": 70828032,
+              "min": 69173248,
+              "max": 70828032,
+              "n": 5
+            },
+            "final.heapBytesPerOperation": {
+              "median": 61.5468,
+              "p95": 61.6348,
+              "min": 61.512,
+              "max": 61.6348,
+              "n": 5
+            },
+            "checkpoints.ops1000.operations": {
+              "median": 1000,
+              "p95": 1000,
+              "min": 1000,
+              "max": 1000,
+              "n": 5
+            },
+            "checkpoints.ops1000.receiptsEmitted": {
+              "median": 1000,
+              "p95": 1000,
+              "min": 1000,
+              "max": 1000,
+              "n": 5
+            },
+            "checkpoints.ops1000.receiptsStillReachable": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 5
+            },
+            "checkpoints.ops1000.heapUsedDeltaBytes": {
+              "median": 226920,
+              "p95": 227064,
+              "min": 226888,
+              "max": 227064,
+              "n": 5
+            },
+            "checkpoints.ops1000.rssDeltaBytes": {
+              "median": 11517952,
+              "p95": 11517952,
+              "min": 11386880,
+              "max": 11517952,
+              "n": 5
+            },
+            "checkpoints.ops1000.heapBytesPerOperation": {
+              "median": 226.92,
+              "p95": 227.064,
+              "min": 226.888,
+              "max": 227.064,
+              "n": 5
+            },
+            "checkpoints.ops5000.operations": {
+              "median": 5000,
+              "p95": 5000,
+              "min": 5000,
+              "max": 5000,
+              "n": 5
+            },
+            "checkpoints.ops5000.receiptsEmitted": {
+              "median": 5000,
+              "p95": 5000,
+              "min": 5000,
+              "max": 5000,
+              "n": 5
+            },
+            "checkpoints.ops5000.receiptsStillReachable": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 5
+            },
+            "checkpoints.ops5000.heapUsedDeltaBytes": {
+              "median": 567752,
+              "p95": 570224,
+              "min": 562584,
+              "max": 570224,
+              "n": 5
+            },
+            "checkpoints.ops5000.rssDeltaBytes": {
+              "median": 34717696,
+              "p95": 34848768,
+              "min": 32112640,
+              "max": 34848768,
+              "n": 5
+            },
+            "checkpoints.ops5000.heapBytesPerOperation": {
+              "median": 113.5504,
+              "p95": 114.0448,
+              "min": 112.5168,
+              "max": 114.0448,
+              "n": 5
+            },
+            "checkpoints.ops20000.operations": {
+              "median": 20000,
+              "p95": 20000,
+              "min": 20000,
+              "max": 20000,
+              "n": 5
+            },
+            "checkpoints.ops20000.receiptsEmitted": {
+              "median": 20000,
+              "p95": 20000,
+              "min": 20000,
+              "max": 20000,
+              "n": 5
+            },
+            "checkpoints.ops20000.receiptsStillReachable": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 5
+            },
+            "checkpoints.ops20000.heapUsedDeltaBytes": {
+              "median": 1230936,
+              "p95": 1232696,
+              "min": 1230240,
+              "max": 1232696,
+              "n": 5
+            },
+            "checkpoints.ops20000.rssDeltaBytes": {
+              "median": 69451776,
+              "p95": 70828032,
+              "min": 69173248,
+              "max": 70828032,
+              "n": 5
+            },
+            "checkpoints.ops20000.heapBytesPerOperation": {
+              "median": 61.5468,
+              "p95": 61.6348,
+              "min": 61.512,
+              "max": 61.6348,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 118767616,
+              "p95": 120438784,
+              "min": 118521856,
+              "max": 120438784,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 129.299708,
+              "p95": 136.66883300000006,
+              "min": 127.97445799999997,
+              "max": 136.66883300000006,
+              "n": 5
+            }
+          }
+        },
+        {
+          "name": "long-lived-required",
+          "description": "Same as long-lived-best-effort with receiptPersistence required.",
+          "params": {
+            "checkpoints": [
+              1000,
+              5000,
+              20000
+            ]
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "sandboxStillLive": {
+              "value": true,
+              "consistent": true,
+              "n": 5
+            },
+            "operations": {
+              "median": 20000,
+              "p95": 20000,
+              "min": 20000,
+              "max": 20000,
+              "n": 5
+            },
+            "opsPerSecond": {
+              "median": 198976.01965883074,
+              "p95": 202005.91877342007,
+              "min": 183700.06372095962,
+              "max": 202005.91877342007,
+              "n": 5
+            },
+            "final.operations": {
+              "median": 20000,
+              "p95": 20000,
+              "min": 20000,
+              "max": 20000,
+              "n": 5
+            },
+            "final.receiptsEmitted": {
+              "median": 20000,
+              "p95": 20000,
+              "min": 20000,
+              "max": 20000,
+              "n": 5
+            },
+            "final.receiptsStillReachable": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 5
+            },
+            "final.heapUsedDeltaBytes": {
+              "median": 1217144,
+              "p95": 1220368,
+              "min": 1215368,
+              "max": 1220368,
+              "n": 5
+            },
+            "final.rssDeltaBytes": {
+              "median": 70909952,
+              "p95": 71434240,
+              "min": 70483968,
+              "max": 71434240,
+              "n": 5
+            },
+            "final.heapBytesPerOperation": {
+              "median": 60.8572,
+              "p95": 61.0184,
+              "min": 60.7684,
+              "max": 61.0184,
+              "n": 5
+            },
+            "checkpoints.ops1000.operations": {
+              "median": 1000,
+              "p95": 1000,
+              "min": 1000,
+              "max": 1000,
+              "n": 5
+            },
+            "checkpoints.ops1000.receiptsEmitted": {
+              "median": 1000,
+              "p95": 1000,
+              "min": 1000,
+              "max": 1000,
+              "n": 5
+            },
+            "checkpoints.ops1000.receiptsStillReachable": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 5
+            },
+            "checkpoints.ops1000.heapUsedDeltaBytes": {
+              "median": 218792,
+              "p95": 218792,
+              "min": 218728,
+              "max": 218792,
+              "n": 5
+            },
+            "checkpoints.ops1000.rssDeltaBytes": {
+              "median": 12189696,
+              "p95": 12599296,
+              "min": 12107776,
+              "max": 12599296,
+              "n": 5
+            },
+            "checkpoints.ops1000.heapBytesPerOperation": {
+              "median": 218.792,
+              "p95": 218.792,
+              "min": 218.728,
+              "max": 218.792,
+              "n": 5
+            },
+            "checkpoints.ops5000.operations": {
+              "median": 5000,
+              "p95": 5000,
+              "min": 5000,
+              "max": 5000,
+              "n": 5
+            },
+            "checkpoints.ops5000.receiptsEmitted": {
+              "median": 5000,
+              "p95": 5000,
+              "min": 5000,
+              "max": 5000,
+              "n": 5
+            },
+            "checkpoints.ops5000.receiptsStillReachable": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 5
+            },
+            "checkpoints.ops5000.heapUsedDeltaBytes": {
+              "median": 567104,
+              "p95": 568384,
+              "min": 563928,
+              "max": 568384,
+              "n": 5
+            },
+            "checkpoints.ops5000.rssDeltaBytes": {
+              "median": 32587776,
+              "p95": 32702464,
+              "min": 32325632,
+              "max": 32702464,
+              "n": 5
+            },
+            "checkpoints.ops5000.heapBytesPerOperation": {
+              "median": 113.4208,
+              "p95": 113.6768,
+              "min": 112.7856,
+              "max": 113.6768,
+              "n": 5
+            },
+            "checkpoints.ops20000.operations": {
+              "median": 20000,
+              "p95": 20000,
+              "min": 20000,
+              "max": 20000,
+              "n": 5
+            },
+            "checkpoints.ops20000.receiptsEmitted": {
+              "median": 20000,
+              "p95": 20000,
+              "min": 20000,
+              "max": 20000,
+              "n": 5
+            },
+            "checkpoints.ops20000.receiptsStillReachable": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 5
+            },
+            "checkpoints.ops20000.heapUsedDeltaBytes": {
+              "median": 1217144,
+              "p95": 1220368,
+              "min": 1215368,
+              "max": 1220368,
+              "n": 5
+            },
+            "checkpoints.ops20000.rssDeltaBytes": {
+              "median": 70909952,
+              "p95": 71434240,
+              "min": 70483968,
+              "max": 71434240,
+              "n": 5
+            },
+            "checkpoints.ops20000.heapBytesPerOperation": {
+              "median": 60.8572,
+              "p95": 61.0184,
+              "min": 60.7684,
+              "max": 61.0184,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 120225792,
+              "p95": 120668160,
+              "min": 119816192,
+              "max": 120668160,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 136.84558400000003,
+              "p95": 145.33291699999995,
+              "min": 134.90625,
+              "max": 145.33291699999995,
+              "n": 5
+            }
+          }
+        },
+        {
+          "name": "parallel-required-delayed-a",
+          "description": "A and B concurrent; A receipt write delayed 50 ms; B write immediate. Measures B latency.",
+          "params": {
+            "iterations": 40,
+            "aExecMs": 1,
+            "bExecMs": 3,
+            "aWriteMs": 50
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "iterations": {
+              "median": 40,
+              "p95": 40,
+              "min": 40,
+              "max": 40,
+              "n": 5
+            },
+            "bLatencyMs.p50": {
+              "median": 3.6129170000000386,
+              "p95": 3.6554590000000644,
+              "min": 3.5972090000000208,
+              "max": 3.6554590000000644,
+              "n": 5
+            },
+            "bLatencyMs.p95": {
+              "median": 3.8978329999999914,
+              "p95": 3.9700830000000025,
+              "min": 3.7889169999999694,
+              "max": 3.9700830000000025,
+              "n": 5
+            },
+            "aLatencyMs.p50": {
+              "median": 52.37008300000002,
+              "p95": 52.61462499999993,
+              "min": 52.13758300000018,
+              "max": 52.61462499999993,
+              "n": 5
+            },
+            "aLatencyMs.p95": {
+              "median": 52.978291,
+              "p95": 53.199792,
+              "min": 52.87691599999994,
+              "max": 53.199792,
+              "n": 5
+            },
+            "bSettlesBeforeA": {
+              "value": true,
+              "consistent": true,
+              "n": 5
+            },
+            "outcomes.bResolved": {
+              "median": 40,
+              "p95": 40,
+              "min": 40,
+              "max": 40,
+              "n": 5
+            },
+            "outcomes.bRejected": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "outcomes.bRejectedWithAError": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "outcomes.aResolved": {
+              "median": 40,
+              "p95": 40,
+              "min": 40,
+              "max": 40,
+              "n": 5
+            },
+            "outcomes.aRejected": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 54689792,
+              "p95": 54771712,
+              "min": 54607872,
+              "max": 54771712,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 2144.2994589999994,
+              "p95": 2148.8705420000006,
+              "min": 2122.51125,
+              "max": 2148.8705420000006,
+              "n": 5
+            }
+          }
+        },
+        {
+          "name": "parallel-required-failing-a",
+          "description": "A and B concurrent; A receipt write fails after 5 ms. Measures whether B is rejected by A's failure.",
+          "params": {
+            "iterations": 40,
+            "aExecMs": 1,
+            "bExecMs": 3,
+            "aWriteMs": 5
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "iterations": {
+              "median": 40,
+              "p95": 40,
+              "min": 40,
+              "max": 40,
+              "n": 5
+            },
+            "bLatencyMs.p50": {
+              "median": 3.5295409999999947,
+              "p95": 3.5913750000000135,
+              "min": 3.521249999999995,
+              "max": 3.5913750000000135,
+              "n": 5
+            },
+            "bLatencyMs.p95": {
+              "median": 3.7992500000000007,
+              "p95": 3.8202079999999796,
+              "min": 3.728459000000001,
+              "max": 3.8202079999999796,
+              "n": 5
+            },
+            "aLatencyMs.p50": {
+              "median": 6.9292079999999885,
+              "p95": 6.948042000000015,
+              "min": 6.20029199999999,
+              "max": 6.948042000000015,
+              "n": 5
+            },
+            "aLatencyMs.p95": {
+              "median": 7.250417000000006,
+              "p95": 7.352499999999992,
+              "min": 7.155124999999998,
+              "max": 7.352499999999992,
+              "n": 5
+            },
+            "bSettlesBeforeA": {
+              "value": true,
+              "consistent": true,
+              "n": 5
+            },
+            "outcomes.bResolved": {
+              "median": 40,
+              "p95": 40,
+              "min": 40,
+              "max": 40,
+              "n": 5
+            },
+            "outcomes.bRejected": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "outcomes.bRejectedWithAError": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "outcomes.aResolved": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "outcomes.aRejected": {
+              "median": 40,
+              "p95": 40,
+              "min": 40,
+              "max": 40,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 54820864,
+              "p95": 54902784,
+              "min": 54771712,
+              "max": 54902784,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 319.80945800000154,
+              "p95": 321.3813339999997,
+              "min": 308.25666600000113,
+              "max": 321.3813339999997,
+              "n": 5
+            }
+          }
+        },
+        {
+          "name": "required-inflight-bookkeeping",
+          "description": "50k sequential required-persistence exec operations with an immediate store; heap growth per operation after GC.",
+          "params": {
+            "operations": 50000
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "operations": {
+              "median": 50000,
+              "p95": 50000,
+              "min": 50000,
+              "max": 50000,
+              "n": 5
+            },
+            "failures": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "heapUsedDeltaBytes": {
+              "median": 337096,
+              "p95": 340688,
+              "min": 333800,
+              "max": 340688,
+              "n": 5
+            },
+            "heapBytesPerOperation": {
+              "median": 6.74192,
+              "p95": 6.81376,
+              "min": 6.676,
+              "max": 6.81376,
+              "n": 5
+            },
+            "sandboxStillLive": {
+              "value": true,
+              "consistent": true,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 68354048,
+              "p95": 68927488,
+              "min": 67698688,
+              "max": 68927488,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 192.84950000000026,
+              "p95": 215.79433400000016,
+              "min": 188.48208300000078,
+              "max": 215.79433400000016,
+              "n": 5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "perf-02-artifact-collection",
+      "perfIds": [
+        "PERF-02"
+      ],
+      "manifestIds": [
+        "IO-01"
+      ],
+      "description": "Large artifact under a tiny limit (bytes read, peak memory), large artifact within budget and many small files (inventory/hash parity).",
+      "cases": [
+        {
+          "name": "large-file-tiny-limit",
+          "description": "One 16 MiB file, maxBytes 1. Intended: the file is not read in full.",
+          "params": {
+            "fileBytes": 16777216,
+            "maxBytes": 1
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "elapsedMs": {
+              "median": 0.16220799999999969,
+              "p95": 0.17462499999999892,
+              "min": 0.14250000000000185,
+              "max": 0.17462499999999892,
+              "n": 5
+            },
+            "bytesRead": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "readCalls": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "peakRssBytes": {
+              "median": 48218112,
+              "p95": 48332800,
+              "min": 48201728,
+              "max": 48332800,
+              "n": 5
+            },
+            "peakRssGrowthBytes": {
+              "median": 49152,
+              "p95": 65536,
+              "min": 49152,
+              "max": 65536,
+              "n": 5
+            },
+            "heapUsedDeltaBytes": {
+              "median": 63584,
+              "p95": 63584,
+              "min": 63584,
+              "max": 63584,
+              "n": 5
+            },
+            "eventLoopMaxDelayMs": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "collectedFiles": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "truncated": {
+              "value": true,
+              "consistent": true,
+              "n": 5
+            },
+            "truncationReason": {
+              "value": "maxBytes",
+              "consistent": true,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 48283648,
+              "p95": 48398336,
+              "min": 48283648,
+              "max": 48398336,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 32.87104200000067,
+              "p95": 33.49041700000089,
+              "min": 32.20887500000026,
+              "max": 33.49041700000089,
+              "n": 5
+            }
+          }
+        },
+        {
+          "name": "large-file-within-budget",
+          "description": "One 48 MiB file under the default budget. Hash must equal an independent sha256.",
+          "params": {
+            "fileBytes": 50331648
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "elapsedMs": {
+              "median": 17.728875000000002,
+              "p95": 17.837917000000004,
+              "min": 17.632500000000007,
+              "max": 17.837917000000004,
+              "n": 5
+            },
+            "bytesRead": {
+              "median": 50331648,
+              "p95": 50331648,
+              "min": 50331648,
+              "max": 50331648,
+              "n": 5
+            },
+            "readCalls": {
+              "median": 769,
+              "p95": 769,
+              "min": 769,
+              "max": 769,
+              "n": 5
+            },
+            "peakRssBytes": {
+              "median": 49643520,
+              "p95": 49659904,
+              "min": 49561600,
+              "max": 49659904,
+              "n": 5
+            },
+            "peakRssGrowthBytes": {
+              "median": 65536,
+              "p95": 65536,
+              "min": 65536,
+              "max": 65536,
+              "n": 5
+            },
+            "heapUsedDeltaBytes": {
+              "median": 446240,
+              "p95": 446240,
+              "min": 446240,
+              "max": 446240,
+              "n": 5
+            },
+            "eventLoopMaxDelayMs": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "collectedFiles": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 5
+            },
+            "truncated": {
+              "value": false,
+              "consistent": true,
+              "n": 5
+            },
+            "truncationReason": {
+              "value": null,
+              "consistent": true,
+              "n": 5
+            },
+            "hashMatches": {
+              "value": true,
+              "consistent": true,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 49692672,
+              "p95": 49741824,
+              "min": 49627136,
+              "max": 49741824,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 70.04862499999945,
+              "p95": 75.39641699999993,
+              "min": 70.00858300000073,
+              "max": 75.39641699999993,
+              "n": 5
+            }
+          }
+        },
+        {
+          "name": "many-small-files",
+          "description": "1000 files of 4 KiB across 20 directories (the default maxFiles), default budgets. Inventory digest is the parity check.",
+          "params": {
+            "directories": 20,
+            "filesPerDirectory": 50,
+            "fileBytes": 4096
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "elapsedMs": {
+              "median": 18.40545800000001,
+              "p95": 19.791667000000004,
+              "min": 17.486958,
+              "max": 19.791667000000004,
+              "n": 5
+            },
+            "bytesRead": {
+              "median": 4096000,
+              "p95": 4096000,
+              "min": 4096000,
+              "max": 4096000,
+              "n": 5
+            },
+            "readCalls": {
+              "median": 2000,
+              "p95": 2000,
+              "min": 2000,
+              "max": 2000,
+              "n": 5
+            },
+            "peakRssBytes": {
+              "median": 65273856,
+              "p95": 65323008,
+              "min": 65208320,
+              "max": 65323008,
+              "n": 5
+            },
+            "peakRssGrowthBytes": {
+              "median": 9699328,
+              "p95": 9781248,
+              "min": 9682944,
+              "max": 9781248,
+              "n": 5
+            },
+            "heapUsedDeltaBytes": {
+              "median": 359680,
+              "p95": 359680,
+              "min": 359680,
+              "max": 359680,
+              "n": 5
+            },
+            "eventLoopMaxDelayMs": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "collectedFiles": {
+              "median": 1000,
+              "p95": 1000,
+              "min": 1000,
+              "max": 1000,
+              "n": 5
+            },
+            "truncated": {
+              "value": false,
+              "consistent": true,
+              "n": 5
+            },
+            "truncationReason": {
+              "value": null,
+              "consistent": true,
+              "n": 5
+            },
+            "inventoryDigest": {
+              "value": "50758fbb91a29981fc3e90bf25da02b02297172b4e30636792a509ea0b91140d",
+              "consistent": true,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 66420736,
+              "p95": 66437120,
+              "min": 66306048,
+              "max": 66437120,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 138.8839169999992,
+              "p95": 152.080750000001,
+              "min": 136.3705829999999,
+              "max": 152.080750000001,
+              "n": 5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "perf-03-aws-client-reuse",
+      "perfIds": [
+        "PERF-03"
+      ],
+      "manifestIds": [
+        "AWS-05"
+      ],
+      "description": "Repeated provider calls per adapter instance: SDK client construction count, cold and warm call timing (mock send).",
+      "cases": [
+        {
+          "name": "ec2-owned-client",
+          "description": "50 sequential ec2 operations through one adapter instance with an adapter-owned SDK client.",
+          "params": {
+            "operations": 50
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "firstCallMs": {
+              "median": 1.9443330000000003,
+              "p95": 2.015874999999994,
+              "min": 1.883375000000001,
+              "max": 2.015874999999994,
+              "n": 5
+            },
+            "warmCallMedianMs": {
+              "median": 0.00566699999998832,
+              "p95": 0.005708999999995967,
+              "min": 0.005624999999994884,
+              "max": 0.005708999999995967,
+              "n": 5
+            },
+            "warmCallP95Ms": {
+              "median": 0.053832999999997355,
+              "p95": 0.05520800000000747,
+              "min": 0.050749999999993634,
+              "max": 0.05520800000000747,
+              "n": 5
+            },
+            "uniqueSdkClients": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 5
+            },
+            "sendCalls": {
+              "median": 50,
+              "p95": 50,
+              "min": 50,
+              "max": 50,
+              "n": 5
+            },
+            "injectedClientCalls": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 132464640,
+              "p95": 132710400,
+              "min": 131842048,
+              "max": 132710400,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 135.24587500000052,
+              "p95": 157.20791699999972,
+              "min": 128.81849999999758,
+              "max": 157.20791699999972,
+              "n": 5
+            }
+          }
+        },
+        {
+          "name": "ec2-injected-client",
+          "description": "50 operations with an injected client. Ownership check: the adapter must use it and construct no SDK client.",
+          "params": {
+            "operations": 50
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "firstCallMs": {
+              "median": 0.5464580000000012,
+              "p95": 0.5826249999999931,
+              "min": 0.507125000000002,
+              "max": 0.5826249999999931,
+              "n": 5
+            },
+            "warmCallMedianMs": {
+              "median": 0.005417000000008443,
+              "p95": 0.005624999999994884,
+              "min": 0.005291999999997188,
+              "max": 0.005624999999994884,
+              "n": 5
+            },
+            "warmCallP95Ms": {
+              "median": 0.05412499999999909,
+              "p95": 0.05604199999999082,
+              "min": 0.051792000000006055,
+              "max": 0.05604199999999082,
+              "n": 5
+            },
+            "uniqueSdkClients": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "sendCalls": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "injectedClientCalls": {
+              "median": 50,
+              "p95": 50,
+              "min": 50,
+              "max": 50,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 132136960,
+              "p95": 134397952,
+              "min": 131645440,
+              "max": 134397952,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 132.54745800000092,
+              "p95": 135.9584160000013,
+              "min": 127.77508400000079,
+              "max": 135.9584160000013,
+              "n": 5
+            }
+          }
+        },
+        {
+          "name": "ecs-owned-client",
+          "description": "50 sequential ecs operations through one adapter instance with an adapter-owned SDK client.",
+          "params": {
+            "operations": 50
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "firstCallMs": {
+              "median": 2.0149589999999975,
+              "p95": 2.1207920000000016,
+              "min": 1.914042000000002,
+              "max": 2.1207920000000016,
+              "n": 5
+            },
+            "warmCallMedianMs": {
+              "median": 0.006540999999998576,
+              "p95": 0.006875000000000853,
+              "min": 0.006041000000003294,
+              "max": 0.006875000000000853,
+              "n": 5
+            },
+            "warmCallP95Ms": {
+              "median": 0.054791999999999064,
+              "p95": 0.05704099999999812,
+              "min": 0.04970799999999542,
+              "max": 0.05704099999999812,
+              "n": 5
+            },
+            "uniqueSdkClients": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 5
+            },
+            "sendCalls": {
+              "median": 50,
+              "p95": 50,
+              "min": 50,
+              "max": 50,
+              "n": 5
+            },
+            "injectedClientCalls": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 76201984,
+              "p95": 76546048,
+              "min": 76070912,
+              "max": 76546048,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 73.2535420000022,
+              "p95": 75.91733300000124,
+              "min": 71.77379199999996,
+              "max": 75.91733300000124,
+              "n": 5
+            }
+          }
+        },
+        {
+          "name": "ecs-injected-client",
+          "description": "50 operations with an injected client. Ownership check: the adapter must use it and construct no SDK client.",
+          "params": {
+            "operations": 50
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "firstCallMs": {
+              "median": 0.5360829999999979,
+              "p95": 0.5492919999999941,
+              "min": 0.5262500000000045,
+              "max": 0.5492919999999941,
+              "n": 5
+            },
+            "warmCallMedianMs": {
+              "median": 0.006458000000002073,
+              "p95": 0.006582999999999117,
+              "min": 0.006374999999998465,
+              "max": 0.006582999999999117,
+              "n": 5
+            },
+            "warmCallP95Ms": {
+              "median": 0.05462499999999437,
+              "p95": 0.055542000000002645,
+              "min": 0.05133299999999963,
+              "max": 0.055542000000002645,
+              "n": 5
+            },
+            "uniqueSdkClients": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "sendCalls": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "injectedClientCalls": {
+              "median": 50,
+              "p95": 50,
+              "min": 50,
+              "max": 50,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 75857920,
+              "p95": 75956224,
+              "min": 75792384,
+              "max": 75956224,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 71.16416700000264,
+              "p95": 72.70204100000046,
+              "min": 70.37737500000003,
+              "max": 72.70204100000046,
+              "n": 5
+            }
+          }
+        },
+        {
+          "name": "lambda-owned-client",
+          "description": "50 sequential lambda operations through one adapter instance with an adapter-owned SDK client.",
+          "params": {
+            "operations": 50
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "firstCallMs": {
+              "median": 2.8192919999999972,
+              "p95": 2.857167000000004,
+              "min": 2.771374999999992,
+              "max": 2.857167000000004,
+              "n": 5
+            },
+            "warmCallMedianMs": {
+              "median": 0.01029199999999264,
+              "p95": 0.010499999999993292,
+              "min": 0.010000000000005116,
+              "max": 0.010499999999993292,
+              "n": 5
+            },
+            "warmCallP95Ms": {
+              "median": 0.0952920000000006,
+              "p95": 0.09787499999999483,
+              "min": 0.08225000000000193,
+              "max": 0.09787499999999483,
+              "n": 5
+            },
+            "uniqueSdkClients": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 5
+            },
+            "sendCalls": {
+              "median": 50,
+              "p95": 50,
+              "min": 50,
+              "max": 50,
+              "n": 5
+            },
+            "injectedClientCalls": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 77758464,
+              "p95": 78266368,
+              "min": 77611008,
+              "max": 78266368,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 74.91425000000163,
+              "p95": 81.43620900000315,
+              "min": 74.5535839999975,
+              "max": 81.43620900000315,
+              "n": 5
+            }
+          }
+        },
+        {
+          "name": "lambda-injected-client",
+          "description": "50 operations with an injected client. Ownership check: the adapter must use it and construct no SDK client.",
+          "params": {
+            "operations": 50
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "firstCallMs": {
+              "median": 1.338084000000002,
+              "p95": 1.353042000000002,
+              "min": 1.3190829999999991,
+              "max": 1.353042000000002,
+              "n": 5
+            },
+            "warmCallMedianMs": {
+              "median": 0.009791999999997358,
+              "p95": 0.010374999999996248,
+              "min": 0.00954099999999869,
+              "max": 0.010374999999996248,
+              "n": 5
+            },
+            "warmCallP95Ms": {
+              "median": 0.10116700000000378,
+              "p95": 0.1041670000000039,
+              "min": 0.09704199999999474,
+              "max": 0.1041670000000039,
+              "n": 5
+            },
+            "uniqueSdkClients": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "sendCalls": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "injectedClientCalls": {
+              "median": 50,
+              "p95": 50,
+              "min": 50,
+              "max": 50,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 77414400,
+              "p95": 77479936,
+              "min": 77316096,
+              "max": 77479936,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 74.32866600000125,
+              "p95": 75.01604200000293,
+              "min": 73.17875000000276,
+              "max": 75.01604200000293,
+              "n": 5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "perf-04-vercel-log-streams",
+      "perfIds": [
+        "PERF-04"
+      ],
+      "manifestIds": [
+        "EDGE-02",
+        "EDGE-03"
+      ],
+      "description": "Finite, fragmented, malformed, endless and idle runtime log bodies: completion, cancellation, memory and caps (mock fetch).",
+      "cases": [
+        {
+          "name": "finite-array",
+          "description": "JSON array body with 2000 records, limit 100.",
+          "params": {
+            "records": 2000,
+            "limit": 100,
+            "deadlineMs": 5000
+          },
+          "reps": 3,
+          "okReps": 3,
+          "errors": [],
+          "metrics": {
+            "outcome": {
+              "value": "resolved",
+              "consistent": true,
+              "n": 3
+            },
+            "settleMs": {
+              "median": 18.585499999999996,
+              "p95": 18.68825,
+              "min": 18.347667,
+              "max": 18.68825,
+              "n": 3
+            },
+            "settledBeforeDeadline": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "entriesReturned": {
+              "median": 100,
+              "p95": 100,
+              "min": 100,
+              "max": 100,
+              "n": 3
+            },
+            "entriesWithinLimit": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "error": {
+              "value": null,
+              "consistent": true,
+              "n": 3
+            },
+            "requests": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 3
+            },
+            "bytesEmitted": {
+              "median": 565781,
+              "p95": 565781,
+              "min": 565781,
+              "max": 565781,
+              "n": 3
+            },
+            "recordsEmitted": {
+              "median": 2000,
+              "p95": 2000,
+              "min": 2000,
+              "max": 2000,
+              "n": 3
+            },
+            "bodyCancelled": {
+              "value": false,
+              "consistent": true,
+              "n": 3
+            },
+            "sourceClosed": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "heapUsedDeltaBytes": {
+              "median": 2694376,
+              "p95": 2708288,
+              "min": 2673152,
+              "max": 2708288,
+              "n": 3
+            },
+            "peakRssGrowthBytes": {
+              "median": 13467648,
+              "p95": 13516800,
+              "min": 13123584,
+              "max": 13516800,
+              "n": 3
+            },
+            "process.maxRssBytes": {
+              "median": 65585152,
+              "p95": 65617920,
+              "min": 65470464,
+              "max": 65617920,
+              "n": 3
+            },
+            "childWallMs": {
+              "median": 58.15187499999956,
+              "p95": 58.7410830000008,
+              "min": 57.779207999999926,
+              "max": 58.7410830000008,
+              "n": 3
+            }
+          }
+        },
+        {
+          "name": "ndjson-fragmented",
+          "description": "NDJSON body, 2000 records, delivered in seeded fragments of 1..64 bytes, then closed. limit 100.",
+          "params": {
+            "records": 2000,
+            "maxFragmentBytes": 64,
+            "limit": 100,
+            "deadlineMs": 5000,
+            "seed": 7
+          },
+          "reps": 3,
+          "okReps": 3,
+          "errors": [],
+          "metrics": {
+            "outcome": {
+              "value": "resolved",
+              "consistent": true,
+              "n": 3
+            },
+            "settleMs": {
+              "median": 19.069500000000005,
+              "p95": 19.181583000000003,
+              "min": 18.915416000000004,
+              "max": 19.181583000000003,
+              "n": 3
+            },
+            "settledBeforeDeadline": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "entriesReturned": {
+              "median": 100,
+              "p95": 100,
+              "min": 100,
+              "max": 100,
+              "n": 3
+            },
+            "entriesWithinLimit": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "error": {
+              "value": null,
+              "consistent": true,
+              "n": 3
+            },
+            "requests": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 3
+            },
+            "bytesEmitted": {
+              "median": 28049,
+              "p95": 28049,
+              "min": 28049,
+              "max": 28049,
+              "n": 3
+            },
+            "recordsEmitted": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 3
+            },
+            "bodyCancelled": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "sourceClosed": {
+              "value": false,
+              "consistent": true,
+              "n": 3
+            },
+            "heapUsedDeltaBytes": {
+              "median": 3257088,
+              "p95": 3262832,
+              "min": 3248688,
+              "max": 3262832,
+              "n": 3
+            },
+            "peakRssGrowthBytes": {
+              "median": 18022400,
+              "p95": 18169856,
+              "min": 17924096,
+              "max": 18169856,
+              "n": 3
+            },
+            "process.maxRssBytes": {
+              "median": 70336512,
+              "p95": 70402048,
+              "min": 70270976,
+              "max": 70402048,
+              "n": 3
+            },
+            "childWallMs": {
+              "median": 60.834915999999794,
+              "p95": 61.287083999999595,
+              "min": 60.3392500000009,
+              "max": 61.287083999999595,
+              "n": 3
+            }
+          }
+        },
+        {
+          "name": "ndjson-malformed",
+          "description": "NDJSON body with one truncated record in the middle, fragmented, then closed.",
+          "params": {
+            "records": 2000,
+            "maxFragmentBytes": 64,
+            "limit": 100,
+            "deadlineMs": 5000,
+            "seed": 11
+          },
+          "reps": 3,
+          "okReps": 3,
+          "errors": [],
+          "metrics": {
+            "outcome": {
+              "value": "resolved",
+              "consistent": true,
+              "n": 3
+            },
+            "settleMs": {
+              "median": 19.203000000000003,
+              "p95": 19.3845,
+              "min": 19.102,
+              "max": 19.3845,
+              "n": 3
+            },
+            "settledBeforeDeadline": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "entriesReturned": {
+              "median": 100,
+              "p95": 100,
+              "min": 100,
+              "max": 100,
+              "n": 3
+            },
+            "entriesWithinLimit": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "error": {
+              "value": null,
+              "consistent": true,
+              "n": 3
+            },
+            "requests": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 3
+            },
+            "bytesEmitted": {
+              "median": 28059,
+              "p95": 28059,
+              "min": 28059,
+              "max": 28059,
+              "n": 3
+            },
+            "recordsEmitted": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 3
+            },
+            "bodyCancelled": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "sourceClosed": {
+              "value": false,
+              "consistent": true,
+              "n": 3
+            },
+            "heapUsedDeltaBytes": {
+              "median": 3433720,
+              "p95": 3452440,
+              "min": 3428448,
+              "max": 3452440,
+              "n": 3
+            },
+            "peakRssGrowthBytes": {
+              "median": 17760256,
+              "p95": 18038784,
+              "min": 17727488,
+              "max": 18038784,
+              "n": 3
+            },
+            "process.maxRssBytes": {
+              "median": 70123520,
+              "p95": 70205440,
+              "min": 69976064,
+              "max": 70205440,
+              "n": 3
+            },
+            "childWallMs": {
+              "median": 61.3627919999999,
+              "p95": 61.540665999997145,
+              "min": 60.87574999999924,
+              "max": 61.540665999997145,
+              "n": 3
+            }
+          }
+        },
+        {
+          "name": "endless-limit-10",
+          "description": "Never-closing NDJSON body emitting as fast as pulled (capped at 64 MiB emitted), limit 10, 3 s watchdog.",
+          "params": {
+            "emissionCapBytes": 67108864,
+            "limit": 10,
+            "deadlineMs": 3000
+          },
+          "reps": 3,
+          "okReps": 3,
+          "errors": [],
+          "metrics": {
+            "outcome": {
+              "value": "resolved",
+              "consistent": true,
+              "n": 3
+            },
+            "settleMs": {
+              "median": 15.811249999999998,
+              "p95": 15.957459000000004,
+              "min": 15.697541999999999,
+              "max": 15.957459000000004,
+              "n": 3
+            },
+            "settledBeforeDeadline": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "entriesReturned": {
+              "median": 10,
+              "p95": 10,
+              "min": 10,
+              "max": 10,
+              "n": 3
+            },
+            "entriesWithinLimit": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "error": {
+              "value": null,
+              "consistent": true,
+              "n": 3
+            },
+            "requests": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 3
+            },
+            "bytesEmitted": {
+              "median": 3060,
+              "p95": 3060,
+              "min": 3060,
+              "max": 3060,
+              "n": 3
+            },
+            "recordsEmitted": {
+              "median": 11,
+              "p95": 11,
+              "min": 11,
+              "max": 11,
+              "n": 3
+            },
+            "bodyCancelled": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "sourceClosed": {
+              "value": false,
+              "consistent": true,
+              "n": 3
+            },
+            "heapUsedDeltaBytes": {
+              "median": 3086008,
+              "p95": 3086008,
+              "min": 3085936,
+              "max": 3086008,
+              "n": 3
+            },
+            "peakRssGrowthBytes": {
+              "median": 9797632,
+              "p95": 9879552,
+              "min": 9748480,
+              "max": 9879552,
+              "n": 3
+            },
+            "process.maxRssBytes": {
+              "median": 59392000,
+              "p95": 59670528,
+              "min": 59359232,
+              "max": 59670528,
+              "n": 3
+            },
+            "childWallMs": {
+              "median": 58.4196669999983,
+              "p95": 58.49054199999955,
+              "min": 57.39704200000051,
+              "max": 58.49054199999955,
+              "n": 3
+            }
+          }
+        },
+        {
+          "name": "idle-limit-10",
+          "description": "One record then an open, silent body. limit 10, 3 s watchdog.",
+          "params": {
+            "limit": 10,
+            "deadlineMs": 3000
+          },
+          "reps": 3,
+          "okReps": 3,
+          "errors": [],
+          "metrics": {
+            "outcome": {
+              "value": "timeout",
+              "consistent": true,
+              "n": 3
+            },
+            "settleMs": {
+              "median": 3001.36475,
+              "p95": 3001.813583,
+              "min": 2999.825916,
+              "max": 3001.813583,
+              "n": 3
+            },
+            "settledBeforeDeadline": {
+              "value": false,
+              "consistent": true,
+              "n": 3
+            },
+            "entriesReturned": {
+              "value": null,
+              "consistent": true,
+              "n": 3
+            },
+            "entriesWithinLimit": {
+              "value": null,
+              "consistent": true,
+              "n": 3
+            },
+            "error": {
+              "value": null,
+              "consistent": true,
+              "n": 3
+            },
+            "requests": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 3
+            },
+            "bytesEmitted": {
+              "median": 278,
+              "p95": 278,
+              "min": 278,
+              "max": 278,
+              "n": 3
+            },
+            "recordsEmitted": {
+              "median": 1,
+              "p95": 1,
+              "min": 1,
+              "max": 1,
+              "n": 3
+            },
+            "bodyCancelled": {
+              "value": false,
+              "consistent": true,
+              "n": 3
+            },
+            "sourceClosed": {
+              "value": false,
+              "consistent": true,
+              "n": 3
+            },
+            "heapUsedDeltaBytes": {
+              "median": 2704376,
+              "p95": 2704376,
+              "min": 2704376,
+              "max": 2704376,
+              "n": 3
+            },
+            "peakRssGrowthBytes": {
+              "median": 10059776,
+              "p95": 10108928,
+              "min": 9863168,
+              "max": 10108928,
+              "n": 3
+            },
+            "process.maxRssBytes": {
+              "median": 59686912,
+              "p95": 59736064,
+              "min": 59441152,
+              "max": 59736064,
+              "n": 3
+            },
+            "childWallMs": {
+              "median": 3058.1063749999994,
+              "p95": 3059.069209000001,
+              "min": 3039.318542000001,
+              "max": 3059.069209000001,
+              "n": 3
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "perf-05-kubernetes-logs",
+      "perfIds": [
+        "PERF-05"
+      ],
+      "manifestIds": [
+        "SVC-01",
+        "SVC-09"
+      ],
+      "description": "Many pods and containers: max outstanding log requests, elapsed time, global order, newest-limit selection and secret redaction (mock CoreV1 client).",
+      "cases": [
+        {
+          "name": "40-pods-3-containers-all",
+          "description": "40 pods x 3 containers, 25 lines each, 5 ms per log request, no limit.",
+          "params": {
+            "pods": 40,
+            "containers": 3,
+            "linesPerContainer": 25,
+            "latencyMs": 5,
+            "seed": 3
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "pods": {
+              "median": 40,
+              "p95": 40,
+              "min": 40,
+              "max": 40,
+              "n": 5
+            },
+            "containersPerPod": {
+              "median": 3,
+              "p95": 3,
+              "min": 3,
+              "max": 3,
+              "n": 5
+            },
+            "logRequests": {
+              "median": 120,
+              "p95": 120,
+              "min": 120,
+              "max": 120,
+              "n": 5
+            },
+            "maxOutstandingRequests": {
+              "median": 4,
+              "p95": 4,
+              "min": 4,
+              "max": 4,
+              "n": 5
+            },
+            "elapsedMs": {
+              "median": 203.990208,
+              "p95": 210.37995800000002,
+              "min": 202.361042,
+              "max": 210.37995800000002,
+              "n": 5
+            },
+            "entriesReturned": {
+              "median": 3000,
+              "p95": 3000,
+              "min": 3000,
+              "max": 3000,
+              "n": 5
+            },
+            "leakedSecrets": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "globallyAscendingTimestamps": {
+              "value": true,
+              "consistent": true,
+              "n": 5
+            },
+            "matchesGlobalNewestSet": {
+              "value": true,
+              "consistent": true,
+              "n": 5
+            },
+            "matchesGlobalNewestInOrder": {
+              "value": true,
+              "consistent": true,
+              "n": 5
+            },
+            "firstRequestedSources": {
+              "value": [
+                "pod-026/c0",
+                "pod-026/c1",
+                "pod-026/c2"
+              ],
+              "consistent": true,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 158892032,
+              "p95": 159088640,
+              "min": 158203904,
+              "max": 159088640,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 390.81458300000304,
+              "p95": 391.49183300000004,
+              "min": 385.5002499999973,
+              "max": 391.49183300000004,
+              "n": 5
+            }
+          }
+        },
+        {
+          "name": "40-pods-3-containers-limit-20",
+          "description": "Same cluster, limit 20: must be the 20 globally newest lines regardless of provider pod order.",
+          "params": {
+            "pods": 40,
+            "containers": 3,
+            "linesPerContainer": 25,
+            "latencyMs": 5,
+            "seed": 3,
+            "limit": 20
+          },
+          "reps": 5,
+          "okReps": 5,
+          "errors": [],
+          "metrics": {
+            "pods": {
+              "median": 40,
+              "p95": 40,
+              "min": 40,
+              "max": 40,
+              "n": 5
+            },
+            "containersPerPod": {
+              "median": 3,
+              "p95": 3,
+              "min": 3,
+              "max": 3,
+              "n": 5
+            },
+            "logRequests": {
+              "median": 120,
+              "p95": 120,
+              "min": 120,
+              "max": 120,
+              "n": 5
+            },
+            "maxOutstandingRequests": {
+              "median": 4,
+              "p95": 4,
+              "min": 4,
+              "max": 4,
+              "n": 5
+            },
+            "elapsedMs": {
+              "median": 172.881708,
+              "p95": 174.329791,
+              "min": 167.297541,
+              "max": 174.329791,
+              "n": 5
+            },
+            "entriesReturned": {
+              "median": 20,
+              "p95": 20,
+              "min": 20,
+              "max": 20,
+              "n": 5
+            },
+            "leakedSecrets": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 5
+            },
+            "globallyAscendingTimestamps": {
+              "value": true,
+              "consistent": true,
+              "n": 5
+            },
+            "matchesGlobalNewestSet": {
+              "value": true,
+              "consistent": true,
+              "n": 5
+            },
+            "matchesGlobalNewestInOrder": {
+              "value": true,
+              "consistent": true,
+              "n": 5
+            },
+            "firstRequestedSources": {
+              "value": [
+                "pod-026/c0",
+                "pod-026/c1",
+                "pod-026/c2"
+              ],
+              "consistent": true,
+              "n": 5
+            },
+            "process.maxRssBytes": {
+              "median": 144998400,
+              "p95": 145342464,
+              "min": 144572416,
+              "max": 145342464,
+              "n": 5
+            },
+            "childWallMs": {
+              "median": 359.53283400000146,
+              "p95": 362.32374999999956,
+              "min": 350.47316699999647,
+              "max": 362.32374999999956,
+              "n": 5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "perf-09-cli-cold-start",
+      "perfIds": [
+        "PERF-09"
+      ],
+      "manifestIds": [
+        "CLI-02"
+      ],
+      "description": "CLI cold start: fresh Node process per sample, wall time and peak RSS; stdout digest is the help/report parity check.",
+      "cases": [
+        {
+          "name": "help",
+          "description": "capsule --help with empty HOME and no credentials, 10 fresh processes per repetition.",
+          "params": {
+            "args": [
+              "--help"
+            ],
+            "samples": 10
+          },
+          "reps": 3,
+          "okReps": 3,
+          "errors": [],
+          "metrics": {
+            "command": {
+              "value": "capsule --help",
+              "consistent": true,
+              "n": 3
+            },
+            "exitCode": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 3
+            },
+            "stdoutBytes": {
+              "median": 8124,
+              "p95": 8124,
+              "min": 8124,
+              "max": 8124,
+              "n": 3
+            },
+            "stdoutDigest": {
+              "value": "f6f9bc642f34e01a016e183eb5d9e70a6fdbb9ea761efff875cd2f2d19fd0b1a",
+              "consistent": true,
+              "n": 3
+            },
+            "stdoutStableAcrossSamples": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "wallMs.p50": {
+              "median": 29.505458000000004,
+              "p95": 29.533083000000005,
+              "min": 29.018541999999997,
+              "max": 29.533083000000005,
+              "n": 3
+            },
+            "wallMs.p95": {
+              "median": 30.77816700000001,
+              "p95": 38.580291,
+              "min": 29.755584,
+              "max": 38.580291,
+              "n": 3
+            },
+            "wallMs.min": {
+              "median": 28.714999999999996,
+              "p95": 29.196499999999986,
+              "min": 28.485291999999987,
+              "max": 29.196499999999986,
+              "n": 3
+            },
+            "maxRssBytes.p50": {
+              "median": 54345728,
+              "p95": 54411264,
+              "min": 54263808,
+              "max": 54411264,
+              "n": 3
+            },
+            "maxRssBytes.max": {
+              "median": 54509568,
+              "p95": 54558720,
+              "min": 54493184,
+              "max": 54558720,
+              "n": 3
+            },
+            "process.maxRssBytes": {
+              "median": 48218112,
+              "p95": 48381952,
+              "min": 48185344,
+              "max": 48381952,
+              "n": 3
+            },
+            "childWallMs": {
+              "median": 324.8960420000003,
+              "p95": 347.325417,
+              "min": 323.2983749999985,
+              "max": 347.325417,
+              "n": 3
+            }
+          }
+        },
+        {
+          "name": "capabilities-json",
+          "description": "capsule capabilities --json with empty HOME and no credentials, 10 fresh processes per repetition.",
+          "params": {
+            "args": [
+              "capabilities",
+              "--json"
+            ],
+            "samples": 10
+          },
+          "reps": 3,
+          "okReps": 3,
+          "errors": [],
+          "metrics": {
+            "command": {
+              "value": "capsule capabilities --json",
+              "consistent": true,
+              "n": 3
+            },
+            "exitCode": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 3
+            },
+            "stdoutBytes": {
+              "median": 14754,
+              "p95": 14754,
+              "min": 14754,
+              "max": 14754,
+              "n": 3
+            },
+            "stdoutDigest": {
+              "value": "7ab7f02e223103c39a62cd5add6bf4506f74317a433424b017aa714bc1602037",
+              "consistent": true,
+              "n": 3
+            },
+            "stdoutStableAcrossSamples": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "wallMs.p50": {
+              "median": 30.345333000000004,
+              "p95": 30.58775,
+              "min": 30.18379200000001,
+              "max": 30.58775,
+              "n": 3
+            },
+            "wallMs.p95": {
+              "median": 32.239333000000016,
+              "p95": 34.935375,
+              "min": 31.006333999999995,
+              "max": 34.935375,
+              "n": 3
+            },
+            "wallMs.min": {
+              "median": 29.744249999999965,
+              "p95": 29.862791999999956,
+              "min": 29.32849999999999,
+              "max": 29.862791999999956,
+              "n": 3
+            },
+            "maxRssBytes.p50": {
+              "median": 54509568,
+              "p95": 54575104,
+              "min": 54476800,
+              "max": 54575104,
+              "n": 3
+            },
+            "maxRssBytes.max": {
+              "median": 54673408,
+              "p95": 54788096,
+              "min": 54657024,
+              "max": 54788096,
+              "n": 3
+            },
+            "process.maxRssBytes": {
+              "median": 48431104,
+              "p95": 48447488,
+              "min": 48398336,
+              "max": 48447488,
+              "n": 3
+            },
+            "childWallMs": {
+              "median": 338.41154200000165,
+              "p95": 338.9602500000037,
+              "min": 332.0392090000023,
+              "max": 338.9602500000037,
+              "n": 3
+            }
+          }
+        },
+        {
+          "name": "preset-list-json",
+          "description": "capsule preset list --json with empty HOME and no credentials, 10 fresh processes per repetition.",
+          "params": {
+            "args": [
+              "preset",
+              "list",
+              "--json"
+            ],
+            "samples": 10
+          },
+          "reps": 3,
+          "okReps": 3,
+          "errors": [],
+          "metrics": {
+            "command": {
+              "value": "capsule preset list --json",
+              "consistent": true,
+              "n": 3
+            },
+            "exitCode": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 3
+            },
+            "stdoutBytes": {
+              "median": 5264,
+              "p95": 5264,
+              "min": 5264,
+              "max": 5264,
+              "n": 3
+            },
+            "stdoutDigest": {
+              "value": "e43664626562853895670d7edb2fa50f2c96f103be5e34ee64120dfb16c8428f",
+              "consistent": true,
+              "n": 3
+            },
+            "stdoutStableAcrossSamples": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "wallMs.p50": {
+              "median": 29.626458,
+              "p95": 29.915042,
+              "min": 29.278667,
+              "max": 29.915042,
+              "n": 3
+            },
+            "wallMs.p95": {
+              "median": 30.670833000000002,
+              "p95": 31.644042000000002,
+              "min": 30.249124999999992,
+              "max": 31.644042000000002,
+              "n": 3
+            },
+            "wallMs.min": {
+              "median": 28.738541999999995,
+              "p95": 28.996291999999997,
+              "min": 28.594916000000012,
+              "max": 28.996291999999997,
+              "n": 3
+            },
+            "maxRssBytes.p50": {
+              "median": 54345728,
+              "p95": 54394880,
+              "min": 54312960,
+              "max": 54394880,
+              "n": 3
+            },
+            "maxRssBytes.max": {
+              "median": 54525952,
+              "p95": 54591488,
+              "min": 54525952,
+              "max": 54591488,
+              "n": 3
+            },
+            "process.maxRssBytes": {
+              "median": 48119808,
+              "p95": 48234496,
+              "min": 48070656,
+              "max": 48234496,
+              "n": 3
+            },
+            "childWallMs": {
+              "median": 324.33670800000255,
+              "p95": 331.16737499999726,
+              "min": 323.8873749999984,
+              "max": 331.16737499999726,
+              "n": 3
+            }
+          }
+        },
+        {
+          "name": "completion-bash",
+          "description": "capsule completion bash with empty HOME and no credentials, 10 fresh processes per repetition.",
+          "params": {
+            "args": [
+              "completion",
+              "bash"
+            ],
+            "samples": 10
+          },
+          "reps": 3,
+          "okReps": 3,
+          "errors": [],
+          "metrics": {
+            "command": {
+              "value": "capsule completion bash",
+              "consistent": true,
+              "n": 3
+            },
+            "exitCode": {
+              "median": 0,
+              "p95": 0,
+              "min": 0,
+              "max": 0,
+              "n": 3
+            },
+            "stdoutBytes": {
+              "median": 1601,
+              "p95": 1601,
+              "min": 1601,
+              "max": 1601,
+              "n": 3
+            },
+            "stdoutDigest": {
+              "value": "6a7531d56d89835aef72147594c2c0f22daef56b5362ce4b70477f62993b6bfc",
+              "consistent": true,
+              "n": 3
+            },
+            "stdoutStableAcrossSamples": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "wallMs.p50": {
+              "median": 29.633209,
+              "p95": 30.069457999999997,
+              "min": 29.389999999999993,
+              "max": 30.069457999999997,
+              "n": 3
+            },
+            "wallMs.p95": {
+              "median": 31.062625000000004,
+              "p95": 31.352041999999983,
+              "min": 30.769125,
+              "max": 31.352041999999983,
+              "n": 3
+            },
+            "wallMs.min": {
+              "median": 28.899667000000008,
+              "p95": 29.074124999999995,
+              "min": 28.333708,
+              "max": 29.074124999999995,
+              "n": 3
+            },
+            "maxRssBytes.p50": {
+              "median": 54312960,
+              "p95": 54362112,
+              "min": 54280192,
+              "max": 54362112,
+              "n": 3
+            },
+            "maxRssBytes.max": {
+              "median": 54493184,
+              "p95": 54542336,
+              "min": 54394880,
+              "max": 54542336,
+              "n": 3
+            },
+            "process.maxRssBytes": {
+              "median": 48021504,
+              "p95": 48087040,
+              "min": 48021504,
+              "max": 48087040,
+              "n": 3
+            },
+            "childWallMs": {
+              "median": 327.9506249999977,
+              "p95": 331.69724999999744,
+              "min": 324.61270800000057,
+              "max": 331.69724999999744,
+              "n": 3
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "perf-10-docker-output",
+      "perfIds": [
+        "PERF-10"
+      ],
+      "manifestIds": [
+        "CD-BOUNDS"
+      ],
+      "description": "Docker exec stdout capture size, truncation visibility and peak RSS with a local fake docker binary.",
+      "cases": [
+        {
+          "name": "stdout-10MiB",
+          "description": "10 MiB of 100-byte lines on stdout.",
+          "params": {
+            "stdoutBytes": 10485760
+          },
+          "reps": 3,
+          "okReps": 3,
+          "errors": [],
+          "metrics": {
+            "stdoutBytesEmitted": {
+              "median": 10485760,
+              "p95": 10485760,
+              "min": 10485760,
+              "max": 10485760,
+              "n": 3
+            },
+            "outcome": {
+              "value": "resolved",
+              "consistent": true,
+              "n": 3
+            },
+            "error": {
+              "value": null,
+              "consistent": true,
+              "n": 3
+            },
+            "elapsedMs": {
+              "median": 140.05374999999998,
+              "p95": 145.075375,
+              "min": 138.6405,
+              "max": 145.075375,
+              "n": 3
+            },
+            "stdoutLengthReturned": {
+              "median": 10485760,
+              "p95": 10485760,
+              "min": 10485760,
+              "max": 10485760,
+              "n": 3
+            },
+            "stderrEndsWithMarker": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "logEntriesReturned": {
+              "median": 104859,
+              "p95": 104859,
+              "min": 104859,
+              "max": 104859,
+              "n": 3
+            },
+            "resultKeys": {
+              "value": [
+                "artifacts",
+                "exitCode",
+                "logs",
+                "receipt",
+                "stderr",
+                "stdout",
+                "truncation"
+              ],
+              "consistent": true,
+              "n": 3
+            },
+            "peakRssBytes": {
+              "median": 95600640,
+              "p95": 101564416,
+              "min": 94945280,
+              "max": 101564416,
+              "n": 3
+            },
+            "peakRssGrowthBytes": {
+              "median": 43876352,
+              "p95": 49807360,
+              "min": 43286528,
+              "max": 49807360,
+              "n": 3
+            },
+            "heapUsedDeltaBytes": {
+              "median": 28644840,
+              "p95": 35090408,
+              "min": 28163944,
+              "max": 35090408,
+              "n": 3
+            },
+            "process.maxRssBytes": {
+              "median": 95780864,
+              "p95": 102744064,
+              "min": 95109120,
+              "max": 102744064,
+              "n": 3
+            },
+            "childWallMs": {
+              "median": 189.5680829999983,
+              "p95": 194.12845799999923,
+              "min": 186.82066599999962,
+              "max": 194.12845799999923,
+              "n": 3
+            }
+          }
+        },
+        {
+          "name": "stdout-100MiB",
+          "description": "100 MiB of 100-byte lines on stdout.",
+          "params": {
+            "stdoutBytes": 104857600
+          },
+          "reps": 3,
+          "okReps": 3,
+          "errors": [],
+          "metrics": {
+            "stdoutBytesEmitted": {
+              "median": 104857600,
+              "p95": 104857600,
+              "min": 104857600,
+              "max": 104857600,
+              "n": 3
+            },
+            "outcome": {
+              "value": "resolved",
+              "consistent": true,
+              "n": 3
+            },
+            "error": {
+              "value": null,
+              "consistent": true,
+              "n": 3
+            },
+            "elapsedMs": {
+              "median": 989.0902919999999,
+              "p95": 996.3089160000001,
+              "min": 983.732125,
+              "max": 996.3089160000001,
+              "n": 3
+            },
+            "stdoutLengthReturned": {
+              "median": 16777216,
+              "p95": 16777216,
+              "min": 16777216,
+              "max": 16777216,
+              "n": 3
+            },
+            "stderrEndsWithMarker": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "logEntriesReturned": {
+              "median": 167774,
+              "p95": 167774,
+              "min": 167774,
+              "max": 167774,
+              "n": 3
+            },
+            "resultKeys": {
+              "value": [
+                "artifacts",
+                "exitCode",
+                "logs",
+                "receipt",
+                "stderr",
+                "stdout",
+                "truncation"
+              ],
+              "consistent": true,
+              "n": 3
+            },
+            "peakRssBytes": {
+              "median": 166019072,
+              "p95": 166084608,
+              "min": 165904384,
+              "max": 166084608,
+              "n": 3
+            },
+            "peakRssGrowthBytes": {
+              "median": 114278400,
+              "p95": 114327552,
+              "min": 114262016,
+              "max": 114327552,
+              "n": 3
+            },
+            "heapUsedDeltaBytes": {
+              "median": 65108040,
+              "p95": 65123664,
+              "min": 65094296,
+              "max": 65123664,
+              "n": 3
+            },
+            "process.maxRssBytes": {
+              "median": 177274880,
+              "p95": 177422336,
+              "min": 177192960,
+              "max": 177422336,
+              "n": 3
+            },
+            "childWallMs": {
+              "median": 1049.0109999999986,
+              "p95": 1058.198000000004,
+              "min": 1045.723582999999,
+              "max": 1058.198000000004,
+              "n": 3
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "perf-11-jsonl-read",
+      "perfIds": [
+        "PERF-11"
+      ],
+      "manifestIds": [
+        "EV-01"
+      ],
+      "description": "JSONL receipt store readAll over a large synthetic file: elapsed, peak RSS and corruption line location.",
+      "cases": [
+        {
+          "name": "read-50k",
+          "description": "50k receipts, valid file.",
+          "params": {
+            "receipts": 50000
+          },
+          "reps": 3,
+          "okReps": 3,
+          "errors": [],
+          "metrics": {
+            "receiptsWritten": {
+              "median": 50000,
+              "p95": 50000,
+              "min": 50000,
+              "max": 50000,
+              "n": 3
+            },
+            "fileBytes": {
+              "median": 21883890,
+              "p95": 21883890,
+              "min": 21883890,
+              "max": 21883890,
+              "n": 3
+            },
+            "outcome": {
+              "value": "resolved",
+              "consistent": true,
+              "n": 3
+            },
+            "receiptsRead": {
+              "median": 50000,
+              "p95": 50000,
+              "min": 50000,
+              "max": 50000,
+              "n": 3
+            },
+            "error": {
+              "value": null,
+              "consistent": true,
+              "n": 3
+            },
+            "errorNamesCorruptLine": {
+              "value": null,
+              "consistent": true,
+              "n": 3
+            },
+            "elapsedMs": {
+              "median": 51.61337499999999,
+              "p95": 51.857333,
+              "min": 51.22625000000001,
+              "max": 51.857333,
+              "n": 3
+            },
+            "peakRssGrowthBytes": {
+              "median": 86917120,
+              "p95": 87064576,
+              "min": 86900736,
+              "max": 87064576,
+              "n": 3
+            },
+            "heapUsedWhileHeldBytes": {
+              "median": 80622888,
+              "p95": 80646600,
+              "min": 80613704,
+              "max": 80646600,
+              "n": 3
+            },
+            "process.maxRssBytes": {
+              "median": 166412288,
+              "p95": 166526976,
+              "min": 166199296,
+              "max": 166526976,
+              "n": 3
+            },
+            "childWallMs": {
+              "median": 170.91841700000077,
+              "p95": 172.48937500000466,
+              "min": 170.36875000000146,
+              "max": 172.48937500000466,
+              "n": 3
+            }
+          }
+        },
+        {
+          "name": "corrupt-line-25000",
+          "description": "50k receipts with line 25000 truncated; the error must name the line.",
+          "params": {
+            "receipts": 50000,
+            "corruptLine": 25000
+          },
+          "reps": 3,
+          "okReps": 3,
+          "errors": [],
+          "metrics": {
+            "receiptsWritten": {
+              "median": 50000,
+              "p95": 50000,
+              "min": 50000,
+              "max": 50000,
+              "n": 3
+            },
+            "fileBytes": {
+              "median": 21883469,
+              "p95": 21883469,
+              "min": 21883469,
+              "max": 21883469,
+              "n": 3
+            },
+            "outcome": {
+              "value": "rejected",
+              "consistent": true,
+              "n": 3
+            },
+            "receiptsRead": {
+              "value": null,
+              "consistent": true,
+              "n": 3
+            },
+            "error.name": {
+              "value": "Error",
+              "consistent": true,
+              "n": 3
+            },
+            "error.constructor": {
+              "value": "Error",
+              "consistent": true,
+              "n": 3
+            },
+            "error.message": {
+              "value": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-bench-Z61Bx5/jsonl-ya320T/receipts.jsonl:25000.",
+              "consistent": false,
+              "n": 3
+            },
+            "errorNamesCorruptLine": {
+              "value": true,
+              "consistent": true,
+              "n": 3
+            },
+            "elapsedMs": {
+              "median": 31.23087500000001,
+              "p95": 31.71858299999998,
+              "min": 31.12554200000001,
+              "max": 31.71858299999998,
+              "n": 3
+            },
+            "peakRssGrowthBytes": {
+              "median": 71958528,
+              "p95": 72171520,
+              "min": 71843840,
+              "max": 72171520,
+              "n": 3
+            },
+            "heapUsedWhileHeldBytes": {
+              "median": 63512064,
+              "p95": 63524480,
+              "min": 63497480,
+              "max": 63524480,
+              "n": 3
+            },
+            "process.maxRssBytes": {
+              "median": 151240704,
+              "p95": 151453696,
+              "min": 151175168,
+              "max": 151453696,
+              "n": 3
+            },
+            "childWallMs": {
+              "median": 151.27408400000422,
+              "p95": 151.60566700000345,
+              "min": 149.80049999999756,
+              "max": 151.60566700000345,
+              "n": 3
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

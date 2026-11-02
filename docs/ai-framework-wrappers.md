@@ -23,6 +23,8 @@ const capsule = new Capsule({
 const codeExecution = createCodeExecutionTool(capsule);
 ```
 
+Each call creates a sandbox, writes the files, runs the command and destroys the sandbox. If the destroy fails, the tool throws `CleanupFailureError` instead of losing the execution outcome. `partialEffectsOf(error)` returns the record: `outcome` is `completed` with the `ExecResult` in `result`, or `failed`/`unknown` with the original error in `primaryError`; `cleanup.residual` holds the sandbox locator that may still exist. When execution fails but the destroy succeeds, the original execution error is rethrown unchanged. Do not retry a `completed` outcome as if the command never ran.
+
 The base tool input is:
 
 ```ts
@@ -81,6 +83,8 @@ async function handleFunctionCall(args: unknown) {
   return descriptor.execute(args as Parameters<typeof descriptor.execute>[0]);
 }
 ```
+
+The Responses tool sets `strict: true`, so its `parameters` are `codeExecutionInputStrictJsonSchema`, the generic schema normalized to the OpenAI strict function-calling rules: every property is listed in `required`, the optional `language` and `timeoutMs` accept `null`, and `command` uses `anyOf` over the same two branches instead of `oneOf`. `descriptor.execute` treats a `null` optional field as absent. The other wrappers keep `codeExecutionInputJsonSchema`. `toOpenAIStrictJsonSchema(schema)` applies the same normalization to your own schemas; it throws on keywords strict mode does not support (`allOf`, `not`, `if`/`then`/`else`, `dependentRequired`, `dependentSchemas`) and on any object that allows additional properties (`additionalProperties` other than `false` or absent), including a map with no `properties`, since strict mode cannot express it and closing it would drop every entry. Turning `oneOf` into `anyOf` keeps the accepted values only when the branches are disjoint.
 
 ## LangChain
 

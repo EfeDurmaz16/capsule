@@ -6,8 +6,11 @@ import {
   MemoryReceiptStore,
   ProviderAuthError,
   ProviderRateLimitError,
+  UnknownOutcomeError,
+  UnsupportedCapabilityError,
   runAdapterContract
 } from "@capsule-sdk/core";
+import { CommandExitError } from "e2b";
 import { e2b, e2bCapabilities } from "./e2b-adapter.js";
 
 function failingE2B(error: Error) {
@@ -105,6 +108,11 @@ describe("e2b adapter", () => {
     expect(e2bCapabilities.job?.run).toBe("unsupported");
   });
 
+  it("declares no capability that has no invocable Capsule surface", () => {
+    expect(e2bCapabilities.sandbox?.artifacts).toBe("unsupported");
+    expect(e2bCapabilities.sandbox?.streamingLogs).toBe("unsupported");
+  });
+
   it("creates a sandbox and maps file and exec operations", async () => {
     const store = new MemoryReceiptStore();
     const capsule = new Capsule({
@@ -192,7 +200,7 @@ describe("e2b adapter", () => {
     expect(allocated.killed).toBe(true);
   });
 
-  it("kills E2B sandboxes when command execution throws before a receipt", async () => {
+  it("keeps the sandbox and reports an unknown outcome when command transport fails", async () => {
     const allocated = resetFakeSandbox();
     allocated.commandError = new Error("e2b exec failed");
     const store = new MemoryReceiptStore();
@@ -210,45 +218,64 @@ describe("e2b adapter", () => {
       thrown = error;
     }
 
-    expect(thrown).toBeInstanceOf(Error);
-    expect((thrown as Error).message).toBe("e2b exec failed");
-    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
-      action: "kill-sandbox-after-exec-error",
-      sandboxId: "e2b_fake_123",
-      status: "killed"
-    });
-    expect(allocated.killed).toBe(true);
+    expect(thrown).toBeInstanceOf(UnknownOutcomeError);
+    expect((thrown as UnknownOutcomeError).retrySafe).toBe(false);
+    expect((thrown as UnknownOutcomeError).operation).toBe("sandbox.exec");
+    expect((thrown as UnknownOutcomeError).resource).toMatchObject({ provider: "e2b", kind: "sandbox", nativeId: "e2b_fake_123" });
+    expect((thrown as Error).message).toContain("e2b exec failed");
+    expect(((thrown as UnknownOutcomeError).cause as Error).message).toBe("e2b exec failed");
+    expect(allocated.killed).toBe(false);
     expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
   });
 
-  it("wraps the original E2B exec error when cleanup kill fails", async () => {
+  it("returns a refused exec as a typed provider error and keeps the sandbox", async () => {
     const allocated = resetFakeSandbox();
-    allocated.commandError = new Error("e2b exec failed");
-    allocated.killError = new Error("e2b kill failed");
-    const capsule = new Capsule({
-      adapter: e2b({ sandboxClass: FakeE2BSandbox }),
-      receipts: true
-    });
+    allocated.commandError = Object.assign(new Error("unauthorized"), { status: 401 });
+    const capsule = new Capsule({ adapter: e2b({ sandboxClass: FakeE2BSandbox }) });
     const sandbox = await capsule.sandbox.create({});
 
-    let thrown: unknown;
-    try {
-      await sandbox.exec({ command: "echo cleanup-fails" });
-    } catch (error) {
-      thrown = error;
-    }
-
-    expect(thrown).toBeInstanceOf(CleanupFailureError);
-    expect((thrown as Error).message).toBe("E2B sandbox cleanup failed after sandbox allocation.");
-    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
-      action: "kill-sandbox-after-exec-error",
-      sandboxId: "e2b_fake_123",
-      status: "failed",
-      error: "e2b kill failed"
-    });
-    expect((thrown as CleanupFailureError).cause).toMatchObject({
-      operationError: expect.objectContaining({ message: "e2b exec failed" })
-    });
+    await expect(sandbox.exec({ command: "echo refused" })).rejects.toBeInstanceOf(ProviderAuthError);
     expect(allocated.killed).toBe(false);
+  });
+
+  it("maps a real CommandExitError from the installed SDK to a nonzero result with output and a receipt", async () => {
+    const allocated = resetFakeSandbox();
+    allocated.commandError = new CommandExitError({ exitCode: 2, stdout: "out", stderr: "err", error: "exit status 2" });
+    const store = new MemoryReceiptStore();
+    const capsule = new Capsule({ adapter: e2b({ sandboxClass: FakeE2BSandbox }), receipts: true, receiptStore: store });
+    const sandbox = await capsule.sandbox.create({});
+
+    const result = await sandbox.exec({ command: "npm test" });
+
+    expect(result).toMatchObject({ exitCode: 2, stdout: "out", stderr: "err" });
+    expect(result.receipt).toMatchObject({ type: "sandbox.exec", exitCode: 2, metadata: expect.objectContaining({ error: "exit status 2" }) });
+    expect(allocated.killed).toBe(false);
+    expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create", "sandbox.exec"]);
+  });
+  it("GAP-04: rejects exec input before any provider call instead of dropping it", async () => {
+    const allocated = resetFakeSandbox();
+    let runs = 0;
+    const run = allocated.commands.run;
+    allocated.commands.run = async (...args) => {
+      runs += 1;
+      return run(...args);
+    };
+    const sandbox = await new Capsule({ adapter: e2b({ sandboxClass: FakeE2BSandbox }) }).sandbox.create({});
+
+    await expect(sandbox.exec({ command: "cat", input: "hello" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(sandbox.exec({ command: "cat", input: "" })).rejects.toThrow("ExecSpec.input");
+    expect(runs).toBe(0);
+  });
+  it("PERF-13: uploads exactly the bytes of a subarray view as one Blob", async () => {
+    const allocated = resetFakeSandbox();
+    const sandbox = await new Capsule({ adapter: e2b({ sandboxClass: FakeE2BSandbox }) }).sandbox.create({});
+    const backing = new Uint8Array([9, 9, 1, 2, 3, 9]);
+    const view = backing.subarray(2, 5);
+
+    await sandbox.writeFile("/workspace/bin", view);
+
+    const written = allocated.written.get("/workspace/bin");
+    expect(written).toBeInstanceOf(Blob);
+    expect([...new Uint8Array(await (written as Blob).arrayBuffer())]).toEqual([1, 2, 3]);
   });
 });

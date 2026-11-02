@@ -8,7 +8,9 @@ A credential-free example that chains an agent code-execution tool with preview 
 2. **Provision**: only if the check passes, `@capsule-sdk/preview` `createPreviewGraph` provisions a preview across three mock providers: a Neon-style database branch, a Vercel-style web edge, and a Cloud Run-style smoke job.
 3. **Cleanup**: `cleanupPreviewEnvironment` tears the preview down in reverse create order and returns cleanup receipts.
 
-This is the shape an agent uses to gate a preview on a passing check and to guarantee the preview is cleaned up afterward.
+This is the shape an agent uses to gate a preview on a passing check and to attempt cleanup afterward. Cleanup is not a guarantee: the edge and the job have no cleanup action, and a provider delete can fail and leave a `leaked` resource. Read the dispositions.
+
+If `createPreviewGraph` throws part-way, it does not clean up by itself. The thrown `PreviewCreationError` carries `resources` (the resources created before the failure, each bound to its own Capsule), a `cleanupPlan` for exactly those resources, and their `receipts`. The example passes them to `cleanupPreviewEnvironment` before rethrowing. `createPreviewEnvironmentWithCleanup` is the variant that runs that cleanup for you.
 
 ## Run it
 

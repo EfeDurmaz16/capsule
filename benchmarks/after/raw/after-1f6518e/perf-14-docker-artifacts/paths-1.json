@@ -1,0 +1,219 @@
+{
+  "meta": {
+    "label": "after-1f6518e",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "1f6518eaacf0f08e52bacc4091fd4d12d97e070f",
+    "packagesTree": "aa00350a9351fe2abc740f5ea97ad0191e2b0274",
+    "dirty": false,
+    "date": "2026-10-27T20:24:59.520Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56",
+      "execArgv": [
+        "--expose-gc"
+      ]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": null,
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workload": {
+    "id": "perf-14-docker-artifacts",
+    "perfIds": [
+      "PERF-14"
+    ],
+    "manifestIds": [
+      "SB-07",
+      "IO-01"
+    ]
+  },
+  "case": "paths-1",
+  "description": "1 artifact paths, fake docker cp without added latency (process spawn cost only).",
+  "params": {
+    "paths": 1
+  },
+  "runs": [
+    {
+      "rep": 0,
+      "childWallMs": 83.1734590000051,
+      "ok": true,
+      "metrics": {
+        "paths": 1,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 17.992417000000003,
+        "dockerCpSpawns": 1,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "dded156c66186b0d7cfc8027ba9d9f726ba99ade27b4e25ea298b6255e42033c",
+        "peakRssGrowthBytes": 671744,
+        "heapUsedDeltaBytes": 451672
+      },
+      "caseDurationMs": 48.169458999999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5183992,
+          "rss": 46022656,
+          "external": 2099051,
+          "arrayBuffers": 24495
+        },
+        "endMemory": {
+          "heapUsed": 5979096,
+          "rss": 52379648,
+          "external": 2210755,
+          "arrayBuffers": 82661
+        },
+        "maxRssBytes": 52379648
+      }
+    },
+    {
+      "rep": 1,
+      "childWallMs": 88.27995899999951,
+      "ok": true,
+      "metrics": {
+        "paths": 1,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 19.426625,
+        "dockerCpSpawns": 1,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "dded156c66186b0d7cfc8027ba9d9f726ba99ade27b4e25ea298b6255e42033c",
+        "peakRssGrowthBytes": 573440,
+        "heapUsedDeltaBytes": 451616
+      },
+      "caseDurationMs": 52.636917000000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5183992,
+          "rss": 46202880,
+          "external": 2099051,
+          "arrayBuffers": 24495
+        },
+        "endMemory": {
+          "heapUsed": 5979040,
+          "rss": 52527104,
+          "external": 2210755,
+          "arrayBuffers": 82661
+        },
+        "maxRssBytes": 52527104
+      }
+    },
+    {
+      "rep": 2,
+      "childWallMs": 115.54562499999884,
+      "ok": true,
+      "metrics": {
+        "paths": 1,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 18.705833999999996,
+        "dockerCpSpawns": 1,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "dded156c66186b0d7cfc8027ba9d9f726ba99ade27b4e25ea298b6255e42033c",
+        "peakRssGrowthBytes": 540672,
+        "heapUsedDeltaBytes": 451600
+      },
+      "caseDurationMs": 62.891292,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5183992,
+          "rss": 46628864,
+          "external": 2099051,
+          "arrayBuffers": 24495
+        },
+        "endMemory": {
+          "heapUsed": 5979024,
+          "rss": 52690944,
+          "external": 2210755,
+          "arrayBuffers": 82661
+        },
+        "maxRssBytes": 52690944
+      }
+    },
+    {
+      "rep": 3,
+      "childWallMs": 91.66916700000002,
+      "ok": true,
+      "metrics": {
+        "paths": 1,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 21.070792000000004,
+        "dockerCpSpawns": 1,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "dded156c66186b0d7cfc8027ba9d9f726ba99ade27b4e25ea298b6255e42033c",
+        "peakRssGrowthBytes": 557056,
+        "heapUsedDeltaBytes": 451672
+      },
+      "caseDurationMs": 54.31633300000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5183992,
+          "rss": 46088192,
+          "external": 2099051,
+          "arrayBuffers": 24495
+        },
+        "endMemory": {
+          "heapUsed": 5979096,
+          "rss": 52494336,
+          "external": 2210755,
+          "arrayBuffers": 82661
+        },
+        "maxRssBytes": 52494336
+      }
+    },
+    {
+      "rep": 4,
+      "childWallMs": 91.171875,
+      "ok": true,
+      "metrics": {
+        "paths": 1,
+        "outcome": "resolved",
+        "error": null,
+        "elapsedMs": 19.711,
+        "dockerCpSpawns": 1,
+        "artifactsCollected": 1,
+        "bytesCollected": 4096,
+        "layoutMatchesExpected": true,
+        "layoutDigest": "dded156c66186b0d7cfc8027ba9d9f726ba99ade27b4e25ea298b6255e42033c",
+        "peakRssGrowthBytes": 557056,
+        "heapUsedDeltaBytes": 451608
+      },
+      "caseDurationMs": 51.977458,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5183992,
+          "rss": 46202880,
+          "external": 2099051,
+          "arrayBuffers": 24495
+        },
+        "endMemory": {
+          "heapUsed": 5979032,
+          "rss": 52428800,
+          "external": 2210755,
+          "arrayBuffers": 82661
+        },
+        "maxRssBytes": 52428800
+      }
+    }
+  ]
+}

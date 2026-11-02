@@ -1,0 +1,1447 @@
+{
+  "meta": {
+    "label": "review-fixes-1b43859",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 20,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "1b43859d81d052de0784d9a795814af9557c576a",
+      "packagesTree": "fe78af81afaafa586b653ca94efafe57a6a1b006",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "1b43859d81d052de0784d9a795814af9557c576a",
+    "date": "2026-10-27T22:26:49.242Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        13.47119140625,
+        13.42822265625,
+        16.8271484375
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)"
+  },
+  "workload": "perf-02-artifact-collection",
+  "case": "large-file-tiny-limit",
+  "params": {
+    "fileBytes": 16777216,
+    "maxBytes": 1
+  },
+  "runs": [
+    {
+      "side": "A",
+      "pair": 0,
+      "childWallMs": 56.43683299999992,
+      "loadAverage1m": 13.47119140625,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 2.9249169999999935,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65372160,
+        "peakRssGrowthBytes": 16875520,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 18.286958,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45973504,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65437696,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65437696
+      }
+    },
+    {
+      "side": "B",
+      "pair": 0,
+      "childWallMs": 59.05641700000001,
+      "loadAverage1m": 13.47119140625,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.4134169999999955,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48529408,
+        "peakRssGrowthBytes": 49152,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 25.768250000000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45711360,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 48594944,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48594944
+      }
+    },
+    {
+      "side": "A",
+      "pair": 1,
+      "childWallMs": 71.76262500000303,
+      "loadAverage1m": 12.38134765625,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 4.627333,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65257472,
+        "peakRssGrowthBytes": 16859136,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 26.411125000000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45760512,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65323008,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65323008
+      }
+    },
+    {
+      "side": "B",
+      "pair": 1,
+      "childWallMs": 70.95487500000309,
+      "loadAverage1m": 12.38134765625,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.22466599999999914,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48644096,
+        "peakRssGrowthBytes": 49152,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 21.260791,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45940736,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 48726016,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48726016
+      }
+    },
+    {
+      "side": "A",
+      "pair": 2,
+      "childWallMs": 45.43733400000201,
+      "loadAverage1m": 14.39208984375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 3.3199999999999967,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 64913408,
+        "peakRssGrowthBytes": 16859136,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 12.561917000000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45514752,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65011712,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65011712
+      }
+    },
+    {
+      "side": "B",
+      "pair": 2,
+      "childWallMs": 51.869083999990835,
+      "loadAverage1m": 14.39208984375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.21291599999999988,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48250880,
+        "peakRssGrowthBytes": 49152,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 17.919542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45613056,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 48316416,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48316416
+      }
+    },
+    {
+      "side": "A",
+      "pair": 3,
+      "childWallMs": 62.92329200000677,
+      "loadAverage1m": 11.2177734375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 2.585917000000002,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65323008,
+        "peakRssGrowthBytes": 16908288,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 19.265583999999997,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45875200,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65404928,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65404928
+      }
+    },
+    {
+      "side": "B",
+      "pair": 3,
+      "childWallMs": 50.612375000011525,
+      "loadAverage1m": 11.2177734375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.21633299999999878,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48463872,
+        "peakRssGrowthBytes": 49152,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 14.501624999999997,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45760512,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 48545792,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48545792
+      }
+    },
+    {
+      "side": "A",
+      "pair": 4,
+      "childWallMs": 62.62304200002109,
+      "loadAverage1m": 13.5224609375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 3.423667000000002,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65110016,
+        "peakRssGrowthBytes": 16891904,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 26.880291,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45563904,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65191936,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65191936
+      }
+    },
+    {
+      "side": "B",
+      "pair": 4,
+      "childWallMs": 62.54083300000639,
+      "loadAverage1m": 13.5224609375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.27512500000000273,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48611328,
+        "peakRssGrowthBytes": 49152,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 17.859709000000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45940736,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 48709632,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48709632
+      }
+    },
+    {
+      "side": "A",
+      "pair": 5,
+      "childWallMs": 99.13583300000755,
+      "loadAverage1m": 11.330078125,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 3.821000000000005,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65273856,
+        "peakRssGrowthBytes": 16908288,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 21.936625,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028712,
+          "rss": 45711360,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779496,
+          "rss": 65355776,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65355776
+      }
+    },
+    {
+      "side": "B",
+      "pair": 5,
+      "childWallMs": 78.05416699999478,
+      "loadAverage1m": 11.330078125,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.367791000000004,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48529408,
+        "peakRssGrowthBytes": 49152,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 33.400208000000006,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45776896,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 48594944,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48594944
+      }
+    },
+    {
+      "side": "A",
+      "pair": 6,
+      "childWallMs": 101.02249999999185,
+      "loadAverage1m": 14.87109375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 4.304208000000003,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65323008,
+        "peakRssGrowthBytes": 16859136,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 37.208916,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45875200,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65404928,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65404928
+      }
+    },
+    {
+      "side": "B",
+      "pair": 6,
+      "childWallMs": 101.58983399998397,
+      "loadAverage1m": 14.87109375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.4387920000000065,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48791552,
+        "peakRssGrowthBytes": 49152,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 41.614917,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 46120960,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 48857088,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48857088
+      }
+    },
+    {
+      "side": "A",
+      "pair": 7,
+      "childWallMs": 77.493959000014,
+      "loadAverage1m": 15.3583984375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 4.477250000000005,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65699840,
+        "peakRssGrowthBytes": 16891904,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 21.786457999999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 46170112,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65765376,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65765376
+      }
+    },
+    {
+      "side": "B",
+      "pair": 7,
+      "childWallMs": 82.3179999999993,
+      "loadAverage1m": 15.3583984375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.33320799999999906,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48971776,
+        "peakRssGrowthBytes": 49152,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 21.591208,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 46317568,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 49053696,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 49053696
+      }
+    },
+    {
+      "side": "A",
+      "pair": 8,
+      "childWallMs": 69.3409999999567,
+      "loadAverage1m": 13.8671875,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 4.171458000000001,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65175552,
+        "peakRssGrowthBytes": 16875520,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 24.674957999999997,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45711360,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65257472,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65257472
+      }
+    },
+    {
+      "side": "B",
+      "pair": 8,
+      "childWallMs": 52.31366599997273,
+      "loadAverage1m": 13.8671875,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.3758749999999935,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48513024,
+        "peakRssGrowthBytes": 65536,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 13.952958000000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028712,
+          "rss": 46022656,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817976,
+          "rss": 48611328,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48611328
+      }
+    },
+    {
+      "side": "A",
+      "pair": 9,
+      "childWallMs": 82.9644589999807,
+      "loadAverage1m": 14.3056640625,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 2.339958000000003,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65224704,
+        "peakRssGrowthBytes": 16859136,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 32.119167000000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45760512,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65290240,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65290240
+      }
+    },
+    {
+      "side": "B",
+      "pair": 9,
+      "childWallMs": 75.5747080000001,
+      "loadAverage1m": 14.3056640625,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.3239579999999975,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48496640,
+        "peakRssGrowthBytes": 49152,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 29.125541000000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45793280,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 48578560,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48578560
+      }
+    },
+    {
+      "side": "A",
+      "pair": 10,
+      "childWallMs": 69.95600000000559,
+      "loadAverage1m": 17.71533203125,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 2.2914170000000027,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65290240,
+        "peakRssGrowthBytes": 16891904,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 26.459083,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45891584,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65355776,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65355776
+      }
+    },
+    {
+      "side": "B",
+      "pair": 10,
+      "childWallMs": 63.48170800000662,
+      "loadAverage1m": 17.71533203125,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.9294579999999968,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48365568,
+        "peakRssGrowthBytes": 65536,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 26.587833,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45629440,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 48447488,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48447488
+      }
+    },
+    {
+      "side": "A",
+      "pair": 11,
+      "childWallMs": 60.914999999979045,
+      "loadAverage1m": 17.69873046875,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 8.095125000000003,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65142784,
+        "peakRssGrowthBytes": 16891904,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 21.879833,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028712,
+          "rss": 45596672,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779496,
+          "rss": 65224704,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65224704
+      }
+    },
+    {
+      "side": "B",
+      "pair": 11,
+      "childWallMs": 53.212916999997105,
+      "loadAverage1m": 17.69873046875,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.34120800000000173,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48349184,
+        "peakRssGrowthBytes": 65536,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 20.679042,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028712,
+          "rss": 45678592,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817976,
+          "rss": 48447488,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48447488
+      }
+    },
+    {
+      "side": "A",
+      "pair": 12,
+      "childWallMs": 97.74975000001723,
+      "loadAverage1m": 17.53564453125,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 2.4880409999999955,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65585152,
+        "peakRssGrowthBytes": 16891904,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 32.925042,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028712,
+          "rss": 46088192,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779496,
+          "rss": 65667072,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65667072
+      }
+    },
+    {
+      "side": "B",
+      "pair": 12,
+      "childWallMs": 76.76895800000057,
+      "loadAverage1m": 17.53564453125,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.5868329999999986,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48349184,
+        "peakRssGrowthBytes": 65536,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 28.750833000000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45563904,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 48431104,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48431104
+      }
+    },
+    {
+      "side": "A",
+      "pair": 13,
+      "childWallMs": 58.058709000004455,
+      "loadAverage1m": 15.021484375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 2.2055000000000007,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65257472,
+        "peakRssGrowthBytes": 16891904,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 18.341834000000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45760512,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65355776,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65355776
+      }
+    },
+    {
+      "side": "B",
+      "pair": 13,
+      "childWallMs": 48.946792000031564,
+      "loadAverage1m": 15.021484375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.19841699999999918,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48300032,
+        "peakRssGrowthBytes": 49152,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 8.481541,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028712,
+          "rss": 45629440,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817976,
+          "rss": 48365568,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48365568
+      }
+    },
+    {
+      "side": "A",
+      "pair": 14,
+      "childWallMs": 48.84520899999188,
+      "loadAverage1m": 14.43896484375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 2.551124999999999,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65126400,
+        "peakRssGrowthBytes": 16875520,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 19.828292,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45596672,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65224704,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65224704
+      }
+    },
+    {
+      "side": "B",
+      "pair": 14,
+      "childWallMs": 38.45716699998593,
+      "loadAverage1m": 14.43896484375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.22445800000000204,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48316416,
+        "peakRssGrowthBytes": 49152,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 8.988667000000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45514752,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 48381952,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48381952
+      }
+    },
+    {
+      "side": "A",
+      "pair": 15,
+      "childWallMs": 105.6385419999715,
+      "loadAverage1m": 12.44775390625,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 27.413832999999997,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65552384,
+        "peakRssGrowthBytes": 16891904,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 65.69762499999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 46055424,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65617920,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65617920
+      }
+    },
+    {
+      "side": "B",
+      "pair": 15,
+      "childWallMs": 94.97920800000429,
+      "loadAverage1m": 12.44775390625,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.196124999999995,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48906240,
+        "peakRssGrowthBytes": 49152,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 30.130834,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 46170112,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 49004544,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 49004544
+      }
+    },
+    {
+      "side": "A",
+      "pair": 16,
+      "childWallMs": 80.2862080000341,
+      "loadAverage1m": 11.93603515625,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 2.210208999999999,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65060864,
+        "peakRssGrowthBytes": 16859136,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 29.990542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45514752,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65142784,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65142784
+      }
+    },
+    {
+      "side": "B",
+      "pair": 16,
+      "childWallMs": 42.76795799995307,
+      "loadAverage1m": 11.93603515625,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.28887500000000443,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48431104,
+        "peakRssGrowthBytes": 81920,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 12.258250000000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45531136,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 48529408,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48529408
+      }
+    },
+    {
+      "side": "A",
+      "pair": 17,
+      "childWallMs": 64.5942919999361,
+      "loadAverage1m": 13.08154296875,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 4.140500000000003,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65519616,
+        "peakRssGrowthBytes": 16859136,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 19.650625000000005,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 46039040,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65617920,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65617920
+      }
+    },
+    {
+      "side": "B",
+      "pair": 17,
+      "childWallMs": 60.22487500007264,
+      "loadAverage1m": 13.08154296875,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.3047910000000016,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48381952,
+        "peakRssGrowthBytes": 49152,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 17.482584000000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45907968,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 48447488,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48447488
+      }
+    },
+    {
+      "side": "A",
+      "pair": 18,
+      "childWallMs": 51.82408399996348,
+      "loadAverage1m": 12.47802734375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 2.2621249999999975,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65126400,
+        "peakRssGrowthBytes": 16891904,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 14.597000000000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45580288,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779424,
+          "rss": 65208320,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65208320
+      }
+    },
+    {
+      "side": "B",
+      "pair": 18,
+      "childWallMs": 46.39362500002608,
+      "loadAverage1m": 12.47802734375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.17908299999999855,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48300032,
+        "peakRssGrowthBytes": 49152,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 10.948542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45629440,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 48398336,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48398336
+      }
+    },
+    {
+      "side": "A",
+      "pair": 19,
+      "childWallMs": 69.54866699990816,
+      "loadAverage1m": 10.73193359375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 2.8232499999999945,
+        "bytesRead": 16777216,
+        "readCalls": 1,
+        "peakRssBytes": 65486848,
+        "peakRssGrowthBytes": 16891904,
+        "heapUsedDeltaBytes": 59192,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 27.909334,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028712,
+          "rss": 45989888,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4779496,
+          "rss": 65552384,
+          "external": 18743978,
+          "arrayBuffers": 16793844
+        },
+        "maxRssBytes": 65552384
+      }
+    },
+    {
+      "side": "B",
+      "pair": 19,
+      "childWallMs": 71.0477499999106,
+      "loadAverage1m": 10.73193359375,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 0.19574999999999676,
+        "bytesRead": 0,
+        "readCalls": 0,
+        "peakRssBytes": 48398336,
+        "peakRssGrowthBytes": 49152,
+        "heapUsedDeltaBytes": 63784,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 0,
+        "truncated": true,
+        "truncationReason": "maxBytes"
+      },
+      "caseDurationMs": 26.303125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5028640,
+          "rss": 45678592,
+          "external": 1962758,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 4817904,
+          "rss": 48463872,
+          "external": 1966762,
+          "arrayBuffers": 16628
+        },
+        "maxRssBytes": 48463872
+      }
+    }
+  ]
+}

@@ -78,7 +78,13 @@ describe("cloud-run adapter", () => {
     const execution = "projects/proj/locations/us-central1/jobs/capsule-job/executions/execution-1";
     const fetchMock = (async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(url), init: init ?? {} });
-      if (String(url).endsWith(":cancel")) return response({ name: execution, completionStatus: "EXECUTION_CANCELLED" });
+      // executions.cancel returns an Operation whose response is the Execution once done.
+      if (String(url).endsWith(":cancel"))
+        return response({
+          name: "projects/proj/locations/us-central1/operations/cancel-1",
+          done: true,
+          response: { name: execution, completionStatus: "EXECUTION_CANCELLED" }
+        });
       return response({ name: execution, completionStatus: "EXECUTION_RUNNING", runningCount: 1, taskCount: 1 });
     }) as typeof fetch;
     const capsule = new Capsule({

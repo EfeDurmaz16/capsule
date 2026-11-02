@@ -1,0 +1,220 @@
+{
+  "meta": {
+    "label": "control-baseline-7d3a28a",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+    "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346",
+    "dirty": false,
+    "date": "2026-10-27T14:12:04.586Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56",
+      "execArgv": [
+        "--expose-gc"
+      ]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": null,
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workload": {
+    "id": "perf-02-artifact-collection",
+    "perfIds": [
+      "PERF-02"
+    ],
+    "manifestIds": [
+      "IO-01"
+    ]
+  },
+  "case": "many-small-files",
+  "description": "1000 files of 4 KiB across 20 directories (the default maxFiles), default budgets. Inventory digest is the parity check.",
+  "params": {
+    "directories": 20,
+    "filesPerDirectory": 50,
+    "fileBytes": 4096
+  },
+  "runs": [
+    {
+      "rep": 0,
+      "childWallMs": 136.40916600000128,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 17.765083000000004,
+        "bytesRead": 4096000,
+        "readCalls": 1000,
+        "peakRssBytes": 56786944,
+        "peakRssGrowthBytes": 1556480,
+        "heapUsedDeltaBytes": 953376,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 1000,
+        "truncated": false,
+        "truncationReason": null,
+        "inventoryDigest": "50758fbb91a29981fc3e90bf25da02b02297172b4e30636792a509ea0b91140d"
+      },
+      "caseDurationMs": 108.373042,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5035472,
+          "rss": 45711360,
+          "external": 1965053,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 5428968,
+          "rss": 58408960,
+          "external": 1996144,
+          "arrayBuffers": 43715
+        },
+        "maxRssBytes": 58408960
+      }
+    },
+    {
+      "rep": 1,
+      "childWallMs": 136.02345799999966,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 15.674125000000004,
+        "bytesRead": 4096000,
+        "readCalls": 1000,
+        "peakRssBytes": 56803328,
+        "peakRssGrowthBytes": 1261568,
+        "heapUsedDeltaBytes": 955112,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 1000,
+        "truncated": false,
+        "truncationReason": null,
+        "inventoryDigest": "50758fbb91a29981fc3e90bf25da02b02297172b4e30636792a509ea0b91140d"
+      },
+      "caseDurationMs": 107.890125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5035472,
+          "rss": 45744128,
+          "external": 1965053,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 5431152,
+          "rss": 58359808,
+          "external": 1996144,
+          "arrayBuffers": 43715
+        },
+        "maxRssBytes": 58359808
+      }
+    },
+    {
+      "rep": 2,
+      "childWallMs": 142.66800000000148,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 16.948375,
+        "bytesRead": 4096000,
+        "readCalls": 1000,
+        "peakRssBytes": 56868864,
+        "peakRssGrowthBytes": 1523712,
+        "heapUsedDeltaBytes": 953776,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 1000,
+        "truncated": false,
+        "truncationReason": null,
+        "inventoryDigest": "50758fbb91a29981fc3e90bf25da02b02297172b4e30636792a509ea0b91140d"
+      },
+      "caseDurationMs": 114.186917,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5035472,
+          "rss": 45694976,
+          "external": 1965053,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 5429360,
+          "rss": 58425344,
+          "external": 1996144,
+          "arrayBuffers": 43715
+        },
+        "maxRssBytes": 58425344
+      }
+    },
+    {
+      "rep": 3,
+      "childWallMs": 135.76158399999986,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 16.798374999999993,
+        "bytesRead": 4096000,
+        "readCalls": 1000,
+        "peakRssBytes": 56803328,
+        "peakRssGrowthBytes": 1523712,
+        "heapUsedDeltaBytes": 949800,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 1000,
+        "truncated": false,
+        "truncationReason": null,
+        "inventoryDigest": "50758fbb91a29981fc3e90bf25da02b02297172b4e30636792a509ea0b91140d"
+      },
+      "caseDurationMs": 107.028958,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5035472,
+          "rss": 45596672,
+          "external": 1965053,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 5415616,
+          "rss": 58245120,
+          "external": 1996144,
+          "arrayBuffers": 43715
+        },
+        "maxRssBytes": 58245120
+      }
+    },
+    {
+      "rep": 4,
+      "childWallMs": 134.74124999999913,
+      "ok": true,
+      "metrics": {
+        "elapsedMs": 16.563541,
+        "bytesRead": 4096000,
+        "readCalls": 1000,
+        "peakRssBytes": 56721408,
+        "peakRssGrowthBytes": 1359872,
+        "heapUsedDeltaBytes": 920896,
+        "eventLoopMaxDelayMs": 0,
+        "collectedFiles": 1000,
+        "truncated": false,
+        "truncationReason": null,
+        "inventoryDigest": "50758fbb91a29981fc3e90bf25da02b02297172b4e30636792a509ea0b91140d"
+      },
+      "caseDurationMs": 105.96083300000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5035472,
+          "rss": 45694976,
+          "external": 1965053,
+          "arrayBuffers": 22804
+        },
+        "endMemory": {
+          "heapUsed": 5403128,
+          "rss": 58327040,
+          "external": 1996144,
+          "arrayBuffers": 43715
+        },
+        "maxRssBytes": 58327040
+      }
+    }
+  ]
+}

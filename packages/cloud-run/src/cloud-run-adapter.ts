@@ -1,6 +1,10 @@
+import { randomBytes } from "node:crypto";
 import {
   AdapterExecutionError,
+  PendingOperationError,
+  UnknownOutcomeError,
   providerErrorStatus,
+  resourceLocator,
   capsuleOperationTags,
   logsFromOutput,
   providerRuntimeMetadata,
@@ -20,6 +24,7 @@ import {
   type JobRun,
   type LogEntry,
   type RollbackServiceSpec,
+  type ResourceLocator,
   type RunJobSpec,
   type ServiceDeployment,
   type ServiceLogsResult,
@@ -156,10 +161,21 @@ function jobBody(spec: RunJobSpec) {
   };
 }
 
+// Cloud Run probes are HTTP, TCP or gRPC; there is no exec probe. A command healthcheck must never be
+// written into Container.command, which is the image ENTRYPOINT and would replace the real server.
+function rejectCommandHealthcheck(spec: { healthcheck?: { command?: string[] | string } }, operation: string): void {
+  if (spec.healthcheck?.command !== undefined) {
+    throw new AdapterExecutionError(
+      `Cloud Run ${operation} supports only healthcheck.path (HTTP startup probe); healthcheck.command is not supported because Cloud Run has no exec probe.`
+    );
+  }
+}
+
 function serviceBody(spec: DeployServiceSpec) {
   if (!spec.image) {
     throw new AdapterExecutionError("Cloud Run service.deploy requires spec.image. Source deploy is not implemented.");
   }
+  rejectCommandHealthcheck(spec, "service.deploy");
   return {
     labels: labelsWithOperationTag(spec.labels, spec.idempotencyKey, "service.deploy"),
     template: {
@@ -169,7 +185,7 @@ function serviceBody(spec: DeployServiceSpec) {
       },
       containers: [
         {
-          ...container(spec.image, spec.healthcheck?.command, spec.env, resources(spec.resources)),
+          ...container(spec.image, undefined, spec.env, resources(spec.resources)),
           ports: spec.ports?.[0] ? [{ containerPort: spec.ports[0].port, name: spec.ports[0].protocol === "tcp" ? "tcp1" : "http1" }] : undefined,
           startupProbe: spec.healthcheck?.path ? { httpGet: { path: spec.healthcheck.path } } : undefined
         }
@@ -182,6 +198,7 @@ function serviceUpdateBody(name: string, spec: UpdateServiceSpec): { body: Recor
   if (spec.source) {
     throw new AdapterExecutionError("Cloud Run service.update from source is not implemented. Provide an image for revision updates.");
   }
+  rejectCommandHealthcheck(spec, "service.update");
   const limits = resources(spec.resources);
   const hasContainerUpdate = Boolean(spec.image ?? spec.env ?? spec.resources ?? spec.ports ?? spec.healthcheck);
   if (hasContainerUpdate && !spec.image) {
@@ -206,7 +223,6 @@ function serviceUpdateBody(name: string, spec: UpdateServiceSpec): { body: Recor
             containers: [
               {
                 ...(spec.image ? { image: spec.image } : {}),
-                ...normalizeCommand(spec.healthcheck?.command),
                 ...(spec.env ? { env: env(spec.env) } : {}),
                 ...(limits ? { resources: { limits } } : {}),
                 ...(spec.ports?.[0] ? { ports: [{ containerPort: spec.ports[0].port, name: spec.ports[0].protocol === "tcp" ? "tcp1" : "http1" }] } : {}),
@@ -259,11 +275,17 @@ function operationStatus(operation: CloudRunOperation): JobRun["status"] {
   if (operation.error) return "failed";
   if (isExecution(operation.response)) return executionStatus(operation.response);
   if (operation.done) return "succeeded";
-  return "running";
+  const execution = operationExecution(operation);
+  return execution ? executionStatus(execution) : "running";
 }
 
-function executionName(operation: CloudRunOperation, fallback: string): string {
-  return isExecution(operation.response) ? operation.response.name : fallback;
+// The Execution an operation reports, from its response when done or from its metadata, which Cloud
+// Run populates with the Execution for run and cancel operations. Only a real executions/ name counts.
+function operationExecution(operation: CloudRunOperation): CloudRunExecution | undefined {
+  for (const candidate of [operation.response, operation.metadata]) {
+    if (isExecution(candidate) && candidate.name.includes("/executions/")) return candidate;
+  }
+  return undefined;
 }
 
 function isService(value: unknown): value is CloudRunService {
@@ -303,8 +325,12 @@ function serviceOperationStatus(operation: CloudRunOperation): ServiceDeployment
   return "deploying";
 }
 
+function locate(client: CloudRunClient, kind: "job" | "service" | "execution", nativeId: string): ResourceLocator {
+  return resourceLocator({ provider, kind, nativeId, scope: { project: client.projectId, location: client.location } });
+}
+
 function serviceName(client: CloudRunClient, id: string): string {
-  return id.startsWith("projects/") ? id : client.resource("services", id);
+  return client.scopedName("services", id);
 }
 
 function providerBoolean(options: UpdateServiceSpec["providerOptions"], key: string, fallback: boolean): boolean {
@@ -369,6 +395,8 @@ function loggingTimeRange(spec: { since?: string; until?: string }): string[] {
 }
 
 function jobLogFilter(client: CloudRunClient, spec: JobLogsSpec): string {
+  // Validates the id against the configured scope; the filter below always names that scope.
+  client.scopedName(spec.id.includes("/executions/") ? "executions" : "jobs", spec.id);
   const jobName = resourceLeaf(spec.id, "jobs");
   const executionName = spec.id.includes("/executions/") ? resourceLeaf(spec.id, "executions") : undefined;
   return [
@@ -382,6 +410,7 @@ function jobLogFilter(client: CloudRunClient, spec: JobLogsSpec): string {
 }
 
 function serviceLogFilter(client: CloudRunClient, spec: ServiceLogsSpec): string {
+  client.scopedName("services", spec.id);
   const name = resourceLeaf(spec.id, "services");
   return [
     'resource.type="cloud_run_revision"',
@@ -438,7 +467,10 @@ async function fetchLogs(
 }
 
 export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
-  const getClient = () => new CloudRunClient(options);
+  // One client per adapter, built on first use, so the Google auth client and its token cache are
+  // reused across operations. A constructor failure (missing projectId or location) is not cached.
+  let client: CloudRunClient | undefined;
+  const getClient = (): CloudRunClient => (client ??= new CloudRunClient(options));
   return {
     name: adapter,
     provider,
@@ -449,12 +481,39 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
         const client = getClient();
-        const id = spec.name ?? `capsule-job-${Date.now()}`;
+        const id = spec.name ?? `capsule-job-${Date.now().toString(36)}-${randomBytes(4).toString("hex")}`;
+        const jobName = client.resource("jobs", id);
+        const jobLocator = locate(client, "job", jobName);
+        // jobs.create returns an Operation. :run needs the Job to exist, so creation is always observed
+        // to completion (bounded by operationDeadlineMs) and a failed create never proceeds to :run.
         const create = await client.createJob(id, jobBody(spec));
-        const run = await client.runJob(client.resource("jobs", id));
+        const created = await client.awaitOperation(create, { operation: "job.run", resource: jobLocator, always: true });
+        if (created.error) {
+          throw new AdapterExecutionError(`Cloud Run job creation failed: ${created.error.message ?? "unknown error"}`, { operation: created });
+        }
+        const run = await client.runJob(jobName);
         const operation = await client.waitOperation(run);
+        // The Execution comes from the run operation's response or metadata. Without it there is no
+        // execution identity to return; the Job name is never substituted for it.
+        const execution = operationExecution(operation);
+        if (!execution) {
+          if (operation.error) {
+            throw new AdapterExecutionError(`Cloud Run job execution failed to start: ${operation.error.message ?? "unknown error"}`, { operation });
+          }
+          const runLocator = resourceLocator({ ...jobLocator, scope: { ...jobLocator.scope }, nativeOperationId: run.name });
+          if (operation.done) {
+            throw new UnknownOutcomeError("Cloud Run job.run operation finished without reporting its Execution.", {
+              operation: "job.run",
+              resource: runLocator
+            });
+          }
+          throw new PendingOperationError(
+            `Cloud Run job.run for ${jobName} was accepted but has not reported its Execution yet; observe operation ${run.name}.`,
+            { operation: "job.run", resource: runLocator, state: "running" }
+          );
+        }
         const status = operationStatus(operation);
-        const runId = executionName(operation, client.resource("jobs", id));
+        const runId = execution.name;
         const receipt = context.receipts
           ? context.createReceipt({
               type: "job.run",
@@ -472,7 +531,7 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
                 ]
               },
               resource: { id: runId, name: runId, status },
-              metadata: cloudRunReceiptMetadata(client, { createOperation: create.name, runOperation: run.name, operation })
+              metadata: cloudRunReceiptMetadata(client, { jobName, createOperation: create.name, runOperation: run.name, operation })
             })
           : undefined;
         return {
@@ -485,7 +544,7 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
       },
       status: async (spec: JobStatusSpec): Promise<JobStatusResult> => {
         const client = getClient();
-        const execution = await client.getExecution(spec.id);
+        const execution = await client.getExecution(client.scopedName("executions", spec.id));
         return {
           id: execution.name,
           provider,
@@ -495,13 +554,19 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
       },
       cancel: async (spec: CancelJobSpec): Promise<CancelJobResult> => {
         const client = getClient();
-        const execution = await client.cancelExecution(spec.id);
-        const status = executionStatus(execution) === "cancelled" ? "cancelled" : "cancelling";
+        // executions.cancel returns a long-running Operation. Its name identifies the cancel
+        // operation, never the Execution, so the result keeps the Execution identity it was given.
+        const operation = await client.cancelExecution(client.scopedName("executions", spec.id));
+        if (operation.error) {
+          throw new AdapterExecutionError(`Cloud Run execution cancellation failed: ${operation.error.message ?? "unknown error"}`, { operation });
+        }
+        const execution = operationExecution(operation);
+        const status = operation.done && execution && executionStatus(execution) === "cancelled" ? "cancelled" : "cancelling";
         return {
-          id: execution.name,
+          id: spec.id,
           provider,
           status,
-          metadata: { execution, reason: spec.reason }
+          metadata: { operation: operation.name, operationResource: operation, execution, reason: spec.reason }
         };
       },
       logs: async (spec: JobLogsSpec, context: AdapterContext): Promise<JobLogsResult> => {
@@ -535,10 +600,10 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
         const startedAt = new Date();
         const policy = context.evaluatePolicy({ env: spec.env });
         const client = getClient();
+        const serviceName = client.resource("services", spec.name);
         const create = await client.createService(spec.name, serviceBody(spec));
         const operation = await client.waitOperation(create);
         const status = serviceOperationStatus(operation);
-        const serviceName = client.resource("services", spec.name);
         const service = status === "ready" ? await client.getService(serviceName) : isService(operation.response) ? operation.response : {};
         const url = serviceUrl(service, operation);
         const receipt = context.receipts
@@ -663,18 +728,23 @@ export function cloudRun(options: CloudRunAdapterOptions = {}): CapsuleAdapter {
         const client = getClient();
         const name = serviceName(client, spec.id);
         let alreadyAbsent = false;
-        let waited: Awaited<ReturnType<typeof client.waitOperation>> | undefined;
+        let waited: CloudRunOperation | undefined;
+        let operation: CloudRunOperation | undefined;
         try {
-          const operation = await client.deleteService(name);
-          waited = await client.waitOperation(operation);
-          if (waited.error) {
-            throw new AdapterExecutionError("Cloud Run service deletion failed.", { operation: waited });
-          }
+          operation = await client.deleteService(name);
         } catch (error) {
           if (providerErrorStatus(error) !== 404) {
             throw error;
           }
           alreadyAbsent = true;
+        }
+        if (operation) {
+          // operations.wait is best effort and may return before the deletion is done. deleted is
+          // reported only for a done operation without error; otherwise PendingOperationError.
+          waited = await client.awaitOperation(operation, { operation: "service.delete", resource: locate(client, "service", name) });
+          if (waited.error) {
+            throw new AdapterExecutionError(`Cloud Run service deletion failed: ${waited.error.message ?? "unknown error"}`, { operation: waited });
+          }
         }
         const receipt = context.receipts
           ? context.createReceipt({

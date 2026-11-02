@@ -1,0 +1,1910 @@
+{
+  "meta": {
+    "label": "survey-cbe11d3",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 15,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "cbe11d3a7655196ad3871ad930176a8847225eb0",
+      "packagesTree": "56576949d4a805fe7008356ecbb6c9a6c64f8161",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "cbe11d3a7655196ad3871ad930176a8847225eb0",
+    "date": "2026-10-27T19:37:24.391Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        11.28564453125,
+        10.912109375,
+        7.83251953125
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)"
+  },
+  "workload": "perf-01-core-receipts",
+  "case": "long-lived-best-effort",
+  "params": {
+    "checkpoints": [
+      1000,
+      5000,
+      20000
+    ]
+  },
+  "runs": [
+    {
+      "side": "A",
+      "pair": 0,
+      "childWallMs": 198.864917,
+      "loadAverage1m": 11.28564453125,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 126991.14898994638,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 20000,
+          "heapUsedDeltaBytes": 37087560,
+          "rssDeltaBytes": 80953344,
+          "heapBytesPerOperation": 1854.378
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1000,
+            "heapUsedDeltaBytes": 2016848,
+            "rssDeltaBytes": 11452416,
+            "heapBytesPerOperation": 2016.848
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 5000,
+            "heapUsedDeltaBytes": 9537968,
+            "rssDeltaBytes": 36126720,
+            "heapBytesPerOperation": 1907.5936
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 20000,
+            "heapUsedDeltaBytes": 37087560,
+            "rssDeltaBytes": 80953344,
+            "heapBytesPerOperation": 1854.378
+          }
+        }
+      },
+      "caseDurationMs": 161.960459,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4826424,
+          "rss": 46989312,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 43121848,
+          "rss": 131547136,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 131547136
+      }
+    },
+    {
+      "side": "B",
+      "pair": 0,
+      "childWallMs": 133.42670900000002,
+      "loadAverage1m": 11.28564453125,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 207864.2854080571,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 1,
+          "heapUsedDeltaBytes": 1228080,
+          "rssDeltaBytes": 69517312,
+          "heapBytesPerOperation": 61.404
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 224952,
+            "rssDeltaBytes": 11468800,
+            "heapBytesPerOperation": 224.952
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 568024,
+            "rssDeltaBytes": 35045376,
+            "heapBytesPerOperation": 113.6048
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 1228080,
+            "rssDeltaBytes": 69517312,
+            "heapBytesPerOperation": 61.404
+          }
+        }
+      },
+      "caseDurationMs": 100.88779099999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5306568,
+          "rss": 46268416,
+          "external": 2046278,
+          "arrayBuffers": 172190
+        },
+        "endMemory": {
+          "heapUsed": 5987480,
+          "rss": 118702080,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 119111680
+      }
+    },
+    {
+      "side": "A",
+      "pair": 1,
+      "childWallMs": 230.14962500000547,
+      "loadAverage1m": 9.4658203125,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 104982.37589992664,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 20000,
+          "heapUsedDeltaBytes": 37087624,
+          "rssDeltaBytes": 81494016,
+          "heapBytesPerOperation": 1854.3812
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1000,
+            "heapUsedDeltaBytes": 2016848,
+            "rssDeltaBytes": 11550720,
+            "heapBytesPerOperation": 2016.848
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 5000,
+            "heapUsedDeltaBytes": 9538544,
+            "rssDeltaBytes": 36290560,
+            "heapBytesPerOperation": 1907.7088
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 20000,
+            "heapUsedDeltaBytes": 37087624,
+            "rssDeltaBytes": 81494016,
+            "heapBytesPerOperation": 1854.3812
+          }
+        }
+      },
+      "caseDurationMs": 194.98749999999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4847256,
+          "rss": 47005696,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 43121912,
+          "rss": 132153344,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 132153344
+      }
+    },
+    {
+      "side": "B",
+      "pair": 1,
+      "childWallMs": 135.17175000000134,
+      "loadAverage1m": 9.4658203125,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 206254.1411964287,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 1,
+          "heapUsedDeltaBytes": 1229424,
+          "rssDeltaBytes": 69894144,
+          "heapBytesPerOperation": 61.4712
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 224776,
+            "rssDeltaBytes": 11386880,
+            "heapBytesPerOperation": 224.776
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 567136,
+            "rssDeltaBytes": 35291136,
+            "heapBytesPerOperation": 113.4272
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 1229424,
+            "rssDeltaBytes": 69894144,
+            "heapBytesPerOperation": 61.4712
+          }
+        }
+      },
+      "caseDurationMs": 101.90812500000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5306568,
+          "rss": 46252032,
+          "external": 2046278,
+          "arrayBuffers": 172190
+        },
+        "endMemory": {
+          "heapUsed": 5988824,
+          "rss": 118980608,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 119373824
+      }
+    },
+    {
+      "side": "A",
+      "pair": 2,
+      "childWallMs": 206.21954199999163,
+      "loadAverage1m": 8.34521484375,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 120034.7498200034,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 20000,
+          "heapUsedDeltaBytes": 37086392,
+          "rssDeltaBytes": 81297408,
+          "heapBytesPerOperation": 1854.3196
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1000,
+            "heapUsedDeltaBytes": 2016816,
+            "rssDeltaBytes": 11681792,
+            "heapBytesPerOperation": 2016.816
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 5000,
+            "heapUsedDeltaBytes": 9538904,
+            "rssDeltaBytes": 36716544,
+            "heapBytesPerOperation": 1907.7808
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 20000,
+            "heapUsedDeltaBytes": 37086392,
+            "rssDeltaBytes": 81297408,
+            "heapBytesPerOperation": 1854.3196
+          }
+        }
+      },
+      "caseDurationMs": 171.47979199999997,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4811984,
+          "rss": 47104000,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 43120680,
+          "rss": 131874816,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 131874816
+      }
+    },
+    {
+      "side": "B",
+      "pair": 2,
+      "childWallMs": 154.43283299999894,
+      "loadAverage1m": 8.34521484375,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 171562.32926331446,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 1,
+          "heapUsedDeltaBytes": 1227592,
+          "rssDeltaBytes": 72581120,
+          "heapBytesPerOperation": 61.3796
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 224808,
+            "rssDeltaBytes": 11616256,
+            "heapBytesPerOperation": 224.808
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 560256,
+            "rssDeltaBytes": 33587200,
+            "heapBytesPerOperation": 112.0512
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 1227592,
+            "rssDeltaBytes": 72581120,
+            "heapBytesPerOperation": 61.3796
+          }
+        }
+      },
+      "caseDurationMs": 121.235792,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5306640,
+          "rss": 46104576,
+          "external": 2046278,
+          "arrayBuffers": 172190
+        },
+        "endMemory": {
+          "heapUsed": 5987064,
+          "rss": 121602048,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 121831424
+      }
+    },
+    {
+      "side": "A",
+      "pair": 3,
+      "childWallMs": 243.11391600000206,
+      "loadAverage1m": 9.80517578125,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 105206.24076476604,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 20000,
+          "heapUsedDeltaBytes": 37088336,
+          "rssDeltaBytes": 80805888,
+          "heapBytesPerOperation": 1854.4168
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1000,
+            "heapUsedDeltaBytes": 2016816,
+            "rssDeltaBytes": 11517952,
+            "heapBytesPerOperation": 2016.816
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 5000,
+            "heapUsedDeltaBytes": 9536360,
+            "rssDeltaBytes": 36356096,
+            "heapBytesPerOperation": 1907.272
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 20000,
+            "heapUsedDeltaBytes": 37088336,
+            "rssDeltaBytes": 80805888,
+            "heapBytesPerOperation": 1854.4168
+          }
+        }
+      },
+      "caseDurationMs": 195.57945899999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4826496,
+          "rss": 47415296,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 43122696,
+          "rss": 131842048,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 131842048
+      }
+    },
+    {
+      "side": "B",
+      "pair": 3,
+      "childWallMs": 153.41887500000303,
+      "loadAverage1m": 9.80517578125,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 180101.01523752746,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 1,
+          "heapUsedDeltaBytes": 1225984,
+          "rssDeltaBytes": 69566464,
+          "heapBytesPerOperation": 61.2992
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 224808,
+            "rssDeltaBytes": 11550720,
+            "heapBytesPerOperation": 224.808
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 565968,
+            "rssDeltaBytes": 35094528,
+            "heapBytesPerOperation": 113.1936
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 1225984,
+            "rssDeltaBytes": 69566464,
+            "heapBytesPerOperation": 61.2992
+          }
+        }
+      },
+      "caseDurationMs": 116.52429200000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5306568,
+          "rss": 46350336,
+          "external": 2046278,
+          "arrayBuffers": 172190
+        },
+        "endMemory": {
+          "heapUsed": 5985384,
+          "rss": 118718464,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 119177216
+      }
+    },
+    {
+      "side": "A",
+      "pair": 4,
+      "childWallMs": 212.68962499999907,
+      "loadAverage1m": 10.5185546875,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 119280.5000238561,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 20000,
+          "heapUsedDeltaBytes": 37088240,
+          "rssDeltaBytes": 82526208,
+          "heapBytesPerOperation": 1854.412
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1000,
+            "heapUsedDeltaBytes": 2016056,
+            "rssDeltaBytes": 12025856,
+            "heapBytesPerOperation": 2016.056
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 5000,
+            "heapUsedDeltaBytes": 9534144,
+            "rssDeltaBytes": 38125568,
+            "heapBytesPerOperation": 1906.8288
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 20000,
+            "heapUsedDeltaBytes": 37088240,
+            "rssDeltaBytes": 82526208,
+            "heapBytesPerOperation": 1854.412
+          }
+        }
+      },
+      "caseDurationMs": 173.208458,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4849392,
+          "rss": 47038464,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 43122528,
+          "rss": 133152768,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 133152768
+      }
+    },
+    {
+      "side": "B",
+      "pair": 4,
+      "childWallMs": 164.07320899999468,
+      "loadAverage1m": 10.5185546875,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 170329.0971067474,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 1,
+          "heapUsedDeltaBytes": 1228608,
+          "rssDeltaBytes": 70352896,
+          "heapBytesPerOperation": 61.4304
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 224920,
+            "rssDeltaBytes": 11419648,
+            "heapBytesPerOperation": 224.92
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 565296,
+            "rssDeltaBytes": 31932416,
+            "heapBytesPerOperation": 113.0592
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 1228608,
+            "rssDeltaBytes": 70352896,
+            "heapBytesPerOperation": 61.4304
+          }
+        }
+      },
+      "caseDurationMs": 123.602292,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5306568,
+          "rss": 46497792,
+          "external": 2046278,
+          "arrayBuffers": 172190
+        },
+        "endMemory": {
+          "heapUsed": 5988008,
+          "rss": 119767040,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 120209408
+      }
+    },
+    {
+      "side": "A",
+      "pair": 5,
+      "childWallMs": 297.5366250000079,
+      "loadAverage1m": 9.400390625,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 85022.61146594022,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 20000,
+          "heapUsedDeltaBytes": 37087240,
+          "rssDeltaBytes": 83001344,
+          "heapBytesPerOperation": 1854.362
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1000,
+            "heapUsedDeltaBytes": 2016024,
+            "rssDeltaBytes": 11681792,
+            "heapBytesPerOperation": 2016.024
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 5000,
+            "heapUsedDeltaBytes": 9534920,
+            "rssDeltaBytes": 38240256,
+            "heapBytesPerOperation": 1906.984
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 20000,
+            "heapUsedDeltaBytes": 37087240,
+            "rssDeltaBytes": 83001344,
+            "heapBytesPerOperation": 1854.362
+          }
+        }
+      },
+      "caseDurationMs": 243.69404100000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4857400,
+          "rss": 47185920,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 43121528,
+          "rss": 133873664,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 133873664
+      }
+    },
+    {
+      "side": "B",
+      "pair": 5,
+      "childWallMs": 238.3065840000054,
+      "loadAverage1m": 9.400390625,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 122719.46280487826,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 1,
+          "heapUsedDeltaBytes": 1229560,
+          "rssDeltaBytes": 69353472,
+          "heapBytesPerOperation": 61.478
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 224040,
+            "rssDeltaBytes": 11763712,
+            "heapBytesPerOperation": 224.04
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 561400,
+            "rssDeltaBytes": 34930688,
+            "heapBytesPerOperation": 112.28
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 1229560,
+            "rssDeltaBytes": 69353472,
+            "heapBytesPerOperation": 61.478
+          }
+        }
+      },
+      "caseDurationMs": 171.75512500000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5306568,
+          "rss": 46825472,
+          "external": 2046278,
+          "arrayBuffers": 172190
+        },
+        "endMemory": {
+          "heapUsed": 5988960,
+          "rss": 118996992,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 119504896
+      }
+    },
+    {
+      "side": "A",
+      "pair": 6,
+      "childWallMs": 221.13729099999182,
+      "loadAverage1m": 10.4375,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 112501.01932954826,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 20000,
+          "heapUsedDeltaBytes": 37080168,
+          "rssDeltaBytes": 81739776,
+          "heapBytesPerOperation": 1854.0084
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1000,
+            "heapUsedDeltaBytes": 2016816,
+            "rssDeltaBytes": 11927552,
+            "heapBytesPerOperation": 2016.816
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 5000,
+            "heapUsedDeltaBytes": 9535264,
+            "rssDeltaBytes": 37044224,
+            "heapBytesPerOperation": 1907.0528
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 20000,
+            "heapUsedDeltaBytes": 37080168,
+            "rssDeltaBytes": 81739776,
+            "heapBytesPerOperation": 1854.0084
+          }
+        }
+      },
+      "caseDurationMs": 183.52474999999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4829168,
+          "rss": 47169536,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 43114528,
+          "rss": 132415488,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 132415488
+      }
+    },
+    {
+      "side": "B",
+      "pair": 6,
+      "childWallMs": 171.7934580000001,
+      "loadAverage1m": 10.4375,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 156719.18786361595,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 1,
+          "heapUsedDeltaBytes": 1226336,
+          "rssDeltaBytes": 70303744,
+          "heapBytesPerOperation": 61.3168
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 224808,
+            "rssDeltaBytes": 11960320,
+            "heapBytesPerOperation": 224.808
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 565944,
+            "rssDeltaBytes": 35602432,
+            "heapBytesPerOperation": 113.1888
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 1226336,
+            "rssDeltaBytes": 70303744,
+            "heapBytesPerOperation": 61.3168
+          }
+        }
+      },
+      "caseDurationMs": 134.300792,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5306568,
+          "rss": 46317568,
+          "external": 2046278,
+          "arrayBuffers": 172190
+        },
+        "endMemory": {
+          "heapUsed": 5986984,
+          "rss": 119341056,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 119668736
+      }
+    },
+    {
+      "side": "A",
+      "pair": 7,
+      "childWallMs": 201.03041700000176,
+      "loadAverage1m": 8.56494140625,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 125345.48348886619,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 20000,
+          "heapUsedDeltaBytes": 37083424,
+          "rssDeltaBytes": 81788928,
+          "heapBytesPerOperation": 1854.1712
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1000,
+            "heapUsedDeltaBytes": 2016848,
+            "rssDeltaBytes": 11599872,
+            "heapBytesPerOperation": 2016.848
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 5000,
+            "heapUsedDeltaBytes": 9531000,
+            "rssDeltaBytes": 37257216,
+            "heapBytesPerOperation": 1906.2
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 20000,
+            "heapUsedDeltaBytes": 37083424,
+            "rssDeltaBytes": 81788928,
+            "heapBytesPerOperation": 1854.1712
+          }
+        }
+      },
+      "caseDurationMs": 164.485917,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4837936,
+          "rss": 46923776,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 43117712,
+          "rss": 132317184,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 132317184
+      }
+    },
+    {
+      "side": "B",
+      "pair": 7,
+      "childWallMs": 133.91004200000316,
+      "loadAverage1m": 8.56494140625,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 208765.72411690975,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 1,
+          "heapUsedDeltaBytes": 1229544,
+          "rssDeltaBytes": 70647808,
+          "heapBytesPerOperation": 61.4772
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 224920,
+            "rssDeltaBytes": 11599872,
+            "heapBytesPerOperation": 224.92
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 567424,
+            "rssDeltaBytes": 35913728,
+            "heapBytesPerOperation": 113.4848
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 1229544,
+            "rssDeltaBytes": 70647808,
+            "heapBytesPerOperation": 61.4772
+          }
+        }
+      },
+      "caseDurationMs": 100.403917,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5306568,
+          "rss": 46252032,
+          "external": 2046278,
+          "arrayBuffers": 172190
+        },
+        "endMemory": {
+          "heapUsed": 5988944,
+          "rss": 119701504,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 119914496
+      }
+    },
+    {
+      "side": "A",
+      "pair": 8,
+      "childWallMs": 284.7694999999949,
+      "loadAverage1m": 9.072265625,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 83936.01138172315,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 20000,
+          "heapUsedDeltaBytes": 37088440,
+          "rssDeltaBytes": 81739776,
+          "heapBytesPerOperation": 1854.422
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1000,
+            "heapUsedDeltaBytes": 2016816,
+            "rssDeltaBytes": 11468800,
+            "heapBytesPerOperation": 2016.816
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 5000,
+            "heapUsedDeltaBytes": 9532360,
+            "rssDeltaBytes": 37224448,
+            "heapBytesPerOperation": 1906.472
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 20000,
+            "heapUsedDeltaBytes": 37088440,
+            "rssDeltaBytes": 81739776,
+            "heapBytesPerOperation": 1854.422
+          }
+        }
+      },
+      "caseDurationMs": 244.996208,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4876280,
+          "rss": 47153152,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 43122728,
+          "rss": 132530176,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 132530176
+      }
+    },
+    {
+      "side": "B",
+      "pair": 8,
+      "childWallMs": 167.95579099998577,
+      "loadAverage1m": 9.072265625,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 160650.5808739443,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 1,
+          "heapUsedDeltaBytes": 1228296,
+          "rssDeltaBytes": 70205440,
+          "heapBytesPerOperation": 61.4148
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 224016,
+            "rssDeltaBytes": 11714560,
+            "heapBytesPerOperation": 224.016
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 565240,
+            "rssDeltaBytes": 35307520,
+            "heapBytesPerOperation": 113.048
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 1228296,
+            "rssDeltaBytes": 70205440,
+            "heapBytesPerOperation": 61.4148
+          }
+        }
+      },
+      "caseDurationMs": 130.303959,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5306568,
+          "rss": 46317568,
+          "external": 2046278,
+          "arrayBuffers": 172190
+        },
+        "endMemory": {
+          "heapUsed": 5987696,
+          "rss": 119439360,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 119635968
+      }
+    },
+    {
+      "side": "A",
+      "pair": 9,
+      "childWallMs": 247.80370799999218,
+      "loadAverage1m": 10.02587890625,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 100199.48063302606,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 20000,
+          "heapUsedDeltaBytes": 37082344,
+          "rssDeltaBytes": 81756160,
+          "heapBytesPerOperation": 1854.1172
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1000,
+            "heapUsedDeltaBytes": 2016816,
+            "rssDeltaBytes": 11796480,
+            "heapBytesPerOperation": 2016.816
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 5000,
+            "heapUsedDeltaBytes": 9531712,
+            "rssDeltaBytes": 36700160,
+            "heapBytesPerOperation": 1906.3424
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 20000,
+            "heapUsedDeltaBytes": 37082344,
+            "rssDeltaBytes": 81756160,
+            "heapBytesPerOperation": 1854.1172
+          }
+        }
+      },
+      "caseDurationMs": 205.535584,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4888576,
+          "rss": 47316992,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 43116704,
+          "rss": 132694016,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 132694016
+      }
+    },
+    {
+      "side": "B",
+      "pair": 9,
+      "childWallMs": 187.5339999999851,
+      "loadAverage1m": 10.02587890625,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 146982.4499353707,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 1,
+          "heapUsedDeltaBytes": 1229376,
+          "rssDeltaBytes": 70729728,
+          "heapBytesPerOperation": 61.4688
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 224776,
+            "rssDeltaBytes": 11468800,
+            "heapBytesPerOperation": 224.776
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 563608,
+            "rssDeltaBytes": 36044800,
+            "heapBytesPerOperation": 112.7216
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 1229376,
+            "rssDeltaBytes": 70729728,
+            "heapBytesPerOperation": 61.4688
+          }
+        }
+      },
+      "caseDurationMs": 142.938458,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5306568,
+          "rss": 46415872,
+          "external": 2046278,
+          "arrayBuffers": 172190
+        },
+        "endMemory": {
+          "heapUsed": 5988776,
+          "rss": 119963648,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 120291328
+      }
+    },
+    {
+      "side": "A",
+      "pair": 10,
+      "childWallMs": 257.29812500003027,
+      "loadAverage1m": 11.076171875,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 102921.64496948023,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 20000,
+          "heapUsedDeltaBytes": 37087328,
+          "rssDeltaBytes": 81870848,
+          "heapBytesPerOperation": 1854.3664
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1000,
+            "heapUsedDeltaBytes": 2016816,
+            "rssDeltaBytes": 11730944,
+            "heapBytesPerOperation": 2016.816
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 5000,
+            "heapUsedDeltaBytes": 9536368,
+            "rssDeltaBytes": 36913152,
+            "heapBytesPerOperation": 1907.2736
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 20000,
+            "heapUsedDeltaBytes": 37087328,
+            "rssDeltaBytes": 81870848,
+            "heapBytesPerOperation": 1854.3664
+          }
+        }
+      },
+      "caseDurationMs": 199.387708,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4826312,
+          "rss": 47022080,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 43121624,
+          "rss": 132530176,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 132530176
+      }
+    },
+    {
+      "side": "B",
+      "pair": 10,
+      "childWallMs": 206.39770899998257,
+      "loadAverage1m": 11.076171875,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 167284.28162847468,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 1,
+          "heapUsedDeltaBytes": 1225712,
+          "rssDeltaBytes": 71188480,
+          "heapBytesPerOperation": 61.2856
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 224952,
+            "rssDeltaBytes": 11468800,
+            "heapBytesPerOperation": 224.952
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 565688,
+            "rssDeltaBytes": 32522240,
+            "heapBytesPerOperation": 113.1376
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 1225712,
+            "rssDeltaBytes": 71188480,
+            "heapBytesPerOperation": 61.2856
+          }
+        }
+      },
+      "caseDurationMs": 126.83154099999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5306568,
+          "rss": 46317568,
+          "external": 2046278,
+          "arrayBuffers": 172190
+        },
+        "endMemory": {
+          "heapUsed": 5985120,
+          "rss": 120422400,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 120766464
+      }
+    },
+    {
+      "side": "A",
+      "pair": 11,
+      "childWallMs": 223.8630000000121,
+      "loadAverage1m": 11.21484375,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 112730.59571778742,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 20000,
+          "heapUsedDeltaBytes": 37084896,
+          "rssDeltaBytes": 81969152,
+          "heapBytesPerOperation": 1854.2448
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1000,
+            "heapUsedDeltaBytes": 2016848,
+            "rssDeltaBytes": 12075008,
+            "heapBytesPerOperation": 2016.848
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 5000,
+            "heapUsedDeltaBytes": 9533272,
+            "rssDeltaBytes": 37404672,
+            "heapBytesPerOperation": 1906.6544
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 20000,
+            "heapUsedDeltaBytes": 37084896,
+            "rssDeltaBytes": 81969152,
+            "heapBytesPerOperation": 1854.2448
+          }
+        }
+      },
+      "caseDurationMs": 184.209125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4822968,
+          "rss": 47153152,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 43119192,
+          "rss": 132530176,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 132530176
+      }
+    },
+    {
+      "side": "B",
+      "pair": 11,
+      "childWallMs": 175.54341699997894,
+      "loadAverage1m": 11.21484375,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 155541.85923072885,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 1,
+          "heapUsedDeltaBytes": 1230568,
+          "rssDeltaBytes": 70696960,
+          "heapBytesPerOperation": 61.5284
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 224808,
+            "rssDeltaBytes": 11632640,
+            "heapBytesPerOperation": 224.808
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 567960,
+            "rssDeltaBytes": 36077568,
+            "heapBytesPerOperation": 113.592
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 1230568,
+            "rssDeltaBytes": 70696960,
+            "heapBytesPerOperation": 61.5284
+          }
+        }
+      },
+      "caseDurationMs": 135.316916,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5306640,
+          "rss": 46333952,
+          "external": 2046278,
+          "arrayBuffers": 172190
+        },
+        "endMemory": {
+          "heapUsed": 5989976,
+          "rss": 119865344,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 120356864
+      }
+    },
+    {
+      "side": "A",
+      "pair": 12,
+      "childWallMs": 284.52800000004936,
+      "loadAverage1m": 10.7646484375,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 83068.35083206909,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 20000,
+          "heapUsedDeltaBytes": 37089360,
+          "rssDeltaBytes": 82444288,
+          "heapBytesPerOperation": 1854.468
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1000,
+            "heapUsedDeltaBytes": 2016848,
+            "rssDeltaBytes": 11681792,
+            "heapBytesPerOperation": 2016.848
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 5000,
+            "heapUsedDeltaBytes": 9535536,
+            "rssDeltaBytes": 37470208,
+            "heapBytesPerOperation": 1907.1072
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 20000,
+            "heapUsedDeltaBytes": 37089360,
+            "rssDeltaBytes": 82444288,
+            "heapBytesPerOperation": 1854.468
+          }
+        }
+      },
+      "caseDurationMs": 246.10108300000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4890160,
+          "rss": 46923776,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 43123656,
+          "rss": 132972544,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 132972544
+      }
+    },
+    {
+      "side": "B",
+      "pair": 12,
+      "childWallMs": 184.15179100004025,
+      "loadAverage1m": 10.7646484375,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 144765.3738366003,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 1,
+          "heapUsedDeltaBytes": 1228672,
+          "rssDeltaBytes": 72728576,
+          "heapBytesPerOperation": 61.4336
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 224776,
+            "rssDeltaBytes": 11616256,
+            "heapBytesPerOperation": 224.776
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 567472,
+            "rssDeltaBytes": 32866304,
+            "heapBytesPerOperation": 113.4944
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 1228672,
+            "rssDeltaBytes": 72728576,
+            "heapBytesPerOperation": 61.4336
+          }
+        }
+      },
+      "caseDurationMs": 143.226167,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5306568,
+          "rss": 46448640,
+          "external": 2046278,
+          "arrayBuffers": 172190
+        },
+        "endMemory": {
+          "heapUsed": 5988080,
+          "rss": 122077184,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 122257408
+      }
+    },
+    {
+      "side": "A",
+      "pair": 13,
+      "childWallMs": 223.51874999993015,
+      "loadAverage1m": 9.15234375,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 113303.42730914099,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 20000,
+          "heapUsedDeltaBytes": 37086216,
+          "rssDeltaBytes": 80920576,
+          "heapBytesPerOperation": 1854.3108
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1000,
+            "heapUsedDeltaBytes": 2016848,
+            "rssDeltaBytes": 11419648,
+            "heapBytesPerOperation": 2016.848
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 5000,
+            "heapUsedDeltaBytes": 9535696,
+            "rssDeltaBytes": 36454400,
+            "heapBytesPerOperation": 1907.1392
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 20000,
+            "heapUsedDeltaBytes": 37086216,
+            "rssDeltaBytes": 80920576,
+            "heapBytesPerOperation": 1854.3108
+          }
+        }
+      },
+      "caseDurationMs": 182.998125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4827912,
+          "rss": 47202304,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 43120512,
+          "rss": 131743744,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 131743744
+      }
+    },
+    {
+      "side": "B",
+      "pair": 13,
+      "childWallMs": 169.9783339999849,
+      "loadAverage1m": 9.15234375,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 180494.82656703354,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 1,
+          "heapUsedDeltaBytes": 1220640,
+          "rssDeltaBytes": 70811648,
+          "heapBytesPerOperation": 61.032
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 224920,
+            "rssDeltaBytes": 11632640,
+            "heapBytesPerOperation": 224.92
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 566984,
+            "rssDeltaBytes": 36339712,
+            "heapBytesPerOperation": 113.3968
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 1220640,
+            "rssDeltaBytes": 70811648,
+            "heapBytesPerOperation": 61.032
+          }
+        }
+      },
+      "caseDurationMs": 123.060583,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5306568,
+          "rss": 46628864,
+          "external": 2046278,
+          "arrayBuffers": 172190
+        },
+        "endMemory": {
+          "heapUsed": 5980048,
+          "rss": 120356864,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 120864768
+      }
+    },
+    {
+      "side": "A",
+      "pair": 14,
+      "childWallMs": 211.50183299998753,
+      "loadAverage1m": 9.54150390625,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 121579.62325514243,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 20000,
+          "heapUsedDeltaBytes": 37087944,
+          "rssDeltaBytes": 81920000,
+          "heapBytesPerOperation": 1854.3972
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1000,
+            "heapUsedDeltaBytes": 2016848,
+            "rssDeltaBytes": 11698176,
+            "heapBytesPerOperation": 2016.848
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 5000,
+            "heapUsedDeltaBytes": 9535656,
+            "rssDeltaBytes": 37191680,
+            "heapBytesPerOperation": 1907.1312
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 20000,
+            "heapUsedDeltaBytes": 37087944,
+            "rssDeltaBytes": 81920000,
+            "heapBytesPerOperation": 1854.3972
+          }
+        }
+      },
+      "caseDurationMs": 170.042667,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4848248,
+          "rss": 46907392,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 43122240,
+          "rss": 132431872,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 132431872
+      }
+    },
+    {
+      "side": "B",
+      "pair": 14,
+      "childWallMs": 187.68241699994542,
+      "loadAverage1m": 9.54150390625,
+      "ok": true,
+      "metrics": {
+        "sandboxStillLive": true,
+        "operations": 20000,
+        "opsPerSecond": 154374.29204914506,
+        "final": {
+          "operations": 20000,
+          "receiptsEmitted": 20000,
+          "receiptsStillReachable": 1,
+          "heapUsedDeltaBytes": 1229464,
+          "rssDeltaBytes": 70713344,
+          "heapBytesPerOperation": 61.4732
+        },
+        "checkpoints": {
+          "ops1000": {
+            "operations": 1000,
+            "receiptsEmitted": 1000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 224776,
+            "rssDeltaBytes": 11419648,
+            "heapBytesPerOperation": 224.776
+          },
+          "ops5000": {
+            "operations": 5000,
+            "receiptsEmitted": 5000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 567280,
+            "rssDeltaBytes": 31670272,
+            "heapBytesPerOperation": 113.456
+          },
+          "ops20000": {
+            "operations": 20000,
+            "receiptsEmitted": 20000,
+            "receiptsStillReachable": 1,
+            "heapUsedDeltaBytes": 1229464,
+            "rssDeltaBytes": 70713344,
+            "heapBytesPerOperation": 61.4732
+          }
+        }
+      },
+      "caseDurationMs": 134.54250000000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5306568,
+          "rss": 46579712,
+          "external": 2046278,
+          "arrayBuffers": 172190
+        },
+        "endMemory": {
+          "heapUsed": 5988872,
+          "rss": 120193024,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 120700928
+      }
+    }
+  ]
+}

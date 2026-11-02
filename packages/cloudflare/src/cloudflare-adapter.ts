@@ -1,7 +1,13 @@
 import { readFile } from "node:fs/promises";
 import {
   AdapterExecutionError,
+  CleanupFailureError,
+  PartialEffectsError,
+  UnknownOutcomeError,
   providerRuntimeMetadata,
+  resourceLocator,
+  type CleanupStatus,
+  type PartialEffects,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
@@ -12,7 +18,7 @@ import {
   type RollbackEdgeSpec,
   type VersionEdgeSpec
 } from "@capsule-sdk/core";
-import { CloudflareClient, type CloudflareClientOptions } from "./cloudflare-client.js";
+import { CloudflareClient, type CloudflareClientOptions, type CloudflareWorkerRoute } from "./cloudflare-client.js";
 
 export interface CloudflareAdapterOptions extends CloudflareClientOptions {
   compatibilityDate?: string;
@@ -180,25 +186,120 @@ async function resolveRollbackTargetVersion(client: CloudflareClient, scriptName
     return spec.targetVersionId;
   }
   const deployments = (await client.listWorkerDeployments(scriptName)).deployments ?? [];
+  // Cloudflare lists deployments latest first. Rollback deploys one version at 100%, so it may only infer
+  // the target when the previous deployment served exactly one version at 100%. A traffic split such as
+  // 10/90 is never collapsed into one of its members (EDGE-07).
   const previousDeployment = deployments[1];
-  const previousVersion = previousDeployment?.versions?.find((version) => version.percentage === 100) ?? previousDeployment?.versions?.[0];
-  if (!previousVersion?.version_id) {
-    throw new AdapterExecutionError("Cloudflare edge.rollback requires targetVersionId when the previous Worker deployment cannot be inferred.");
+  const servingVersions = (previousDeployment?.versions ?? []).filter((version) => version.percentage > 0);
+  const onlyVersion = servingVersions.length === 1 && servingVersions[0]?.percentage === 100 ? servingVersions[0] : undefined;
+  if (!onlyVersion?.version_id) {
+    const reason = !previousDeployment
+      ? "there is no previous Worker deployment"
+      : servingVersions.length > 1
+        ? `the previous deployment ${previousDeployment.id ?? ""} split traffic across ${servingVersions
+            .map((version) => `${version.version_id}=${version.percentage}%`)
+            .join(", ")}`
+        : `the previous deployment ${previousDeployment.id ?? ""} has no single version at 100%`;
+    throw new AdapterExecutionError(`Cloudflare edge.rollback requires targetVersionId because ${reason}.`);
   }
-  return previousVersion.version_id;
+  return onlyVersion.version_id;
 }
 
-async function createRoutesWithCleanup(client: CloudflareClient, routes: string[], scriptName: string) {
-  const createdRoutes = [];
+interface RouteDeployContext {
+  scriptName: string;
+  workerId: string;
+  accountId?: string;
+  zoneId?: string;
+}
+
+/**
+ * Creates routes after a successful Worker upload. When a route fails, routes created by this call are
+ * deleted and the failure is reported with every identity involved (EDGE-06a): the uploaded Worker, the
+ * created routes, the cleanup outcome and the primary error. The Worker upload is never reverted: it may
+ * have replaced an existing production Worker, so deleting it is not a safe compensation.
+ */
+async function createRoutesWithCleanup(client: CloudflareClient, routes: string[], deploy: RouteDeployContext) {
+  const createdRoutes: CloudflareWorkerRoute[] = [];
+  let failedPattern: string | undefined;
   try {
     for (const route of routes) {
-      createdRoutes.push(await client.createWorkerRoute({ pattern: route, scriptName }));
+      failedPattern = route;
+      createdRoutes.push(await client.createWorkerRoute({ pattern: route, scriptName: deploy.scriptName }));
     }
     return createdRoutes;
-  } catch (error) {
-    await Promise.allSettled(createdRoutes.flatMap((route) => (route.id ? [client.deleteWorkerRoute({ routeId: route.id })] : [])));
-    throw error;
+  } catch (primaryError) {
+    throw await routeFailure(client, deploy, createdRoutes, failedPattern, primaryError);
   }
+}
+
+async function routeFailure(
+  client: CloudflareClient,
+  deploy: RouteDeployContext,
+  createdRoutes: CloudflareWorkerRoute[],
+  failedPattern: string | undefined,
+  primaryError: unknown
+): Promise<Error> {
+  const zoneScope = { zone: deploy.zoneId };
+  const worker = resourceLocator({ provider, kind: "worker", nativeId: deploy.scriptName, scope: { account: deploy.accountId } });
+  const routeLocator = (route: CloudflareWorkerRoute) =>
+    resourceLocator({ provider, kind: "route", nativeId: route.id ?? route.pattern ?? "unknown", scope: { ...zoneScope, pattern: route.pattern } });
+  const cleanable = createdRoutes.filter((route) => route.id);
+  const unidentified = createdRoutes.filter((route) => !route.id).map(routeLocator);
+  const settled = await Promise.allSettled(cleanable.map((route) => client.deleteWorkerRoute({ routeId: route.id! })));
+  const cleanupErrors = settled.flatMap((result) => (result.status === "rejected" ? [result.reason as unknown] : []));
+  const remainingRoutes = cleanable.filter((_route, index) => settled[index]?.status === "rejected").map(routeLocator);
+  const primaryUnknown = primaryError instanceof UnknownOutcomeError;
+  // A route POST whose outcome is unknown may have created a route Capsule has no ID for.
+  const maybeCreated = primaryUnknown && failedPattern ? [resourceLocator({ provider, kind: "route-pattern", nativeId: failedPattern, scope: zoneScope })] : [];
+  const cleanupUnresolved = cleanupErrors.some((error) => error instanceof UnknownOutcomeError);
+  const cleanupStatus: CleanupStatus =
+    cleanable.length === 0
+      ? "not-attempted"
+      : cleanupErrors.length === 0
+        ? "succeeded"
+        : cleanupUnresolved && cleanupErrors.every((error) => error instanceof UnknownOutcomeError)
+          ? "unknown"
+          : "failed";
+  const cleanupError =
+    cleanupErrors.length === 0
+      ? undefined
+      : cleanupErrors.length === 1
+        ? cleanupErrors[0]
+        : new AggregateError(cleanupErrors, "Several Worker route deletions failed.");
+  const effects: PartialEffects = {
+    operation: "edge.deploy",
+    outcome: primaryUnknown ? "unknown" : "failed",
+    resources: [worker, ...createdRoutes.map(routeLocator), ...maybeCreated],
+    primaryError,
+    cleanup: {
+      status: cleanupStatus,
+      resources: cleanable.map(routeLocator),
+      residual: [worker, ...remainingRoutes, ...unidentified, ...maybeCreated],
+      ...(cleanupError === undefined ? {} : { error: cleanupError })
+    }
+  };
+  const primaryMessage = primaryError instanceof Error ? primaryError.message : String(primaryError);
+  const createdIds = createdRoutes.map((route) => route.id ?? route.pattern).join(", ");
+  const cleanupText =
+    cleanupStatus === "not-attempted"
+      ? "No routes were created, so none were removed."
+      : cleanupStatus === "succeeded"
+        ? `Created routes ${createdIds} were removed.`
+        : `Removing created routes ${createdIds} ${cleanupStatus === "unknown" ? "was not confirmed" : "failed"}: ${errorMessages(cleanupErrors)}.`;
+  const message = `Cloudflare Worker ${deploy.scriptName} was uploaded, but creating route ${failedPattern ?? ""} failed: ${primaryMessage}. ${cleanupText} The Worker upload was not reverted because it may have replaced an existing Worker.`;
+  if (cleanupStatus === "failed") {
+    return new CleanupFailureError(
+      message,
+      { scriptName: deploy.scriptName, workerId: deploy.workerId, routes: remainingRoutes, errors: cleanupErrors },
+      primaryError,
+      effects
+    );
+  }
+  return new PartialEffectsError(message, effects);
+}
+
+function errorMessages(errors: unknown[]): string {
+  return errors.map((error) => (error instanceof Error ? error.message : String(error))).join("; ");
 }
 
 export function cloudflare(options: CloudflareAdapterOptions = {}): CapsuleAdapter {
@@ -230,7 +331,12 @@ export function cloudflare(options: CloudflareAdapterOptions = {}): CapsuleAdapt
           source,
           metadata
         });
-        const routes = await createRoutesWithCleanup(client, spec.routes ?? [], spec.name);
+        const routes = await createRoutesWithCleanup(client, spec.routes ?? [], {
+          scriptName: spec.name,
+          workerId: result.id ?? spec.name,
+          accountId: options.accountId ?? process.env.CLOUDFLARE_ACCOUNT_ID,
+          zoneId: options.zoneId ?? process.env.CLOUDFLARE_ZONE_ID
+        });
         const url = workerUrl(spec.name, options.workersDevSubdomain);
         const receipt = context.receipts
           ? context.createReceipt({

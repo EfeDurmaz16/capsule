@@ -1,4 +1,5 @@
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import fs, { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
@@ -14,6 +15,69 @@ describe("collectFileArtifacts", () => {
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("PERF-02: hashes each small file with one read through one buffer shared by the walk", () => {
+    // Before, every file got its own 64 KiB buffer and a second read to see end of file, which made many
+    // small files slower than readFileSync at 7d3a28a. Hashes and sizes are unchanged.
+    const contents = Array.from({ length: 25 }, (_, index) => `file ${index} `.repeat(index + 1));
+    contents.forEach((content, index) => writeFileSync(join(dir, `f${String(index).padStart(2, "0")}.txt`), content));
+    writeFileSync(join(dir, "empty.txt"), "");
+    const originalReadSync = fs.readSync;
+    const buffers: unknown[] = [];
+    fs.readSync = function (this: unknown, ...args: Parameters<typeof fs.readSync>) {
+      buffers.push(args[1]);
+      return originalReadSync.apply(this, args);
+    } as typeof fs.readSync;
+    syncBuiltinESMExports();
+    let artifacts;
+    try {
+      ({ artifacts } = collectFileArtifacts(dir));
+    } finally {
+      fs.readSync = originalReadSync;
+      syncBuiltinESMExports();
+    }
+    expect(buffers).toHaveLength(26);
+    expect(new Set(buffers).size).toBe(1);
+    expect(artifacts.map((artifact) => [artifact.path, artifact.sizeBytes, artifact.sha256])).toEqual([
+      ["empty.txt", 0, sha256("")],
+      ...contents.map((content, index) => [`f${String(index).padStart(2, "0")}.txt`, Buffer.byteLength(content), sha256(content)])
+    ]);
+  });
+
+  test("PERF-02: a short read before the end of a file does not end the hash", () => {
+    // FUSE, NFS and SMB may return fewer bytes than requested before end of file. Treating any short read
+    // as end of file recorded a prefix's size and sha256 as the whole artifact. Files whose fstat size is
+    // 0 but have content (procfs-like) are read to the end too, as readFileSync does.
+    const content = Buffer.alloc(10_000);
+    for (let index = 0; index < content.length; index += 1) content[index] = (index * 7) % 251;
+    writeFileSync(join(dir, "big.bin"), content);
+    writeFileSync(join(dir, "small.txt"), "small");
+    const original = { readSync: fs.readSync, fstatSync: fs.fstatSync };
+    let reportZeroSize = false;
+    // The collector calls readSync(fd, buffer, offset, length, position); cap length at 4096.
+    fs.readSync = ((fd: number, buffer: NodeJS.ArrayBufferView, offset: number, length: number, position: fs.ReadPosition | null) =>
+      (original.readSync as (...inner: unknown[]) => number)(fd, buffer, offset, Math.min(length, 4096), position)) as typeof fs.readSync;
+    fs.fstatSync = ((...args: Parameters<typeof fs.fstatSync>) => {
+      const stat = original.fstatSync(...args);
+      return reportZeroSize ? { ...stat, size: 0 } : stat;
+    }) as typeof fs.fstatSync;
+    syncBuiltinESMExports();
+    const expected = [
+      ["big.bin", content.length, sha256(content)],
+      ["small.txt", 5, sha256("small")]
+    ];
+    try {
+      const shortReads = collectFileArtifacts(dir);
+      reportZeroSize = true;
+      const zeroSize = collectFileArtifacts(dir);
+      expect(shortReads.artifacts.map((artifact) => [artifact.path, artifact.sizeBytes, artifact.sha256])).toEqual(expected);
+      expect(zeroSize.artifacts.map((artifact) => [artifact.path, artifact.sizeBytes, artifact.sha256])).toEqual(expected);
+    } finally {
+      fs.readSync = original.readSync;
+      fs.fstatSync = original.fstatSync;
+      syncBuiltinESMExports();
+    }
   });
 
   test("walks nested files, hashes each, and uses posix relative paths", () => {

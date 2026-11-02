@@ -420,6 +420,12 @@ describe("docker adapter", () => {
       expect(run.result?.exitCode).toBe(124);
       expect(run.result?.stderr).toContain("Command timed out after 1000ms");
       expect(run.receipt?.type).toBe("job.run");
+      // GAP-01: the daemon-side container is gone, not just the local CLI process.
+      const runLabel = String(run.receipt?.metadata?.runLabel);
+      expect(run.receipt?.metadata).toMatchObject({ timedOut: true });
+      const remaining = await runDocker(["ps", "-a", "-q", "--filter", `label=${runLabel}`], { timeoutMs: 10_000 });
+      expect(remaining.exitCode).toBe(0);
+      expect(remaining.stdout.trim()).toBe("");
     },
     60_000
   );

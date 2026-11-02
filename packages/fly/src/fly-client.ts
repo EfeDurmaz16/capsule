@@ -1,6 +1,16 @@
-import { AdapterExecutionError, classifyProviderError, providerExecutionError } from "@capsule-sdk/core";
+import { AdapterExecutionError, providerExecutionError } from "@capsule-sdk/core";
+import {
+  errorBodyDiagnostics,
+  fetchWithinLimits,
+  httpErrorClassification,
+  parseErrorJson,
+  parseSuccessJson,
+  resolveHttpLimits,
+  type HttpLimitOptions,
+  type HttpLimits
+} from "./http-response.js";
 
-export interface FlyClientOptions {
+export interface FlyClientOptions extends HttpLimitOptions {
   apiToken?: string;
   appName?: string;
   baseUrl?: string;
@@ -18,6 +28,7 @@ export class FlyClient {
   private readonly apiToken: string;
   private readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
+  private readonly limits: HttpLimits;
 
   constructor(options: FlyClientOptions = {}) {
     const apiToken = options.apiToken ?? process.env.FLY_API_TOKEN;
@@ -27,6 +38,7 @@ export class FlyClient {
     this.apiToken = apiToken;
     this.baseUrl = options.baseUrl ?? "https://api.machines.dev";
     this.fetchImpl = options.fetch ?? globalThis.fetch;
+    this.limits = resolveHttpLimits(options);
   }
 
   async request<T>(options: FlyRequestOptions): Promise<T> {
@@ -36,30 +48,34 @@ export class FlyClient {
         url.searchParams.set(key, String(value));
       }
     }
-    const response = await this.fetchImpl(url.toString(), {
-      method: options.method ?? "GET",
-      headers: {
-        accept: "application/json",
-        authorization: `Bearer ${this.apiToken}`,
-        ...(options.body === undefined ? {} : { "content-type": "application/json" })
-      },
-      body: options.body === undefined ? undefined : JSON.stringify(options.body)
+    const response = await fetchWithinLimits({
+      provider: "Fly",
+      fetchImpl: this.fetchImpl,
+      url: url.toString(),
+      limits: this.limits,
+      init: {
+        method: options.method ?? "GET",
+        headers: {
+          accept: "application/json",
+          authorization: `Bearer ${this.apiToken}`,
+          ...(options.body === undefined ? {} : { "content-type": "application/json" })
+        },
+        body: options.body === undefined ? undefined : JSON.stringify(options.body)
+      }
     });
-    const text = await response.text();
-    const data = text ? JSON.parse(text) : undefined;
     if (!response.ok) {
+      const data = parseErrorJson(response) as { error?: unknown; message?: unknown } | undefined;
       const message =
         typeof data?.error === "string"
           ? data.error
           : typeof data?.message === "string"
             ? data.message
             : `Fly API request failed with status ${response.status}`;
-      const providerError = classifyProviderError({ status: response.status, headers: response.headers, error: data });
-      throw providerExecutionError(message, providerError, {
+      throw providerExecutionError(message, httpErrorClassification(response, data), {
         status: response.status,
-        data
+        ...(data === undefined ? errorBodyDiagnostics(response) : { data })
       });
     }
-    return data as T;
+    return parseSuccessJson("Fly", response) as T;
   }
 }

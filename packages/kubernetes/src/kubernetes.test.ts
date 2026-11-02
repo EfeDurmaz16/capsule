@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdapterExecutionError, Capsule, ProviderRetryableError, ProviderValidationError, runAdapterContract } from "@capsule-sdk/core";
+import { AdapterExecutionError, Capsule, ProviderRetryableError, ProviderValidationError, defaultCaptureBounds, runAdapterContract } from "@capsule-sdk/core";
 import { kubernetes, kubernetesCapabilities } from "./index.js";
 
 function k8sError(code: number, reason: string, message = reason): Error {
@@ -280,6 +280,7 @@ describe("kubernetes adapter", () => {
         container: "main",
         sinceSeconds: expect.any(Number),
         tailLines: 10,
+        limitBytes: defaultCaptureBounds.maxBytes,
         timestamps: true
       }
     ]);
@@ -413,7 +414,7 @@ describe("kubernetes adapter", () => {
       name: "api",
       image: "ghcr.io/example/api:latest",
       ports: [{ port: 8080, public: true, protocol: "http" }],
-      scale: { min: 2, max: 5 },
+      scale: { min: 2 },
       healthcheck: { path: "/healthz" },
       env: { NODE_ENV: "production" },
       idempotencyKey: "k8s-service-key"
@@ -463,23 +464,26 @@ describe("kubernetes adapter", () => {
           apps: {
             createNamespacedDeployment: async () => ({ metadata: { uid: "deployment-uid", name: "api" } }),
             readNamespacedDeployment: async (input) => {
+              // A foreground delete is finished once the object can no longer be read.
+              if (deletions.deployments.length > 0) throw k8sError(404, "NotFound");
               reads.push(input);
               return { metadata: { uid: "deployment-uid", name: input.name }, spec: { replicas: 1 }, status: { readyReplicas: 1, availableReplicas: 1 } };
             },
             deleteNamespacedDeployment: async (input) => {
               deletions.deployments.push(input);
-              return { metadata: { uid: "deployment-uid", name: input.name } };
+              return { metadata: { uid: "deployment-uid", name: input.name, deletionTimestamp: "2026-10-27T00:00:00Z" } };
             }
           },
           core: {
             createNamespacedService: async () => ({ metadata: { uid: "service-uid", name: "api" } }),
             readNamespacedService: async (input) => {
+              if (deletions.services.length > 0) throw k8sError(404, "NotFound");
               reads.push(input);
               return { metadata: { uid: "service-uid", name: input.name }, spec: { ports: [{ port: 8080 }] } };
             },
             deleteNamespacedService: async (input) => {
               deletions.services.push(input);
-              return { metadata: { uid: "service-uid", name: input.name } };
+              return { metadata: { uid: "service-uid", name: input.name, deletionTimestamp: "2026-10-27T00:00:00Z" } };
             }
           }
         }
@@ -639,14 +643,18 @@ describe("kubernetes adapter", () => {
             createNamespacedDeployment: async () => ({}),
             deleteNamespacedDeployment: async (input) => {
               deletions.deployments.push(input);
-              return { metadata: { name: input.name, uid: "deployment-uid" } };
+              return { metadata: { name: input.name, uid: "deployment-uid", deletionTimestamp: "2026-10-27T00:00:00Z" } };
+            },
+            readNamespacedDeployment: async () => {
+              throw k8sError(404, "NotFound");
             }
           },
           core: {
             createNamespacedService: async () => ({}),
             deleteNamespacedService: async (input) => {
               deletions.services.push(input);
-              return { metadata: { name: input.name, uid: "service-uid" } };
+              // A Service with nothing left to finalize is removed at once and the API returns a Status.
+              return { kind: "Status", apiVersion: "v1", status: "Success", details: { name: input.name, kind: "services" } } as never;
             }
           }
         }
@@ -713,8 +721,8 @@ describe("kubernetes adapter", () => {
 
     expect(lists).toEqual([{ namespace: "preview", labelSelector: "app.kubernetes.io/managed-by=capsule,app.kubernetes.io/name=api" }]);
     expect(logReads).toEqual([
-      { namespace: "preview", name: "api-pod-a", container: "web", tailLines: 2, timestamps: true },
-      { namespace: "preview", name: "api-pod-a", container: "sidecar", tailLines: 2, timestamps: true }
+      { namespace: "preview", name: "api-pod-a", container: "web", tailLines: 2, limitBytes: defaultCaptureBounds.maxBytes, timestamps: true },
+      { namespace: "preview", name: "api-pod-a", container: "sidecar", tailLines: 2, limitBytes: defaultCaptureBounds.maxBytes, timestamps: true }
     ]);
     expect(logs).toMatchObject({
       id: "api",

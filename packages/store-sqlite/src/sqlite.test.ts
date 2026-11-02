@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { createReceipt } from "@capsule-sdk/core";
 import { sqliteReceiptStore } from "./index.js";
 
@@ -119,6 +119,62 @@ describe("sqliteReceiptStore", () => {
       expect(first.readAll().map((receipt) => receipt.id)).toEqual(receipts.map((receipt) => receipt.id));
       first.close();
       second.close();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("PERF-12: prepared statements are reused", () => {
+  test("many writes and reads prepare one INSERT and one SELECT", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "capsule-sqlite-test-"));
+    const prepare = vi.spyOn(DatabaseSync.prototype, "prepare");
+    try {
+      const store = sqliteReceiptStore(join(dir, "receipts.sqlite"));
+      prepare.mockClear();
+      for (let index = 0; index < 50; index += 1) store.write(receiptAt(index));
+      for (let index = 0; index < 5; index += 1) expect(store.readAll()).toHaveLength(50);
+      expect(prepare).toHaveBeenCalledTimes(2);
+      store.close();
+    } finally {
+      prepare.mockRestore();
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("reused statements keep ordering, INSERT OR REPLACE, failed-write recovery and closed-store errors", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "capsule-sqlite-test-"));
+    try {
+      const store = sqliteReceiptStore(join(dir, "receipts.sqlite"));
+      const late = receiptAt(30);
+      const early = receiptAt(10);
+      store.write(late);
+      store.write(early);
+      expect(store.readAll().map((receipt) => receipt.id)).toEqual([early.id, late.id]);
+
+      // Same id again: the row is replaced, not duplicated, and the order follows the new startedAt.
+      const replaced = { ...early, startedAt: new Date(Date.UTC(2026, 0, 1, 0, 0, 1)).toISOString(), stdoutHash: "replaced" };
+      store.write(replaced);
+      expect(store.readAll().map((receipt) => [receipt.id, receipt.stdoutHash])).toEqual([
+        [late.id, late.stdoutHash],
+        [early.id, "replaced"]
+      ]);
+
+      // A write that SQLite rejects (NOT NULL type) leaves the reused statement usable.
+      expect(() => store.write({ ...receiptAt(40), type: null } as never)).toThrow();
+      const after = receiptAt(50);
+      store.write(after);
+      expect(store.readAll().map((receipt) => receipt.id)).toEqual([late.id, after.id, early.id]);
+
+      store.close();
+      expect(() => store.write(receiptAt(60))).toThrow("SQLite receipt store is closed");
+      expect(() => store.readAll()).toThrow("SQLite receipt store is closed");
+      expect(() => store.close()).not.toThrow();
+
+      // The rows written through reused statements are what a new handle reads.
+      const reader = sqliteReceiptStore(join(dir, "receipts.sqlite"));
+      expect(reader.readAll().map((receipt) => receipt.id)).toEqual([late.id, after.id, early.id]);
+      reader.close();
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

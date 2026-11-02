@@ -16,9 +16,10 @@ import {
   type LogEntry,
   type ProviderOptions,
   type ProviderOptionValue,
-  type ReleaseEdgeVersionSpec
+  type ReleaseEdgeVersionSpec,
+  resolveCaptureBounds
 } from "@capsule-sdk/core";
-import { VercelClient, type VercelClientOptions, type VercelDeploymentEvent, type VercelRuntimeLog } from "./vercel-client.js";
+import { VercelClient, type VercelClientOptions, type VercelDeploymentEvent, type VercelRuntimeLog, type VercelRuntimeLogRead } from "./vercel-client.js";
 
 export interface VercelAdapterOptions extends VercelClientOptions {
   project?: string;
@@ -328,9 +329,22 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
         if (useRuntimeLogs && !projectId) {
           throw new AdapterExecutionError("Vercel runtime logs require providerOptions.projectId or adapter projectId.");
         }
+        if (useRuntimeLogs && (spec.since !== undefined || spec.until !== undefined)) {
+          // The runtime logs endpoint is a live stream from the time of the request; it has no history query,
+          // so a since/until range cannot be honored and is rejected instead of being silently ignored (EDGE-03).
+          throw new AdapterExecutionError(
+            "Vercel runtime logs are a live stream without a history range; since and until are not supported. Omit them, or use the deployment-events API."
+          );
+        }
+        let runtimeRead: VercelRuntimeLogRead | undefined;
+        if (useRuntimeLogs && projectId) {
+          // limit is the caller's record cap and lowers bounds.maxRecords; both are enforced while reading.
+          const bounds = resolveCaptureBounds(spec.bounds, spec.limit === undefined ? {} : { maxRecords: spec.limit });
+          runtimeRead = await client.readRuntimeLogs({ projectId, deploymentId: spec.id, bounds });
+        }
         const logs = redactProviderOptionValues(
-          useRuntimeLogs && projectId
-            ? logsFromRuntimeLogs(await client.getRuntimeLogs({ projectId, deploymentId: spec.id }))
+          runtimeRead
+            ? logsFromRuntimeLogs(runtimeRead.logs)
             : logsFromDeploymentEvents(
                 await client.getDeploymentEvents({
                   idOrUrl: spec.id,
@@ -341,6 +355,13 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
               ),
           spec.providerOptions
         );
+        const runtimeMetadata = runtimeRead
+          ? {
+              endedBy: runtimeRead.endedBy,
+              malformedRecords: runtimeRead.malformedRecords,
+              appliedConstraints: { limit: spec.limit, enforcedBy: "capsule", truncation: runtimeRead.truncation }
+            }
+          : { appliedConstraints: { since: spec.since, until: spec.until, limit: spec.limit, enforcedBy: "vercel" } };
         const receipt = context.receipts
           ? context.createReceipt({
               type: "edge.logs",
@@ -352,8 +373,8 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
                 applied: context.policy,
                 notes: [
                   useRuntimeLogs
-                    ? "Vercel runtime logs are read from the project deployment runtime logs API."
-                    : "Vercel deployment logs are read from the deployment events API.",
+                    ? "Vercel runtime logs are read incrementally from the live runtime logs stream and stop at the record, byte or deadline bound; since and until are not supported."
+                    : "Vercel deployment logs are read from the deployment events API; since, until and limit are applied by Vercel.",
                   "Vercel follow-mode log streaming is intentionally rejected until Capsule exposes bounded streaming semantics."
                 ]
               },
@@ -363,11 +384,19 @@ export function vercel(options: VercelAdapterOptions = {}): CapsuleAdapter {
                 since: spec.since,
                 until: spec.until,
                 limit: spec.limit,
-                follow: spec.follow
+                follow: spec.follow,
+                ...runtimeMetadata
               })
             })
           : undefined;
-        return { id: spec.id, provider, logs, receipt, metadata: { api: useRuntimeLogs ? "runtime" : "deployment-events" } };
+        return {
+          id: spec.id,
+          provider,
+          logs,
+          ...(runtimeRead ? { truncation: runtimeRead.truncation } : {}),
+          receipt,
+          metadata: { api: useRuntimeLogs ? "runtime" : "deployment-events", ...runtimeMetadata }
+        };
       }
     }
   };

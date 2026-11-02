@@ -4,8 +4,11 @@ import {
   Capsule,
   CleanupFailureError,
   MemoryReceiptStore,
+  PolicyViolationError,
   ProviderRetryableError,
   ProviderValidationError,
+  UnknownOutcomeError,
+  UnsupportedCapabilityError,
   runAdapterContract
 } from "@capsule-sdk/core";
 import { daytona, daytonaCapabilities } from "./index.js";
@@ -37,7 +40,11 @@ function fakeDaytonaSandbox() {
         files.set(path, data);
       },
       downloadFile: async (path: string) => files.get(path) ?? Buffer.from(""),
-      listFiles: async (path: string) => [{ name: "index.js", path: `${path}/index.js`, type: "file", size: 20 }]
+      // Exact FileInfo shape of the installed @daytona/toolbox-api-client: no path field.
+      listFiles: async () => [
+        { group: "daytona", isDir: false, modTime: "", mode: "-rw-r--r--", name: "index.js", owner: "daytona", permissions: "0644", size: 20 },
+        { group: "daytona", isDir: true, modTime: "", mode: "drwxr-xr-x", name: "lib", owner: "daytona", permissions: "0755", size: 4096 }
+      ]
     },
     delete: async () => {
       if (sandbox.deleteError) {
@@ -86,6 +93,11 @@ describe("daytona adapter", () => {
     expect(daytonaCapabilities.sandbox?.exec).toBe("native");
   });
 
+  it("declares no capability that has no invocable Capsule surface", () => {
+    expect(daytonaCapabilities.sandbox?.artifacts).toBe("unsupported");
+    expect(daytonaCapabilities.sandbox?.snapshot).toBe("unsupported");
+  });
+
   it("creates a sandbox and maps exec/files/destroy", async () => {
     const createdWith: any[] = [];
     const { sandbox } = fakeDaytonaSandbox();
@@ -107,13 +119,18 @@ describe("daytona adapter", () => {
     await box.writeFile("/workspace/index.js", "console.log('hi')");
     const data = await box.readFile("/workspace/index.js");
     const entries = await box.listFiles("/workspace");
+    const roundTrip = await box.readFile(entries[0]!.path);
     const result = await box.exec({ command: ["node", "/workspace/index.js"] });
     await box.destroy();
 
     expect(createdWith[0]).toMatchObject({ image: "node:22", name: "box", networkBlockAll: true, ephemeral: true });
     expect(createdWith[0]).toMatchObject({ labels: { capsule_operation_scope: "sandbox_create" } });
     expect(new TextDecoder().decode(data)).toBe("console.log('hi')");
-    expect(entries[0]).toMatchObject({ name: "index.js", type: "file" });
+    expect(entries).toEqual([
+      { name: "index.js", path: "/workspace/index.js", type: "file", sizeBytes: 20 },
+      { name: "lib", path: "/workspace/lib", type: "directory", sizeBytes: 4096 }
+    ]);
+    expect(new TextDecoder().decode(roundTrip)).toBe("console.log('hi')");
     expect(result.stdout).toContain("node");
     expect(store.receipts.find((receipt) => receipt.type === "sandbox.create")?.metadata).toMatchObject({
       runtimeVersion: process.version,
@@ -128,6 +145,7 @@ describe("daytona adapter", () => {
       "sandbox.file.write",
       "sandbox.file.read",
       "sandbox.file.list",
+      "sandbox.file.read",
       "sandbox.exec",
       "sandbox.destroy"
     ]);
@@ -164,7 +182,7 @@ describe("daytona adapter", () => {
     expect(sandbox.deleted).toBe(true);
   });
 
-  it("deletes Daytona sandboxes when command execution throws before a receipt", async () => {
+  it("GAP-02: keeps the sandbox and reports an unknown outcome when exec transport fails", async () => {
     const { sandbox } = fakeDaytonaSandbox();
     sandbox.commandError = new Error("daytona exec failed");
     const store = new MemoryReceiptStore();
@@ -172,50 +190,94 @@ describe("daytona adapter", () => {
     const capsule = new Capsule({ adapter: daytona({ client }), receipts: true, receiptStore: store });
     const box = await capsule.sandbox.create({});
 
-    let thrown: unknown;
-    try {
-      await box.exec({ command: "echo never-recorded" });
-    } catch (error) {
-      thrown = error;
-    }
+    const thrown = await box.exec({ command: "echo never-recorded" }).then(
+      () => undefined,
+      (error: unknown) => error
+    );
 
-    expect(thrown).toBeInstanceOf(Error);
-    expect((thrown as Error).message).toBe("daytona exec failed");
-    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
-      action: "delete-sandbox-after-exec-error",
-      sandboxId: "sandbox-1",
-      status: "deleted"
-    });
-    expect(sandbox.deleted).toBe(true);
+    expect(thrown).toBeInstanceOf(UnknownOutcomeError);
+    expect((thrown as UnknownOutcomeError).retrySafe).toBe(false);
+    expect((thrown as UnknownOutcomeError).resource).toMatchObject({ provider: "daytona", kind: "sandbox", nativeId: "sandbox-1" });
+    expect(((thrown as UnknownOutcomeError).cause as Error).message).toBe("daytona exec failed");
+    expect(sandbox.deleted).toBe(false);
     expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
   });
 
-  it("wraps the original Daytona exec error when cleanup delete fails", async () => {
+  it("GAP-02: returns a refused exec as a typed provider error and keeps the sandbox", async () => {
     const { sandbox } = fakeDaytonaSandbox();
-    sandbox.commandError = new Error("daytona exec failed");
-    sandbox.deleteError = new Error("daytona delete failed");
-    const client = { create: async () => sandbox };
-    const capsule = new Capsule({ adapter: daytona({ client }), receipts: true });
+    sandbox.commandError = Object.assign(new Error("bad request"), { status: 400 });
+    const capsule = new Capsule({ adapter: daytona({ client: { create: async () => sandbox } }) });
     const box = await capsule.sandbox.create({});
 
-    let thrown: unknown;
-    try {
-      await box.exec({ command: "echo cleanup-fails" });
-    } catch (error) {
-      thrown = error;
-    }
-
-    expect(thrown).toBeInstanceOf(CleanupFailureError);
-    expect((thrown as Error).message).toBe("Daytona sandbox cleanup failed after sandbox allocation.");
-    expect((thrown as { cleanup?: Record<string, unknown> }).cleanup).toMatchObject({
-      action: "delete-sandbox-after-exec-error",
-      sandboxId: "sandbox-1",
-      status: "failed",
-      error: "daytona delete failed"
-    });
-    expect((thrown as CleanupFailureError).cause).toMatchObject({
-      operationError: expect.objectContaining({ message: "daytona exec failed" })
-    });
+    await expect(box.exec({ command: "echo refused" })).rejects.toBeInstanceOf(ProviderValidationError);
     expect(sandbox.deleted).toBe(false);
+  });
+
+  it("GAP-02: a nonzero exit is an ordinary result and keeps the sandbox", async () => {
+    const { sandbox } = fakeDaytonaSandbox();
+    sandbox.process.executeCommand = async () => ({ exitCode: 3, result: "tests failed" });
+    const capsule = new Capsule({ adapter: daytona({ client: { create: async () => sandbox } }), receipts: true });
+    const box = await capsule.sandbox.create({});
+
+    const result = await box.exec({ command: "npm test" });
+
+    expect(result).toMatchObject({ exitCode: 3, stdout: "tests failed" });
+    expect(result.receipt?.exitCode).toBe(3);
+    expect(sandbox.deleted).toBe(false);
+  });
+  it("GAP-03: rejects a domain allowlist entry before any provider call", async () => {
+    const created: unknown[] = [];
+    const client = { create: async (...args: unknown[]) => (created.push(args), fakeDaytonaSandbox().sandbox) };
+    const capsule = new Capsule({
+      adapter: daytona({ client }),
+      policy: { network: { mode: "allowlist", allowedHosts: ["10.0.0.0/8", "registry.npmjs.org"] } }
+    });
+
+    await expect(capsule.sandbox.create({})).rejects.toBeInstanceOf(PolicyViolationError);
+    await expect(capsule.sandbox.create({})).rejects.toThrow("registry.npmjs.org");
+    expect(created).toHaveLength(0);
+  });
+
+  it("GAP-03: maps CIDR allowlists to networkAllowList and an empty allowlist to networkBlockAll", async () => {
+    const created: any[] = [];
+    const client = { create: async (params: unknown) => (created.push(params), fakeDaytonaSandbox().sandbox) };
+    await new Capsule({
+      adapter: daytona({ client }),
+      policy: { network: { mode: "allowlist", allowedHosts: ["10.0.0.0/8", "2001:db8::/32"] } }
+    }).sandbox.create({});
+    await new Capsule({ adapter: daytona({ client }), policy: { network: { mode: "allowlist", allowedHosts: [] } } }).sandbox.create({});
+
+    expect(created[0]).toMatchObject({ networkAllowList: "10.0.0.0/8,2001:db8::/32" });
+    expect(created[0]).not.toHaveProperty("networkBlockAll");
+    expect(created[1]).toMatchObject({ networkBlockAll: true });
+    expect(created[1]).not.toHaveProperty("networkAllowList");
+  });
+  it("GAP-04: rejects exec input before any provider call instead of dropping it", async () => {
+    const { sandbox } = fakeDaytonaSandbox();
+    let runs = 0;
+    sandbox.process.executeCommand = async () => {
+      runs += 1;
+      return { exitCode: 0, result: "" };
+    };
+    const box = await new Capsule({ adapter: daytona({ client: { create: async () => sandbox } }) }).sandbox.create({});
+
+    await expect(box.exec({ command: "cat", input: "hello" })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    expect(runs).toBe(0);
+  });
+  it("PERF-13: uploads a subarray as a Buffer view of the same bytes without copying", async () => {
+    const { sandbox, files } = fakeDaytonaSandbox();
+    const box = await new Capsule({ adapter: daytona({ client: { create: async () => sandbox } }) }).sandbox.create({});
+    const backing = new Uint8Array([9, 9, 1, 2, 3, 9]);
+    const view = backing.subarray(2, 5);
+
+    await box.writeFile("/workspace/bin", view);
+    await box.writeFile("/workspace/text", "héllo");
+
+    const uploaded = files.get("/workspace/bin")!;
+    expect(Buffer.isBuffer(uploaded)).toBe(true);
+    expect([...uploaded]).toEqual([1, 2, 3]);
+    expect(uploaded.buffer).toBe(backing.buffer);
+    expect(uploaded.byteOffset).toBe(2);
+    expect(files.get("/workspace/text")!.toString("utf8")).toBe("héllo");
   });
 });

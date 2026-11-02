@@ -40,13 +40,12 @@ jobs:
 
       - name: Verify
         run: |
-          pnpm capsule:gap
+          pnpm capsule:gap:check
           pnpm typecheck
           pnpm test
           pnpm build
           pnpm release:audit
-          pnpm docs:api
-          git diff --exit-code docs/api-reference.md
+          pnpm docs:api:check
 
       - name: Create release PR or publish to npm
         id: changesets

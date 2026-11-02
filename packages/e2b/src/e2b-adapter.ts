@@ -1,13 +1,19 @@
-import { Sandbox as E2BSandbox } from "e2b";
+import { CommandExitError, Sandbox as E2BSandbox } from "e2b";
 import {
   AdapterExecutionError,
   CleanupFailureError,
+  ProviderAuthError,
+  ProviderRateLimitError,
+  ProviderValidationError,
+  UnknownOutcomeError,
+  UnsupportedCapabilityError,
   asProviderError,
   callProvider,
   capsuleOperationTags,
   logsFromOutput,
   providerRuntimeMetadata,
   redactSecrets,
+  resourceLocator,
   type AdapterContext,
   type CapsuleAdapter,
   type CapabilityMap,
@@ -70,7 +76,7 @@ export interface E2BAdapterOptions {
 }
 
 interface E2BSandboxCleanupMetadata {
-  action: "kill-created-sandbox" | "kill-sandbox-after-exec-error";
+  action: "kill-created-sandbox";
   sandboxId: string;
   status: "killed" | "failed";
   error?: string;
@@ -94,13 +100,16 @@ export const e2bCapabilities: CapabilityMap = {
     destroy: "native",
     snapshot: "unsupported",
     restore: "unsupported",
+    // Declarations describe what Capsule can invoke today, not provider potential: streaming output and
+    // ExecSpec.artifactPaths are not wired to the E2B SDK. exposePort stays experimental because E2B serves
+    // sandbox ports on its own per-port hosts; CreateSandboxSpec.exposedPorts is not mapped.
     exposePort: "experimental",
     mountWorkspace: "unsupported",
     networkPolicy: "native",
     filesystemPolicy: "emulated",
     secretMounting: "emulated",
-    streamingLogs: "experimental",
-    artifacts: "emulated"
+    streamingLogs: "unsupported",
+    artifacts: "unsupported"
   },
   job: {
     run: "unsupported",
@@ -158,8 +167,12 @@ function commandForReceipt(command: string[] | string): string[] {
   return typeof command === "string" ? ["sh", "-lc", command] : command;
 }
 
-function arrayBufferFromBytes(data: Uint8Array): ArrayBuffer {
-  return new Uint8Array(data).buffer;
+// The installed SDK turns string and ArrayBuffer data into a Blob before upload (toBlob/toUploadBody)
+// and passes a Blob through unchanged. Building the Blob from the caller's view directly copies the
+// bytes once and honors byteOffset/byteLength of a subarray, instead of first copying into a fresh
+// ArrayBuffer and then into the SDK's Blob.
+function uploadBlob(data: Uint8Array): Blob {
+  return new Blob([data as Uint8Array<ArrayBuffer>]);
 }
 
 function policyNotes(context: AdapterContext): string[] {
@@ -208,6 +221,32 @@ function toFileType(type: E2BEntryInfo["type"]): FileEntry["type"] {
   return "unknown";
 }
 
+function commandExitResult(error: unknown): E2BCommandResult | undefined {
+  const exit =
+    error instanceof CommandExitError
+      ? error
+      : error instanceof Error && error.name === "CommandExitError" && typeof (error as Partial<CommandExitError>).exitCode === "number"
+        ? (error as CommandExitError)
+        : undefined;
+  if (!exit) return undefined;
+  return { exitCode: exit.exitCode, stdout: exit.stdout ?? "", stderr: exit.stderr ?? "", ...(exit.error ? { error: exit.error } : {}) };
+}
+
+// A refused request (auth, validation, rate limit) never started the command, so the typed provider
+// error is returned as is. Any other failure (timeout, dropped connection, unknown server error) may have
+// happened after the command started, so whether it ran is unknown and it is not safe to retry blindly.
+function execFailure(error: unknown, sandboxId: string): Error {
+  const providerError = asProviderError(error, "E2B command execution failed.");
+  if (providerError instanceof ProviderAuthError || providerError instanceof ProviderValidationError || providerError instanceof ProviderRateLimitError) {
+    return providerError;
+  }
+  return new UnknownOutcomeError(
+    `E2B command outcome is unknown: ${providerError.message}`,
+    { operation: "sandbox.exec", resource: resourceLocator({ provider, kind: "sandbox", nativeId: sandboxId }) },
+    providerError
+  );
+}
+
 async function killSandboxAfterFailure(sandbox: E2BSandboxInstance, action: E2BSandboxCleanupMetadata["action"], operationError: unknown): Promise<never> {
   const cleanup: E2BSandboxCleanupMetadata = {
     action,
@@ -239,6 +278,13 @@ class E2BCapsuleSandbox implements Sandbox {
   ) {}
 
   async exec(spec: ExecSpec): Promise<ExecResult> {
+    if (spec.input !== undefined) {
+      // Rejected before any provider call rather than silently dropped: the installed e2b SDK has no public way to close a command's stdin, so EOF cannot be delivered.
+      throw new UnsupportedCapabilityError(
+        "sandbox.exec.input",
+        "E2B exec does not support ExecSpec.input (the installed e2b SDK has no public way to close a command's stdin, so EOF cannot be delivered). Write the data to a file with writeFile and read it from the command instead."
+      );
+    }
     const startedAt = new Date();
     const policy = this.context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
     const command = commandToString(spec.command);
@@ -252,7 +298,12 @@ class E2BCapsuleSandbox implements Sandbox {
         background: false
       });
     } catch (error) {
-      return await killSandboxAfterFailure(this.sandbox, "kill-sandbox-after-exec-error", asProviderError(error, "E2B command execution failed."));
+      // The installed SDK reports an ordinary nonzero exit by throwing CommandExitError from
+      // CommandHandle.wait(). That is a completed command, not a provider failure: keep its output and
+      // the sandbox. Any other error is a provider or transport failure and never destroys the sandbox.
+      const exit = commandExitResult(error);
+      if (!exit) throw execFailure(error, this.handle.id);
+      result = exit;
     }
     const stdout = redactSecrets(result.stdout, spec.env, this.context.policy);
     const stderr = redactSecrets(result.stderr, spec.env, this.context.policy);
@@ -275,7 +326,7 @@ class E2BCapsuleSandbox implements Sandbox {
   }
 
   async writeFile(path: string, data: string | Uint8Array): Promise<void> {
-    await callProvider("E2B file write failed.", () => this.sandbox.files.write(path, typeof data === "string" ? data : arrayBufferFromBytes(data)));
+    await callProvider("E2B file write failed.", () => this.sandbox.files.write(path, typeof data === "string" ? data : uploadBlob(data)));
   }
 
   async readFile(path: string): Promise<Uint8Array> {

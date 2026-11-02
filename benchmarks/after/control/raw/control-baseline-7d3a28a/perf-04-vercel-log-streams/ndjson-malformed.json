@@ -1,0 +1,173 @@
+{
+  "meta": {
+    "label": "control-baseline-7d3a28a",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+    "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346",
+    "dirty": false,
+    "date": "2026-10-27T14:12:04.586Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56",
+      "execArgv": [
+        "--expose-gc"
+      ]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": null,
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workload": {
+    "id": "perf-04-vercel-log-streams",
+    "perfIds": [
+      "PERF-04"
+    ],
+    "manifestIds": [
+      "EDGE-02",
+      "EDGE-03"
+    ]
+  },
+  "case": "ndjson-malformed",
+  "description": "NDJSON body with one truncated record in the middle, fragmented, then closed.",
+  "params": {
+    "records": 2000,
+    "maxFragmentBytes": 64,
+    "limit": 100,
+    "deadlineMs": 5000,
+    "seed": 11
+  },
+  "runs": [
+    {
+      "rep": 0,
+      "childWallMs": 69.1852910000016,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 30.859333,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8040672,
+        "peakRssGrowthBytes": 28868608
+      },
+      "caseDurationMs": 37.644458,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5050384,
+          "rss": 49020928,
+          "external": 1909673,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 13001008,
+          "rss": 85000192,
+          "external": 4592233,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85000192
+      }
+    },
+    {
+      "rep": 1,
+      "childWallMs": 71.25266600000032,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 31.273666,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8017720,
+        "peakRssGrowthBytes": 29310976
+      },
+      "caseDurationMs": 37.85675,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5033064,
+          "rss": 49086464,
+          "external": 1909673,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 12978056,
+          "rss": 85295104,
+          "external": 4592233,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85295104
+      }
+    },
+    {
+      "rep": 2,
+      "childWallMs": 68.62341599999854,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 30.765458000000002,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8078024,
+        "peakRssGrowthBytes": 29442048
+      },
+      "caseDurationMs": 37.2355,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5051152,
+          "rss": 48971776,
+          "external": 1909673,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 13038432,
+          "rss": 85377024,
+          "external": 4592233,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85377024
+      }
+    }
+  ]
+}
