@@ -100,6 +100,43 @@ describe("kubernetes log capture signal", () => {
     expect(signals[0]?.aborted).toBe(true);
   });
 
+  // The first page has no continue token. A deadline there must still come back with a cursor: an
+  // absent nextCursor means "no more pages", and a pager would stop after reading zero pods.
+  it.each(["selector read", "pod list"] as const)("hands back a cursor that rereads the first page when the %s misses its deadline", async (hanging) => {
+    const listed: Array<string | undefined> = [];
+    let serviceReads = 0;
+    const hang = async (options?: RequestOptions) => await untilAborted(await attachedSignal(options));
+    const capsule = logsCapsule({
+      readNamespacedService: async (_input: unknown, options?: RequestOptions) => {
+        serviceReads += 1;
+        if (hanging === "selector read" && serviceReads === 1) return await hang(options);
+        return { metadata: { name: "svc" }, spec: { selector: { app: "svc" } } };
+      },
+      listNamespacedPod: async (input: { _continue?: string }, options?: RequestOptions) => {
+        listed.push(input._continue);
+        if (hanging === "pod list" && listed.length === 1) return await hang(options);
+        return { items: [pod], metadata: { continue: "pods-page-2" } };
+      },
+      readNamespacedPodLog: async () => "2026-10-29T10:00:00Z pod-0 up\n"
+    });
+    const first = await capsule.service.logs({ id: "svc", bounds: { deadlineMs: 40 } });
+    expect(first.logs).toEqual([]);
+    expect(first.truncation).toMatchObject({ truncated: true, reason: "deadline", limit: 40 });
+    expect(typeof first.nextCursor).toBe("string");
+    expect(first.nextCursor).not.toBe("");
+
+    const second = await capsule.service.logs({ id: "svc", cursor: first.nextCursor, bounds: { deadlineMs: 60_000 } });
+    // The returned cursor asks the API server for the first page again, with no continue token.
+    expect(listed.at(-1)).toBeUndefined();
+    expect(second.logs).toEqual([{ timestamp: "2026-10-29T10:00:00Z", stream: "stdout", message: "pod-0 up", source: "pod-0" }]);
+    expect(second.truncation).toMatchObject({ truncated: false });
+    // Paging continues from the first page's continue token as before.
+    expect(second.nextCursor).toBe("pods-page-2");
+    const third = await capsule.service.logs({ id: "svc", cursor: second.nextCursor, bounds: { deadlineMs: 60_000 } });
+    expect(listed.at(-1)).toBe("pods-page-2");
+    expect(third.nextCursor).toBe("pods-page-2");
+  });
+
   it("aborts a pod log read that is still in flight at the capture deadline", async () => {
     const signals: Array<AbortSignal | undefined> = [];
     const capsule = logsCapsule({

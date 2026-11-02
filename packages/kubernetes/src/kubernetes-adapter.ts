@@ -832,6 +832,21 @@ export class NewestWindow<T> {
   }
 }
 
+// Log cursors. A cursor is the pod list continue token exactly as the API server issued it, handed
+// back unchanged, so cursors from earlier versions keep working. The first page has no token, and a
+// capture that could not read its page before the deadline must still return a cursor (a missing
+// nextCursor means "no more pages" to a pager), so the first page gets this sentinel instead. A
+// continue token is base64 text, so no token can equal it. Both forms are opaque to callers.
+const firstPageCursor = "capsule-k8s:first-page";
+
+function continueTokenOf(cursor: string | undefined): string | undefined {
+  return cursor && cursor !== firstPageCursor ? cursor : undefined;
+}
+
+function cursorForSamePage(cursor: string | undefined): string {
+  return cursor || firstPageCursor;
+}
+
 async function collectPodLogs(
   core: CoreApi,
   input: {
@@ -953,12 +968,14 @@ async function collectPodLogs(
     const podList =
       selector === undefined
         ? undefined
-        : await untilDeadline(listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: selector, _continue: input.cursor }, requestOptions));
+        : await untilDeadline(
+            listNamespacedPod.call(core, { namespace: input.namespace, labelSelector: selector, _continue: continueTokenOf(input.cursor) }, requestOptions)
+          );
     if (podList === undefined && capture.signal.aborted) {
       // The selector or the pods were not read in time. The page was not read, so the next call asks
-      // for it again.
+      // for it again: a deadline must never come back without a cursor, which would read as the end.
       deadlineHit = true;
-      nextCursor = input.cursor;
+      nextCursor = cursorForSamePage(input.cursor);
     } else {
       pods = podList?.items ?? [];
       const continueToken = podList?.metadata?.["continue"];
