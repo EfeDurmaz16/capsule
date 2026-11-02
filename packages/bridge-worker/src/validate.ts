@@ -292,7 +292,7 @@ export function parseRequest(message: Json, profile: CapabilityProfile): BridgeR
       argv,
       stdin,
       cwd: p.cwd === null ? null : text(p.cwd, "params.cwd"),
-      timeout_ms: bounded(p.timeout_ms, 1, limits.max_deadline_ms, "params.timeout_ms"),
+      timeout_ms: bounded(p.timeout_ms, 1, limits.max_timeout_ms, "params.timeout_ms"),
       max_output_bytes: bounded(p.max_output_bytes, 1, limits.max_output_bytes, "params.max_output_bytes"),
       secret_names: names(p.secret_names, "params.secret_names")
     };

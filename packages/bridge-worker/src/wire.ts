@@ -155,6 +155,8 @@ export interface ActionCapability {
 
 export interface ProfileLimits {
   max_deadline_ms: number;
+  /** Upper bound of an exec's own timeout_ms. It may exceed max_deadline_ms: an exec still running at its deadline is answered running and settled by observing it. */
+  max_timeout_ms: number;
   max_observe_wait_ms: number;
   max_output_bytes: number;
   max_stdin_bytes: number;
