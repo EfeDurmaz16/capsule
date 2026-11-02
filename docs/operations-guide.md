@@ -2,12 +2,14 @@
 
 Task-oriented reference for the Capsule CLI. Every command here is sourced from `capsule --help` and the docs it points to. Commands print human-readable tables by default; add `--json` where noted for stable automation output.
 
-Build the CLI once, then invoke it from the workspace:
+Build the CLI and the workspace packages it depends on once, then invoke it from the repository root. The examples below write `capsule <command>` for that invocation:
 
 ```bash
-pnpm --filter @capsule-sdk/cli build
-pnpm --filter @capsule-sdk/cli exec node dist/index.js <command>
+pnpm build                                   # or: pnpm --filter "@capsule-sdk/cli..." build
+node packages/cli/dist/index.js <command>
 ```
+
+`pnpm --filter @capsule-sdk/cli build` alone fails on a fresh clone because the CLI's workspace dependencies have no `dist` yet. Run `doctor` and `examples` from the repository root: both read the workspace from the working directory, so under `pnpm --filter @capsule-sdk/cli exec` they see `packages/cli` instead.
 
 A `capsule.config.json` in the working directory supplies a default adapter, `receipts.path`, and `policyFile`. Explicit flags (`--adapter`, `--receipt-file`, `--policy-file`) always override the config file.
 

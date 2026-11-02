@@ -25,10 +25,10 @@ Build the workspace CLI once, then use the planner to see exactly which env vars
 
 ```bash
 pnpm install
-pnpm --filter @capsule-sdk/cli build
-pnpm --filter @capsule-sdk/cli exec node dist/index.js live-test plan --provider neon
-pnpm --filter @capsule-sdk/cli exec node dist/index.js live-test plan --provider vercel
-pnpm --filter @capsule-sdk/cli exec node dist/index.js live-test plan --provider cloud-run
+pnpm --filter "@capsule-sdk/cli..." build
+node packages/cli/dist/index.js live-test plan --provider neon
+node packages/cli/dist/index.js live-test plan --provider vercel
+node packages/cli/dist/index.js live-test plan --provider cloud-run
 ```
 
 ## Step 2: Set Neon credentials (database branch)
@@ -89,12 +89,12 @@ If a provider call fails part-way, `createPreviewGraph` throws `PreviewCreationE
 
 ## Step 6: Inspect and verify receipts
 
-Every action writes a receipt to the JSONL store. The default path is `.capsule/receipts/preview-environment-model.jsonl`; override it with `CAPSULE_EXAMPLE_RECEIPTS_PATH`.
+Every action writes a receipt to the JSONL store. The default path is `.capsule/receipts/preview-environment-model.jsonl`, relative to the example's own directory because `pnpm --filter` runs it there; override it with `CAPSULE_EXAMPLE_RECEIPTS_PATH`.
 
-Verify the receipt chain with the CLI:
+Verify the receipt chain with the CLI from the repository root:
 
 ```bash
-pnpm --filter @capsule-sdk/cli exec node dist/index.js receipt verify --receipt-file .capsule/receipts/preview-environment-model.jsonl
+node packages/cli/dist/index.js receipt verify --receipt-file examples/preview-environment-model/.capsule/receipts/preview-environment-model.jsonl
 ```
 
 ## Step 7: Confirm cleanup and reclaim leftovers
