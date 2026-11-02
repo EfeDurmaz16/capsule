@@ -3,7 +3,9 @@
   "direction": "worker_to_fabric",
   "phase": "session",
   "expect": {
-    "outcome": "accept"
+    "outcome": "reject",
+    "code": "protocol_violation",
+    "reason": "unknown_field"
   },
   "message": {
     "type": "error",

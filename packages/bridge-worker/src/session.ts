@@ -1,7 +1,6 @@
 import { redactSensitiveText } from "@capsule-sdk/core";
 import type { WorkerConfig } from "./config.js";
 import {
-  AbsentLedger,
   dispatchAttach,
   dispatchObserve,
   dispatchRequest,
@@ -119,7 +118,6 @@ export class WorkerSession {
       idempotency: this.idempotency,
       execs: new ExecLedger(),
       approvalUses: new Map(),
-      absent: new AbsentLedger(),
       diagnostic: (text) => this.diagnostic(text)
     };
     this.exited = new Promise((resolve) => {

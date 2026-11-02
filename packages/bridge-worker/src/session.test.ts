@@ -369,6 +369,47 @@ describe("observe", () => {
     expect(world.provider.effects).toHaveLength(1);
   });
 
+  test("an observe of a destroy whose target is absent answers unknown/absent with the scope searched, never a result", async () => {
+    const { world, connection } = await started({ sandboxes: [] });
+    connection.send(observe("r-10", "01K8W3A00000000000000000P3", "sandbox.destroy", "fx-key-create-1"));
+    expect(await connection.next()).toEqual({
+      type: "error",
+      request_id: "r-10",
+      operation_id: "01K8W3A00000000000000000P3",
+      error: {
+        code: "unknown",
+        reason: "absent",
+        message: expect.any(String),
+        effect: "unknown",
+        observations: 1,
+        deadline_ms: 1000,
+        searched: { provider: "fixture", scope: { account: "acct-a", project: "proj-1" }, kind: "sandbox" }
+      }
+    });
+    expect(world.provider.effects).toEqual([]);
+  });
+
+  test("an observe of a create whose resource is absent answers unknown/absent with the scope searched", async () => {
+    const { world, connection } = await started({ sandboxes: [] });
+    connection.send(observe("r-10", "01K8W3A00000000000000000P1", "sandbox.create", "fx-key-create-1"));
+    expect(await connection.next()).toMatchObject({
+      type: "error",
+      error: { code: "unknown", reason: "absent", effect: "unknown", observations: 1, deadline_ms: 1000, searched: { provider: "fixture", kind: "sandbox" } }
+    });
+    expect(world.provider.effects).toEqual([]);
+  });
+
+  test("a destroy answered not_found carries no searched, whatever an earlier observe read", async () => {
+    const { world, connection } = await started({ sandboxes: [] });
+    connection.send(observe("r-10", "01K8W3A00000000000000000P1", "sandbox.create", "fx-key-create-1"));
+    expect(await connection.next()).toMatchObject({ type: "error", error: { reason: "absent" } });
+    connection.send(destroyRequest);
+    const answer = await connection.next();
+    expect(answer).toMatchObject({ type: "error", error: { code: "provider_failed", reason: "not_found", effect: "none" } });
+    expect(answer.error).not.toHaveProperty("searched");
+    expect(world.provider.effects).toEqual([]);
+  });
+
   test("an observe of a create refuses a seeded sandbox labelled with another operation, and answers its own", async () => {
     const seeded = {
       native_id: "fx-other-job",

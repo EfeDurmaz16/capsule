@@ -253,11 +253,10 @@ describe("searched", () => {
     const check = (body: Record<string, unknown>) => checkWorkerMessage({ ...absent, error: body }, { profile: fixtureProfile });
     expect(check(error)).toBeUndefined();
     expect(check({ ...error, reason: "observation_failed" })).toMatchObject({ reason: "unknown_field" });
-    // A definite not_found may say where it looked, so Fabric can hold it as absent evidence; no other provider failure may.
+    // Absence is an unknown/absent answer and nothing else: a provider failure, not_found among them, never says where it looked.
     const notFound = { code: "provider_failed", reason: "not_found", message: "provider_failed: not_found", effect: "none", searched: error.searched };
-    expect(check(notFound)).toBeUndefined();
+    expect(check(notFound)).toMatchObject({ reason: "unknown_field" });
     expect(check({ ...notFound, reason: "provider_refused" })).toMatchObject({ reason: "unknown_field" });
-    expect(check({ ...notFound, searched: { provider: "docker", scope: { engine: "e" }, kind: "container" } })).toMatchObject({ reason: "bad_value" });
     expect(check({ ...error, searched: { provider: "docker", scope: { engine: "e" }, kind: "container" } })).toMatchObject({ reason: "bad_value" });
     expect(check({ ...error, searched: { provider: "fixture", scope: { account: "acct-a" }, kind: "sandbox" } })).toMatchObject({ reason: "missing_field" });
   });

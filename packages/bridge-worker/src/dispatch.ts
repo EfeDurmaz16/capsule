@@ -250,32 +250,6 @@ export class ExecLedger {
   }
 }
 
-/**
- * The resources an observe read as absent, by native id, each with the scope searched. A later destroy
- * that the provider answers not_found carries this evidence, so Fabric can settle it; without it a
- * not_found says only that the worker looked once, now. Bounded: the oldest entry goes first.
- */
-export class AbsentLedger {
-  private readonly entries = new Map<string, Searched>();
-
-  constructor(private readonly capacity = 1024) {}
-
-  get(nativeId: string): Searched | undefined {
-    return this.entries.get(nativeId);
-  }
-
-  record(nativeId: string, searched: Searched): void {
-    this.entries.delete(nativeId);
-    this.entries.set(nativeId, searched);
-    if (this.entries.size > this.capacity) this.entries.delete(this.entries.keys().next().value as string);
-  }
-
-  /** A resource read as present is not absent; what was recorded before no longer describes it. */
-  forget(nativeId: string): void {
-    this.entries.delete(nativeId);
-  }
-}
-
 export interface DispatchContext {
   driver: BridgeDriver;
   config: WorkerConfig;
@@ -283,7 +257,6 @@ export interface DispatchContext {
   execs: ExecLedger;
   /** Which operation each approval ref has resolved for; a ref is never resolved for a second one. */
   approvalUses: ApprovalUses;
-  absent: AbsentLedger;
   diagnostic(text: string): void;
 }
 
@@ -358,19 +331,6 @@ function wireLocator(nativeId: string, driver: BridgeDriver, binding: Record<str
 /** Where this worker looks: the profile's provider, its bound scope and the profile's resource kind. */
 function searchedScope(driver: BridgeDriver, binding: Record<string, string>): Searched {
   return { provider: driver.profile.provider, scope: { ...binding }, kind: driver.profile.resource_kinds[0]! };
-}
-
-/**
- * A destroy the provider answered not_found settles nothing by itself. Once an observe of that resource
- * has answered absent, the destroy's answer carries the scope that observe searched, and Fabric settles
- * the destroy on that evidence. Decided 2026-11-02 under Efe's delegation of that day (Fabric M4).
- */
-function withAbsentEvidence(context: DispatchContext, request: BridgeRequest, answer: Answer): Answer {
-  if (request.action !== "sandbox.destroy" || answer.type !== "error") return answer;
-  const { error } = answer;
-  if (error.code !== "provider_failed" || error.reason !== "not_found" || error.searched) return answer;
-  const searched = context.absent.get(request.target.native_id);
-  return searched ? { ...answer, error: { ...error, searched } } : answer;
 }
 
 function coreLocator(locator: WireLocator): ResourceLocator {
@@ -597,7 +557,7 @@ export async function dispatchRequest(context: DispatchContext, runtime: Operati
     prepared = await prepare(context, runtime, request, binding);
   } catch (error) {
     idempotency.abandon(key);
-    if (error instanceof Refusal) return withAbsentEvidence(context, request, refusalAnswer(runtime.requestId, runtime.operationId, error));
+    if (error instanceof Refusal) return refusalAnswer(runtime.requestId, runtime.operationId, error);
     if (error instanceof DrainInterrupt) return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("unavailable", "shutting_down"));
     context.diagnostic(`check failed before dispatch: ${error instanceof Error ? error.message : String(error)}`);
     return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("provider_failed", "provider_refused"));
@@ -616,7 +576,7 @@ export async function dispatchRequest(context: DispatchContext, runtime: Operati
     context.diagnostic(`receipt store not ready: ${error instanceof Error ? error.message : String(error)}`);
     return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("provider_failed", "provider_refused"));
   }
-  const answer = withAbsentEvidence(context, request, await dispatchChecked(context, runtime, request, prepared, evidence));
+  const answer = await dispatchChecked(context, runtime, request, prepared, evidence);
   idempotency.finish(key, answer);
   return answer;
 }
@@ -843,12 +803,20 @@ export async function dispatchObserve(context: DispatchContext, runtime: Operati
     // an exec's own id is on no resource label, so the job label is their check, and an exec's ledger
     // record adds its own.
     const state = await guarded(runtime, driver.read(resource.native_id));
-    if (state.exists) context.absent.forget(resource.native_id);
-    else context.absent.record(resource.native_id, searchedScope(driver, binding));
-    if (observe.action === "sandbox.create" && !state.exists) {
-      // A create that never happened has nothing to observe: a definite not found, naming the scope
-      // searched so Fabric holds it as absent evidence.
-      return errorAnswer(runtime, { code: "provider_failed", reason: "not_found", effect: "none", searched: searchedScope(driver, binding) });
+    if (!state.exists && observe.action !== "sandbox.exec") {
+      // No resource in the bound scope: an absent answer naming the scope searched, the one read it
+      // took. What that means is Fabric's journal's to say (a destroy's resource gone is the destroy
+      // done; a create's may still land). The worker never answers a result for a resource it did not
+      // read. An exec's outcome is in the exec ledger, not on the sandbox. Decided 2026-11-02 under
+      // Efe's delegation of that day (Fabric M4).
+      return errorAnswer(runtime, {
+        code: "unknown",
+        reason: "absent",
+        effect: "unknown",
+        observations: 1,
+        deadline_ms: observe.wait_ms,
+        searched: searchedScope(driver, binding)
+      });
     }
     if (state.exists && state.owner?.job !== observe.scope.job) {
       return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("denied", "owner_mismatch", "the resource was not created by this job"));
