@@ -299,11 +299,14 @@ function resources(resourcesInput?: { cpu?: number; memoryMb?: number }) {
   return Object.keys(limits).length > 0 ? { limits } : undefined;
 }
 
+// Labels every object of an operation carries: the app name, the caller's labels and Capsule's
+// operation tags (idempotency key, capability path).
+function operationLabels(name: string, spec: { labels?: Record<string, string>; idempotencyKey?: string }, capabilityPath: string): Record<string, string> {
+  return labels(name, { ...(spec.labels ?? {}), ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath }) ?? {}) });
+}
+
 function jobBody(name: string, spec: RunJobSpec) {
-  const matchLabels = labels(name, {
-    ...(spec.labels ?? {}),
-    ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "job.run" }) ?? {})
-  });
+  const matchLabels = operationLabels(name, spec, "job.run");
   return {
     apiVersion: "batch/v1",
     kind: "Job",
@@ -334,10 +337,7 @@ function deploymentBody(name: string, namespace: string, spec: DeployServiceSpec
   if (!spec.image) {
     throw new AdapterExecutionError("Kubernetes service.deploy requires spec.image. Source deploy is not implemented.");
   }
-  const matchLabels = labels(name, {
-    ...(spec.labels ?? {}),
-    ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "service.deploy" }) ?? {})
-  });
+  const matchLabels = operationLabels(name, spec, "service.deploy");
   // Only what the manifest really expresses is accepted: a fixed replica count and an HTTP readiness
   // path. A command healthcheck or an autoscaling range would otherwise be dropped silently.
   if (spec.healthcheck?.command !== undefined) {
@@ -365,7 +365,7 @@ function deploymentBody(name: string, namespace: string, spec: DeployServiceSpec
               image: spec.image,
               env: env(spec.env),
               resources: resources(spec.resources),
-              ports: spec.ports?.map((port) => ({ containerPort: port.port, protocol: (port.protocol ?? "http") === "tcp" ? "TCP" : "TCP" })),
+              ports: spec.ports?.map((port) => ({ containerPort: port.port, protocol: "TCP" })),
               readinessProbe: spec.healthcheck?.path ? { httpGet: { path: spec.healthcheck.path, port: spec.ports?.[0]?.port ?? 80 } } : undefined
             }
           ]
@@ -402,10 +402,7 @@ function servicePorts(spec: DeployServiceSpec): Array<ServicePortSpec & { name: 
 }
 
 function serviceBody(name: string, namespace: string, spec: DeployServiceSpec) {
-  const matchLabels = labels(name, {
-    ...(spec.labels ?? {}),
-    ...(capsuleOperationTags({ idempotencyKey: spec.idempotencyKey, capabilityPath: "service.deploy" }) ?? {})
-  });
+  const matchLabels = operationLabels(name, spec, "service.deploy");
   const ports = servicePorts(spec);
   return {
     apiVersion: "v1",
@@ -440,25 +437,12 @@ function serviceUrl(service: KubernetesObject, name: string, namespace: string, 
   const port = firstServicePort(service, fallbackPort);
   const ingress = service.status?.loadBalancer;
   const entries = ingress && typeof ingress === "object" && "ingress" in ingress && Array.isArray(ingress.ingress) ? ingress.ingress : [];
-  const first = entries[0];
-  if (first && typeof first === "object") {
-    if ("hostname" in first && typeof first.hostname === "string" && first.hostname.length > 0) {
-      return `http://${first.hostname}${port ? `:${port}` : ""}`;
-    }
-    if ("ip" in first && typeof first.ip === "string" && first.ip.length > 0) {
-      return `http://${first.ip}${port ? `:${port}` : ""}`;
-    }
-  }
-  return clusterUrl(name, namespace, port);
-}
-
-function foregroundDeleteOptions() {
-  return {
-    apiVersion: "v1",
-    kind: "DeleteOptions",
-    gracePeriodSeconds: 0,
-    propagationPolicy: "Foreground"
-  };
+  const first: unknown = entries[0];
+  const address =
+    first && typeof first === "object"
+      ? [(first as { hostname?: unknown }).hostname, (first as { ip?: unknown }).ip].find((value) => typeof value === "string" && value.length > 0)
+      : undefined;
+  return typeof address === "string" ? `http://${address}${port ? `:${port}` : ""}` : clusterUrl(name, namespace, port);
 }
 
 type ResourceKind = "deployment" | "service";
@@ -490,7 +474,14 @@ async function requestForegroundDelete(kind: ResourceKind, remove: () => Promise
 }
 
 function deleteRequest(namespace: string, name: string) {
-  return { namespace, name, gracePeriodSeconds: 0, propagationPolicy: "Foreground", body: foregroundDeleteOptions() };
+  const propagationPolicy = "Foreground";
+  return {
+    namespace,
+    name,
+    gracePeriodSeconds: 0,
+    propagationPolicy,
+    body: { apiVersion: "v1", kind: "DeleteOptions", gracePeriodSeconds: 0, propagationPolicy }
+  };
 }
 
 function conditionIsTrue(condition: unknown, type: string): boolean {
@@ -875,8 +866,8 @@ async function collectPodLogs(
   if (input.until !== undefined && Number.isNaN(parseTimestamp(input.until))) {
     throw new AdapterExecutionError(`Invalid Kubernetes log until timestamp: ${input.until}`);
   }
-  const listNamespacedPod = requireCoreMethod(core, "listNamespacedPod");
-  const readNamespacedPodLog = requireCoreMethod(core, "readNamespacedPodLog");
+  const listNamespacedPod = requireMethod(core, "listNamespacedPod", "Core");
+  const readNamespacedPodLog = requireMethod(core, "readNamespacedPodLog", "Core");
   // The caller's limit is the requested page size; bounds.maxRecords is a ceiling that is reported as
   // truncation when it cuts the result. Every per-source read is a bounded tail (tailLines) with a
   // server-side byte cap (limitBytes), so no single source can return an unbounded transcript.
@@ -1085,28 +1076,12 @@ async function collectPodLogs(
   };
 }
 
-function requireBatchMethod<K extends keyof BatchApi>(batch: BatchApi, method: K): NonNullable<BatchApi[K]> {
-  const value = batch[method];
+function requireMethod<T extends object, K extends keyof T>(client: T, method: K, api: string): NonNullable<T[K]> {
+  const value = client[method];
   if (typeof value !== "function") {
-    throw new AdapterExecutionError(`Kubernetes Batch API client does not implement ${String(method)}.`);
+    throw new AdapterExecutionError(`Kubernetes ${api} API client does not implement ${String(method)}.`);
   }
-  return value;
-}
-
-function requireAppsMethod<K extends keyof AppsApi>(apps: AppsApi, method: K): NonNullable<AppsApi[K]> {
-  const value = apps[method];
-  if (typeof value !== "function") {
-    throw new AdapterExecutionError(`Kubernetes Apps API client does not implement ${String(method)}.`);
-  }
-  return value;
-}
-
-function requireCoreMethod<K extends keyof CoreApi>(core: CoreApi, method: K): NonNullable<CoreApi[K]> {
-  const value = core[method];
-  if (typeof value !== "function") {
-    throw new AdapterExecutionError(`Kubernetes Core API client does not implement ${String(method)}.`);
-  }
-  return value;
+  return value as NonNullable<T[K]>;
 }
 
 function defaultClients(options: KubernetesAdapterOptions): KubernetesClients {
@@ -1228,7 +1203,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
     const serviceRejected = status !== undefined && status >= 400 && status < 500;
     const service = locate("service", serviceName);
     const attempt = await requestForegroundDelete("deployment", () =>
-      requireAppsMethod(apps, "deleteNamespacedDeployment").call(apps, deleteRequest(namespace, deploymentName))
+      requireMethod(apps, "deleteNamespacedDeployment", "Apps").call(apps, deleteRequest(namespace, deploymentName))
     );
     const cleanup: CleanupOutcome =
       attempt.state === "failed"
@@ -1258,6 +1233,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
         const policy = context.evaluatePolicy({ env: spec.env, timeoutMs: spec.timeoutMs });
         const name = spec.name === undefined ? generatedJobName() : kubernetesName(spec.name, "job.run");
         const created = await getClients().batch.createNamespacedJob({ namespace, body: jobBody(name, spec) });
+        const id = created.metadata?.name ?? name;
         const receipt = context.receipts
           ? context.createReceipt({
               type: "job.run",
@@ -1274,22 +1250,17 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
                   "This adapter creates the Job and records the Kubernetes resource; log collection is not implemented yet."
                 ]
               },
-              resource: { id: created.metadata?.name ?? name, name, status: "running" },
-              metadata: kubernetesReceiptMetadata("batch/v1", { namespace, kubernetesName: created.metadata?.name ?? name, uid: created.metadata?.uid })
+              resource: { id, name, status: "running" },
+              metadata: kubernetesReceiptMetadata("batch/v1", { namespace, kubernetesName: id, uid: created.metadata?.uid })
             })
           : undefined;
         // The Job was only created; no exit code exists yet. Omit result until job.status observes a
         // terminal state instead of returning a placeholder that looks like a passed workload.
-        return {
-          id: created.metadata?.name ?? name,
-          provider,
-          status: "running",
-          receipt
-        };
+        return { id, provider, status: "running", receipt };
       },
       status: async (spec: JobStatusSpec): Promise<JobStatusResult> => {
         const batch = getClients().batch;
-        const readNamespacedJob = requireBatchMethod(batch, "readNamespacedJob");
+        const readNamespacedJob = requireMethod(batch, "readNamespacedJob", "Batch");
         const job = await readNamespacedJob.call(batch, { namespace, name: spec.id });
         const name = job.metadata?.name ?? spec.id;
         return {
@@ -1301,27 +1272,16 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
       },
       cancel: async (spec: CancelJobSpec): Promise<CancelJobResult> => {
         const batch = getClients().batch;
-        const deleteNamespacedJob = requireBatchMethod(batch, "deleteNamespacedJob");
-        const name = spec.id;
-        const deletion = await deleteNamespacedJob.call(batch, {
-          namespace,
-          name,
-          gracePeriodSeconds: 0,
-          propagationPolicy: "Foreground",
-          body: {
-            apiVersion: "v1",
-            kind: "DeleteOptions",
-            gracePeriodSeconds: 0,
-            propagationPolicy: "Foreground"
-          }
-        });
+        const deleteNamespacedJob = requireMethod(batch, "deleteNamespacedJob", "Batch");
+        const deletion = await deleteNamespacedJob.call(batch, deleteRequest(namespace, spec.id));
+        const name = deletion.metadata?.name ?? spec.id;
         return {
-          id: deletion.metadata?.name ?? name,
+          id: name,
           provider,
           status: "cancelling",
           metadata: {
             namespace,
-            kubernetesName: deletion.metadata?.name ?? name,
+            kubernetesName: name,
             uid: deletion.metadata?.uid,
             reason: spec.reason,
             semantics: "delete-job-foreground",
@@ -1332,7 +1292,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
       logs: async (spec: JobLogsSpec, context: AdapterContext): Promise<JobLogsResult> => {
         const startedAt = new Date();
         const clients = getClients();
-        const readNamespacedJob = requireBatchMethod(clients.batch, "readNamespacedJob");
+        const readNamespacedJob = requireMethod(clients.batch, "readNamespacedJob", "Batch");
         const result = await collectPodLogs(clients.core, {
           namespace,
           readOwner: (options) => readNamespacedJob.call(clients.batch, { namespace, name: spec.id }, options),
@@ -1421,8 +1381,8 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
       status: async (spec: ServiceStatusSpec, context: AdapterContext): Promise<ServiceStatusResult> => {
         const startedAt = new Date();
         const clients = getClients();
-        const readNamespacedDeployment = requireAppsMethod(clients.apps, "readNamespacedDeployment");
-        const readNamespacedService = requireCoreMethod(clients.core, "readNamespacedService");
+        const readNamespacedDeployment = requireMethod(clients.apps, "readNamespacedDeployment", "Apps");
+        const readNamespacedService = requireMethod(clients.core, "readNamespacedService", "Core");
         const name = spec.id;
         const deployment = await readNamespacedDeployment.call(clients.apps, { namespace, name });
         const service = await readNamespacedService.call(clients.core, { namespace, name });
@@ -1456,8 +1416,8 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
       delete: async (spec: DeleteServiceSpec, context: AdapterContext): Promise<DeletedService> => {
         const startedAt = new Date();
         const clients = getClients();
-        const deleteNamespacedDeployment = requireAppsMethod(clients.apps, "deleteNamespacedDeployment");
-        const deleteNamespacedService = requireCoreMethod(clients.core, "deleteNamespacedService");
+        const deleteNamespacedDeployment = requireMethod(clients.apps, "deleteNamespacedDeployment", "Apps");
+        const deleteNamespacedService = requireMethod(clients.core, "deleteNamespacedService", "Core");
         const name = spec.id;
         // Each resource is deleted independently. A Deployment that is already gone (for example after
         // an earlier attempt that failed on the Service) never stops the Service delete from running.
@@ -1526,7 +1486,7 @@ export function kubernetes(options: KubernetesAdapterOptions = {}): CapsuleAdapt
       logs: async (spec: ServiceLogsSpec, context: AdapterContext): Promise<ServiceLogsResult> => {
         const startedAt = new Date();
         const clients = getClients();
-        const readNamespacedService = requireCoreMethod(clients.core, "readNamespacedService");
+        const readNamespacedService = requireMethod(clients.core, "readNamespacedService", "Core");
         const result = await collectPodLogs(clients.core, {
           namespace,
           readOwner: (options) => readNamespacedService.call(clients.core, { namespace, name: spec.id }, options),
