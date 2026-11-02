@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { AdapterExecutionError, Capsule, capsuleOperationTag, ProviderAuthError, ProviderRateLimitError, runAdapterContract } from "@capsule-sdk/core";
+import { DescribeInstancesCommand } from "@aws-sdk/client-ec2";
 import { ec2, ec2Capabilities } from "./index.js";
+import { classifiedClient } from "./ec2-adapter.js";
 
 function awsError(name: string, httpStatusCode: number, message = name): Error {
   return Object.assign(new Error(message), { name, $metadata: { httpStatusCode } });
@@ -274,5 +276,20 @@ describe("ec2 adapter", () => {
     const error = await capsule.machine.create({ name: "t", image: "ami-x", size: "t3.micro", idempotencyKey: "machine-7" }).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(AdapterExecutionError);
     expect((error as AdapterExecutionError).cause).toMatchObject({ cause: { name: "IdempotentParameterMismatch" } });
+  });
+  // The error-classifying wrapper must hand every send() argument to the client, so an options
+  // argument (an SDK abortSignal, for example) is not dropped on the way.
+  it("forwards send options through the error-classifying client", async () => {
+    const calls: unknown[][] = [];
+    const client = classifiedClient({
+      send: async (...args: unknown[]) => {
+        calls.push(args);
+        return {};
+      }
+    });
+    const command = new DescribeInstancesCommand({ InstanceIds: ["i-1"] });
+    const options = { abortSignal: AbortSignal.abort() };
+    await client.send(command, options);
+    expect(calls).toEqual([[command, options]]);
   });
 });

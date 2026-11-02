@@ -121,6 +121,43 @@ describe("GAP-01: docker timeouts", () => {
   });
 });
 
+describe("CD-BOUNDS: docker exec deadline", () => {
+  it("passes bounds.deadlineMs to the runner for sandbox.exec only; job.run passes none", async () => {
+    const seen: Array<[string, number | undefined, number | undefined]> = [];
+    const fake = fakeDaemon((args, options) => {
+      if (args[0] === "exec" || args[0] === "run") seen.push([args[0], options?.timeoutMs, options?.deadlineMs]);
+      return undefined;
+    });
+    const capsule = new Capsule({ adapter: fake.adapter });
+    const box = await capsule.sandbox.create({});
+    await box.exec({ command: "x", bounds: { deadlineMs: 250 } });
+    await box.exec({ command: "x", timeoutMs: 100 });
+    await capsule.job.run({ image: "node:22", timeoutMs: 100 });
+    expect(seen).toEqual([
+      ["exec", undefined, 250],
+      ["exec", 100, undefined],
+      ["run", 100, undefined]
+    ]);
+  });
+
+  it("does not report a sandbox exec stopped at its deadline as an exit code", async () => {
+    const note = "Capture deadline of 50ms expired";
+    const fake = fakeDaemon((args) =>
+      args[0] === "exec" ? { exitCode: 124, stdout: "partial", stderr: note, deadlineExceeded: true, timeoutNote: note } : undefined
+    );
+    const store = new MemoryReceiptStore();
+    const box = await new Capsule({ adapter: fake.adapter, receipts: true, receiptStore: store }).sandbox.create({});
+
+    const error = (await box.exec({ command: "sleep 60", bounds: { deadlineMs: 50 } }).catch((caught: unknown) => caught)) as UnknownOutcomeError;
+
+    expect(error).toBeInstanceOf(UnknownOutcomeError);
+    expect(error.message).toContain("deadline of 50ms");
+    expect(error.resource).toMatchObject({ provider: "docker", kind: "sandbox", nativeId: "box-1" });
+    expect((error.cause as { cause?: { stdout?: string } }).cause).toMatchObject({ stdout: "partial" });
+    expect(store.receipts.some((receipt) => receipt.type === "sandbox.exec")).toBe(false);
+  });
+});
+
 describe("PERF-10: docker output bounds", () => {
   it("passes resolved per-stream bounds with policy ceilings to the runner and surfaces truncation", async () => {
     const seen: Array<RunDockerOptions | undefined> = [];

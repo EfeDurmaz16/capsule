@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -48,30 +48,36 @@ test("the test gate cannot pass against a dist/ left by an earlier build", () =>
     assert.equal(spawnSync(process.execPath, ["check.mjs"], { cwd: root, env }).status, 0);
 
     const result = spawnSync(process.execPath, [runner, "--root", root, "--only", "test"], { cwd: root, env, encoding: "utf8", timeout: 60_000 });
-    assert.equal(result.status, 0, result.stderr);
-    const statuses = result.stderr.trim().split("\n");
+    // A failed gate is a failed run: the record is written, and the exit status says so.
+    assert.equal(result.status, 1, result.stderr);
+    const statuses = result.stderr
+      .trim()
+      .split("\n")
+      .filter((line) => /^(PASS|FAIL)/.test(line));
     assert.deepEqual(
       statuses.map((line) => line.replace(/ \([\d.]+s\)$/, "")),
       ["FAIL(exit=1) test"]
     );
+    assert.match(result.stderr, /1 of 1 gates failed/);
     assert.match(result.stdout, /\$ pnpm clean:build && pnpm test/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
-// Runs the gate runner on a fixture and returns the status line of each gate it ran, in order.
+// Runs the gate runner on a fixture and returns its exit status and the status line of each gate it
+// ran, in order. `only` is passed as the --only value; an array passes several arguments.
 function runGates(root, only) {
   const env = { ...process.env };
   delete env.NODE_TEST_CONTEXT;
-  const result = spawnSync(process.execPath, [runner, "--root", root, "--only", only], { cwd: root, env, encoding: "utf8", timeout: 60_000 });
-  assert.equal(result.status, 0, result.stderr);
+  const args = [runner, "--root", root, "--only", ...(Array.isArray(only) ? only : [only])];
+  const result = spawnSync(process.execPath, args, { cwd: root, env, encoding: "utf8", timeout: 60_000 });
   const statuses = result.stderr
     .trim()
     .split("\n")
     .filter((line) => /^(PASS|FAIL)/.test(line))
     .map((line) => line.replace(/ \([\d.]+s\)$/, ""));
-  return { statuses, stdout: result.stdout, stderr: result.stderr };
+  return { status: result.status, statuses, stdout: result.stdout, stderr: result.stderr };
 }
 
 test("--only builds before a gate that reads dist/, so a stale dist/ cannot hide a broken change", () => {
@@ -79,10 +85,12 @@ test("--only builds before a gate that reads dist/, so a stale dist/ cannot hide
   try {
     const bench = runGates(root, "benchmark-bounds");
     assert.deepEqual(bench.statuses, ["PASS build", "FAIL(exit=1) benchmark-bounds"]);
+    assert.equal(bench.status, 1, bench.stderr);
     assert.match(bench.stdout, /gates: only build, benchmark-bounds, in CI order \(build added: benchmark-bounds reads dist\/\)/);
 
     const release = runGates(root, "release-audit,package-exports,pack-smoke-compatible");
     assert.deepEqual(release.statuses, ["PASS build", "FAIL(exit=1) release-audit", "FAIL(exit=1) package-exports", "FAIL(exit=1) pack-smoke-compatible"]);
+    assert.equal(release.status, 1, release.stderr);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -91,7 +99,48 @@ test("--only builds before a gate that reads dist/, so a stale dist/ cannot hide
 test("--only rebuilds after the test gate removes dist/, so a later gate does not fail for the wrong reason", () => {
   const root = staleDistCheckout({ source: "ok", testReadsDist: false });
   try {
-    assert.deepEqual(runGates(root, "test,benchmark-bounds").statuses, ["PASS test", "PASS build", "PASS benchmark-bounds"]);
+    const run = runGates(root, "test,benchmark-bounds");
+    assert.deepEqual(run.statuses, ["PASS test", "PASS build", "PASS benchmark-bounds"]);
+    assert.equal(run.status, 0, run.stderr);
+    assert.match(run.stderr, /all 3 gates passed/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("exits non-zero when a selected gate fails, after writing the record", () => {
+  const root = staleDistCheckout({ source: "ok", testReadsDist: false });
+  try {
+    const out = join(root, "record", "gates.txt");
+    const env = { ...process.env };
+    delete env.NODE_TEST_CONTEXT;
+    const args = [runner, "--root", root, "--only", "test,release-audit", "--out", out];
+    const result = spawnSync(process.execPath, args, { cwd: root, env, encoding: "utf8", timeout: 60_000 });
+    // release-audit reads dist/ and runs after the build gate, so it passes; break it to fail one gate.
+    assert.equal(result.status, 0, result.stderr);
+    writeFileSync(join(root, "check.mjs"), "process.exit(3);\n");
+    const failing = spawnSync(process.execPath, args, { cwd: root, env, encoding: "utf8", timeout: 60_000 });
+    assert.equal(failing.status, 1, failing.stderr);
+    assert.match(failing.stderr, /1 of 3 gates failed/);
+    assert.match(readFileSync(out, "utf8"), /FAIL\(exit=3\)\s+release-audit/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// An empty selection would run no gate and report an all-clear.
+test("--only rejects an empty selection", () => {
+  const root = staleDistCheckout({ source: "ok", testReadsDist: false });
+  try {
+    for (const only of ["", ",", ["--out", join(root, "gates.txt")]]) {
+      const result = runGates(root, only);
+      assert.equal(result.status, 2, result.stderr);
+      assert.match(result.stderr, /--only needs at least one gate/);
+      assert.deepEqual(result.statuses, []);
+    }
+    const result = spawnSync(process.execPath, [runner, "--root", root, "--only"], { cwd: root, encoding: "utf8", timeout: 60_000 });
+    assert.equal(result.status, 2, result.stderr);
+    assert.match(result.stderr, /--only needs at least one gate/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

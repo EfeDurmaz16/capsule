@@ -2,6 +2,8 @@
 // Runs every repository gate defined in package.json and .github/workflows/ci.yml in CI order
 // and writes a plain-text record (command, exit code, duration, output tail) for baseline evidence.
 // Usage: node benchmarks/run-gates.mjs [--root <checkout>] [--only <gate>,<gate>] --out benchmarks/baseline/gates-<sha>.txt
+// Exit status: 0 when every selected gate passed, 1 when any failed (the record is still written),
+// 2 when the arguments are wrong (an empty or unknown --only).
 import { spawnSync } from "node:child_process";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -31,11 +33,18 @@ const gates = [
   ["benchmark-bounds", "pnpm bench:bounds"]
 ];
 
+const gateNames = gates.map(([gate]) => gate).join(", ");
 const onlyIndex = process.argv.indexOf("--only");
-const only = onlyIndex > 0 ? (process.argv[onlyIndex + 1] ?? "").split(",").filter(Boolean) : undefined;
+const onlyValue = onlyIndex > 0 ? process.argv[onlyIndex + 1] : undefined;
+// An empty selection would run nothing and record an all-clear, so --only must name at least one gate.
+const only = onlyIndex > 0 ? (onlyValue === undefined || onlyValue.startsWith("--") ? "" : onlyValue).split(",").filter(Boolean) : undefined;
+if (only !== undefined && only.length === 0) {
+  process.stderr.write(`--only needs at least one gate; gates: ${gateNames}\n`);
+  process.exit(2);
+}
 for (const name of only ?? []) {
   if (!gates.some(([gate]) => gate === name)) {
-    process.stderr.write(`unknown gate "${name}"; gates: ${gates.map(([gate]) => gate).join(", ")}\n`);
+    process.stderr.write(`unknown gate "${name}"; gates: ${gateNames}\n`);
     process.exit(2);
   }
 }
@@ -71,6 +80,7 @@ lines.push(
 lines.push("");
 
 const summary = [];
+let failed = 0;
 for (const [name, command] of selected) {
   const started = performance.now();
   const r = spawnSync("bash", ["-lc", command], { cwd: root, encoding: "utf8", maxBuffer: 256 * 2 ** 20, env: { ...process.env, CI: "1", FORCE_COLOR: "0" } });
@@ -80,6 +90,7 @@ for (const [name, command] of selected) {
   const tail = all.slice(-tailLines);
   const counts = all.filter((l) => /^\s*(Test Files|Tests|Duration)\s|^\s*(#|ℹ) (tests|pass|fail|skipped|todo) /.test(l)).map((l) => l.trim());
   const status = r.status === 0 ? "PASS" : `FAIL(exit=${r.status ?? r.signal})`;
+  if (r.status !== 0) failed += 1;
   summary.push(`${status.padEnd(14)} ${name.padEnd(24)} ${seconds}s  $ ${command}${counts.length > 0 ? `  [${counts.join(" | ")}]` : ""}`);
   lines.push(`## ${name}: ${status} in ${seconds}s`);
   lines.push(`$ ${command}`);
@@ -96,3 +107,6 @@ if (out) {
 } else {
   process.stdout.write(text);
 }
+// The record is complete either way; the exit status says whether the selected gates passed.
+process.stderr.write(failed === 0 ? `all ${selected.length} gates passed\n` : `${failed} of ${selected.length} gates failed\n`);
+process.exit(failed === 0 ? 0 : 1);

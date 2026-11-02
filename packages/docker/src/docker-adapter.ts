@@ -457,9 +457,9 @@ async function rollbackCreatedContainer(runner: DockerRunner, locator: ResourceL
 }
 
 // Output bounds for docker exec and job.run (CD-BOUNDS). maxBytes defaults to 16 MiB per stream with
-// policy.limits.maxStdoutBytes/maxStderrBytes as ceilings. A capture deadline applies only when the
-// caller sets bounds.deadlineMs: the command timeout is timeoutMs, and a default capture deadline would
-// silently drop output of long, legitimate commands.
+// policy.limits.maxStdoutBytes/maxStderrBytes as ceilings. A deadline applies only when the caller sets
+// bounds.deadlineMs: for sandbox.exec it also stops the docker CLI (see DockerSandbox.exec), and a
+// default deadline would silently cut long, legitimate commands. job.run is bounded by timeoutMs alone.
 function dockerOutputBounds(bounds: CaptureBounds | undefined, policy: AdapterContext["policy"]): DockerOutputBounds {
   const resolved = resolveExecOutputBounds(bounds, policy);
   if (bounds?.deadlineMs !== undefined) return resolved;
@@ -605,19 +605,24 @@ class DockerSandbox implements Sandbox {
     // closes its stdin, so the process sees EOF (immediately for empty input). Without input stdin is
     // not attached, as before.
     const interactive = spec.input !== undefined ? ["-i"] : [];
+    // bounds.deadlineMs bounds the whole exec, not only the capture: when it expires the runner kills the
+    // docker CLI as a timeout does. The deadline is read from the resolved bounds, which validated it.
+    const deadlineMs = spec.bounds?.deadlineMs === undefined ? undefined : outputBounds.stdout.deadlineMs;
     const result = await this.runner(["exec", ...interactive, ...(spec.cwd ? ["--workdir", spec.cwd] : []), ...envArgs(spec.env), this.handle.id, ...command], {
       timeoutMs: spec.timeoutMs,
+      ...(deadlineMs === undefined ? {} : { deadlineMs }),
       input: spec.input,
       outputBounds
     });
-    if (result.timedOut) {
-      // Killing the docker exec client does not stop the process inside the container, so a timeout
-      // proves nothing about the command. Report the outcome as unknown instead of an exit code.
+    if (result.timedOut || result.deadlineExceeded) {
+      // Killing the docker exec client does not stop the process inside the container, so a timeout or
+      // deadline proves nothing about the command. Report the outcome as unknown instead of an exit code.
+      const stop = result.timedOut ? `timed out after ${spec.timeoutMs}ms` : `reached its capture deadline of ${deadlineMs}ms`;
       throw new UnknownOutcomeError(
-        `Docker exec timed out after ${spec.timeoutMs}ms; the command may still be running in container ${this.handle.id}.`,
+        `Docker exec ${stop}; the command may still be running in container ${this.handle.id}.`,
         { operation: "sandbox.exec", resource: resourceLocator({ provider, kind: "sandbox", nativeId: this.handle.id }) },
         providerExecutionError(
-          "Docker exec timed out; the docker CLI was killed.",
+          `Docker exec ${stop}; the docker CLI was killed.`,
           { category: "retryable", retryable: true },
           {
             exitCode: result.exitCode,

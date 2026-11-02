@@ -26,7 +26,10 @@ import {
 } from "@capsule-sdk/core";
 
 interface EC2ClientLike {
-  send(command: RunInstancesCommand | DescribeInstancesCommand | StartInstancesCommand | StopInstancesCommand | TerminateInstancesCommand): Promise<any>;
+  send(
+    command: RunInstancesCommand | DescribeInstancesCommand | StartInstancesCommand | StopInstancesCommand | TerminateInstancesCommand,
+    options?: { abortSignal?: AbortSignal }
+  ): Promise<any>;
 }
 
 export interface EC2AdapterOptions {
@@ -105,11 +108,13 @@ function defaultClient(options: EC2AdapterOptions): EC2ClientLike {
   return new EC2Client({ region: options.region });
 }
 
-function classifiedClient(client: EC2ClientLike): EC2ClientLike {
+// Exported for its unit test; the package's public API is src/index.ts.
+export function classifiedClient(client: EC2ClientLike): EC2ClientLike {
   return {
-    send: async (command) => {
+    // Forward every argument, as the ECS wrapper does: the options carry an AbortSignal to the SDK request.
+    send: async (...args: Parameters<EC2ClientLike["send"]>) => {
       try {
-        return await client.send(command);
+        return await client.send(...args);
       } catch (error) {
         throw asProviderError(error, "EC2 API request failed.");
       }
