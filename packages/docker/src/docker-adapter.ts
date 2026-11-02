@@ -35,11 +35,7 @@ type DockerRunner = (args: string[], options?: RunDockerOptions) => Promise<Dock
 
 export interface DockerAdapterOptions {
   defaultImage?: string;
-  /**
-   * Image pull policy for sandbox.create, passed as `docker create --pull`. Omitted keeps the Docker
-   * default (pull a missing image). "never" fails the create when the image is not present locally,
-   * so no registry is contacted.
-   */
+  /** `docker create --pull` policy for sandbox.create; "never" fails on a missing image instead of contacting a registry. */
   pull?: "always" | "missing" | "never";
   // Seams for tests and custom hosts: override the docker CLI runner and the daemon reachability probe.
   runner?: DockerRunner;
@@ -114,6 +110,8 @@ interface DockerSandboxCreateArgsInput {
 
 const provider = "docker";
 const adapter = "docker";
+
+const sandboxLocator = (id: string) => resourceLocator({ provider, kind: "sandbox", nativeId: id });
 
 export const dockerCapabilities: CapabilityMap = {
   sandbox: {
@@ -614,19 +612,20 @@ class DockerSandbox implements Sandbox {
       input: spec.input,
       outputBounds
     });
+    const stdout = redactCapturedOutput(result.stdout, result.truncation?.stdout, spec.env, this.context.policy);
     if (result.timedOut || result.deadlineExceeded) {
       // Killing the docker exec client does not stop the process inside the container, so a timeout or
       // deadline proves nothing about the command. Report the outcome as unknown instead of an exit code.
       const stop = result.timedOut ? `timed out after ${spec.timeoutMs}ms` : `reached its capture deadline of ${deadlineMs}ms`;
       throw new UnknownOutcomeError(
         `Docker exec ${stop}; the command may still be running in container ${this.handle.id}.`,
-        { operation: "sandbox.exec", resource: resourceLocator({ provider, kind: "sandbox", nativeId: this.handle.id }) },
+        { operation: "sandbox.exec", resource: sandboxLocator(this.handle.id) },
         providerExecutionError(
           `Docker exec ${stop}; the docker CLI was killed.`,
           { category: "retryable", retryable: true },
           {
             exitCode: result.exitCode,
-            stdout: redactCapturedOutput(result.stdout, result.truncation?.stdout, spec.env, this.context.policy),
+            stdout,
             stderr: redactCapturedStderr(result, spec.env, this.context.policy),
             ...(result.truncation ? { truncation: result.truncation } : {}),
             ...(result.captureLimit ? { captureLimit: result.captureLimit.message } : {})
@@ -634,7 +633,6 @@ class DockerSandbox implements Sandbox {
         )
       );
     }
-    const stdout = redactCapturedOutput(result.stdout, result.truncation?.stdout, spec.env, this.context.policy);
     const stderr = redactCapturedOutput(result.stderr, result.truncation?.stderr, spec.env, this.context.policy);
     const artifacts = placements ? await collectSandboxArtifacts(this.runner, this.handle.id, placements) : [];
     const receipt = this.context.receipts
@@ -711,7 +709,7 @@ class DockerSandbox implements Sandbox {
       // gone or going. That is not a definite failure: report it as unknown, by id, for the caller to observe.
       throw new UnknownOutcomeError(
         `docker rm timed out; container ${this.handle.id} may still be removed.`,
-        { operation: "sandbox.destroy", resource: resourceLocator({ provider, kind: "sandbox", nativeId: this.handle.id }) },
+        { operation: "sandbox.destroy", resource: sandboxLocator(this.handle.id) },
         dockerCliError(`docker rm timed out: ${removed.stderr}`, removed)
       );
     }
