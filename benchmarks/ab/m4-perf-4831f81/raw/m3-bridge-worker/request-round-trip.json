@@ -1,0 +1,1748 @@
+{
+  "meta": {
+    "label": "m4-perf-4831f81",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 20,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "4831f8130f9cc7dddc6e8a2e37223aad36a2afa8",
+      "packagesTree": "97fbe32be7f65a59b01329bc5d49ff98b29b4a59",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "4831f8130f9cc7dddc6e8a2e37223aad36a2afa8",
+    "date": "2026-11-02T20:23:56.840Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        5.91455078125,
+        8.32421875,
+        9.7998046875
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)"
+  },
+  "workload": "m3-bridge-worker",
+  "case": "request-round-trip",
+  "params": {
+    "execs": 500,
+    "lifecycles": 100,
+    "refusals": 100
+  },
+  "runs": [
+    {
+      "side": "A",
+      "pair": 0,
+      "childWallMs": 54.34833299999991,
+      "loadAverage1m": 5.91455078125,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-f2odf4/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 24.781542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46170112,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5054176,
+          "rss": 47792128,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47792128
+      }
+    },
+    {
+      "side": "B",
+      "pair": 0,
+      "childWallMs": 136.3176249999999,
+      "loadAverage1m": 5.91455078125,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.08433300000000088,
+          "p95": 0.1757080000000002,
+          "min": 0.056875000000005116,
+          "max": 0.8139579999999995,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.0672090000000054,
+          "p95": 0.12587500000000773,
+          "min": 0.049875000000000114,
+          "max": 0.22829200000001038,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.05308300000000088,
+          "p95": 0.08241599999999494,
+          "min": 0.04070799999999508,
+          "max": 0.30704100000001233,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.051084000000003016,
+          "p95": 0.08070899999999881,
+          "min": 0.039208999999999605,
+          "max": 0.1673329999999993,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66240512
+      },
+      "caseDurationMs": 107.219666,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46120960,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5633256,
+          "rss": 54083584,
+          "external": 2158840,
+          "arrayBuffers": 36553
+        },
+        "maxRssBytes": 54083584
+      }
+    },
+    {
+      "side": "A",
+      "pair": 1,
+      "childWallMs": 58.89716700000281,
+      "loadAverage1m": 5.80419921875,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-ldJRSJ/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 27.435791000000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217680,
+          "rss": 46235648,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5043256,
+          "rss": 47841280,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47841280
+      }
+    },
+    {
+      "side": "B",
+      "pair": 1,
+      "childWallMs": 163.69141700000182,
+      "loadAverage1m": 5.80419921875,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.09320799999998997,
+          "p95": 0.21041699999999253,
+          "min": 0.05808299999999633,
+          "max": 1.0351250000000078,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.0756669999999815,
+          "p95": 0.11166699999999707,
+          "min": 0.05287500000000023,
+          "max": 0.2581250000000068,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.06162499999999227,
+          "p95": 0.12741700000000833,
+          "min": 0.046125000000017735,
+          "max": 0.3378749999999968,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.052249999999986585,
+          "p95": 0.11679200000000378,
+          "min": 0.03916699999999196,
+          "max": 0.2820000000000107,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66420736
+      },
+      "caseDurationMs": 123.909,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46317568,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5642760,
+          "rss": 54263808,
+          "external": 2159501,
+          "arrayBuffers": 37214
+        },
+        "maxRssBytes": 54263808
+      }
+    },
+    {
+      "side": "A",
+      "pair": 2,
+      "childWallMs": 61.28612499999872,
+      "loadAverage1m": 6.1181640625,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-EFZcbn/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 28.738167000000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46153728,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5043040,
+          "rss": 47939584,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47939584
+      }
+    },
+    {
+      "side": "B",
+      "pair": 2,
+      "childWallMs": 150.38395799999125,
+      "loadAverage1m": 6.1181640625,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.08466699999999605,
+          "p95": 0.20454099999999187,
+          "min": 0.0605419999999981,
+          "max": 1.050291999999999,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.07574999999999932,
+          "p95": 0.1322499999999991,
+          "min": 0.05658299999998917,
+          "max": 0.22799999999999443,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.060583999999991534,
+          "p95": 0.1473749999999967,
+          "min": 0.048459000000008245,
+          "max": 0.3534169999999932,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.0529160000000104,
+          "p95": 0.07866699999999582,
+          "min": 0.037709000000006654,
+          "max": 0.20866699999999128,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66011136
+      },
+      "caseDurationMs": 117.31520900000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46137344,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5658776,
+          "rss": 54116352,
+          "external": 2161484,
+          "arrayBuffers": 39197
+        },
+        "maxRssBytes": 54116352
+      }
+    },
+    {
+      "side": "A",
+      "pair": 3,
+      "childWallMs": 88.80529200000456,
+      "loadAverage1m": 9.6015625,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-TNJCEu/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 52.494083,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46137344,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5066336,
+          "rss": 47857664,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47857664
+      }
+    },
+    {
+      "side": "B",
+      "pair": 3,
+      "childWallMs": 186.09983300001477,
+      "loadAverage1m": 9.6015625,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.09224999999999284,
+          "p95": 0.28462499999999125,
+          "min": 0.057458999999994376,
+          "max": 1.0755000000000052,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.07554200000001288,
+          "p95": 0.18279099999998039,
+          "min": 0.05333300000000918,
+          "max": 0.33591599999999744,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.05958400000000097,
+          "p95": 0.15770899999998278,
+          "min": 0.03945799999999622,
+          "max": 0.5014579999999853,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.06412500000001842,
+          "p95": 0.1647079999999903,
+          "min": 0.0393749999999784,
+          "max": 0.4197080000000142,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66142208
+      },
+      "caseDurationMs": 137.279166,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46809088,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5639048,
+          "rss": 54607872,
+          "external": 2162145,
+          "arrayBuffers": 39858
+        },
+        "maxRssBytes": 54607872
+      }
+    },
+    {
+      "side": "A",
+      "pair": 4,
+      "childWallMs": 72.75170799999614,
+      "loadAverage1m": 7.47021484375,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-lmYnK3/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 33.469833,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46153728,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5059832,
+          "rss": 47874048,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47874048
+      }
+    },
+    {
+      "side": "B",
+      "pair": 4,
+      "childWallMs": 178.11754199999268,
+      "loadAverage1m": 7.47021484375,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.09749999999999659,
+          "p95": 0.2901250000000033,
+          "min": 0.05883399999999028,
+          "max": 2.2035000000000053,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.07925000000000182,
+          "p95": 0.1803329999999903,
+          "min": 0.05833300000000463,
+          "max": 0.6054159999999911,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.05995799999999463,
+          "p95": 0.10341600000000994,
+          "min": 0.047458000000005995,
+          "max": 0.4014590000000169,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.056667000000004464,
+          "p95": 0.13345800000001873,
+          "min": 0.03945799999999622,
+          "max": 0.2872920000000079,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66240512
+      },
+      "caseDurationMs": 140.378209,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46137344,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5640384,
+          "rss": 54198272,
+          "external": 2159501,
+          "arrayBuffers": 37214
+        },
+        "maxRssBytes": 54198272
+      }
+    },
+    {
+      "side": "A",
+      "pair": 5,
+      "childWallMs": 60.260874999978114,
+      "loadAverage1m": 8.96533203125,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-IplF7D/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 26.695958,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46153728,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5047408,
+          "rss": 47775744,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47775744
+      }
+    },
+    {
+      "side": "B",
+      "pair": 5,
+      "childWallMs": 143.2835409999825,
+      "loadAverage1m": 8.96533203125,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.08795800000000042,
+          "p95": 0.18666699999999992,
+          "min": 0.06245899999998983,
+          "max": 0.992999999999995,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.06837500000000318,
+          "p95": 0.11862499999999443,
+          "min": 0.0557500000000033,
+          "max": 0.2532910000000044,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.055542000000002645,
+          "p95": 0.0887920000000122,
+          "min": 0.045457999999996446,
+          "max": 0.32733399999999335,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.052416999999991276,
+          "p95": 0.07858299999999474,
+          "min": 0.04137500000001637,
+          "max": 0.12904199999999832,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 65880064
+      },
+      "caseDurationMs": 111.894042,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46137344,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5596800,
+          "rss": 53903360,
+          "external": 2157518,
+          "arrayBuffers": 35231
+        },
+        "maxRssBytes": 53903360
+      }
+    },
+    {
+      "side": "A",
+      "pair": 6,
+      "childWallMs": 76.95287500001723,
+      "loadAverage1m": 7.076171875,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-lw2atG/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 37.35508300000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46284800,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5047408,
+          "rss": 47906816,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47906816
+      }
+    },
+    {
+      "side": "B",
+      "pair": 6,
+      "childWallMs": 248.2736670000013,
+      "loadAverage1m": 7.076171875,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.11804200000000264,
+          "p95": 0.47333399999999415,
+          "min": 0.04733300000000895,
+          "max": 1.9329589999999968,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.1244999999999834,
+          "p95": 0.557707999999991,
+          "min": 0.06520799999998417,
+          "max": 1.6907500000000084,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.10316600000001586,
+          "p95": 0.46612500000000523,
+          "min": 0.04345900000001279,
+          "max": 2.2173329999999964,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.09941699999998832,
+          "p95": 0.25612499999999727,
+          "min": 0.046041999999999916,
+          "max": 0.48020800000000463,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66568192
+      },
+      "caseDurationMs": 204.110625,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46284800,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5675864,
+          "rss": 54231040,
+          "external": 2171659,
+          "arrayBuffers": 49372
+        },
+        "maxRssBytes": 54231040
+      }
+    },
+    {
+      "side": "A",
+      "pair": 7,
+      "childWallMs": 57.98037499998463,
+      "loadAverage1m": 8.02197265625,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-e5IssX/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 26.420917000000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46104576,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5042392,
+          "rss": 47759360,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47759360
+      }
+    },
+    {
+      "side": "B",
+      "pair": 7,
+      "childWallMs": 150.80162499996368,
+      "loadAverage1m": 8.02197265625,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.0918750000000017,
+          "p95": 0.19345799999999258,
+          "min": 0.06341700000000117,
+          "max": 0.9796249999999986,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.07212499999999977,
+          "p95": 0.10808400000000518,
+          "min": 0.0557500000000033,
+          "max": 0.2135420000000039,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.058458000000001675,
+          "p95": 0.10104200000000674,
+          "min": 0.04516700000002061,
+          "max": 0.31374999999999886,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.05462500000001569,
+          "p95": 0.0917919999999981,
+          "min": 0.04491600000000062,
+          "max": 0.20745800000000258,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66076672
+      },
+      "caseDurationMs": 117.999584,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46153728,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5615296,
+          "rss": 54198272,
+          "external": 2156857,
+          "arrayBuffers": 34570
+        },
+        "maxRssBytes": 54198272
+      }
+    },
+    {
+      "side": "A",
+      "pair": 8,
+      "childWallMs": 57.853000000002794,
+      "loadAverage1m": 7.4208984375,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-krrEHB/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 26.73,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217680,
+          "rss": 46268416,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5060232,
+          "rss": 47955968,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47955968
+      }
+    },
+    {
+      "side": "B",
+      "pair": 8,
+      "childWallMs": 141.40775000001304,
+      "loadAverage1m": 7.4208984375,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.08462500000000261,
+          "p95": 0.19833400000000267,
+          "min": 0.05545800000000156,
+          "max": 0.9248329999999996,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.06970799999999144,
+          "p95": 0.1598329999999919,
+          "min": 0.05391600000000096,
+          "max": 0.2961250000000035,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.05674999999999386,
+          "p95": 0.07787500000000591,
+          "min": 0.04420800000001179,
+          "max": 0.3064159999999987,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.053666000000006875,
+          "p95": 0.07754200000000822,
+          "min": 0.040208000000006905,
+          "max": 0.19412499999999966,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 65847296
+      },
+      "caseDurationMs": 111.508875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46170112,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5647944,
+          "rss": 54165504,
+          "external": 2160162,
+          "arrayBuffers": 37875
+        },
+        "maxRssBytes": 54165504
+      }
+    },
+    {
+      "side": "A",
+      "pair": 9,
+      "childWallMs": 60.656750000081956,
+      "loadAverage1m": 7.0986328125,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-FYmhrB/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 28.114708,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46170112,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5061544,
+          "rss": 47841280,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47841280
+      }
+    },
+    {
+      "side": "B",
+      "pair": 9,
+      "childWallMs": 155.06666700006463,
+      "loadAverage1m": 7.0986328125,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.08920799999999929,
+          "p95": 0.19754100000000108,
+          "min": 0.05745800000001111,
+          "max": 0.907749999999993,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.07200000000000273,
+          "p95": 0.1263749999999959,
+          "min": 0.05229199999999423,
+          "max": 0.1769999999999925,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.05445799999999679,
+          "p95": 0.12545799999998053,
+          "min": 0.04441699999999571,
+          "max": 0.3292909999999978,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.05508299999999622,
+          "p95": 0.08116700000002197,
+          "min": 0.03995800000001282,
+          "max": 0.10633299999997803,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 65961984
+      },
+      "caseDurationMs": 118.10929100000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217840,
+          "rss": 46186496,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5639808,
+          "rss": 54149120,
+          "external": 2159501,
+          "arrayBuffers": 37214
+        },
+        "maxRssBytes": 54149120
+      }
+    },
+    {
+      "side": "A",
+      "pair": 10,
+      "childWallMs": 62.17112499999348,
+      "loadAverage1m": 7.7138671875,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-NByctH/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 29.011707999999995,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46235648,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5062224,
+          "rss": 47923200,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47923200
+      }
+    },
+    {
+      "side": "B",
+      "pair": 10,
+      "childWallMs": 155.8660829999717,
+      "loadAverage1m": 7.7138671875,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.09474999999999056,
+          "p95": 0.2085830000000044,
+          "min": 0.06195900000000165,
+          "max": 1.1289589999999947,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.07458399999998733,
+          "p95": 0.15683400000000347,
+          "min": 0.05720900000000029,
+          "max": 0.25804100000000574,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.05750000000000455,
+          "p95": 0.11062499999999886,
+          "min": 0.04495799999999406,
+          "max": 0.36316700000000424,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.05716700000002106,
+          "p95": 0.09800000000001319,
+          "min": 0.03995900000001029,
+          "max": 0.16087500000000432,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66551808
+      },
+      "caseDurationMs": 122.08491699999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46120960,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5641800,
+          "rss": 54018048,
+          "external": 2159501,
+          "arrayBuffers": 37214
+        },
+        "maxRssBytes": 54018048
+      }
+    },
+    {
+      "side": "A",
+      "pair": 11,
+      "childWallMs": 70.08841600001324,
+      "loadAverage1m": 9.4794921875,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-PthFKl/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 29.827834,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46350336,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5048328,
+          "rss": 47988736,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47988736
+      }
+    },
+    {
+      "side": "B",
+      "pair": 11,
+      "childWallMs": 165.17929100000765,
+      "loadAverage1m": 9.4794921875,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.09575000000000955,
+          "p95": 0.26258300000000645,
+          "min": 0.0627500000000083,
+          "max": 1.2297080000000022,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.0833329999999819,
+          "p95": 0.1577079999999853,
+          "min": 0.05529099999998266,
+          "max": 0.45479199999999764,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.06391600000000608,
+          "p95": 0.14366599999999607,
+          "min": 0.050499999999999545,
+          "max": 0.34737499999999955,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.056708000000014636,
+          "p95": 0.08679100000000517,
+          "min": 0.04058299999999804,
+          "max": 0.10866699999999696,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66011136
+      },
+      "caseDurationMs": 128.744541,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217840,
+          "rss": 46333952,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5673776,
+          "rss": 54263808,
+          "external": 2162806,
+          "arrayBuffers": 40519
+        },
+        "maxRssBytes": 54263808
+      }
+    },
+    {
+      "side": "A",
+      "pair": 12,
+      "childWallMs": 60.660125000053085,
+      "loadAverage1m": 10.44091796875,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-g5pbBT/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 28.415375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46088192,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5043536,
+          "rss": 47726592,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47726592
+      }
+    },
+    {
+      "side": "B",
+      "pair": 12,
+      "childWallMs": 159.58741599996574,
+      "loadAverage1m": 10.44091796875,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.09704200000000185,
+          "p95": 0.27420899999999904,
+          "min": 0.059583000000003494,
+          "max": 1.0504999999999995,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.07124999999999204,
+          "p95": 0.14845800000000509,
+          "min": 0.052500000000009095,
+          "max": 0.2971249999999941,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.057332999999999856,
+          "p95": 0.08562499999999318,
+          "min": 0.043042000000014013,
+          "max": 0.3631249999999966,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.05245800000000145,
+          "p95": 0.0725829999999803,
+          "min": 0.03925000000000978,
+          "max": 0.12145799999998985,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66453504
+      },
+      "caseDurationMs": 126.626375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46170112,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5671656,
+          "rss": 53985280,
+          "external": 2162806,
+          "arrayBuffers": 40519
+        },
+        "maxRssBytes": 53985280
+      }
+    },
+    {
+      "side": "A",
+      "pair": 13,
+      "childWallMs": 60.131999999983236,
+      "loadAverage1m": 9.75,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-nCCFUL/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 27.66975,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46071808,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5050392,
+          "rss": 47726592,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47742976
+      }
+    },
+    {
+      "side": "B",
+      "pair": 13,
+      "childWallMs": 155.52624999999534,
+      "loadAverage1m": 9.75,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.09154100000000653,
+          "p95": 0.22108300000000725,
+          "min": 0.0586669999999998,
+          "max": 1.142124999999993,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.07483400000000984,
+          "p95": 0.11141600000001972,
+          "min": 0.054000000000002046,
+          "max": 0.17895900000000609,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.058667000000014013,
+          "p95": 0.12429099999999949,
+          "min": 0.042124999999998636,
+          "max": 0.3140409999999889,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.05358400000000074,
+          "p95": 0.0739590000000021,
+          "min": 0.04041600000002177,
+          "max": 0.3087910000000136,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 65945600
+      },
+      "caseDurationMs": 122.79437499999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46252032,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5610072,
+          "rss": 54083584,
+          "external": 2148004,
+          "arrayBuffers": 25717
+        },
+        "maxRssBytes": 54083584
+      }
+    },
+    {
+      "side": "A",
+      "pair": 14,
+      "childWallMs": 58.31849999993574,
+      "loadAverage1m": 11.34619140625,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-zqm9Bm/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 27.601416,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46137344,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5041944,
+          "rss": 47857664,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47857664
+      }
+    },
+    {
+      "side": "B",
+      "pair": 14,
+      "childWallMs": 151.89462499995716,
+      "loadAverage1m": 11.34619140625,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.09100000000000819,
+          "p95": 0.21241699999998787,
+          "min": 0.0610409999999888,
+          "max": 0.9700830000000025,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.0746249999999975,
+          "p95": 0.13279199999999491,
+          "min": 0.056166999999987866,
+          "max": 0.2819999999999965,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.060166999999992754,
+          "p95": 0.08641700000001151,
+          "min": 0.048749999999998295,
+          "max": 0.3324169999999924,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.05170799999999076,
+          "p95": 0.08083399999998164,
+          "min": 0.039874999999995,
+          "max": 0.11537500000000023,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66011136
+      },
+      "caseDurationMs": 119.814167,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217840,
+          "rss": 46235648,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5640704,
+          "rss": 54083584,
+          "external": 2159501,
+          "arrayBuffers": 37214
+        },
+        "maxRssBytes": 54083584
+      }
+    },
+    {
+      "side": "A",
+      "pair": 15,
+      "childWallMs": 65.06275000004098,
+      "loadAverage1m": 8.986328125,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-1gGEoI/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 29.488583000000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217680,
+          "rss": 46137344,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5051536,
+          "rss": 47759360,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47759360
+      }
+    },
+    {
+      "side": "B",
+      "pair": 15,
+      "childWallMs": 157.6737500000745,
+      "loadAverage1m": 8.986328125,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.09054199999999923,
+          "p95": 0.19812500000000455,
+          "min": 0.06012499999999932,
+          "max": 1.512750000000004,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.07716700000000287,
+          "p95": 0.163084000000012,
+          "min": 0.05299999999999727,
+          "max": 0.22087499999999238,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.0625,
+          "p95": 0.14849999999999852,
+          "min": 0.04187500000000455,
+          "max": 0.3537500000000051,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.053832999999997355,
+          "p95": 0.10516599999999698,
+          "min": 0.038875000000018645,
+          "max": 0.3527090000000044,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66158592
+      },
+      "caseDurationMs": 123.91575000000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46186496,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5588920,
+          "rss": 54001664,
+          "external": 2147157,
+          "arrayBuffers": 24870
+        },
+        "maxRssBytes": 54001664
+      }
+    },
+    {
+      "side": "A",
+      "pair": 16,
+      "childWallMs": 56.44945800001733,
+      "loadAverage1m": 8.669921875,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-pmSyPe/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 25.636541,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46137344,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5049232,
+          "rss": 47890432,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47890432
+      }
+    },
+    {
+      "side": "B",
+      "pair": 16,
+      "childWallMs": 146.9926249999553,
+      "loadAverage1m": 8.669921875,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.08520899999999187,
+          "p95": 0.23399999999999466,
+          "min": 0.05766700000000924,
+          "max": 0.9730000000000061,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.06958400000000609,
+          "p95": 0.1393330000000077,
+          "min": 0.05404199999999548,
+          "max": 0.293208000000007,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.056708000000000425,
+          "p95": 0.12641700000000355,
+          "min": 0.04729199999999878,
+          "max": 0.33458400000000665,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.05241700000000549,
+          "p95": 0.0911660000000154,
+          "min": 0.03962500000000091,
+          "max": 0.16679199999998673,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66682880
+      },
+      "caseDurationMs": 116.234875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217840,
+          "rss": 46170112,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5640192,
+          "rss": 54280192,
+          "external": 2159501,
+          "arrayBuffers": 37214
+        },
+        "maxRssBytes": 54280192
+      }
+    },
+    {
+      "side": "A",
+      "pair": 17,
+      "childWallMs": 57.86645800014958,
+      "loadAverage1m": 15.17919921875,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-OiaAhn/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 26.166375000000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46235648,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5050488,
+          "rss": 47923200,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47939584
+      }
+    },
+    {
+      "side": "B",
+      "pair": 17,
+      "childWallMs": 149.98233300005086,
+      "loadAverage1m": 15.17919921875,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.09112500000000523,
+          "p95": 0.19933299999999576,
+          "min": 0.060624999999987494,
+          "max": 0.9554580000000001,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.07524999999999693,
+          "p95": 0.15008399999999256,
+          "min": 0.05525000000000091,
+          "max": 0.24237499999999557,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.06199999999999761,
+          "p95": 0.10266699999999673,
+          "min": 0.04824999999999591,
+          "max": 0.3328329999999937,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.05525000000000091,
+          "p95": 0.08087500000002024,
+          "min": 0.04075000000000273,
+          "max": 0.28674999999998363,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66076672
+      },
+      "caseDurationMs": 118.60166699999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46055424,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5646448,
+          "rss": 54181888,
+          "external": 2160162,
+          "arrayBuffers": 37875
+        },
+        "maxRssBytes": 54181888
+      }
+    },
+    {
+      "side": "A",
+      "pair": 18,
+      "childWallMs": 59.100165999960154,
+      "loadAverage1m": 10.65966796875,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-23FJOe/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 26.479125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46170112,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5050192,
+          "rss": 47775744,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47775744
+      }
+    },
+    {
+      "side": "B",
+      "pair": 18,
+      "childWallMs": 157.27499999990687,
+      "loadAverage1m": 10.65966796875,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.086749999999995,
+          "p95": 0.2525829999999871,
+          "min": 0.05724999999999625,
+          "max": 1.2976250000000036,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.06870800000001509,
+          "p95": 0.15491700000001174,
+          "min": 0.05270899999999301,
+          "max": 0.26824999999999477,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.05504100000000278,
+          "p95": 0.10854199999999992,
+          "min": 0.04145900000000324,
+          "max": 0.34312500000000057,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.05150000000000432,
+          "p95": 0.09616700000000833,
+          "min": 0.040334000000001424,
+          "max": 0.11941600000000108,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66158592
+      },
+      "caseDurationMs": 122.78087500000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46383104,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5626680,
+          "rss": 54345728,
+          "external": 2158179,
+          "arrayBuffers": 35892
+        },
+        "maxRssBytes": 54345728
+      }
+    },
+    {
+      "side": "A",
+      "pair": 19,
+      "childWallMs": 93.31537500000559,
+      "loadAverage1m": 8.01513671875,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "worker exited before answering; stderr: node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/private/tmp/capsule-ab-5UFPM4/anchor/packages/bridge-worker/dist/bin.js' imported from /private/var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/bridge-bench-I62B3R/\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at"
+      },
+      "caseDurationMs": 59.528917,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217608,
+          "rss": 46186496,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5062720,
+          "rss": 47906816,
+          "external": 2140318,
+          "arrayBuffers": 18031
+        },
+        "maxRssBytes": 47906816
+      }
+    },
+    {
+      "side": "B",
+      "pair": 19,
+      "childWallMs": 247.15929199988022,
+      "loadAverage1m": 8.01513671875,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.10750000000001592,
+          "p95": 0.5092920000000163,
+          "min": 0.06012499999999932,
+          "max": 12.223500000000001,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.08233300000000554,
+          "p95": 0.17533300000002328,
+          "min": 0.05883299999999281,
+          "max": 0.48749999999998295,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.06945799999999736,
+          "p95": 0.15420800000001122,
+          "min": 0.049832999999978256,
+          "max": 0.35712499999999636,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.05987500000000523,
+          "p95": 0.11495800000000145,
+          "min": 0.03758400000000961,
+          "max": 0.2280409999999904,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 1,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66207744
+      },
+      "caseDurationMs": 192.051,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5217768,
+          "rss": 46415872,
+          "external": 2101688,
+          "arrayBuffers": 27132
+        },
+        "endMemory": {
+          "heapUsed": 5651824,
+          "rss": 54329344,
+          "external": 2171659,
+          "arrayBuffers": 49372
+        },
+        "maxRssBytes": 54329344
+      }
+    }
+  ]
+}

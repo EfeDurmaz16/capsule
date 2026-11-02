@@ -1,0 +1,1768 @@
+{
+  "meta": {
+    "label": "m4-perf-4831f81",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 20,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "4831f8130f9cc7dddc6e8a2e37223aad36a2afa8",
+      "packagesTree": "97fbe32be7f65a59b01329bc5d49ff98b29b4a59",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "4831f8130f9cc7dddc6e8a2e37223aad36a2afa8",
+    "date": "2026-11-02T20:23:56.840Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        5.91455078125,
+        8.32421875,
+        9.7998046875
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)"
+  },
+  "workload": "perf-12-sqlite-store",
+  "case": "memory-2000-writes",
+  "params": {
+    "writes": 2000,
+    "reads": 5,
+    "memory": true
+  },
+  "runs": [
+    {
+      "side": "A",
+      "pair": 0,
+      "childWallMs": 87.28129199999967,
+      "loadAverage1m": 5.8603515625,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 16.992917,
+        "writeUsPerReceipt": 8.492212393803097,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 6.623038000000065,
+        "writeExecuteMs": 10.369878999999933,
+        "readMs": 17.279459000000003,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26673152,
+        "heapUsedDeltaBytes": 6445472
+      },
+      "caseDurationMs": 52.450041999999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4954744,
+          "rss": 47316992,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 13912032,
+          "rss": 86573056,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86573056
+      }
+    },
+    {
+      "side": "B",
+      "pair": 0,
+      "childWallMs": 78.83408299999428,
+      "loadAverage1m": 5.8603515625,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 8.216124999999998,
+        "writeUsPerReceipt": 4.106009495252373,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.032582999999995366,
+        "writeExecuteMs": 8.183542000000003,
+        "readMs": 15.831582999999995,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15728640,
+        "heapUsedDeltaBytes": 7963072
+      },
+      "caseDurationMs": 41.560959000000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46694400,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15489576,
+          "rss": 75677696,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75677696
+      }
+    },
+    {
+      "side": "A",
+      "pair": 1,
+      "childWallMs": 76.59775000000081,
+      "loadAverage1m": 5.96337890625,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 14.747374999999998,
+        "writeUsPerReceipt": 7.370002498750623,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 5.812487000000047,
+        "writeExecuteMs": 8.934887999999951,
+        "readMs": 14.700916,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26820608,
+        "heapUsedDeltaBytes": 6461600
+      },
+      "caseDurationMs": 43.395292,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4954624,
+          "rss": 47235072,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 14010128,
+          "rss": 86654976,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86654976
+      }
+    },
+    {
+      "side": "B",
+      "pair": 1,
+      "childWallMs": 69.24754199999734,
+      "loadAverage1m": 5.96337890625,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 7.007624999999997,
+        "writeUsPerReceipt": 3.502061469265366,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.019583999999994717,
+        "writeExecuteMs": 6.988041000000003,
+        "readMs": 14.013417000000004,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15646720,
+        "heapUsedDeltaBytes": 7972280
+      },
+      "caseDurationMs": 35.169708,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46678016,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15489384,
+          "rss": 75497472,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75497472
+      }
+    },
+    {
+      "side": "A",
+      "pair": 2,
+      "childWallMs": 89.72724999999627,
+      "loadAverage1m": 8.7529296875,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 16.322457999999997,
+        "writeUsPerReceipt": 8.157150424787604,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 6.358260000000072,
+        "writeExecuteMs": 9.964197999999925,
+        "readMs": 16.840625000000003,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26771456,
+        "heapUsedDeltaBytes": 6409512
+      },
+      "caseDurationMs": 50.43495800000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4954680,
+          "rss": 47382528,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 13896528,
+          "rss": 86802432,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86802432
+      }
+    },
+    {
+      "side": "B",
+      "pair": 2,
+      "childWallMs": 76.40270799997961,
+      "loadAverage1m": 8.7529296875,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 7.879374999999996,
+        "writeUsPerReceipt": 3.9377186406796585,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.08508400000000194,
+        "writeExecuteMs": 7.794290999999994,
+        "readMs": 15.222165999999994,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15630336,
+        "heapUsedDeltaBytes": 7983960
+      },
+      "caseDurationMs": 41.180458,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46743552,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15493648,
+          "rss": 75628544,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75628544
+      }
+    },
+    {
+      "side": "A",
+      "pair": 3,
+      "childWallMs": 84.49083299998892,
+      "loadAverage1m": 7.9052734375,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 15.895415999999997,
+        "writeUsPerReceipt": 7.943736131934032,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 6.166941000000023,
+        "writeExecuteMs": 9.728474999999975,
+        "readMs": 17.437125,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26755072,
+        "heapUsedDeltaBytes": 6476168
+      },
+      "caseDurationMs": 48.946957999999995,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4958232,
+          "rss": 47316992,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 14008856,
+          "rss": 86622208,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86622208
+      }
+    },
+    {
+      "side": "B",
+      "pair": 3,
+      "childWallMs": 73.21758299999055,
+      "loadAverage1m": 7.9052734375,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 7.890250000000002,
+        "writeUsPerReceipt": 3.943153423288357,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.061792000000004066,
+        "writeExecuteMs": 7.828457999999998,
+        "readMs": 14.767125,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15613952,
+        "heapUsedDeltaBytes": 7987192
+      },
+      "caseDurationMs": 39.132667,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46743552,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15496672,
+          "rss": 75694080,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75694080
+      }
+    },
+    {
+      "side": "A",
+      "pair": 4,
+      "childWallMs": 83.46504099998856,
+      "loadAverage1m": 9.27587890625,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 15.707292000000002,
+        "writeUsPerReceipt": 7.849721139430287,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 6.038091999999828,
+        "writeExecuteMs": 9.669200000000174,
+        "readMs": 17.342707999999995,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26918912,
+        "heapUsedDeltaBytes": 6463216
+      },
+      "caseDurationMs": 49.07725,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4954672,
+          "rss": 47218688,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 14009144,
+          "rss": 86556672,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86556672
+      }
+    },
+    {
+      "side": "B",
+      "pair": 4,
+      "childWallMs": 82.35795800003689,
+      "loadAverage1m": 9.27587890625,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 8.157499999999999,
+        "writeUsPerReceipt": 4.0767116441779105,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.028167000000003384,
+        "writeExecuteMs": 8.129332999999995,
+        "readMs": 16.397916000000002,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15433728,
+        "heapUsedDeltaBytes": 7955736
+      },
+      "caseDurationMs": 42.559792,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46727168,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15489256,
+          "rss": 75644928,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75644928
+      }
+    },
+    {
+      "side": "A",
+      "pair": 5,
+      "childWallMs": 97.1488750000135,
+      "loadAverage1m": 7.08544921875,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 19.429125,
+        "writeUsPerReceipt": 9.709707646176911,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 7.693862999999844,
+        "writeExecuteMs": 11.735262000000155,
+        "readMs": 19.376958000000002,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 27197440,
+        "heapUsedDeltaBytes": 6445472
+      },
+      "caseDurationMs": 58.175124999999994,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4931960,
+          "rss": 47251456,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 13911544,
+          "rss": 86900736,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86900736
+      }
+    },
+    {
+      "side": "B",
+      "pair": 5,
+      "childWallMs": 81.93104100000346,
+      "loadAverage1m": 7.08544921875,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 8.602207999999997,
+        "writeUsPerReceipt": 4.298954522738629,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.02941699999999514,
+        "writeExecuteMs": 8.572791000000002,
+        "readMs": 19.088708000000004,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15712256,
+        "heapUsedDeltaBytes": 7978792
+      },
+      "caseDurationMs": 46.381958,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46645248,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15489576,
+          "rss": 75726848,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75726848
+      }
+    },
+    {
+      "side": "A",
+      "pair": 6,
+      "childWallMs": 84.38641600002302,
+      "loadAverage1m": 8.2353515625,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 15.770333,
+        "writeUsPerReceipt": 7.881225887056472,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 6.13316099999998,
+        "writeExecuteMs": 9.637172000000021,
+        "readMs": 17.372124999999997,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26820608,
+        "heapUsedDeltaBytes": 6413888
+      },
+      "caseDurationMs": 48.529332999999994,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4954672,
+          "rss": 47431680,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 13898344,
+          "rss": 86605824,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86605824
+      }
+    },
+    {
+      "side": "B",
+      "pair": 6,
+      "childWallMs": 77.6087079999852,
+      "loadAverage1m": 8.2353515625,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 7.938167,
+        "writeUsPerReceipt": 3.9670999500249877,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.03549999999999898,
+        "writeExecuteMs": 7.902667000000001,
+        "readMs": 15.377458999999995,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15630336,
+        "heapUsedDeltaBytes": 7962400
+      },
+      "caseDurationMs": 41.474084,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46776320,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15488904,
+          "rss": 75694080,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75694080
+      }
+    },
+    {
+      "side": "A",
+      "pair": 7,
+      "childWallMs": 88.8790840000147,
+      "loadAverage1m": 7.40478515625,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 16.004916,
+        "writeUsPerReceipt": 7.998458770614693,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 6.339922000000136,
+        "writeExecuteMs": 9.664993999999865,
+        "readMs": 18.709249999999997,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26738688,
+        "heapUsedDeltaBytes": 6404936
+      },
+      "caseDurationMs": 51.9765,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4924808,
+          "rss": 47333376,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 13897960,
+          "rss": 86605824,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86605824
+      }
+    },
+    {
+      "side": "B",
+      "pair": 7,
+      "childWallMs": 79.59908300003735,
+      "loadAverage1m": 7.6123046875,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 7.988958000000004,
+        "writeUsPerReceipt": 3.992482758620692,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.04204199999999503,
+        "writeExecuteMs": 7.946916000000009,
+        "readMs": 16.961916000000002,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15663104,
+        "heapUsedDeltaBytes": 8013656
+      },
+      "caseDurationMs": 41.933457999999995,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46792704,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15601168,
+          "rss": 75677696,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75677696
+      }
+    },
+    {
+      "side": "A",
+      "pair": 8,
+      "childWallMs": 102.21766700001899,
+      "loadAverage1m": 6.59716796875,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 17.857791,
+        "writeUsPerReceipt": 8.92443328335832,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 6.974614000000237,
+        "writeExecuteMs": 10.883176999999762,
+        "readMs": 19.65025,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 27033600,
+        "heapUsedDeltaBytes": 6419264
+      },
+      "caseDurationMs": 60.24070900000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4956360,
+          "rss": 47661056,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 13898080,
+          "rss": 87015424,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 87015424
+      }
+    },
+    {
+      "side": "B",
+      "pair": 8,
+      "childWallMs": 88.49954200000502,
+      "loadAverage1m": 6.59716796875,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 9.392084000000004,
+        "writeUsPerReceipt": 4.69369515242379,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.057707999999998094,
+        "writeExecuteMs": 9.334376000000006,
+        "readMs": 19.017833000000003,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15695872,
+        "heapUsedDeltaBytes": 7990176
+      },
+      "caseDurationMs": 49.331959,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46759936,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15499592,
+          "rss": 75857920,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75857920
+      }
+    },
+    {
+      "side": "A",
+      "pair": 9,
+      "childWallMs": 83.92383400001563,
+      "loadAverage1m": 8.01318359375,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 15.851333000000004,
+        "writeUsPerReceipt": 7.921705647176414,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 6.224842000000045,
+        "writeExecuteMs": 9.626490999999959,
+        "readMs": 16.528207999999992,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26820608,
+        "heapUsedDeltaBytes": 6445472
+      },
+      "caseDurationMs": 48.06283400000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4924632,
+          "rss": 47333376,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 13909376,
+          "rss": 86704128,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86704128
+      }
+    },
+    {
+      "side": "B",
+      "pair": 9,
+      "childWallMs": 83.89745799999218,
+      "loadAverage1m": 8.01318359375,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 8.092291000000003,
+        "writeUsPerReceipt": 4.044123438280861,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.031208999999996934,
+        "writeExecuteMs": 8.061082000000006,
+        "readMs": 16.046166999999997,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15728640,
+        "heapUsedDeltaBytes": 7988200
+      },
+      "caseDurationMs": 45.253541,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441888,
+          "rss": 46743552,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15497968,
+          "rss": 75808768,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75808768
+      }
+    },
+    {
+      "side": "A",
+      "pair": 10,
+      "childWallMs": 79.97466599999461,
+      "loadAverage1m": 8.22509765625,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 14.692042,
+        "writeUsPerReceipt": 7.342349825087457,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 5.808773999999957,
+        "writeExecuteMs": 8.883268000000044,
+        "readMs": 15.407833999999994,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26673152,
+        "heapUsedDeltaBytes": 6408112
+      },
+      "caseDurationMs": 46.759499999999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4926848,
+          "rss": 47382528,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 13897544,
+          "rss": 86523904,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86523904
+      }
+    },
+    {
+      "side": "B",
+      "pair": 10,
+      "childWallMs": 68.22620899998583,
+      "loadAverage1m": 8.22509765625,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 7.096832999999997,
+        "writeUsPerReceipt": 3.5466431784107932,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.02183300000000088,
+        "writeExecuteMs": 7.074999999999996,
+        "readMs": 13.580958000000003,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15679488,
+        "heapUsedDeltaBytes": 7964600
+      },
+      "caseDurationMs": 36.446,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46678016,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15489608,
+          "rss": 75644928,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75644928
+      }
+    },
+    {
+      "side": "A",
+      "pair": 11,
+      "childWallMs": 153.5936249999795,
+      "loadAverage1m": 9.67138671875,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 25.746499999999997,
+        "writeUsPerReceipt": 12.866816591704145,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 9.36368700000014,
+        "writeExecuteMs": 16.382812999999857,
+        "readMs": 26.162875,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26787840,
+        "heapUsedDeltaBytes": 6467752
+      },
+      "caseDurationMs": 79.28241600000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4958032,
+          "rss": 47546368,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 14010552,
+          "rss": 86802432,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86802432
+      }
+    },
+    {
+      "side": "B",
+      "pair": 11,
+      "childWallMs": 125.26416599994991,
+      "loadAverage1m": 10.337890625,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 11.653291999999993,
+        "writeUsPerReceipt": 5.82373413293353,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.03599999999999426,
+        "writeExecuteMs": 11.617291999999999,
+        "readMs": 22.527500000000003,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15482880,
+        "heapUsedDeltaBytes": 7989600
+      },
+      "caseDurationMs": 63.311125000000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 47153152,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15500912,
+          "rss": 76201984,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 76201984
+      }
+    },
+    {
+      "side": "A",
+      "pair": 12,
+      "childWallMs": 115.2232499999227,
+      "loadAverage1m": 9.75244140625,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 24.580583000000004,
+        "writeUsPerReceipt": 12.28414942528736,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 8.976074999999923,
+        "writeExecuteMs": 15.60450800000008,
+        "readMs": 23.46804200000001,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26755072,
+        "heapUsedDeltaBytes": 6445472
+      },
+      "caseDurationMs": 74.82041600000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4954624,
+          "rss": 47431680,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 13910816,
+          "rss": 86949888,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86949888
+      }
+    },
+    {
+      "side": "B",
+      "pair": 12,
+      "childWallMs": 84.16200000001118,
+      "loadAverage1m": 9.75244140625,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 10.469332999999999,
+        "writeUsPerReceipt": 5.232050474762618,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.03208399999999756,
+        "writeExecuteMs": 10.437249000000001,
+        "readMs": 15.990916999999996,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15745024,
+        "heapUsedDeltaBytes": 8015712
+      },
+      "caseDurationMs": 44.301874999999995,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46514176,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15601904,
+          "rss": 75661312,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75661312
+      }
+    },
+    {
+      "side": "A",
+      "pair": 13,
+      "childWallMs": 85.48191700002644,
+      "loadAverage1m": 8.841796875,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 18.114290999999994,
+        "writeUsPerReceipt": 9.052619190404794,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 7.1075549999999055,
+        "writeExecuteMs": 11.006736000000089,
+        "readMs": 17.620042000000005,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26836992,
+        "heapUsedDeltaBytes": 6445472
+      },
+      "caseDurationMs": 51.24037500000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4923848,
+          "rss": 47382528,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 13909920,
+          "rss": 86786048,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86786048
+      }
+    },
+    {
+      "side": "B",
+      "pair": 13,
+      "childWallMs": 92.6399580000434,
+      "loadAverage1m": 8.841796875,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 12.540084,
+        "writeUsPerReceipt": 6.266908545727137,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.053249999999998465,
+        "writeExecuteMs": 12.486834000000002,
+        "readMs": 20.786207999999995,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15794176,
+        "heapUsedDeltaBytes": 8020376
+      },
+      "caseDurationMs": 51.918959,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46727168,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15601520,
+          "rss": 75825152,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75825152
+      }
+    },
+    {
+      "side": "A",
+      "pair": 14,
+      "childWallMs": 98.49066699994728,
+      "loadAverage1m": 9.41845703125,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 18.036499999999997,
+        "writeUsPerReceipt": 9.013743128435781,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 6.841857999999874,
+        "writeExecuteMs": 11.194642000000123,
+        "readMs": 16.901415999999998,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26673152,
+        "heapUsedDeltaBytes": 6445472
+      },
+      "caseDurationMs": 54.684792,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4923696,
+          "rss": 47448064,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 13910504,
+          "rss": 86720512,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86720512
+      }
+    },
+    {
+      "side": "B",
+      "pair": 14,
+      "childWallMs": 74.80329199996777,
+      "loadAverage1m": 9.41845703125,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 7.7578339999999955,
+        "writeUsPerReceipt": 3.8769785107446255,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.028249999999999886,
+        "writeExecuteMs": 7.729583999999996,
+        "readMs": 15.457999999999998,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15876096,
+        "heapUsedDeltaBytes": 7975352
+      },
+      "caseDurationMs": 39.599790999999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46678016,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15489448,
+          "rss": 75677696,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75677696
+      }
+    },
+    {
+      "side": "A",
+      "pair": 15,
+      "childWallMs": 113.4804170000134,
+      "loadAverage1m": 9.46142578125,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 20.363833,
+        "writeUsPerReceipt": 10.176828085957021,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 7.553036000000404,
+        "writeExecuteMs": 12.810796999999596,
+        "readMs": 19.380708999999996,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26640384,
+        "heapUsedDeltaBytes": 6461600
+      },
+      "caseDurationMs": 66.279458,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4957976,
+          "rss": 47431680,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 14009336,
+          "rss": 86638592,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86638592
+      }
+    },
+    {
+      "side": "B",
+      "pair": 15,
+      "childWallMs": 78.05370799999218,
+      "loadAverage1m": 9.46142578125,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 7.652457999999996,
+        "writeUsPerReceipt": 3.8243168415792086,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.030959000000002845,
+        "writeExecuteMs": 7.621498999999993,
+        "readMs": 14.623458999999997,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15695872,
+        "heapUsedDeltaBytes": 7976160
+      },
+      "caseDurationMs": 42.114,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46743552,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15488912,
+          "rss": 75776000,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75776000
+      }
+    },
+    {
+      "side": "A",
+      "pair": 16,
+      "childWallMs": 80.12850000010803,
+      "loadAverage1m": 17.9892578125,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 14.995625000000004,
+        "writeUsPerReceipt": 7.494065467266369,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 5.86572200000019,
+        "writeExecuteMs": 9.129902999999814,
+        "readMs": 15.779124999999993,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26853376,
+        "heapUsedDeltaBytes": 6445472
+      },
+      "caseDurationMs": 46.500291,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4924632,
+          "rss": 47218688,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 13911128,
+          "rss": 86638592,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86638592
+      }
+    },
+    {
+      "side": "B",
+      "pair": 16,
+      "childWallMs": 69.0172920001205,
+      "loadAverage1m": 17.9892578125,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 7.415208999999997,
+        "writeUsPerReceipt": 3.7057516241879047,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.028832999999998776,
+        "writeExecuteMs": 7.3863759999999985,
+        "readMs": 13.979917,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15515648,
+        "heapUsedDeltaBytes": 7988928
+      },
+      "caseDurationMs": 36.743041000000005,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441888,
+          "rss": 46710784,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15500816,
+          "rss": 75710464,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75710464
+      }
+    },
+    {
+      "side": "A",
+      "pair": 17,
+      "childWallMs": 92.21499999985099,
+      "loadAverage1m": 12.07861328125,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 15.574375000000003,
+        "writeUsPerReceipt": 7.783295852073965,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 6.135203000000246,
+        "writeExecuteMs": 9.439171999999758,
+        "readMs": 20.591916999999995,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26722304,
+        "heapUsedDeltaBytes": 6445472
+      },
+      "caseDurationMs": 53.439375000000005,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4948440,
+          "rss": 47415296,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 13910048,
+          "rss": 86736896,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86736896
+      }
+    },
+    {
+      "side": "B",
+      "pair": 17,
+      "childWallMs": 78.50279099983163,
+      "loadAverage1m": 12.07861328125,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 7.517665999999998,
+        "writeUsPerReceipt": 3.75695452273863,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.03266699999999645,
+        "writeExecuteMs": 7.484999000000002,
+        "readMs": 15.874250000000004,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15515648,
+        "heapUsedDeltaBytes": 7994168
+      },
+      "caseDurationMs": 40.049291,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46678016,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15503912,
+          "rss": 75694080,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75694080
+      }
+    },
+    {
+      "side": "A",
+      "pair": 18,
+      "childWallMs": 90.73237500013784,
+      "loadAverage1m": 8.77880859375,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 17.215334,
+        "writeUsPerReceipt": 8.603365317341328,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 6.61474999999993,
+        "writeExecuteMs": 10.600584000000069,
+        "readMs": 22.240791999999992,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26886144,
+        "heapUsedDeltaBytes": 6407496
+      },
+      "caseDurationMs": 54.556583,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4954752,
+          "rss": 47235072,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 13896824,
+          "rss": 86573056,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86573056
+      }
+    },
+    {
+      "side": "B",
+      "pair": 18,
+      "childWallMs": 85.75400000018999,
+      "loadAverage1m": 8.77880859375,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 9.615583,
+        "writeUsPerReceipt": 4.805388805597202,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.03012499999999818,
+        "writeExecuteMs": 9.585458000000003,
+        "readMs": 16.779042000000004,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15564800,
+        "heapUsedDeltaBytes": 8000536
+      },
+      "caseDurationMs": 46.142834,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441888,
+          "rss": 46727168,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15601400,
+          "rss": 75595776,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75595776
+      }
+    },
+    {
+      "side": "A",
+      "pair": 19,
+      "childWallMs": 81.23849999997765,
+      "loadAverage1m": 7.0576171875,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 15.647208,
+        "writeUsPerReceipt": 7.819694152923538,
+        "writePrepareCalls": 2001,
+        "writePrepareMs": 6.028265999999881,
+        "writeExecuteMs": 9.618942000000118,
+        "readMs": 15.930250000000001,
+        "readPrepareCalls": 5,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 26787840,
+        "heapUsedDeltaBytes": 6445472
+      },
+      "caseDurationMs": 47.80808400000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4924632,
+          "rss": 47218688,
+          "external": 1907591,
+          "arrayBuffers": 24847
+        },
+        "endMemory": {
+          "heapUsed": 13910208,
+          "rss": 86573056,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 86573056
+      }
+    },
+    {
+      "side": "B",
+      "pair": 19,
+      "childWallMs": 73.37100000004284,
+      "loadAverage1m": 7.0576171875,
+      "ok": true,
+      "metrics": {
+        "writes": 2001,
+        "reads": 5,
+        "database": "memory",
+        "outcome": "resolved",
+        "error": null,
+        "writeMs": 7.6916670000000025,
+        "writeUsPerReceipt": 3.843911544227887,
+        "writePrepareCalls": 1,
+        "writePrepareMs": 0.02949999999999875,
+        "writeExecuteMs": 7.662167000000004,
+        "readMs": 14.596833000000004,
+        "readPrepareCalls": 1,
+        "rowsRead": 2000,
+        "orderMatchesExpected": true,
+        "replacedFinishedAt": "2026-01-02T00:00:00.000Z",
+        "closedError": "SQLite receipt store is closed.",
+        "peakRssGrowthBytes": 15548416,
+        "heapUsedDeltaBytes": 7979200
+      },
+      "caseDurationMs": 40.398624999999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5441816,
+          "rss": 46727168,
+          "external": 2062394,
+          "arrayBuffers": 179650
+        },
+        "endMemory": {
+          "heapUsed": 15489576,
+          "rss": 75563008,
+          "external": 2055406,
+          "arrayBuffers": 24811
+        },
+        "maxRssBytes": 75563008
+      }
+    }
+  ]
+}

@@ -1,0 +1,1307 @@
+{
+  "meta": {
+    "label": "m4-perf-4831f81",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 20,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "4831f8130f9cc7dddc6e8a2e37223aad36a2afa8",
+      "packagesTree": "97fbe32be7f65a59b01329bc5d49ff98b29b4a59",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "4831f8130f9cc7dddc6e8a2e37223aad36a2afa8",
+    "date": "2026-11-02T20:23:56.840Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        5.91455078125,
+        8.32421875,
+        9.7998046875
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)"
+  },
+  "workload": "perf-11-jsonl-read",
+  "case": "iterate-50k",
+  "params": {
+    "receipts": 50000,
+    "mode": "iterate"
+  },
+  "runs": [
+    {
+      "side": "A",
+      "pair": 0,
+      "childWallMs": 134.41999999999825,
+      "loadAverage1m": 5.50048828125,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 96.402042,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 48037888,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 10421904,
+          "rss": 78495744,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 78512128
+      }
+    },
+    {
+      "side": "B",
+      "pair": 0,
+      "childWallMs": 218.74812499999825,
+      "loadAverage1m": 5.50048828125,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 83.941542,
+        "peakRssGrowthBytes": 22118400,
+        "heapUsedWhileHeldBytes": 7966208
+      },
+      "caseDurationMs": 180.80583299999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5261664,
+          "rss": 48070656,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13058576,
+          "rss": 98713600,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 102006784
+      }
+    },
+    {
+      "side": "A",
+      "pair": 1,
+      "childWallMs": 129.31987500000105,
+      "loadAverage1m": 5.96337890625,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 93.194125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48021504,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 10435176,
+          "rss": 78987264,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 78987264
+      }
+    },
+    {
+      "side": "B",
+      "pair": 1,
+      "childWallMs": 183.78783299999486,
+      "loadAverage1m": 5.96337890625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 54.327875000000006,
+        "peakRssGrowthBytes": 21839872,
+        "heapUsedWhileHeldBytes": 7968176
+      },
+      "caseDurationMs": 147.08112500000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5244464,
+          "rss": 48168960,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13060680,
+          "rss": 98320384,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101580800
+      }
+    },
+    {
+      "side": "A",
+      "pair": 2,
+      "childWallMs": 151.1913329999952,
+      "loadAverage1m": 9.1669921875,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 111.085083,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48054272,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 13721472,
+          "rss": 77545472,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 78610432
+      }
+    },
+    {
+      "side": "B",
+      "pair": 2,
+      "childWallMs": 211.0073749999865,
+      "loadAverage1m": 9.1669921875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 53.647999999999996,
+        "peakRssGrowthBytes": 21692416,
+        "heapUsedWhileHeldBytes": 7967936
+      },
+      "caseDurationMs": 169.598084,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5241624,
+          "rss": 48218112,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13060320,
+          "rss": 98058240,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101335040
+      }
+    },
+    {
+      "side": "A",
+      "pair": 3,
+      "childWallMs": 140.19370899998466,
+      "loadAverage1m": 8.15869140625,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 105.30850000000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 47939584,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 13700440,
+          "rss": 77660160,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 78708736
+      }
+    },
+    {
+      "side": "B",
+      "pair": 3,
+      "childWallMs": 200.20283399999607,
+      "loadAverage1m": 8.15869140625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 52.522875,
+        "peakRssGrowthBytes": 21708800,
+        "heapUsedWhileHeldBytes": 7935096
+      },
+      "caseDurationMs": 163.537959,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5233336,
+          "rss": 48185344,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13027464,
+          "rss": 97861632,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101138432
+      }
+    },
+    {
+      "side": "A",
+      "pair": 4,
+      "childWallMs": 156.5437919999822,
+      "loadAverage1m": 9.27587890625,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 116.98183399999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 47972352,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 14108824,
+          "rss": 78757888,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 79822848
+      }
+    },
+    {
+      "side": "B",
+      "pair": 4,
+      "childWallMs": 228.21366700000362,
+      "loadAverage1m": 9.27587890625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 60.21662499999999,
+        "peakRssGrowthBytes": 21659648,
+        "heapUsedWhileHeldBytes": 7967936
+      },
+      "caseDurationMs": 186.560083,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5229848,
+          "rss": 48136192,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13060368,
+          "rss": 97665024,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 100941824
+      }
+    },
+    {
+      "side": "A",
+      "pair": 5,
+      "childWallMs": 131.282125000027,
+      "loadAverage1m": 7.08544921875,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 97.97475,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48005120,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 13711920,
+          "rss": 77594624,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 78643200
+      }
+    },
+    {
+      "side": "B",
+      "pair": 5,
+      "childWallMs": 195.11054200003855,
+      "loadAverage1m": 7.08544921875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 51.95425,
+        "peakRssGrowthBytes": 21676032,
+        "heapUsedWhileHeldBytes": 7935104
+      },
+      "caseDurationMs": 161.504042,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5239016,
+          "rss": 48185344,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13027472,
+          "rss": 98172928,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101449728
+      }
+    },
+    {
+      "side": "A",
+      "pair": 6,
+      "childWallMs": 156.78087499999674,
+      "loadAverage1m": 8.2353515625,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 112.632917,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 48087040,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 24350640,
+          "rss": 86016000,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 86016000
+      }
+    },
+    {
+      "side": "B",
+      "pair": 6,
+      "childWallMs": 202.38120899995556,
+      "loadAverage1m": 8.2353515625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 54.482124999999996,
+        "peakRssGrowthBytes": 21643264,
+        "heapUsedWhileHeldBytes": 7935096
+      },
+      "caseDurationMs": 163.80874999999997,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5244392,
+          "rss": 48250880,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13027480,
+          "rss": 98172928,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101449728
+      }
+    },
+    {
+      "side": "A",
+      "pair": 7,
+      "childWallMs": 167.9828330000164,
+      "loadAverage1m": 7.40478515625,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 125.451542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270536,
+          "rss": 48021504,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 13688568,
+          "rss": 77627392,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 78692352
+      }
+    },
+    {
+      "side": "B",
+      "pair": 7,
+      "childWallMs": 221.0600829999894,
+      "loadAverage1m": 7.40478515625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 57.18829099999999,
+        "peakRssGrowthBytes": 21626880,
+        "heapUsedWhileHeldBytes": 7967936
+      },
+      "caseDurationMs": 175.69845899999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5237184,
+          "rss": 48447488,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13060304,
+          "rss": 98402304,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101695488
+      }
+    },
+    {
+      "side": "A",
+      "pair": 8,
+      "childWallMs": 147.33270800008904,
+      "loadAverage1m": 6.736328125,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 105.9035,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 48070656,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 13722824,
+          "rss": 78053376,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 79085568
+      }
+    },
+    {
+      "side": "B",
+      "pair": 8,
+      "childWallMs": 209.99654199997894,
+      "loadAverage1m": 6.736328125,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 60.433625000000006,
+        "peakRssGrowthBytes": 21676032,
+        "heapUsedWhileHeldBytes": 7966480
+      },
+      "caseDurationMs": 166.53312499999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5245968,
+          "rss": 48119808,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13058888,
+          "rss": 98189312,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101482496
+      }
+    },
+    {
+      "side": "A",
+      "pair": 9,
+      "childWallMs": 178.77637500001583,
+      "loadAverage1m": 8.1884765625,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 129.178291,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48480256,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 10430640,
+          "rss": 78561280,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 78561280
+      }
+    },
+    {
+      "side": "B",
+      "pair": 9,
+      "childWallMs": 201.58749999990687,
+      "loadAverage1m": 8.1884765625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 56.03475,
+        "peakRssGrowthBytes": 21741568,
+        "heapUsedWhileHeldBytes": 7935096
+      },
+      "caseDurationMs": 162.37483400000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5233472,
+          "rss": 48185344,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13027464,
+          "rss": 98222080,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101498880
+      }
+    },
+    {
+      "side": "A",
+      "pair": 10,
+      "childWallMs": 135.01974999997765,
+      "loadAverage1m": 8.15771484375,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 96.65,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48070656,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 13718816,
+          "rss": 77725696,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 78807040
+      }
+    },
+    {
+      "side": "B",
+      "pair": 10,
+      "childWallMs": 186.6477920000907,
+      "loadAverage1m": 8.15771484375,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 52.08404100000001,
+        "peakRssGrowthBytes": 21594112,
+        "heapUsedWhileHeldBytes": 7935096
+      },
+      "caseDurationMs": 147.78787499999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5244464,
+          "rss": 48119808,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13027640,
+          "rss": 98009088,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101285888
+      }
+    },
+    {
+      "side": "A",
+      "pair": 11,
+      "childWallMs": 137.30037499999162,
+      "loadAverage1m": 9.67138671875,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 100.28812500000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270536,
+          "rss": 48070656,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 13707816,
+          "rss": 77414400,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 78462976
+      }
+    },
+    {
+      "side": "B",
+      "pair": 11,
+      "childWallMs": 201.74962499993853,
+      "loadAverage1m": 9.67138671875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 56.309708,
+        "peakRssGrowthBytes": 21692416,
+        "heapUsedWhileHeldBytes": 7967936
+      },
+      "caseDurationMs": 164.348791,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5233528,
+          "rss": 48185344,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13060312,
+          "rss": 98320384,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101597184
+      }
+    },
+    {
+      "side": "A",
+      "pair": 12,
+      "childWallMs": 128.3911660000449,
+      "loadAverage1m": 9.9921875,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 92.68545800000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 48005120,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 13698960,
+          "rss": 77316096,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 78364672
+      }
+    },
+    {
+      "side": "B",
+      "pair": 12,
+      "childWallMs": 193.38916699995752,
+      "loadAverage1m": 9.9921875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 53.3625,
+        "peakRssGrowthBytes": 15646720,
+        "heapUsedWhileHeldBytes": 7935144
+      },
+      "caseDurationMs": 157.755583,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5248568,
+          "rss": 48201728,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13038880,
+          "rss": 98467840,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101777408
+      }
+    },
+    {
+      "side": "A",
+      "pair": 13,
+      "childWallMs": 146.89870799996424,
+      "loadAverage1m": 9.17626953125,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 101.50637499999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48152576,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 10424968,
+          "rss": 79200256,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 79200256
+      }
+    },
+    {
+      "side": "B",
+      "pair": 13,
+      "childWallMs": 313.1601250000531,
+      "loadAverage1m": 9.17626953125,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 83.47049999999999,
+        "peakRssGrowthBytes": 22036480,
+        "heapUsedWhileHeldBytes": 7903760
+      },
+      "caseDurationMs": 269.24420799999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5244320,
+          "rss": 48431104,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 12996160,
+          "rss": 98549760,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101842944
+      }
+    },
+    {
+      "side": "A",
+      "pair": 14,
+      "childWallMs": 162.35349999996834,
+      "loadAverage1m": 9.71630859375,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 119.13087499999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 48185344,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 13712704,
+          "rss": 78036992,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 79118336
+      }
+    },
+    {
+      "side": "B",
+      "pair": 14,
+      "childWallMs": 260.96595899993554,
+      "loadAverage1m": 9.71630859375,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 69.535708,
+        "peakRssGrowthBytes": 21856256,
+        "heapUsedWhileHeldBytes": 7935096
+      },
+      "caseDurationMs": 216.06345900000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5239312,
+          "rss": 48119808,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13027464,
+          "rss": 98385920,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101679104
+      }
+    },
+    {
+      "side": "A",
+      "pair": 15,
+      "childWallMs": 132.24591699999291,
+      "loadAverage1m": 9.32763671875,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 96.903708,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 48054272,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 13709272,
+          "rss": 77856768,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 78921728
+      }
+    },
+    {
+      "side": "B",
+      "pair": 15,
+      "childWallMs": 196.2441669999389,
+      "loadAverage1m": 9.32763671875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 53.958665999999994,
+        "peakRssGrowthBytes": 21626880,
+        "heapUsedWhileHeldBytes": 7967936
+      },
+      "caseDurationMs": 158.719458,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5261648,
+          "rss": 48267264,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13060336,
+          "rss": 97796096,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101089280
+      }
+    },
+    {
+      "side": "A",
+      "pair": 16,
+      "childWallMs": 142.07545900018886,
+      "loadAverage1m": 18.59814453125,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 104.1865,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 47988736,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 13693208,
+          "rss": 77676544,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 78741504
+      }
+    },
+    {
+      "side": "B",
+      "pair": 16,
+      "childWallMs": 205.27399999997579,
+      "loadAverage1m": 17.9892578125,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 54.995041999999984,
+        "peakRssGrowthBytes": 21790720,
+        "heapUsedWhileHeldBytes": 7967936
+      },
+      "caseDurationMs": 164.70337500000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5233624,
+          "rss": 48201728,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13060416,
+          "rss": 98648064,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101908480
+      }
+    },
+    {
+      "side": "A",
+      "pair": 17,
+      "childWallMs": 139.36462500016205,
+      "loadAverage1m": 12.60791015625,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 104.82975,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48103424,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 13712968,
+          "rss": 77561856,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 78610432
+      }
+    },
+    {
+      "side": "B",
+      "pair": 17,
+      "childWallMs": 190.10083399992436,
+      "loadAverage1m": 12.60791015625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 51.843541999999985,
+        "peakRssGrowthBytes": 21676032,
+        "heapUsedWhileHeldBytes": 7935096
+      },
+      "caseDurationMs": 154.58708299999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5253584,
+          "rss": 48218112,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13027464,
+          "rss": 98107392,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101367808
+      }
+    },
+    {
+      "side": "A",
+      "pair": 18,
+      "childWallMs": 157.98962500016205,
+      "loadAverage1m": 9.02099609375,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 114.218542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48168960,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 13740992,
+          "rss": 77938688,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 78987264
+      }
+    },
+    {
+      "side": "B",
+      "pair": 18,
+      "childWallMs": 212.55000000004657,
+      "loadAverage1m": 9.02099609375,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 62.513874999999985,
+        "peakRssGrowthBytes": 21708800,
+        "heapUsedWhileHeldBytes": 7967936
+      },
+      "caseDurationMs": 171.73591700000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5255880,
+          "rss": 48283648,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13060344,
+          "rss": 98222080,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101515264
+      }
+    },
+    {
+      "side": "A",
+      "pair": 19,
+      "childWallMs": 136.0782500000205,
+      "loadAverage1m": 7.0576171875,
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "constructor": "Error",
+        "message": "not available in this build: JsonlReceiptStore.iterate"
+      },
+      "caseDurationMs": 101.543875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48037888,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 13707720,
+          "rss": 77463552,
+          "external": 2143737,
+          "arrayBuffers": 16669
+        },
+        "maxRssBytes": 78528512
+      }
+    },
+    {
+      "side": "B",
+      "pair": 19,
+      "childWallMs": 192.6282919999212,
+      "loadAverage1m": 7.0576171875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883890,
+        "outcome": "resolved",
+        "receiptsRead": 50000,
+        "idsDigest": null,
+        "error": null,
+        "errorNamesCorruptLine": null,
+        "elapsedMs": 52.46449999999999,
+        "peakRssGrowthBytes": 21676032,
+        "heapUsedWhileHeldBytes": 7967936
+      },
+      "caseDurationMs": 154.355542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5244320,
+          "rss": 48300032,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 13060336,
+          "rss": 98091008,
+          "external": 3192484,
+          "arrayBuffers": 1065416
+        },
+        "maxRssBytes": 101367808
+      }
+    }
+  ]
+}
