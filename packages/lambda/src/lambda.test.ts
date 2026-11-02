@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { AdapterExecutionError, Capsule, ProviderAuthError, ProviderRetryableError, runAdapterContract } from "@capsule-sdk/core";
+import { InvokeCommand } from "@aws-sdk/client-lambda";
 import { lambda, lambdaCapabilities } from "./index.js";
+import { classifiedClient } from "./lambda-adapter.js";
 
 function awsError(name: string, httpStatusCode: number, message = name): Error {
   return Object.assign(new Error(message), { name, $metadata: { httpStatusCode } });
@@ -199,5 +201,20 @@ describe("lambda adapter", () => {
       executedVersion: "$LATEST",
       functionError: null
     });
+  });
+  // The error-classifying wrapper must hand every send() argument to the client, so an options
+  // argument (an SDK abortSignal, for example) is not dropped on the way.
+  it("forwards send options through the error-classifying client", async () => {
+    const calls: unknown[][] = [];
+    const client = classifiedClient({
+      send: async (...args: unknown[]) => {
+        calls.push(args);
+        return {};
+      }
+    });
+    const command = new InvokeCommand({ FunctionName: "fn" });
+    const options = { abortSignal: AbortSignal.abort() };
+    await client.send(command, options);
+    expect(calls).toEqual([[command, options]]);
   });
 });

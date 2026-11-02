@@ -15,7 +15,10 @@ import {
 } from "@capsule-sdk/core";
 
 interface LambdaClientLike {
-  send(command: InvokeCommand): Promise<{
+  send(
+    command: InvokeCommand,
+    options?: { abortSignal?: AbortSignal }
+  ): Promise<{
     $metadata?: {
       requestId?: string;
     };
@@ -163,11 +166,13 @@ function defaultClient(options: LambdaAdapterOptions): LambdaClientLike {
   return new LambdaClient({ region: options.region });
 }
 
-function classifiedClient(client: LambdaClientLike): LambdaClientLike {
+// Exported for its unit test; the package's public API is src/index.ts.
+export function classifiedClient(client: LambdaClientLike): LambdaClientLike {
   return {
-    send: async (command) => {
+    // Forward every argument, as the ECS wrapper does: the options carry an AbortSignal to the SDK request.
+    send: async (...args: Parameters<LambdaClientLike["send"]>) => {
       try {
-        return await client.send(command);
+        return await client.send(...args);
       } catch (error) {
         throw asProviderError(error, "Lambda API request failed.");
       }
