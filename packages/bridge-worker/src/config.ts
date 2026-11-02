@@ -16,7 +16,11 @@ export interface WorkerPolicy {
 export interface WorkerApproval {
   ref: string;
   action: BridgeAction;
-  /** The one resource the grant covers, or null for a grant not tied to a resource (for example a create). */
+  /**
+   * The one resource the grant covers, or null for a grant not tied to one resource: a create, whose
+   * resource does not exist yet, or a Docker destroy whose container id is known only after the create.
+   * Never empty.
+   */
   native_id: string | null;
   /** A fixed expiry flag, as the fixture scenarios use. */
   expired?: boolean;
@@ -97,6 +101,8 @@ function parseApproval(value: unknown, index: number): WorkerApproval {
   if (typeof value.ref !== "string" || !/^[A-Za-z0-9._:-]{1,128}$/.test(value.ref)) throw new ConfigError(`${what}.ref is not a valid ref`);
   if (typeof value.action !== "string" || !(ACTIONS as readonly string[]).includes(value.action)) throw new ConfigError(`${what}.action is not a v1 action`);
   if (value.native_id !== null && typeof value.native_id !== "string") throw new ConfigError(`${what}.native_id must be a string or null`);
+  // An empty id names no resource and would be matched by nothing or, read loosely, by anything: fail closed.
+  if (value.native_id === "") throw new ConfigError(`${what}.native_id must name a resource or be null`);
   if (value.expired !== undefined && typeof value.expired !== "boolean") throw new ConfigError(`${what}.expired must be a boolean`);
   if (value.expires_at !== undefined && (typeof value.expires_at !== "string" || Number.isNaN(Date.parse(value.expires_at)))) {
     throw new ConfigError(`${what}.expires_at must be an ISO 8601 time`);

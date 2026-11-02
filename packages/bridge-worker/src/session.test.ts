@@ -122,6 +122,15 @@ describe("admission", () => {
     expect(world.provider.effects.filter((effect) => effect.call === "exec")).toHaveLength(1);
   });
 
+  test("a grant with an empty native_id is refused at config time: it would cover nothing or everything", () => {
+    const grant = (nativeId: string | null, action = "sandbox.destroy") => ({ approvals: [{ ref: "apr-x", action, native_id: nativeId, expired: false }] });
+    expect(() => parseWorkerConfig(grant(""), fixtureProfile)).toThrow(/native_id/);
+    expect(() => parseWorkerConfig(grant("", "sandbox.create"), fixtureProfile)).toThrow(/native_id/);
+    // null stays the documented form of a grant not tied to one resource: the Docker profile cannot
+    // name a container id before the create that makes it.
+    expect(parseWorkerConfig(grant(null), fixtureProfile).approvals[0]).toMatchObject({ native_id: null });
+  });
+
   test("a bound approval ref still resolves for the operation it was bound to", () => {
     const config = parseWorkerConfig(
       { approvals: [{ ref: "apr-once", action: "sandbox.destroy", native_id: "fx-key-create-1", expired: false }] },
