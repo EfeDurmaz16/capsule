@@ -2,6 +2,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeAll, describe, expect, test } from "vitest";
 import {
+  type CapsuleReceipt,
   AdapterExecutionError,
   Capsule,
   MemoryReceiptStore,
@@ -14,7 +15,50 @@ import type { DockerCommandResult, RunDockerOptions } from "./docker-cli.js";
 import { liveTest, liveTestGate, type LiveTestGate } from "@capsule-sdk/test-utils";
 import { classifyDockerCliError, docker, dockerAvailable, runDocker } from "./index.js";
 import { dockerSandboxCreateArgs } from "./docker-adapter.js";
-import { normalizeDockerReceiptFixtures } from "./docker-receipt-fixtures.js";
+
+// Receipt fixtures: the JSON shape committed under fixtures, with volatile fields normalized. Test
+// support only, so it lives here and ships in no tarball.
+type JsonFixture = Record<string, unknown>;
+
+function compactUndefined(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => compactUndefined(item));
+  }
+  if (typeof value !== "object" || value === null) {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .map(([entryKey, entryValue]) => [entryKey, compactUndefined(entryValue)])
+  );
+}
+
+function normalizeResource(resource: CapsuleReceipt["resource"]): CapsuleReceipt["resource"] {
+  if (!resource) {
+    return undefined;
+  }
+  return {
+    ...resource,
+    id: resource.id ? "<docker-resource-id>" : undefined,
+    name: resource.name?.startsWith("capsule-test-") ? "<docker-resource-name>" : resource.name
+  };
+}
+
+function normalizeDockerReceiptFixture(receipt: CapsuleReceipt): JsonFixture {
+  return compactUndefined({
+    ...receipt,
+    id: "<receipt-id>",
+    startedAt: "<started-at>",
+    finishedAt: "<finished-at>",
+    durationMs: "<duration-ms>",
+    resource: normalizeResource(receipt.resource)
+  }) as JsonFixture;
+}
+
+function normalizeDockerReceiptFixtures(receipts: readonly CapsuleReceipt[]): JsonFixture[] {
+  return receipts.map((receipt) => normalizeDockerReceiptFixture(receipt));
+}
 
 function dockerResult(exitCode: number, stderr = ""): { exitCode: number; stdout: string; stderr: string } {
   return { exitCode, stdout: "", stderr };
