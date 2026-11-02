@@ -313,6 +313,35 @@ describe("modal adapter", () => {
     expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
   });
 
+  // The SDK's client retries a transient status three times and then rejects with the final gRPC status.
+  // CANCELLED (1), UNKNOWN (2), DEADLINE_EXCEEDED (4) and UNAVAILABLE (14) mean the terminate request got
+  // no answer: Modal may have received it, so the outcome is unknown, not a failed termination.
+  it.each([1, 2, 4, 14])("rejects destroy with an unknown outcome when the SDK gives up on the terminate request with gRPC status %i", async (code) => {
+    const { sandbox } = fakeModalSandbox();
+    sandbox.terminateError = Object.assign(new Error(`/modal.client.ModalClient/SandboxTerminate status ${code}`), { code });
+    const store = new MemoryReceiptStore();
+    const box = await new Capsule({ adapter: modal({ client: fakeModalClient(sandbox) }), receipts: true, receiptStore: store }).sandbox.create({});
+
+    const error = await box.destroy().catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(UnknownOutcomeError);
+    expect(error).toMatchObject({ operation: "sandbox.destroy", resource: expect.objectContaining({ nativeId: "sb-1" }) });
+    expect((error as UnknownOutcomeError).cause).toMatchObject({ message: `/modal.client.ModalClient/SandboxTerminate status ${code}` });
+    expect(sandbox.calls).toEqual(["terminate"]);
+    expect(store.receipts.map((receipt) => receipt.type)).toEqual(["sandbox.create"]);
+  });
+
+  it("rejects destroy with the classified provider error when Modal refuses the terminate request", async () => {
+    const { sandbox } = fakeModalSandbox();
+    // PERMISSION_DENIED (7): an answer, so the outcome is known.
+    sandbox.terminateError = Object.assign(new Error("/modal.client.ModalClient/SandboxTerminate PERMISSION_DENIED: no"), { code: 7 });
+    const box = await new Capsule({ adapter: modal({ client: fakeModalClient(sandbox) }) }).sandbox.create({});
+    const error = await box.destroy().catch((caught: unknown) => caught);
+    expect(error).not.toBeInstanceOf(UnknownOutcomeError);
+    expect(error).toBeInstanceOf(ProviderAuthError);
+    expect(sandbox.calls).toEqual(["terminate"]);
+  });
+
   it("reports a failed poll after an accepted terminate request as pending, not as a termination failure", async () => {
     const { sandbox } = fakeModalSandbox();
     const client = fakeModalClient(sandbox);
@@ -493,6 +522,12 @@ describe("modal termination that outlives the deadline", () => {
 
   it.each([
     { outcome: "unanswered terminate request", status: "unknown", setup: (sandbox: any) => (sandbox.terminateHangs = true) },
+    {
+      outcome: "terminate request the SDK gave up on",
+      status: "unknown",
+      setup: (sandbox: any) =>
+        (sandbox.terminateError = Object.assign(new Error("/modal.client.ModalClient/SandboxTerminate UNAVAILABLE: later"), { code: 14 }))
+    },
     { outcome: "sandbox still running", status: "pending", setup: (sandbox: any) => (sandbox.exitCode = null) }
   ])("a create rollback with an $outcome at the deadline reports cleanup as $status and stays so", async ({ status, setup }) => {
     const { sandbox } = fakeModalSandbox();

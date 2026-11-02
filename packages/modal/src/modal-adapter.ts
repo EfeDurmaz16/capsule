@@ -82,23 +82,26 @@ export interface ModalAdapterOptions {
   environment?: string;
   client?: ModalClientLike;
   /**
-   * Client-side budget for sandbox termination, in milliseconds: one terminate request followed by
-   * status polls until the sandbox has stopped. Capsule calls the SDK's terminate() once (no wait),
-   * then polls a fresh client.sandboxes.fromId() handle with poll() about once a second; each poll is
-   * one zero-wait request. Defaults to 60000.
+   * Client-side budget for sandbox termination, in milliseconds: one terminate() request (no wait), then
+   * poll() on a fresh client.sandboxes.fromId() handle about once a second until the sandbox has stopped;
+   * each poll is one zero-wait request. Defaults to 60000.
    *
    * The installed modal SDK's terminate, poll and fromId accept no AbortSignal or timeout, so the budget
-   * is enforced between calls: no call starts after the deadline, and only the one zero-wait call in
-   * flight when it expires outlives it (with the SDK client's own retries of a transient gRPC status);
-   * its late answer is ignored. At the deadline destroy rejects with PendingOperationError when Modal answered the terminate request (the sandbox is stopping) or
-   * with UnknownOutcomeError when it did not (Modal may or may not have received it); neither writes a
-   * deleted receipt. A create rollback reports its cleanup as pending or unknown in the same cases.
+   * is enforced between calls: no call starts after the deadline; only the one in flight outlives it
+   * (with the SDK client's own retries of a transient gRPC status) and its late answer is ignored. At
+   * the deadline destroy rejects with PendingOperationError when Modal answered the terminate request
+   * or with UnknownOutcomeError when it did not; neither writes a deleted receipt. A terminate request
+   * the SDK gives up on unanswered (gRPC CANCELLED, UNKNOWN, DEADLINE_EXCEEDED or UNAVAILABLE) is also
+   * an UnknownOutcomeError. A create rollback reports its cleanup as pending or unknown in the same cases.
    */
   terminateDeadlineMs?: number;
 }
 
 const defaultTerminateDeadlineMs = 60_000;
 const terminatePollIntervalMs = 1_000;
+// gRPC statuses the SDK's client rejects with when a request got no answer, after its own retries:
+// CANCELLED, UNKNOWN, DEADLINE_EXCEEDED and UNAVAILABLE. Modal may or may not have received the request.
+const unansweredGrpcStatuses = new Set([1, 2, 4, 14]);
 
 const provider = "modal";
 const adapter = "modal";
@@ -253,8 +256,10 @@ interface TerminationObserved {
  * can follow the deadline; Capsule sends nothing new. At the deadline:
  * - terminate() not yet answered: UnknownOutcomeError, since Modal may or may not have received it;
  * - terminate() answered, sandbox still running: PendingOperationError with the sandbox locator.
- * A rejected terminate() is a termination failure, thrown as the classified provider error. A rejected
- * fromId() or poll() after an answered terminate() is an observation failure, reported as pending.
+ * A terminate() the SDK gives up on with an unanswered status (see unansweredGrpcStatuses) is also an
+ * UnknownOutcomeError; any other rejected terminate() is a termination failure, thrown as the classified
+ * provider error. A rejected fromId() or poll() after an answered terminate() is an observation failure,
+ * reported as pending.
  * See ModalAdapterOptions.terminateDeadlineMs.
  */
 async function terminateUntilStopped(sandbox: ModalSandboxLike, client: ModalClientLike, operation: string, deadlineMs: number): Promise<TerminationObserved> {
@@ -269,7 +274,12 @@ async function terminateUntilStopped(sandbox: ModalSandboxLike, client: ModalCli
           try {
             await sandbox.terminate();
           } catch (error) {
-            return { done: "failed", error: asProviderError(error, "Modal sandbox termination failed.") };
+            const failure = asProviderError(error, "Modal sandbox termination failed.");
+            const code = (error as { code?: unknown } | null)?.code;
+            if (typeof code === "number" && unansweredGrpcStatuses.has(code)) {
+              return { done: "failed", error: unansweredTermination(sandbox.sandboxId, `got no answer (${failure.message})`, operation, failure) };
+            }
+            return { done: "failed", error: failure };
           }
           requested = true;
         }
@@ -285,14 +295,19 @@ async function terminateUntilStopped(sandbox: ModalSandboxLike, client: ModalCli
     return { exitCode, polls };
   } catch (error) {
     if (error instanceof PendingOperationError && !requested) {
-      throw new UnknownOutcomeError(
-        `Modal sandbox termination request for ${sandbox.sandboxId} was not answered within ${deadlineMs}ms; whether Modal received it is unknown.`,
-        { operation, resource },
-        error
-      );
+      throw unansweredTermination(sandbox.sandboxId, `was not answered within ${deadlineMs}ms`, operation, error);
     }
     throw error;
   }
+}
+
+// The terminate request got no answer, so whether Modal received it is unknown.
+function unansweredTermination(sandboxId: string, reason: string, operation: string, cause: unknown): UnknownOutcomeError {
+  return new UnknownOutcomeError(
+    `Modal sandbox termination request for ${sandboxId} ${reason}; whether Modal received it is unknown.`,
+    { operation, resource: sandboxLocator(sandboxId) },
+    cause
+  );
 }
 
 function errorMessage(error: unknown): string {

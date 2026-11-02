@@ -202,7 +202,7 @@ test("DOC-09: the receipt type union and the committed JSON Schema enum agree", 
   assert.deepEqual(fromTypes, fromSchema);
 });
 
-test("DOC-10: the Modal termination deadline claims name the SDK's own retries", () => {
+test("DOC-10: the Modal termination deadline claims name the SDK's own retries and the unanswered terminate case", () => {
   const modal = markdownSections(read("docs/real-provider-quickstarts.md")).get("Modal");
   const options = read("packages/modal/src/modal-adapter.ts");
   // The deadline is enforced between SDK calls. The SDK's client retries a transient gRPC status inside
@@ -213,6 +213,11 @@ test("DOC-10: the Modal termination deadline claims name the SDK's own retries",
   ]) {
     assert.match(text, /terminateDeadlineMs/, `${name} must document terminateDeadlineMs`);
     assert.match(text, /retr(?:y|ies)/, `${name} must say the SDK's own retries can outlive the deadline`);
+    assert.match(
+      text,
+      /CANCELLED, UNKNOWN, DEADLINE_EXCEEDED (?:and|or) UNAVAILABLE/,
+      `${name} must list the gRPC statuses that mean an unanswered terminate request`
+    );
   }
 });
 
