@@ -1,0 +1,12 @@
+# A/B on v24.19.0: base d18b2d0 (scratch export) vs head 8b1501f, 6 alternating rounds of 3 reps each, same session, host load average 19 to 32
+# value = median over rounds of each round's median; per-round values follow
+case:metric                                               base      head head/base
+spawn-to-hello-ack:spawnToHelloAckMs.p50                44.649    40.540      0.91  ms  base=[49.615, 45.199, 39.023, 36.735, 44.098, 63.132] head=[56.776, 45.945, 36.268, 39.696, 38.028, 41.384]
+spawn-to-hello-ack:spawnToHelloAckMs.p95                60.899    62.520      1.03  ms  base=[69.519, 54.068, 57.931, 48.479, 63.868, 92.595] head=[68.247, 65.069, 58.425, 61.955, 54.627, 63.085]
+spawn-to-hello-ack:workerMaxRssBytes.p50                54.188    54.000      1.00  MiB  base=[54.219, 54.156, 54.156, 54.094, 54.25, 54.297] head=[54.172, 54.031, 53.922, 53.953, 53.969, 54.062]
+request-round-trip:execRoundTripMs.p50                   0.134     0.095      0.71  ms  base=[0.168, 0.092, 0.085, 0.125, 0.243, 0.142] head=[0.518, 0.112, 0.076, 0.061, 0.077, 0.135]
+request-round-trip:execRoundTripMs.p95                   0.676     0.285      0.42  ms  base=[0.734, 0.382, 0.435, 0.617, 1.187, 1.116] head=[1.872, 0.338, 0.191, 0.231, 0.21, 0.379]
+request-round-trip:createRoundTripMs.p50                 0.070     0.074      1.06  ms  base=[0.061, 0.104, 0.078, 0.061, 0.052, 0.111] head=[0.268, 0.088, 0.06, 0.044, 0.058, 0.116]
+request-round-trip:destroyRoundTripMs.p50                0.066     0.063      0.95  ms  base=[0.063, 0.104, 0.069, 0.059, 0.048, 0.117] head=[0.258, 0.071, 0.054, 0.042, 0.055, 0.111]
+request-round-trip:refusalRoundTripMs.p50                0.040     0.057      1.42  ms  base=[0.038, 0.042, 0.04, 0.041, 0.036, 0.05] head=[0.179, 0.071, 0.044, 0.033, 0.039, 0.08]
+request-round-trip:workerMaxRssBytes                    76.430    76.430      1.00  MiB  base=[76.578, 76.312, 76.188, 75.938, 76.547, 76.641] head=[76.453, 76.594, 75.562, 75.453, 76.406, 76.703]

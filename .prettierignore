@@ -8,4 +8,7 @@ docs/provider-matrix.md
 benchmarks/raw
 benchmarks/after/raw
 benchmarks/after/control/raw
+protocol/bridge
+benchmarks/after/bridge/raw
+benchmarks/after/bridge/control/raw-*
 benchmarks/ab

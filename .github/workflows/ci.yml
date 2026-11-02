@@ -119,3 +119,73 @@ jobs:
 
       - name: Run bounded workloads and check deterministic bounds
         run: pnpm bench:bounds
+
+  # Draft P10 artifact proof: the bridge worker as one Linux x64 executable, a Node single executable
+  # application built with node --build-sea (Node 25.5 or later; Node 22 and 24 would need a separate
+  # injector dependency). The smoke copies it to a clean directory outside the checkout and runs it
+  # with no Node, Bun or pnpm on PATH through every shared bridge scenario, the refused frame fixtures
+  # and SIGTERM/SIGINT. Built and run on the same runner: a cross-built artifact proves nothing.
+  bridge-artifact:
+    name: Bridge worker artifact (Linux x64, no Node on PATH)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b0f76dfb45f55f8421693e4803ac7bb65143bd34 # v6
+        with:
+          version: 10.32.1
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the worker and its workspace dependencies
+        run: pnpm --filter "@capsule-sdk/bridge-worker..." run build
+
+      - name: Build the single executable
+        run: pnpm bridge:sea
+
+      - name: Run the shared scenarios against the executable
+        run: pnpm bridge:artifact-smoke
+
+  # Physical proof of the Docker profile on the runner's engine. The image is pulled here, by digest,
+  # before the smoke; the worker itself creates with --pull never. --require turns a skip into a failure.
+  bridge-docker-smoke:
+    name: Bridge worker Docker smoke
+    runs-on: ubuntu-latest
+    env:
+      # busybox 1.36.1, the multi-platform index digest; about 2 MB for linux/amd64.
+      SMOKE_IMAGE: busybox@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b0f76dfb45f55f8421693e4803ac7bb65143bd34 # v6
+        with:
+          version: 10.32.1
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the worker and its workspace dependencies
+        run: pnpm --filter "@capsule-sdk/bridge-worker..." run build
+
+      - name: Pull the pinned smoke image
+        run: docker pull "$SMOKE_IMAGE"
+
+      - name: Docker smoke
+        run: pnpm bridge:docker-smoke --image "$SMOKE_IMAGE" --execs 5 --require

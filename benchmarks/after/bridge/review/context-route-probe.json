@@ -1,0 +1,40 @@
+{
+  "desktop-linux": {
+    "type": "error",
+    "request_id": "r-1",
+    "operation_id": "01K8W3A00000000000000000P3",
+    "error": {
+      "code": "unknown",
+      "reason": "observation_failed",
+      "effect": "unknown",
+      "resource": {
+        "provider": "docker",
+        "scope": {
+          "engine": "desktop-linux"
+        },
+        "kind": "container",
+        "native_id": "capsule-route-probe-absent"
+      },
+      "message": "unknown: observation_failed"
+    }
+  },
+  "orbstack": {
+    "type": "result",
+    "request_id": "r-1",
+    "operation_id": "01K8W3A00000000000000000P3",
+    "state": "completed",
+    "resource": {
+      "provider": "docker",
+      "scope": {
+        "engine": "orbstack"
+      },
+      "kind": "container",
+      "native_id": "capsule-route-probe-absent"
+    },
+    "output": {
+      "status": "destroyed"
+    },
+    "replayed": false,
+    "receipts": []
+  }
+}

@@ -24,6 +24,7 @@
     { "path": "./packages/cli" },
     { "path": "./packages/store-jsonl" },
     { "path": "./packages/store-sqlite" },
+    { "path": "./packages/bridge-worker" },
     { "path": "./examples/sandbox-docker" },
     { "path": "./examples/agent-code-execution" },
     { "path": "./examples/capability-check" },

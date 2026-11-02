@@ -2,31 +2,24 @@ import { spawn } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
 import { CaptureBudget, CaptureLimitError, type CaptureTruncation, type ResolvedCaptureBounds } from "@capsule-sdk/core";
 
+// Stopping the CLI (timeoutMs, deadlineMs or the signal) kills only the local docker process: the
+// container or exec'd process keeps running in the daemon, so the outcome is unknown and callers must
+// reconcile. The stop note is appended to stderr after the captured output; callers that post-process
+// captured output (for example redacting a secret cut by the byte cap) apply that to the part before
+// timeoutNote. A capture limit with overflow "error" that a stream hit before the stop is reported in
+// captureLimit rather than thrown, because the process may still be running. Bytes past an output cap
+// are read and discarded so the process never blocks on a full pipe.
 export interface DockerCommandResult {
   exitCode: number;
   stdout: string;
   stderr: string;
-  /**
-   * True when runDocker gave up after timeoutMs and killed the local docker CLI process. Killing the
-   * client does not stop the container or exec'd process in the daemon; callers must reconcile.
-   */
+  /** runDocker killed the docker CLI at timeoutMs; the process in the daemon may still be running. */
   timedOut?: boolean;
-  /**
-   * True when runDocker killed the local docker CLI process at deadlineMs. As with a timeout, only the
-   * client stopped: the exec'd process may still be running in the daemon, so the outcome is unknown.
-   */
+  /** runDocker killed the docker CLI at deadlineMs; the process in the daemon may still be running. */
   deadlineExceeded?: boolean;
-  /**
-   * The note runDocker appended to `stderr` after the captured output when it timed out or reached its
-   * deadline. Callers that post-process captured output (for example redacting a secret cut by the byte
-   * cap) apply that to the part of `stderr` before this note.
-   */
+  /** The note appended to `stderr` after the captured output when the CLI was stopped. */
   timeoutNote?: string;
-  /**
-   * Set when an output stream reached its byte cap with overflow "error" but the command timed out or
-   * reached its deadline before it exited. The stop wins, because the process may still be running; this
-   * keeps the limit.
-   */
+  /** The overflow "error" limit a stream hit before the CLI was stopped; the stop wins. */
   captureLimit?: CaptureLimitError;
   /** Present when outputBounds were applied: per stream, whether and why output was truncated. */
   truncation?: { stdout: CaptureTruncation; stderr: CaptureTruncation };
@@ -39,18 +32,15 @@ export interface DockerOutputBounds {
 
 export interface RunDockerOptions {
   timeoutMs?: number;
-  /**
-   * Client-side deadline for the whole command (ExecSpec.bounds.deadlineMs). When it expires the local
-   * docker CLI is killed exactly like a timeout, the output captured so far is kept and the result
-   * carries `deadlineExceeded`. Independent of timeoutMs: whichever expires first stops the CLI.
-   */
+  /** Client-side deadline for the whole command (ExecSpec.bounds.deadlineMs); the first of timeoutMs and deadlineMs to expire kills the CLI. */
   deadlineMs?: number;
   input?: string;
-  /**
-   * Per-stream capture bounds, enforced while the output arrives. Bytes past the cap are read and
-   * discarded so the process never blocks on a full pipe, and the result carries `truncation`.
-   */
+  /** Per-stream capture bounds enforced while the output arrives; the result carries `truncation`. */
   outputBounds?: DockerOutputBounds;
+  /** Aborting kills the docker CLI with SIGKILL and rejects with the signal's AbortError; only the client stops. */
+  signal?: AbortSignal;
+  /** Starts the CLI in a process group of its own, which a signal to the caller's group misses. */
+  detached?: boolean;
 }
 
 class StreamCapture {
@@ -94,7 +84,11 @@ const maxTimerDelayMs = 2_147_483_647;
 
 export function runDocker(args: string[], options: RunDockerOptions = {}): Promise<DockerCommandResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn("docker", args, { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn("docker", args, {
+      stdio: ["pipe", "pipe", "pipe"],
+      ...(options.signal ? { signal: options.signal, killSignal: "SIGKILL" as const } : {}),
+      ...(options.detached ? { detached: true } : {})
+    });
     const stdout = new StreamCapture(options.outputBounds?.stdout);
     const stderr = new StreamCapture(options.outputBounds?.stderr);
     let settled = false;
@@ -129,19 +123,22 @@ export function runDocker(args: string[], options: RunDockerOptions = {}): Promi
     const clearTimers = (): void => {
       for (const timer of timers) clearTimeout(timer);
     };
+    // Settles once: the first of a timer, a spawn error and the close event wins; the others are ignored.
+    const settle = (end: () => void): void => {
+      clearTimers();
+      if (settled) return;
+      settled = true;
+      end();
+    };
     const stopAfter = (ms: number | undefined, outcome: () => Partial<DockerCommandResult>): void => {
       if (ms === undefined) return;
       timers.push(
         setTimeout(
-          () => {
-            if (settled) {
-              return;
-            }
-            settled = true;
-            clearTimers();
-            child.kill("SIGKILL");
-            finish(124, outcome());
-          },
+          () =>
+            settle(() => {
+              child.kill("SIGKILL");
+              finish(124, outcome());
+            }),
           Math.min(ms, maxTimerDelayMs)
         )
       );
@@ -151,20 +148,8 @@ export function runDocker(args: string[], options: RunDockerOptions = {}): Promi
 
     child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
     child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
-    child.on("error", (error) => {
-      clearTimers();
-      if (!settled) {
-        settled = true;
-        reject(error);
-      }
-    });
-    child.on("close", (exitCode) => {
-      clearTimers();
-      if (!settled) {
-        settled = true;
-        finish(exitCode ?? 1);
-      }
-    });
+    child.on("error", (error) => settle(() => reject(error)));
+    child.on("close", (exitCode) => settle(() => finish(exitCode ?? 1)));
 
     // Write the input (possibly empty) and always end stdin so the command sees EOF.
     child.stdin.on("error", () => undefined);

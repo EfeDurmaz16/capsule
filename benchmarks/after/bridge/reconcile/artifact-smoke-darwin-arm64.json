@@ -1,0 +1,133 @@
+{
+  "harness": "capsule bridge worker artifact smoke v1",
+  "artifact": {
+    "bytes": 143820864,
+    "sha256": "97e2a11ed800bcce18645b904dc501c028ae8500f1e2f8ae25f8d88551e16a27"
+  },
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "path": "an empty directory; no node, nodejs, bun, pnpm, npm, npx or deno reachable",
+  "version": "capsule-worker/0.1.0 bridge protocol 1",
+  "scenarios": [
+    {
+      "scenario": "bad_version_handshake",
+      "receives": 1
+    },
+    {
+      "scenario": "cancel_is_not_termination",
+      "receives": 3
+    },
+    {
+      "scenario": "create_exec_destroy",
+      "receives": 3
+    },
+    {
+      "scenario": "denied_before_effect",
+      "receives": 1
+    },
+    {
+      "scenario": "duplicate_idempotency_key",
+      "receives": 3
+    },
+    {
+      "scenario": "exec_observe_after_worker_loss",
+      "receives": 3
+    },
+    {
+      "scenario": "exec_observed_until_exit",
+      "receives": 2,
+      "stoppedAtAdvance": true
+    },
+    {
+      "scenario": "fresh_approval_required",
+      "receives": 3
+    },
+    {
+      "scenario": "observe_checks_owner",
+      "receives": 3
+    },
+    {
+      "scenario": "pending_destroy_with_locator",
+      "receives": 2,
+      "stoppedAtAdvance": true
+    },
+    {
+      "scenario": "provider_failed",
+      "receives": 1
+    },
+    {
+      "scenario": "receipt_failure_keeps_outcome",
+      "receives": 1
+    },
+    {
+      "scenario": "scope_retained",
+      "receives": 2
+    },
+    {
+      "scenario": "secrets_deny_all_and_intersection",
+      "receives": 3
+    },
+    {
+      "scenario": "shutdown_reports_unresolved",
+      "receives": 3
+    },
+    {
+      "scenario": "unknown_after_dispatch_with_locator",
+      "receives": 2
+    },
+    {
+      "scenario": "unsupported_capability",
+      "receives": 3
+    },
+    {
+      "scenario": "worker_loss_is_not_cancellation",
+      "receives": 2
+    }
+  ],
+  "frames": [
+    {
+      "case": "body_truncated",
+      "code": "truncated"
+    },
+    {
+      "case": "empty_frame",
+      "code": "empty"
+    },
+    {
+      "case": "hello_oversize",
+      "code": "oversize"
+    },
+    {
+      "case": "length_truncated",
+      "code": "truncated"
+    },
+    {
+      "case": "not_an_object",
+      "code": "malformed"
+    },
+    {
+      "case": "not_utf8",
+      "code": "malformed"
+    },
+    {
+      "case": "request_oversize",
+      "code": "oversize"
+    },
+    {
+      "case": "trailing_bytes",
+      "code": "malformed"
+    }
+  ],
+  "signals": {
+    "sigterm": "exec in flight answered pending/shutting_down, exit 0",
+    "sigint": "idle worker exits 0 with no frame"
+  },
+  "stderr": {
+    "workers": 30,
+    "largestBytes": 54,
+    "budgetBytes": 65536
+  },
+  "outcome": "passed"
+}

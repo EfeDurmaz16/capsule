@@ -310,6 +310,7 @@ The selected policy (`--policy-file`, or `policyFile` from the config) is enforc
 | `@capsule-sdk/presets`                                  | Provider-oriented spec factories                                                                      |
 | `@capsule-sdk/store-jsonl`, `@capsule-sdk/store-sqlite` | Receipt persistence                                                                                   |
 | `@capsule-sdk/cli`                                      | The `capsule` CLI                                                                                     |
+| `@capsule-sdk/bridge-worker`                            | `capsule-bridge-worker`: a provider worker for Fabric's bridge protocol v1 (fixture and local Docker) |
 
 ## Known Limitations
 

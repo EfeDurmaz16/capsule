@@ -1,4 +1,5 @@
 import type {
+  AttachSandboxSpec,
   CapabilityMap,
   CapsulePolicy,
   CapsuleReceipt,
@@ -78,6 +79,12 @@ export interface AdapterContext {
 
 export interface SandboxAdapter {
   create(spec: CreateSandboxSpec, context: AdapterContext): Promise<Sandbox>;
+  /**
+   * Optional: a handle for an existing sandbox, without changing provider state. Adapters that can
+   * address a sandbox by id implement it; `Capsule.sandbox.attach` fails before any provider call
+   * otherwise.
+   */
+  attach?(spec: AttachSandboxSpec, context: AdapterContext): Promise<Sandbox>;
 }
 
 export interface JobAdapter {

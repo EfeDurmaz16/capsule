@@ -20,6 +20,7 @@
       "@capsule-sdk/neon": ["packages/neon/src/index.ts"],
       "@capsule-sdk/vercel": ["packages/vercel/src/index.ts"],
       "@capsule-sdk/ai": ["packages/ai/src/index.ts"],
+      "@capsule-sdk/bridge-worker": ["packages/bridge-worker/src/index.ts"],
       "@capsule-sdk/cli": ["packages/cli/src/index.ts"],
       "@capsule-sdk/core": ["packages/core/src/index.ts"],
       "@capsule-sdk/presets": ["packages/presets/src/index.ts"],

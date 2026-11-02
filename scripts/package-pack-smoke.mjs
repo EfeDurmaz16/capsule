@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
+import { expect, hello, request, startWorker } from "./bridge-worker-client.mjs";
 import { packedEntryViolations } from "./packed-file-policy.mjs";
 
 function parseArgs(argv) {
@@ -81,8 +82,9 @@ const packedSizeBudgetBytes = {
   "@capsule-sdk/neon": 9 * kib,
   "@capsule-sdk/vercel": 13 * kib,
   "@capsule-sdk/ai": 7 * kib,
+  "@capsule-sdk/bridge-worker": 41 * kib,
   "@capsule-sdk/cli": 32 * kib,
-  "@capsule-sdk/core": 60 * kib,
+  "@capsule-sdk/core": 61 * kib,
   "@capsule-sdk/presets": 7 * kib,
   "@capsule-sdk/preview": 14 * kib,
   "@capsule-sdk/store-jsonl": 5 * kib,
@@ -253,6 +255,57 @@ function smokeCliBin(fixtureDir) {
   }
 }
 
+// Runs the packed capsule-bridge-worker bin from the fixture install, outside the repository, on real
+// pipes: a governed create, exec and destroy on the fixture profile, a refusal that must have no
+// effect, then end of input and a clean exit; and an oversize hello refused from its length alone.
+async function smokeBridgeWorkerBin(fixtureDir) {
+  const bin = join(fixtureDir, "node_modules", "@capsule-sdk", "bridge-worker", "dist", "bin.js");
+  const configPath = join(fixtureDir, "bridge-worker-config.json");
+  writeFileSync(
+    configPath,
+    JSON.stringify({
+      binding: { account: "acct-a", project: "proj-1" },
+      policy: { images: ["fixture/ok"] },
+      approvals: [{ ref: "apr-destroy", action: "sandbox.destroy", native_id: null }]
+    })
+  );
+  const start = () =>
+    startWorker({ command: process.execPath, args: [bin, "--profile", "fixture", "--config", configPath], cwd: fixtureDir, env: { PATH: "" } });
+  const worker = start();
+  worker.send(hello("fixture"));
+  expect((await worker.next()).type === "hello_ack", "packed bridge worker did not acknowledge hello");
+  worker.send(request(1, "sandbox.create", { params: { image: "fixture/forbidden", env: {}, secret_names: [], labels: {} } }));
+  const denied = await worker.next();
+  expect(denied.type === "error" && denied.error.code === "denied" && denied.error.effect === "none", "packed bridge worker did not refuse before effect");
+  worker.send(request(2, "sandbox.create", { params: { image: "fixture/ok", env: {}, secret_names: [], labels: {} } }));
+  const created = await worker.next();
+  expect(created.type === "result" && created.state === "completed", "packed bridge worker did not create");
+  const target = created.resource;
+  worker.send(
+    request(3, "sandbox.exec", {
+      target,
+      params: { argv: ["echo", "packed"], stdin: null, cwd: null, timeout_ms: 1000, max_output_bytes: 64, secret_names: [] }
+    })
+  );
+  const executed = await worker.next();
+  expect(executed.type === "result" && executed.output.stdout.text === "packed\n", "packed bridge worker did not exec");
+  worker.send(request(4, "sandbox.destroy", { target, params: {}, approval: { ref: "apr-destroy" } }));
+  const destroyed = await worker.next();
+  expect(destroyed.type === "result" && destroyed.output.status === "destroyed", "packed bridge worker did not destroy");
+  worker.end();
+  const { code } = await worker.exit;
+  expect(code === 0, `packed bridge worker exited ${code} after end of input`);
+
+  const oversize = start();
+  const header = Buffer.alloc(4);
+  header.writeUInt32LE((1 << 20) + 1, 0);
+  oversize.sendBytes(header);
+  const refused = await oversize.next();
+  expect(refused.type === "protocol_error" && refused.code === "oversize", "packed bridge worker did not refuse an oversize hello");
+  expect((await oversize.exit).code === 2, "packed bridge worker did not exit 2 after a framing error");
+  console.log("Packed capsule-bridge-worker passed the fixture round trip, a refusal before effect and an oversize hello.");
+}
+
 const allPackages = publicPackages();
 const { included: packages, skipped } = options.respectEngines
   ? splitPackagesByEngine(allPackages, options.nodeVersion)
@@ -297,6 +350,9 @@ try {
     run("node", ["smoke.mjs"], { cwd: fixtureDir, stdio: "inherit" });
     if (tarballs.some((tarball) => tarball.name === "@capsule-sdk/cli")) {
       smokeCliBin(fixtureDir);
+    }
+    if (tarballs.some((tarball) => tarball.name === "@capsule-sdk/bridge-worker")) {
+      await smokeBridgeWorkerBin(fixtureDir);
     }
     console.log(`Package pack smoke passed for ${tarballs.length} packages in ${basename(tempRoot)}.`);
   }

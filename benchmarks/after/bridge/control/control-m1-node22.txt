@@ -1,0 +1,44 @@
+# Capsule synthetic benchmark: control-m1-node22
+# mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls
+# commit=f9dcb875782f50803abe9996d8fc0f683b59976b packagesTree=e9d8e9b1fd222bfdf38fcb37302c09c756526064 dirtyPackages=false date=2026-10-27T19:39:24.633Z
+# host=darwin 25.6.0 arm64 cpus=18 (Apple M5 Pro) mem=48GiB node=v22.23.2
+# raw: benchmarks/raw/control-m1-node22/ (one JSON per case, every repetition kept)
+
+perf-01-core-receipts              long-lived-best-effort         final.receiptsStillReachable       median=1 p95=1
+perf-01-core-receipts              long-lived-best-effort         final.heapBytesPerOperation        median=61.513 p95=61.7
+perf-01-core-receipts              long-lived-best-effort         opsPerSecond                       median=168376 p95=178155
+perf-01-core-receipts              long-lived-required            final.receiptsStillReachable       median=1 p95=1
+perf-01-core-receipts              long-lived-required            final.heapBytesPerOperation        median=61.098 p95=61.162
+perf-01-core-receipts              long-lived-required            opsPerSecond                       median=126112 p95=136734
+perf-01-core-receipts              parallel-required-delayed-a    bLatencyMs.p50                     median=3.609 p95=3.632
+perf-01-core-receipts              parallel-required-delayed-a    bLatencyMs.p95                     median=3.923 p95=4.649
+perf-01-core-receipts              parallel-required-delayed-a    bSettlesBeforeA                    true
+perf-01-core-receipts              parallel-required-failing-a    outcomes.bRejectedWithAError       median=0 p95=0
+perf-01-core-receipts              parallel-required-failing-a    outcomes.aRejected                 median=40 p95=40
+perf-01-core-receipts              parallel-required-failing-a    bLatencyMs.p50                     median=3.542 p95=3.578
+perf-01-core-receipts              required-inflight-bookkeeping  heapBytesPerOperation              median=6.732 p95=6.793
+perf-01-core-receipts              required-inflight-bookkeeping  failures                           median=0 p95=0
+perf-09-cli-cold-start             help                           exitCode                           median=0 p95=0
+perf-09-cli-cold-start             help                           wallMs.p50                         median=39.186 p95=39.823
+perf-09-cli-cold-start             help                           maxRssBytes.p50                    median=54509568 p95=54542336
+perf-09-cli-cold-start             help                           stdoutDigest                       "f6f9bc642f34e01a016e183eb5d9e70a6fdbb9ea761efff875cd2f2d19fd0b1a"
+perf-09-cli-cold-start             capabilities-json              exitCode                           median=0 p95=0
+perf-09-cli-cold-start             capabilities-json              wallMs.p50                         median=44.719 p95=47.22
+perf-09-cli-cold-start             capabilities-json              maxRssBytes.p50                    median=55214080 p95=55230464
+perf-09-cli-cold-start             capabilities-json              stdoutDigest                       "7ab7f02e223103c39a62cd5add6bf4506f74317a433424b017aa714bc1602037"
+perf-09-cli-cold-start             preset-list-json               exitCode                           median=0 p95=0
+perf-09-cli-cold-start             preset-list-json               wallMs.p50                         median=36.992 p95=38.756
+perf-09-cli-cold-start             preset-list-json               maxRssBytes.p50                    median=54460416 p95=54476800
+perf-09-cli-cold-start             preset-list-json               stdoutDigest                       "e43664626562853895670d7edb2fa50f2c96f103be5e34ee64120dfb16c8428f"
+perf-09-cli-cold-start             completion-bash                exitCode                           median=0 p95=0
+perf-09-cli-cold-start             completion-bash                wallMs.p50                         median=34.874 p95=35.216
+perf-09-cli-cold-start             completion-bash                maxRssBytes.p50                    median=54411264 p95=54493184
+perf-09-cli-cold-start             completion-bash                stdoutDigest                       "6a7531d56d89835aef72147594c2c0f22daef56b5362ce4b70477f62993b6bfc"
+perf-10-docker-output              stdout-10MiB                   outcome                            "resolved"
+perf-10-docker-output              stdout-10MiB                   stdoutLengthReturned               median=10485760 p95=10485760
+perf-10-docker-output              stdout-10MiB                   peakRssGrowthBytes                 median=40124416 p95=40321024
+perf-10-docker-output              stdout-10MiB                   elapsedMs                          median=59.006 p95=59.157
+perf-10-docker-output              stdout-100MiB                  outcome                            "resolved"
+perf-10-docker-output              stdout-100MiB                  stdoutLengthReturned               median=16777216 p95=16777216
+perf-10-docker-output              stdout-100MiB                  peakRssGrowthBytes                 median=104972288 p95=105480192
+perf-10-docker-output              stdout-100MiB                  elapsedMs                          median=104 p95=108

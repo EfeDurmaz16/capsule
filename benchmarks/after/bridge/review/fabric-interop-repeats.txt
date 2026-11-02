@@ -1,0 +1,17 @@
+# Six full runs of the same command at Fabric 44d677a against the worker at ca38f75, host load average 20 to 30.
+# Five pass 7 of 7. One failed shutdown_reports_unresolved step 5 over the worker's real pipes:
+test the_handshake_negotiates_the_fixture_profile_and_refuses_another_version ... ok
+test a_repeated_idempotency_key_is_never_sent_again ... ok
+test a_killed_worker_leaves_unknown_and_a_restart_sends_nothing_twice ... ok
+test create_exec_observe_destroy_keep_the_scoped_locator ... ok
+test every_shared_scenario_over_the_workers_stdio ... FAILED
+test denied_and_unsupported_requests_fail_before_any_effect ... ok
+test the_docker_profile_on_the_local_engine ... ok
+thread 'every_shared_scenario_over_the_workers_stdio' (259945203) panicked at crates/fabric-bridge/tests/capsule_worker.rs:309:17:
+test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.56s
+# The failing answer differed only in observations, 4 against the fixture's 2 (state, reason, locator and deadline equal).
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.04s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.30s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.21s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.08s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.55s

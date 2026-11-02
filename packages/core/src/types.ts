@@ -366,6 +366,17 @@ export interface CreateSandboxSpec {
   }>;
 }
 
+/**
+ * Identity of an existing sandbox to attach to with `Capsule.sandbox.attach`. Attaching makes no
+ * provider call that changes state: it only gives later governed operations (exec, file access,
+ * destroy) a handle. The caller owns the decision that this sandbox may be acted on, for example by
+ * checking a scoped locator and owner labels first.
+ */
+export interface AttachSandboxSpec {
+  /** Provider-native sandbox id, as returned in `SandboxHandle.id` by `sandbox.create`. */
+  id: string;
+}
+
 export interface SandboxHandle {
   id: string;
   provider: string;

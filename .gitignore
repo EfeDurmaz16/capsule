@@ -17,3 +17,6 @@ operator-notes/
 # Local output of pnpm bench:bounds
 benchmarks/raw/ci-bounds/
 benchmarks/results/ci-bounds.txt
+
+# Local output of pnpm bridge:sea
+packages/bridge-worker/sea/

@@ -1,0 +1,209 @@
+{
+  "meta": {
+    "label": "ab-base-node22-r3",
+    "harness": "capsule synthetic benchmark harness v1",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "commit": "",
+    "packagesTree": "",
+    "dirty": false,
+    "date": "2026-10-27T21:38:19.394Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56",
+      "execArgv": ["--expose-gc"]
+    },
+    "options": {
+      "reps": "workload default",
+      "only": "m3-bridge-worker",
+      "large": false
+    },
+    "notes": "Each repetition runs in a fresh Node process, sequentially; workloads never run concurrently with each other."
+  },
+  "workload": {
+    "id": "m3-bridge-worker",
+    "perfIds": [],
+    "manifestIds": ["M3-BRIDGE"]
+  },
+  "case": "request-round-trip",
+  "description": "One worker: 500 sequential execs, 100 create and destroy pairs, 100 policy refusals; each timed from write to decoded answer.",
+  "params": {
+    "execs": 500,
+    "lifecycles": 100,
+    "refusals": 100
+  },
+  "runs": [
+    {
+      "rep": 0,
+      "childWallMs": 481.4567079999997,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.28583399999999415,
+          "p95": 0.8807920000000422,
+          "min": 0.062458000000049196,
+          "max": 4.046666999999985,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.27420799999998735,
+          "p95": 0.8158329999999978,
+          "min": 0.0928339999999821,
+          "max": 1.5761249999999905,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.27837500000003956,
+          "p95": 0.7869170000000167,
+          "min": 0.07650000000001,
+          "max": 0.9768339999999966,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.22162499999996044,
+          "p95": 0.5673330000000192,
+          "min": 0.05662499999999682,
+          "max": 1.3894169999999804,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 100,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66371584
+      },
+      "caseDurationMs": 408.68604200000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5227808,
+          "rss": 46612480,
+          "external": 2105561,
+          "arrayBuffers": 31005
+        },
+        "endMemory": {
+          "heapUsed": 5611328,
+          "rss": 54657024,
+          "external": 2159501,
+          "arrayBuffers": 37214
+        },
+        "maxRssBytes": 54657024
+      }
+    },
+    {
+      "rep": 1,
+      "childWallMs": 1020.3581670000003,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.3965000000000032,
+          "p95": 1.7209169999999858,
+          "min": 0.09304099999997106,
+          "max": 5.527165999999994,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.5362909999999488,
+          "p95": 4.85187499999995,
+          "min": 0.15708300000005693,
+          "max": 82.16812500000003,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.5902079999999614,
+          "p95": 8.255209000000036,
+          "min": 0.14599999999995816,
+          "max": 22.74529199999995,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.37241599999993014,
+          "p95": 1.8790420000000267,
+          "min": 0.13229099999989558,
+          "max": 4.540624999999977,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 100,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66650112
+      },
+      "caseDurationMs": 937.822667,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5227880,
+          "rss": 46645248,
+          "external": 2105561,
+          "arrayBuffers": 31005
+        },
+        "endMemory": {
+          "heapUsed": 5635904,
+          "rss": 54886400,
+          "external": 2162145,
+          "arrayBuffers": 39858
+        },
+        "maxRssBytes": 54886400
+      }
+    },
+    {
+      "rep": 2,
+      "childWallMs": 1082.9144999999999,
+      "ok": true,
+      "metrics": {
+        "execRoundTripMs": {
+          "p50": 0.4542080000000226,
+          "p95": 2.0836669999999913,
+          "min": 0.13562500000000455,
+          "max": 22.099666999999954,
+          "n": 500
+        },
+        "createRoundTripMs": {
+          "p50": 0.647083000000066,
+          "p95": 7.860332999999969,
+          "min": 0.12041599999997743,
+          "max": 33.656334000000015,
+          "n": 100
+        },
+        "destroyRoundTripMs": {
+          "p50": 0.5966660000000275,
+          "p95": 9.44987500000002,
+          "min": 0.10308299999996962,
+          "max": 63.76720799999998,
+          "n": 100
+        },
+        "refusalRoundTripMs": {
+          "p50": 0.12412499999993543,
+          "p95": 0.6941669999999931,
+          "min": 0.06437500000004093,
+          "max": 1.9205830000000788,
+          "n": 100
+        },
+        "execOk": 500,
+        "lifecycleOk": 100,
+        "exitCode": 0,
+        "workerMaxRssBytes": 66404352
+      },
+      "caseDurationMs": 1007.8066249999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5227736,
+          "rss": 46645248,
+          "external": 2105561,
+          "arrayBuffers": 31005
+        },
+        "endMemory": {
+          "heapUsed": 5683856,
+          "rss": 54771712,
+          "external": 2174964,
+          "arrayBuffers": 52677
+        },
+        "maxRssBytes": 54771712
+      }
+    }
+  ]
+}
