@@ -950,10 +950,12 @@ async function collectPodLogs(
     // Pagination rides the pod list continue token: one page of matched pods per call, their logs
     // fanned out with at most bounds.concurrency reads in flight and tagged with source. A cursor is
     // that token exactly as the API server issued it, handed back unchanged, so cursors from earlier
-    // versions keep working. The first page has no token; when it is not read before the deadline it
-    // must still come back with a cursor (an absent nextCursor means "no more pages" to a pager), so
-    // the first page gets the sentinel "capsule:first-page". Continue tokens are base64 text, so none
-    // can equal it. Both forms are opaque to callers.
+    // versions keep working. A page the deadline cuts, whether before its pod list was read or while
+    // its pod logs were still being read, must come back with the cursor of that same page: an absent
+    // nextCursor means "no more pages" to a pager, and a token for the next page would skip the pods
+    // not read. The first page has no token, so it gets the sentinel "capsule:first-page". Continue
+    // tokens are base64 text, so none can equal it. Both forms are opaque to callers.
+    const samePage = input.cursor || "capsule:first-page";
     const podList =
       selector === undefined
         ? undefined
@@ -965,10 +967,9 @@ async function collectPodLogs(
             )
           );
     if (podList === undefined && capture.signal.aborted) {
-      // The selector or the pods were not read in time. The page was not read, so the next call asks
-      // for it again: a deadline must never come back without a cursor, which would read as the end.
+      // The selector or the pods were not read in time; the next call asks for the same page again.
       deadlineHit = true;
-      nextCursor = input.cursor || "capsule:first-page";
+      nextCursor = samePage;
     } else {
       pods = podList?.items ?? [];
       const continueToken = podList?.metadata?.["continue"];
@@ -991,7 +992,9 @@ async function collectPodLogs(
       for (let attempt = 0; ; attempt += 1) {
         const text = await readTail(podName, container, tailLines);
         if (text === undefined) {
+          // This pod was not read in time, so the page is incomplete; the next call rereads it whole.
           deadlineHit = true;
+          nextCursor = samePage;
           return;
         }
         if (Buffer.byteLength(text, "utf8") < bounds.maxBytes) {

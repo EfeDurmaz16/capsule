@@ -153,6 +153,38 @@ describe("kubernetes log capture signal", () => {
     expect(signals[0]?.aborted).toBe(true);
   });
 
+  // The pod list of a page can be read in time while one of its pod log reads is not. That page is
+  // incomplete, so the deadline must hand back the cursor of the same page, never the next page's token
+  // (the unread pod would be skipped for good) and never no cursor (the pager would stop).
+  it.each([
+    { page: "first and last page", cursor: undefined, continueToken: undefined },
+    { page: "first page with a next page", cursor: undefined, continueToken: "page-2" },
+    { page: "middle page", cursor: "page-2", continueToken: "page-3" },
+    { page: "last page", cursor: "page-3", continueToken: undefined }
+  ])("hands back the cursor of the same page when a pod log read misses the deadline on the $page", async ({ cursor, continueToken }) => {
+    const listed: Array<string | undefined> = [];
+    const capsule = logsCapsule({
+      listNamespacedPod: async (input: { _continue?: string }) => {
+        listed.push(input._continue);
+        return { items: [pod, { ...pod, metadata: { name: "pod-1" } }], metadata: continueToken === undefined ? {} : { continue: continueToken } };
+      },
+      readNamespacedPodLog: async (input: { name: string }, options?: RequestOptions) => {
+        if (input.name === "pod-1") return await untilAborted(await attachedSignal(options));
+        return "2026-10-29T10:00:00Z pod-0 up\n";
+      }
+    });
+    const result = await capsule.service.logs({ id: "svc", cursor, bounds: { deadlineMs: 40 } });
+    expect(result.truncation).toMatchObject({ truncated: true, reason: "deadline", limit: 40 });
+    expect(typeof result.nextCursor).toBe("string");
+    expect(result.nextCursor).not.toBe(continueToken);
+    if (cursor !== undefined) expect(result.nextCursor).toBe(cursor);
+
+    // Feeding the cursor back asks the API server for the same page: the first page with no continue
+    // token, any other page with the token this call was given.
+    await capsule.service.logs({ id: "svc", cursor: result.nextCursor, bounds: { deadlineMs: 40 } });
+    expect(listed).toEqual([cursor, cursor]);
+  });
+
   it("aborts the reads still in flight when another read fails the capture", async () => {
     const signals: Array<AbortSignal | undefined> = [];
     const capsule = logsCapsule({
