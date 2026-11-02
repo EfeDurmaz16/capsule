@@ -202,6 +202,20 @@ test("DOC-09: the receipt type union and the committed JSON Schema enum agree", 
   assert.deepEqual(fromTypes, fromSchema);
 });
 
+test("DOC-10: the Modal termination deadline claims name the SDK's own retries", () => {
+  const modal = markdownSections(read("docs/real-provider-quickstarts.md")).get("Modal");
+  const options = read("packages/modal/src/modal-adapter.ts");
+  // The deadline is enforced between SDK calls. The SDK's client retries a transient gRPC status inside
+  // the one call in flight, so "no SDK call starts after the deadline" must not read as "no request".
+  for (const [name, text] of [
+    ["quickstart", modal],
+    ["adapter options", options]
+  ]) {
+    assert.match(text, /terminateDeadlineMs/, `${name} must document terminateDeadlineMs`);
+    assert.match(text, /retr(?:y|ies)/, `${name} must say the SDK's own retries can outlive the deadline`);
+  }
+});
+
 test("DOC-11: log pagination documents the deadline cursor and the cursor version rule", () => {
   const pagination = markdownSections(read("docs/log-normalization.md")).get("Pagination");
   assert.ok(pagination, "docs/log-normalization.md needs a Pagination section");

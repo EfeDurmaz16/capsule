@@ -88,9 +88,9 @@ export interface ModalAdapterOptions {
    * one zero-wait request. Defaults to 60000.
    *
    * The installed modal SDK's terminate, poll and fromId accept no AbortSignal or timeout, so the budget
-   * is enforced between calls: no call starts after the deadline, and at most the one zero-wait call in
-   * flight when it expires outlives it; its late answer is ignored. At the deadline destroy rejects
-   * with PendingOperationError when Modal answered the terminate request (the sandbox is stopping) or
+   * is enforced between calls: no call starts after the deadline, and only the one zero-wait call in
+   * flight when it expires outlives it (with the SDK client's own retries of a transient gRPC status);
+   * its late answer is ignored. At the deadline destroy rejects with PendingOperationError when Modal answered the terminate request (the sandbox is stopping) or
    * with UnknownOutcomeError when it did not (Modal may or may not have received it); neither writes a
    * deleted receipt. A create rollback reports its cleanup as pending or unknown in the same cases.
    */
@@ -248,7 +248,9 @@ interface TerminationObserved {
  *
  * None of these SDK calls takes a signal or timeout (modal 0.7.x), so the deadline is enforced between
  * them: the observation signal is checked before each call, no call starts after it fires, and the one
- * call in flight when it fires is abandoned with its late answer ignored. At the deadline:
+ * call in flight when it fires is abandoned with its late answer ignored. Inside that call the SDK's
+ * client retries a transient gRPC status up to three times (100, 200, 400 ms), so a few wire requests
+ * can follow the deadline; Capsule sends nothing new. At the deadline:
  * - terminate() not yet answered: UnknownOutcomeError, since Modal may or may not have received it;
  * - terminate() answered, sandbox still running: PendingOperationError with the sandbox locator.
  * A rejected terminate() is a termination failure, thrown as the classified provider error. A rejected
