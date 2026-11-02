@@ -758,13 +758,14 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
           }),
           { timeoutMs: spec.timeoutMs }
         );
+        // A create or start the CLI timeout killed may still have been applied by the daemon: the outcome is
+        // unknown and nothing is removed. After create the id is unknown, so the container is reported by
+        // name, which could also belong to an unrelated container; after start it is reported by id.
         if (create.timedOut) {
-          // The daemon may have created the container after the CLI was killed. Its id is unknown, so it is
-          // reported by name and not removed here: the name could also belong to an unrelated container.
           throw new UnknownOutcomeError(
-            `docker create timed out after ${spec.timeoutMs}ms; container ${name} may exist.`,
+            `docker create timed out; container ${name} may exist.`,
             { operation: "sandbox.create", resource: resourceLocator({ provider, kind: "sandbox", nativeId: name, scope: { name } }) },
-            dockerCliError(`docker create timed out: ${create.stderr}`, create)
+            dockerCliError("docker create timed out", create)
           );
         }
         if (create.exitCode !== 0) {
@@ -772,10 +773,19 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
         }
         const id = create.stdout.trim();
         const locator = resourceLocator({ provider, kind: "sandbox", nativeId: id, scope: { name } });
-        // From here a container exists. Any failure before the handle is returned (start, receipt
-        // signing or persistence) removes it, so no live container is left without an owner.
+        // From here a container exists. A failure before the handle is returned (a refused start, receipt
+        // signing or persistence) removes it, so no live container is left without an owner. A start the
+        // CLI timeout killed is not a failure: the daemon may have started the container, a caller may
+        // already hold it by name, and removing it would destroy a live sandbox without a destroy call.
         try {
           const start = await runner(["start", id], { timeoutMs: spec.timeoutMs });
+          if (start.timedOut) {
+            throw new UnknownOutcomeError(
+              `docker start timed out; container ${id} may exist.`,
+              { operation: "sandbox.create", resource: locator },
+              dockerCliError("docker start timed out", start)
+            );
+          }
           if (start.exitCode !== 0) {
             throw dockerCliError(`docker start failed: ${start.stderr}`, start);
           }
@@ -797,6 +807,7 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
           }
           return new DockerSandbox(handle, context, runner);
         } catch (error) {
+          if (error instanceof UnknownOutcomeError) throw error;
           return await rollbackCreatedContainer(runner, locator, error);
         }
       },
