@@ -100,6 +100,43 @@ describe("kubernetes log capture signal", () => {
     expect(signals[0]?.aborted).toBe(true);
   });
 
+  // The first page has no continue token. A deadline there must still come back with a cursor: an
+  // absent nextCursor means "no more pages", and a pager would stop after reading zero pods.
+  it.each(["selector read", "pod list"] as const)("hands back a cursor that rereads the first page when the %s misses its deadline", async (hanging) => {
+    const listed: Array<string | undefined> = [];
+    let serviceReads = 0;
+    const hang = async (options?: RequestOptions) => await untilAborted(await attachedSignal(options));
+    const capsule = logsCapsule({
+      readNamespacedService: async (_input: unknown, options?: RequestOptions) => {
+        serviceReads += 1;
+        if (hanging === "selector read" && serviceReads === 1) return await hang(options);
+        return { metadata: { name: "svc" }, spec: { selector: { app: "svc" } } };
+      },
+      listNamespacedPod: async (input: { _continue?: string }, options?: RequestOptions) => {
+        listed.push(input._continue);
+        if (hanging === "pod list" && listed.length === 1) return await hang(options);
+        return { items: [pod], metadata: { continue: "pods-page-2" } };
+      },
+      readNamespacedPodLog: async () => "2026-10-29T10:00:00Z pod-0 up\n"
+    });
+    const first = await capsule.service.logs({ id: "svc", bounds: { deadlineMs: 40 } });
+    expect(first.logs).toEqual([]);
+    expect(first.truncation).toMatchObject({ truncated: true, reason: "deadline", limit: 40 });
+    expect(typeof first.nextCursor).toBe("string");
+    expect(first.nextCursor).not.toBe("");
+
+    const second = await capsule.service.logs({ id: "svc", cursor: first.nextCursor, bounds: { deadlineMs: 60_000 } });
+    // The returned cursor asks the API server for the first page again, with no continue token.
+    expect(listed.at(-1)).toBeUndefined();
+    expect(second.logs).toEqual([{ timestamp: "2026-10-29T10:00:00Z", stream: "stdout", message: "pod-0 up", source: "pod-0" }]);
+    expect(second.truncation).toMatchObject({ truncated: false });
+    // Paging continues from the first page's continue token as before.
+    expect(second.nextCursor).toBe("pods-page-2");
+    const third = await capsule.service.logs({ id: "svc", cursor: second.nextCursor, bounds: { deadlineMs: 60_000 } });
+    expect(listed.at(-1)).toBe("pods-page-2");
+    expect(third.nextCursor).toBe("pods-page-2");
+  });
+
   it("aborts a pod log read that is still in flight at the capture deadline", async () => {
     const signals: Array<AbortSignal | undefined> = [];
     const capsule = logsCapsule({
@@ -114,6 +151,38 @@ describe("kubernetes log capture signal", () => {
     expect(result.truncation).toMatchObject({ truncated: true, reason: "deadline", limit: 40 });
     expect(signals).toHaveLength(1);
     expect(signals[0]?.aborted).toBe(true);
+  });
+
+  // The pod list of a page can be read in time while one of its pod log reads is not. That page is
+  // incomplete, so the deadline must hand back the cursor of the same page, never the next page's token
+  // (the unread pod would be skipped for good) and never no cursor (the pager would stop).
+  it.each([
+    { page: "first and last page", cursor: undefined, continueToken: undefined },
+    { page: "first page with a next page", cursor: undefined, continueToken: "page-2" },
+    { page: "middle page", cursor: "page-2", continueToken: "page-3" },
+    { page: "last page", cursor: "page-3", continueToken: undefined }
+  ])("hands back the cursor of the same page when a pod log read misses the deadline on the $page", async ({ cursor, continueToken }) => {
+    const listed: Array<string | undefined> = [];
+    const capsule = logsCapsule({
+      listNamespacedPod: async (input: { _continue?: string }) => {
+        listed.push(input._continue);
+        return { items: [pod, { ...pod, metadata: { name: "pod-1" } }], metadata: continueToken === undefined ? {} : { continue: continueToken } };
+      },
+      readNamespacedPodLog: async (input: { name: string }, options?: RequestOptions) => {
+        if (input.name === "pod-1") return await untilAborted(await attachedSignal(options));
+        return "2026-10-29T10:00:00Z pod-0 up\n";
+      }
+    });
+    const result = await capsule.service.logs({ id: "svc", cursor, bounds: { deadlineMs: 40 } });
+    expect(result.truncation).toMatchObject({ truncated: true, reason: "deadline", limit: 40 });
+    expect(typeof result.nextCursor).toBe("string");
+    expect(result.nextCursor).not.toBe(continueToken);
+    if (cursor !== undefined) expect(result.nextCursor).toBe(cursor);
+
+    // Feeding the cursor back asks the API server for the same page: the first page with no continue
+    // token, any other page with the token this call was given.
+    await capsule.service.logs({ id: "svc", cursor: result.nextCursor, bounds: { deadlineMs: 40 } });
+    expect(listed).toEqual([cursor, cursor]);
   });
 
   it("aborts the reads still in flight when another read fails the capture", async () => {
@@ -188,7 +257,7 @@ describe("kubernetes log capture signal", () => {
 describe("kubernetes request signal through @kubernetes/client-node", () => {
   type Sent = { method: string; url: string; signal?: AbortSignal; staticHeader?: string };
 
-  function sdkClients(answer: (request: k8s.RequestContext) => Promise<k8s.ResponseContext> | undefined) {
+  function sdkClients(answer: (request: k8s.RequestContext) => Promise<k8s.ResponseContext> | undefined, auth?: k8s.SecurityAuthentication) {
     const sent: Sent[] = [];
     const httpApi: k8s.HttpLibrary = {
       send(request) {
@@ -200,7 +269,7 @@ describe("kubernetes request signal through @kubernetes/client-node", () => {
     const configuration = k8s.createConfiguration({
       baseServer: new k8s.ServerConfiguration("https://kubernetes.test", {}),
       httpApi,
-      authMethods: {},
+      authMethods: auth ? { default: auth } : {},
       promiseMiddleware: [
         {
           pre: async (request) => {
@@ -279,5 +348,62 @@ describe("kubernetes request signal through @kubernetes/client-node", () => {
       expect(sent[0]?.staticHeader).toBe("kept");
       expect(sent[0]?.signal?.aborted).toBe(true);
     }
+  });
+  // The client applies authentication (an exec credential plugin such as aws eks get-token or the GKE
+  // auth plugin) while it builds the request, before the per-request middleware attaches the signal, so
+  // a hung plugin cannot be cancelled. It must still send nothing once the deadline has passed.
+  function slowAuth(when: (request: k8s.RequestContext) => boolean) {
+    let release: () => void = () => undefined;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    const auth: k8s.SecurityAuthentication = {
+      getName: () => "slow-plugin",
+      applySecurityAuthentication: async (request) => {
+        if (when(request)) await released;
+        request.setHeaderParam("authorization", "Bearer late");
+      }
+    };
+    return { auth, release: () => release() };
+  }
+  const settled = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  it("sends no log capture request after the deadline when the auth step answers late", async () => {
+    const { auth, release } = slowAuth(() => true);
+    const { sent, core } = sdkClients(() => undefined, auth);
+    const capsule = new Capsule({ adapter: kubernetes({ clients: { batch: {} as never, apps: {} as never, core } as never }) });
+    const result = await Promise.race([
+      capsule.service.logs({ id: "svc", bounds: { deadlineMs: 40 } }),
+      new Promise<"still pending">((resolve) => setTimeout(() => resolve("still pending"), 1_000))
+    ]);
+    expect(result).not.toBe("still pending");
+    if (result === "still pending") return;
+    expect(result.logs).toEqual([]);
+    expect(result.truncation).toMatchObject({ truncated: true, reason: "deadline", limit: 40 });
+    expect(sent).toHaveLength(0);
+    release();
+    await settled();
+    expect(sent).toHaveLength(0);
+  });
+
+  it("sends no service.delete observation GET after the deadline when the auth step answers late", async () => {
+    const { auth, release } = slowAuth((request) => request.getHttpMethod() === k8s.HttpMethod.GET);
+    const { sent, apps, core } = sdkClients((request) => {
+      if (request.getHttpMethod() === k8s.HttpMethod.DELETE) {
+        return json({ apiVersion: "apps/v1", kind: "Deployment", metadata: { name: "app", deletionTimestamp: "2026-10-29T00:00:00Z" } });
+      }
+      return undefined;
+    }, auth);
+    const capsule = new Capsule({
+      adapter: kubernetes({ operationDeadlineMs: 40, operationPollIntervalMs: 5, clients: { batch: {} as never, apps, core } as never })
+    });
+    const error = await Promise.race([
+      capsule.service.delete({ id: "app" }).catch((caught: unknown) => caught),
+      new Promise<"still pending">((resolve) => setTimeout(() => resolve("still pending"), 1_000))
+    ]);
+    expect(error).toBeInstanceOf(PendingOperationError);
+    const reads = () => sent.filter((request) => request.method === k8s.HttpMethod.GET);
+    expect(reads()).toHaveLength(0);
+    release();
+    await settled();
+    expect(reads()).toHaveLength(0);
   });
 });

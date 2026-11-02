@@ -201,3 +201,33 @@ test("DOC-09: the receipt type union and the committed JSON Schema enum agree", 
   const fromSchema = [...JSON.parse(read("schemas/capsule-receipt.schema.json")).properties.type.enum].sort();
   assert.deepEqual(fromTypes, fromSchema);
 });
+
+test("DOC-10: the Modal termination deadline claims name the SDK's own retries and the unanswered terminate case", () => {
+  const modal = markdownSections(read("docs/real-provider-quickstarts.md")).get("Modal");
+  const options = read("packages/modal/src/modal-adapter.ts");
+  // The deadline is enforced between SDK calls. The SDK's client retries a transient gRPC status inside
+  // the one call in flight, so "no SDK call starts after the deadline" must not read as "no request".
+  for (const [name, text] of [
+    ["quickstart", modal],
+    ["adapter options", options]
+  ]) {
+    assert.match(text, /terminateDeadlineMs/, `${name} must document terminateDeadlineMs`);
+    assert.match(text, /retr(?:y|ies)/, `${name} must say the SDK's own retries can outlive the deadline`);
+    assert.match(
+      text,
+      /CANCELLED, UNKNOWN, DEADLINE_EXCEEDED (?:and|or) UNAVAILABLE/,
+      `${name} must list the gRPC statuses that mean an unanswered terminate request`
+    );
+  }
+});
+
+test("DOC-11: log pagination documents the deadline cursor and the cursor version rule", () => {
+  const pagination = markdownSections(read("docs/log-normalization.md")).get("Pagination");
+  assert.ok(pagination, "docs/log-normalization.md needs a Pagination section");
+  assert.match(pagination, /`nextCursor` is absent when there are no more pages/);
+  // A deadline-truncated Kubernetes result carries the cursor of the page to read again, so "absent
+  // means the end" stays true, and a cursor is only valid for the adapter version that issued it or a newer one.
+  assert.match(pagination, /"deadline"/, "must say what a deadline-truncated result's cursor means");
+  assert.match(pagination, /same page|that page again|read it again/, "must say the cursor rereads the page the deadline cut");
+  assert.match(pagination, /version/, "must state the cursor version rule");
+});
