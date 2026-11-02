@@ -30,6 +30,21 @@ also loaded. The three commits add 3 KiB of heap between them and no module; the
 anchor and main is the bundle growing by 18 KB in the M1 window (bounds.ts, lifecycle.ts, errors.ts),
 not these commits.
 
+## Reproduce
+
+`measure-import.mjs` next to this file is the script behind the table. It takes one built ESM entry, runs a
+GC, imports it, runs a GC again and prints the heap it added in KiB and the Node internal modules that
+appeared in `process.moduleLoadList` (count and names). For one tree, from the repository root on Node 22:
+
+```sh
+pnpm --filter @capsule-sdk/core build
+node --expose-gc benchmarks/ab/m4-perf-recheck-c7254d8/measure-import.mjs packages/core/dist/index.js
+```
+
+For an earlier tree, check it out in a scratch directory, build its `packages/core` with this checkout's
+tsup (`tsup <tree>/packages/core/src/index.ts --format esm --out-dir <scratch>`) and point the script at
+the bundle. Rerun on this branch's head: `{"heapDeltaKiB":989,"internalModulesAdded":49}`, the row above.
+
 ## What the two cases do
 
 - perf-04 idle-limit-10 makes one `capsule.edge.logs` call and waits on a 3 s watchdog
