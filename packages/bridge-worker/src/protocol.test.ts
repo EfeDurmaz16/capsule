@@ -148,7 +148,7 @@ describe("cases", () => {
   const names = fixtureNames("cases");
 
   test("the case set is the v1 set", () => {
-    expect(names).toHaveLength(58);
+    expect(names).toHaveLength(61);
   });
 
   for (const name of names) {
@@ -216,6 +216,34 @@ describe("cases", () => {
       expect(world.provider.effects).toEqual([]);
     });
   }
+});
+
+describe("locators", () => {
+  const observe = readFixture<CaseFixture>("cases/observe_valid.json").message;
+  const withNativeId = (nativeId: unknown) => ({ ...observe, resource: { ...(observe.resource as Record<string, unknown>), native_id: nativeId } });
+  const refusal = (message: Record<string, unknown>) => {
+    try {
+      parseObserve(message, fixtureProfile);
+    } catch (error) {
+      return { code: (error as Refusal).code, reason: (error as Refusal).reason };
+    }
+    return undefined;
+  };
+
+  test("a locator without a native_id is missing_field, not bad_locator: only a create has no resource yet", () => {
+    expect(refusal(withNativeId(null))).toEqual({ code: "invalid", reason: "missing_field" });
+    expect(refusal(withNativeId(""))).toEqual({ code: "invalid", reason: "missing_field" });
+    const absent = withNativeId(undefined);
+    delete (absent.resource as Record<string, unknown>).native_id;
+    expect(refusal(absent)).toEqual({ code: "invalid", reason: "missing_field" });
+    expect(refusal(withNativeId("fx-a?b"))).toEqual({ code: "invalid", reason: "bad_locator" });
+  });
+
+  test("a worker frame whose locator has an empty native_id is a missing_field violation", () => {
+    const result = readFixture<CaseFixture>("cases/result_create_valid.json").message;
+    const resource = { ...(result.resource as Record<string, unknown>), native_id: "" };
+    expect(checkWorkerMessage({ ...result, resource }, { profile: fixtureProfile })).toMatchObject({ reason: "missing_field" });
+  });
 });
 
 describe("searched", () => {

@@ -40,7 +40,7 @@ function locator(value: unknown, context: OutboundContext, what: string): void {
   try {
     parseLocator(value, context.profile, what);
   } catch (error) {
-    if (error instanceof Refusal) throw new Violation("bad_value", error.message);
+    if (error instanceof Refusal) throw new Violation(error.reason === "missing_field" ? "missing_field" : "bad_value", error.message);
     throw error;
   }
 }

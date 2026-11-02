@@ -136,8 +136,10 @@ function names(value: unknown, what: string): string[] {
 }
 
 /**
- * A locator of this profile. Structure errors are `bad_locator`; whether its scope is the worker's own
- * is checked later as `denied`/`scope_mismatch`.
+ * A locator of this profile. A locator with no `native_id` (absent, null or empty) names no resource and
+ * is `missing_field`: only a `sandbox.create`, which carries no locator at all, has no resource yet, so
+ * a destroy, exec or observe without one fails closed. Other structure errors are `bad_locator`; whether
+ * its scope is the worker's own is checked later as `denied`/`scope_mismatch`.
  */
 export function parseLocator(value: unknown, profile: CapabilityProfile, what: string): WireLocator {
   const bad = (detail: string) => invalid("bad_locator", `${what}: ${detail}`);
@@ -159,6 +161,7 @@ export function parseLocator(value: unknown, profile: CapabilityProfile, what: s
     if (typeof entry !== "string" || entry.length < 1 || entry.length > 512 || CONTROL.test(entry)) throw bad(`scope.${key} is not 1 to 512 characters`);
     scopeOut[key] = entry;
   }
+  if (nativeId === undefined || nativeId === null || nativeId === "") throw invalid("missing_field", `${what}: native_id names no resource`);
   if (!safeNativeId(nativeId)) throw bad("native_id is not a safe identifier");
   const locator: WireLocator = { provider, scope: scopeOut, kind, native_id: nativeId };
   if (nativeOperationId !== undefined) {
