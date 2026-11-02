@@ -68,3 +68,35 @@ node --test: 74 of 74, the bridge fixture pin among them); release-audit is rele
 markers, pack smoke for 23 packages with the packed capsule-bridge-worker round trip); docs-api is
 docs:api:check (docs/api-reference.md is current); package-exports is test:package-exports;
 pack-smoke-compatible is release:pack-smoke:compatible (22 packages).
+
+## M4 review findings, Capsule side (recorded after ab7f0d3)
+
+Two findings fixed on this branch, each with a regression test that failed first; no fixture, no protocol
+frame and no timing changed (no benchmark, A/B script, stress loop or Docker image build ran here).
+
+- 791cb80 (packages/docker): a `docker start` the CLI timeout killed was treated as a failed start, and the
+  create rollback removed the container with `docker rm -f` although the daemon may have started it. Through
+  the worker that destroyed a sandbox Fabric could already hold as succeeded (unknown at the deadline, observed
+  running by name). The adapter now reports it `UnknownOutcomeError` by id and removes nothing; the test on the
+  old adapter saw `PartialEffectsError` after `rm`. Hot path touched: the create path gains one boolean check.
+- bc33a45 (packages/bridge-worker): an approval ref resolved for one operation now refuses every other
+  operation (`denied`/`approval_scope`, no effect); a retry of the bound operation may carry it again. The
+  session keeps a ref to operation id map, one entry per configured ref. The test on the old worker saw the
+  second exec under the same ref answered `completed` and reaching the provider. Hot path touched: one Map
+  get and set per approved request.
+- ab7f0d3: the docker package's packed budget goes from 12 to 13 KiB; it packed to 12242 bytes under 12288 and
+  the smallest shape of the start fix packs to 12341. Comments do not ship in the bundle; a shared locator
+  helper made the gzipped tarball larger. A judgment call to veto.
+- Open, for Efe: `native_id: null` is still accepted for `sandbox.destroy` and `sandbox.exec` approvals.
+  Fabric's Docker interop tests and bench configure exactly that, because a container id exists only after
+  the create answers and the worker's approval table is a file read at start. Refusing it is a lockstep
+  change on both sides and a decision on how a resource-scoped destroy grant reaches a Docker worker.
+
+Gates on this commit, each once, locally: install --frozen-lockfile, capsule:gap:check, format:check,
+typecheck, test (the shared scenarios and the fixture pin included), build, release:audit, docs:api:check,
+test:package-exports, release:pack-smoke:compatible: all pass. After the last adapter edit the docker and
+bridge-worker suites, typecheck and format:check ran again and pass.
+
+Lockstep note for Fabric m4/reconciliation: crates/fabric-bridge/tests/bench.rs sends `apr-destroy` for every
+destroy of one session (line 414 region) and now needs one ref per destroy; capsule_worker.rs uses each ref
+once per session and is unaffected.
