@@ -1,0 +1,485 @@
+
+> capsule@0.1.0 test /private/tmp/capsule-wt/m4
+> vitest run && node --test scripts/*.test.mjs
+
+
+ RUN  v4.1.6 /private/tmp/capsule-wt/m4
+
+(node:91929) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91998) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  85 passed | 11 skipped (96)
+      Tests  1142 passed | 20 skipped (1162)
+   Start at  00:31:46
+   Duration  8.80s (transform 5.51s, setup 0ms, import 14.93s, tests 26.25s, environment 4ms)
+
+TAP version 13
+# Subtest: CI-07: the latest archived M1 run meets every deterministic bound
+ok 1 - CI-07: the latest archived M1 run meets every deterministic bound
+  ---
+  duration_ms: 0.592542
+  type: 'test'
+  ...
+# Subtest: CI-07: the archived clean-main baseline fails the bounds it was measured to break
+ok 2 - CI-07: the archived clean-main baseline fails the bounds it was measured to break
+  ---
+  duration_ms: 0.185208
+  type: 'test'
+  ...
+# Subtest: CI-07: a workload that did not run is not-run, never a pass, and fails when required
+ok 3 - CI-07: a workload that did not run is not-run, never a pass, and fails when required
+  ---
+  duration_ms: 0.315333
+  type: 'test'
+  ...
+# Subtest: CI-07: wall time and RSS are never gated
+ok 4 - CI-07: wall time and RSS are never gated
+  ---
+  duration_ms: 0.592792
+  type: 'test'
+  ...
+# Subtest: BRIDGE-ARTIFACT: --build-sea is required, which arrived in Node 25.5.0
+ok 5 - BRIDGE-ARTIFACT: --build-sea is required, which arrived in Node 25.5.0
+  ---
+  duration_ms: 0.560583
+  type: 'test'
+  ...
+# Subtest: BRIDGE-ARTIFACT: the build refuses a Node without --build-sea before bundling anything
+ok 6 - BRIDGE-ARTIFACT: the build refuses a Node without --build-sea before bundling anything
+  ---
+  duration_ms: 38.007084
+  type: 'test'
+  ...
+# Subtest: BRIDGE-ARTIFACT: the SEA main script loses only a leading hashbang line
+ok 7 - BRIDGE-ARTIFACT: the SEA main script loses only a leading hashbang line
+  ---
+  duration_ms: 0.110917
+  type: 'test'
+  ...
+# Subtest: BRIDGE-ARTIFACT: only a native executable passes for the artifact, never a runtime script
+ok 8 - BRIDGE-ARTIFACT: only a native executable passes for the artifact, never a runtime script
+  ---
+  duration_ms: 0.108208
+  type: 'test'
+  ...
+# Subtest: BRIDGE-ARTIFACT: the smoke PATH check finds a runtime placed on it, and none on an empty directory
+ok 9 - BRIDGE-ARTIFACT: the smoke PATH check finds a runtime placed on it, and none on an empty directory
+  ---
+  duration_ms: 23.009917
+  type: 'test'
+  ...
+# Subtest: BRIDGE-ARTIFACT: scenario comparison ignores message strings and arrival time only
+ok 10 - BRIDGE-ARTIFACT: scenario comparison ignores message strings and arrival time only
+  ---
+  duration_ms: 0.242334
+  type: 'test'
+  ...
+# Subtest: BRIDGE-DOCKER-SMOKE: an unreachable engine is a skip that exits 0 by default
+ok 11 - BRIDGE-DOCKER-SMOKE: an unreachable engine is a skip that exits 0 by default
+  ---
+  duration_ms: 137.7675
+  type: 'test'
+  ...
+# Subtest: BRIDGE-DOCKER-SMOKE: with --require the same skip fails the run
+ok 12 - BRIDGE-DOCKER-SMOKE: with --require the same skip fails the run
+  ---
+  duration_ms: 78.545709
+  type: 'test'
+  ...
+# Subtest: BRIDGE-01: the bridge fixture manifest is the one Fabric pins
+ok 13 - BRIDGE-01: the bridge fixture manifest is the one Fabric pins
+  ---
+  duration_ms: 0.886667
+  type: 'test'
+  ...
+# Subtest: BRIDGE-01: every bridge fixture matches the manifest and none is missing or extra
+ok 14 - BRIDGE-01: every bridge fixture matches the manifest and none is missing or extra
+  ---
+  duration_ms: 17.757709
+  type: 'test'
+  ...
+# Subtest: BRIDGE-01: framed fixtures use the inherited 1 MiB and 16 MiB caps
+ok 15 - BRIDGE-01: framed fixtures use the inherited 1 MiB and 16 MiB caps
+  ---
+  duration_ms: 2.152125
+  type: 'test'
+  ...
+# Subtest: capsule gap report
+    # Subtest: summarizes provider domains from declared capability levels
+    ok 1 - summarizes provider domains from declared capability levels
+      ---
+      duration_ms: 0.377333
+      type: 'test'
+      ...
+    # Subtest: reads policy enforcement levels from declared sandbox capabilities
+    ok 2 - reads policy enforcement levels from declared sandbox capabilities
+      ---
+      duration_ms: 0.13425
+      type: 'test'
+      ...
+    # Subtest: renders real adapter rows with policy enforcement columns
+    ok 3 - renders real adapter rows with policy enforcement columns
+      ---
+      duration_ms: 0.304209
+      type: 'test'
+      ...
+    1..3
+ok 16 - capsule gap report
+  ---
+  duration_ms: 1.355333
+  type: 'suite'
+  ...
+# Subtest: capsule gap report --check (CI-02)
+    # Subtest: fails on a deliberately stale provider matrix without rewriting it
+    ok 1 - fails on a deliberately stale provider matrix without rewriting it
+      ---
+      duration_ms: 779.565291
+      type: 'test'
+      ...
+    # Subtest: the committed provider matrix matches the adapter declarations
+    ok 2 - the committed provider matrix matches the adapter declarations
+      ---
+      duration_ms: 219.973334
+      type: 'test'
+      ...
+    1..2
+ok 17 - capsule gap report --check (CI-02)
+  ---
+  duration_ms: 999.632958
+  type: 'suite'
+  ...
+# Subtest: passes for current runtime dependency allowlist and permissive licenses
+ok 18 - passes for current runtime dependency allowlist and permissive licenses
+  ---
+  duration_ms: 306.002916
+  type: 'test'
+  ...
+# Subtest: rejects copyleft or unknown production dependency licenses
+ok 19 - rejects copyleft or unknown production dependency licenses
+  ---
+  duration_ms: 479.84525
+  type: 'test'
+  ...
+# Subtest: rejects unexpected public package runtime dependencies
+ok 20 - rejects unexpected public package runtime dependencies
+  ---
+  duration_ms: 482.179958
+  type: 'test'
+  ...
+# Subtest: DOC-03: every quickstart capabilities command selects the adapter of its own section
+ok 21 - DOC-03: every quickstart capabilities command selects the adapter of its own section
+  ---
+  duration_ms: 2.379791
+  type: 'test'
+  ...
+# Subtest: DOC-03: quickstarts use the Azure environment variable the adapter and live gate read
+ok 22 - DOC-03: quickstarts use the Azure environment variable the adapter and live gate read
+  ---
+  duration_ms: 0.429083
+  type: 'test'
+  ...
+# Subtest: DOC-04: roadmap current-adapter lines claim no domain the generated matrix marks unsupported
+ok 23 - DOC-04: roadmap current-adapter lines claim no domain the generated matrix marks unsupported
+  ---
+  duration_ms: 1.572208
+  type: 'test'
+  ...
+# Subtest: DOC-05: release docs name the @capsule-sdk scope and every public package
+ok 24 - DOC-05: release docs name the @capsule-sdk scope and every public package
+  ---
+  duration_ms: 3.692417
+  type: 'test'
+  ...
+# Subtest: DOC-05: release docs separate a green release run from publication
+ok 25 - DOC-05: release docs separate a green release run from publication
+  ---
+  duration_ms: 0.305292
+  type: 'test'
+  ...
+# Subtest: DOC-06: receipt claims match the off-by-default capture in core and the raw() bypass
+ok 26 - DOC-06: receipt claims match the off-by-default capture in core and the raw() bypass
+  ---
+  duration_ms: 0.899208
+  type: 'test'
+  ...
+# Subtest: DOC-07: golden live receipt samples use declared capability paths and stay labeled placeholders
+ok 27 - DOC-07: golden live receipt samples use declared capability paths and stay labeled placeholders
+  ---
+  duration_ms: 244.617291
+  type: 'test'
+  ...
+# Subtest: DOC-08: the documented typecheck command is the one package.json runs
+ok 28 - DOC-08: the documented typecheck command is the one package.json runs
+  ---
+  duration_ms: 0.306958
+  type: 'test'
+  ...
+# Subtest: DOC-09: a deferred item is either skipped visibly and documented, or closed with a regression test
+ok 29 - DOC-09: a deferred item is either skipped visibly and documented, or closed with a regression test
+  ---
+  duration_ms: 9.421625
+  type: 'test'
+  ...
+# Subtest: DOC-09: the receipt type union and the committed JSON Schema enum agree
+ok 30 - DOC-09: the receipt type union and the committed JSON Schema enum agree
+  ---
+  duration_ms: 0.67
+  type: 'test'
+  ...
+# Subtest: resolves barrel exports into public symbol names
+ok 31 - resolves barrel exports into public symbol names
+  ---
+  duration_ms: 539.669667
+  type: 'test'
+  ...
+# Subtest: CI-02: --check fails on a stale committed reference and never rewrites it
+ok 32 - CI-02: --check fails on a stale committed reference and never rewrites it
+  ---
+  duration_ms: 1274.69625
+  type: 'test'
+  ...
+# Subtest: live cleanup sweep dry-runs stale Fly machines without leaking secrets
+ok 33 - live cleanup sweep dry-runs stale Fly machines without leaking secrets
+  ---
+  duration_ms: 15.745792
+  type: 'test'
+  ...
+# Subtest: live cleanup sweep deletes stale Fly machines only with explicit acknowledgement
+ok 34 - live cleanup sweep deletes stale Fly machines only with explicit acknowledgement
+  ---
+  duration_ms: 0.719583
+  type: 'test'
+  ...
+# Subtest: live cleanup sweep marks receipt-only providers unsupported
+ok 35 - live cleanup sweep marks receipt-only providers unsupported
+  ---
+  duration_ms: 0.131083
+  type: 'test'
+  ...
+# Subtest: live cleanup sweep dry-runs stale Azure Container Apps resources
+ok 36 - live cleanup sweep dry-runs stale Azure Container Apps resources
+  ---
+  duration_ms: 0.639042
+  type: 'test'
+  ...
+# Subtest: live cleanup sweep deletes stale Kubernetes resources through kubectl only when acknowledged
+ok 37 - live cleanup sweep deletes stale Kubernetes resources through kubectl only when acknowledged
+  ---
+  duration_ms: 0.313833
+  type: 'test'
+  ...
+# Subtest: live cleanup sweep dry-run command emits JSON and exits without credentials
+ok 38 - live cleanup sweep dry-run command emits JSON and exits without credentials
+  ---
+  duration_ms: 40.406833
+  type: 'test'
+  ...
+# Subtest: TOOL-01: the imported sweep refuses an omitted mode before any provider request
+ok 39 - TOOL-01: the imported sweep refuses an omitted mode before any provider request
+  ---
+  duration_ms: 0.314792
+  type: 'test'
+  ...
+# Subtest: TOOL-01: the imported sweep refuses contradictory modes before any provider request
+ok 40 - TOOL-01: the imported sweep refuses contradictory modes before any provider request
+  ---
+  duration_ms: 0.070834
+  type: 'test'
+  ...
+# Subtest: TOOL-01: delete through the imported function requires yes as well as the environment acknowledgement
+ok 41 - TOOL-01: delete through the imported function requires yes as well as the environment acknowledgement
+  ---
+  duration_ms: 0.43525
+  type: 'test'
+  ...
+# Subtest: TOOL-01: dry run never issues DELETE even with every delete acknowledgement present
+ok 42 - TOOL-01: dry run never issues DELETE even with every delete acknowledgement present
+  ---
+  duration_ms: 0.95525
+  type: 'test'
+  ...
+# Subtest: TOOL-01: mode flags must be real booleans, not truthy strings
+ok 43 - TOOL-01: mode flags must be real booleans, not truthy strings
+  ---
+  duration_ms: 0.242541
+  type: 'test'
+  ...
+# Subtest: CI-03: a real Vitest run whose live suite was fully skipped exits 0 but is not live evidence
+ok 44 - CI-03: a real Vitest run whose live suite was fully skipped exits 0 but is not live evidence
+  ---
+  duration_ms: 510.467125
+  type: 'test'
+  ...
+# Subtest: CI-03: an executed, passing selected suite is evidence; a failing or foreign file is not
+ok 45 - CI-03: an executed, passing selected suite is evidence; a failing or foreign file is not
+  ---
+  duration_ms: 549.170416
+  type: 'test'
+  ...
+# Subtest: CI-03: missing or malformed reports and an unselected suite are never evidence
+ok 46 - CI-03: missing or malformed reports and an unselected suite are never evidence
+  ---
+  duration_ms: 24.382333
+  type: 'test'
+  ...
+# Subtest: CI-03: the selected test path comes from the live-test plan for every provider
+ok 47 - CI-03: the selected test path comes from the live-test plan for every provider
+  ---
+  duration_ms: 0.204084
+  type: 'test'
+  ...
+# Subtest: live test matrix reports ready read-only providers without leaking secret values
+ok 48 - live test matrix reports ready read-only providers without leaking secret values
+  ---
+  duration_ms: 2.027583
+  type: 'test'
+  ...
+# Subtest: live test matrix blocks CI runs without explicit opt-in
+ok 49 - live test matrix blocks CI runs without explicit opt-in
+  ---
+  duration_ms: 0.256542
+  type: 'test'
+  ...
+# Subtest: live test matrix blocks untrusted fork CI runs even with opt-in
+ok 50 - live test matrix blocks untrusted fork CI runs even with opt-in
+  ---
+  duration_ms: 0.08175
+  type: 'test'
+  ...
+# Subtest: live test matrix blocks billable providers without cost acknowledgement
+ok 51 - live test matrix blocks billable providers without cost acknowledgement
+  ---
+  duration_ms: 0.07625
+  type: 'test'
+  ...
+# Subtest: live test matrix blocks billable providers when max resource count is too low
+ok 52 - live test matrix blocks billable providers when max resource count is too low
+  ---
+  duration_ms: 0.077708
+  type: 'test'
+  ...
+# Subtest: live test matrix reports quarantined flaky providers with revalidation metadata
+ok 53 - live test matrix reports quarantined flaky providers with revalidation metadata
+  ---
+  duration_ms: 0.088541
+  type: 'test'
+  ...
+# Subtest: live test matrix lets explicitly revalidated flaky providers become ready
+ok 54 - live test matrix lets explicitly revalidated flaky providers become ready
+  ---
+  duration_ms: 0.156875
+  type: 'test'
+  ...
+# Subtest: live test matrix dry-run command emits JSON and exits without credentials
+ok 55 - live test matrix dry-run command emits JSON and exits without credentials
+  ---
+  duration_ms: 39.249666
+  type: 'test'
+  ...
+# Subtest: engine-aware package pack smoke excludes Node 24-only packages on Node 22
+ok 56 - engine-aware package pack smoke excludes Node 24-only packages on Node 22
+  ---
+  duration_ms: 48.657
+  type: 'test'
+  ...
+# Subtest: engine-aware package pack smoke includes every public package on Node 24
+ok 57 - engine-aware package pack smoke includes every public package on Node 24
+  ---
+  duration_ms: 38.430583
+  type: 'test'
+  ...
+# Subtest: CI-06: packed contents allow package metadata and dist output only
+ok 58 - CI-06: packed contents allow package metadata and dist output only
+  ---
+  duration_ms: 1.396875
+  type: 'test'
+  ...
+# Subtest: dry-run passes for publishable package metadata
+ok 59 - dry-run passes for publishable package metadata
+  ---
+  duration_ms: 41.619625
+  type: 'test'
+  ...
+# Subtest: dry-run rejects missing metadata, private publish access, and dist test artifacts
+ok 60 - dry-run rejects missing metadata, private publish access, and dist test artifacts
+  ---
+  duration_ms: 31.459042
+  type: 'test'
+  ...
+# Subtest: dry-run rejects public examples and private packages missing Changesets ignore
+ok 61 - dry-run rejects public examples and private packages missing Changesets ignore
+  ---
+  duration_ms: 37.140333
+  type: 'test'
+  ...
+# Subtest: the test gate cannot pass against a dist/ left by an earlier build
+ok 62 - the test gate cannot pass against a dist/ left by an earlier build
+  ---
+  duration_ms: 1024.281792
+  type: 'test'
+  ...
+# Subtest: --only builds before a gate that reads dist/, so a stale dist/ cannot hide a broken change
+ok 63 - --only builds before a gate that reads dist/, so a stale dist/ cannot hide a broken change
+  ---
+  duration_ms: 1842.084792
+  type: 'test'
+  ...
+# Subtest: --only rebuilds after the test gate removes dist/, so a later gate does not fail for the wrong reason
+ok 64 - --only rebuilds after the test gate removes dist/, so a later gate does not fail for the wrong reason
+  ---
+  duration_ms: 1034.136709
+  type: 'test'
+  ...
+# Subtest: --only rejects a gate name the runner does not define
+ok 65 - --only rejects a gate name the runner does not define
+  ---
+  duration_ms: 24.351584
+  type: 'test'
+  ...
+# Subtest: dry-run lists public packages without shelling out to npm
+ok 66 - dry-run lists public packages without shelling out to npm
+  ---
+  duration_ms: 41.643083
+  type: 'test'
+  ...
+# Subtest: real mode checks published dist provenance metadata with npm view
+ok 67 - real mode checks published dist provenance metadata with npm view
+  ---
+  duration_ms: 494.794625
+  type: 'test'
+  ...
+# Subtest: REL-01: registry signatures alone are not provenance
+ok 68 - REL-01: registry signatures alone are not provenance
+  ---
+  duration_ms: 0.165209
+  type: 'test'
+  ...
+# Subtest: REL-01: malformed attestation metadata is rejected
+ok 69 - REL-01: malformed attestation metadata is rejected
+  ---
+  duration_ms: 0.210333
+  type: 'test'
+  ...
+# Subtest: REL-01: SLSA provenance attestation metadata passes as presence only, in object or single-element array form
+ok 70 - REL-01: SLSA provenance attestation metadata passes as presence only, in object or single-element array form
+  ---
+  duration_ms: 0.111209
+  type: 'test'
+  ...
+# Subtest: REL-01: real mode fails a signature-only package with a named reason
+ok 71 - REL-01: real mode fails a signature-only package with a named reason
+  ---
+  duration_ms: 481.947292
+  type: 'test'
+  ...
+1..71
+# tests 74
+# suites 2
+# pass 74
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3972.331

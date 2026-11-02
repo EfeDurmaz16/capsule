@@ -1,0 +1,22 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running tests/bench.rs (target/debug/deps/bench-7aced16a0223a62a)
+
+running 2 tests
+test bridge_latencies ... ok
+test capsule_worker_latencies ... FAILED
+
+failures:
+
+---- capsule_worker_latencies stdout ----
+
+thread 'capsule_worker_latencies' (312981711) panicked at crates/fabric-bridge/tests/bench.rs:231:14:
+called `Result::unwrap()` on an `Err` value: Lost("the worker closed its output before answering hello")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    capsule_worker_latencies
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.49s
+
+error: test failed, to rerun pass `-p fabric-bridge --test bench`
