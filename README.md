@@ -89,7 +89,7 @@ flowchart LR
 
 ## Status
 
-Capsule is pre-1.0 and **not published to npm yet**. The `@capsule-sdk/*` package names in this README are the reserved names for the first release; today you run Capsule from this repository:
+Capsule is pre-1.0 and **not published to npm yet**. The `@capsule-sdk/*` package names in this README are the reserved names for the first release; today you run Capsule from this repository. You need Node 22 or later and pnpm 10 (`@capsule-sdk/store-sqlite` needs Node 24, and building the bridge worker executable needs Node 26):
 
 ```bash
 git clone https://github.com/EfeDurmaz16/capsule.git
@@ -104,9 +104,17 @@ pnpm --filter @capsule-sdk/example-policy-receipts start
 # Docker-backed examples (require a local Docker daemon)
 pnpm --filter @capsule-sdk/example-sandbox-docker start
 
-# the CLI
-pnpm --filter @capsule-sdk/cli exec node dist/index.js doctor
+# the CLI, run from the repository root: doctor and examples read the workspace from the working directory
+node packages/cli/dist/index.js doctor
+node packages/cli/dist/index.js examples run capability-check
+node packages/cli/dist/index.js run --image debian:bookworm-slim -- echo hello   # any image your Docker engine already has
+
+# the Fabric bridge worker: Docker profile smoke on a local image, then the single executable (Node 26)
+pnpm bridge:docker-smoke --image debian:bookworm-slim --execs 3
+pnpm bridge:sea && pnpm bridge:artifact-smoke
 ```
+
+`pnpm --filter @capsule-sdk/cli exec node dist/index.js <command>` also works, but it runs in `packages/cli`, so `doctor` reports the workspace as missing files and `examples list` is empty there.
 
 After the first npm release the install will be the usual per-adapter form:
 
@@ -120,8 +128,8 @@ Install only the adapters you use. `@capsule-sdk/mock` is for tests and examples
 
 Honest accounting of what has actually been exercised:
 
-- Every adapter passes the shared guard-only contract checks (capability declarations and fail-closed unsupported paths) plus unit tests against fake clients and the installed SDK exception classes; nothing in CI talks to a real provider, and no provider emulator is used.
-- Docker has a runnable local end-to-end check (`pnpm --filter @capsule-sdk/example-sandbox-docker e2e`) covering sandbox create, exec, files, job run, receipts, and cleanup against a local daemon.
+- Every adapter passes the shared guard-only contract checks (capability declarations and fail-closed unsupported paths) plus unit tests against fake clients and the installed SDK exception classes; nothing in CI talks to a cloud provider, and no provider emulator is used.
+- Docker is the one provider exercised for real: CI runs the bridge worker's Docker profile against the runner's engine on a digest-pinned busybox (`pnpm bridge:docker-smoke --require`, the `bridge-docker-smoke` job), and the adapter has a runnable local end-to-end check (`pnpm --filter @capsule-sdk/example-sandbox-docker e2e`) covering sandbox create, exec, files, job run, receipts, and cleanup against a local daemon.
 - The cloud adapters (E2B, Daytona, Modal, Cloud Run, Cloudflare, Vercel, Neon, Kubernetes, Lambda, ECS, EC2, Fly, Azure Container Apps) implement the real provider APIs but have not yet been verified against live accounts. Each has a gated live test (see [live tests](docs/live-tests.md)) and an open tracking issue labeled `needs-verification`; treat those adapters as unverified until their issue closes with live evidence.
 
 ## Package Structure
@@ -295,7 +303,7 @@ capsule preview create --config-file preview.json --cleanup-file .capsule/previe
 
 `capsule doctor` checks Node support, workspace health, Docker availability, and provider credential env vars without printing secret values; `--provider` (or `--adapter`) filters the credential diagnostics to one provider. `capsule receipt inspect` pretty-prints stored receipts (optionally one `--id`) without validating them. `capsule preset list` and `capsule preset explain <id>` browse the preset catalog. `capsule preview plan` compiles a config into a side-effect-free dry-run report. Report commands take `--json` for automation. Run `capsule --help` for the full command list, including provider-specific `service`, `job`, and `neon` commands.
 
-`capsule init` scaffolds a `capsule.config.json`. Commands read it from the working directory and apply its `adapter`, `receipts.path`, and `policyFile` when the matching flag is not passed; explicit flags always override the config file. The scaffolded policy sets `secrets.allowed` to `[]`, which denies every environment key by default until you add keys to it.
+Until the npm release, `capsule` here means `node packages/cli/dist/index.js` run from the repository root after `pnpm build`; `doctor` and `examples` read the workspace from the working directory. `capsule init` scaffolds a `capsule.config.json`. Commands read it from the working directory and apply its `adapter`, `receipts.path`, and `policyFile` when the matching flag is not passed; explicit flags always override the config file. The scaffolded policy sets `secrets.allowed` to `[]`, which denies every environment key by default until you add keys to it.
 
 The selected policy (`--policy-file`, or `policyFile` from the config) is enforced on every execution command, including each preview child, not only by `capsule policy explain`. A policy file that is missing or malformed fails before any provider is created. An unknown adapter name from a flag or the config fails and lists the valid names; only an omitted adapter falls back to Docker. The `neon` commands select Neon when no adapter is set and reject a contradictory `--adapter` or config adapter instead of rerouting.
 
@@ -311,6 +319,22 @@ The selected policy (`--policy-file`, or `policyFile` from the config) is enforc
 | `@capsule-sdk/store-jsonl`, `@capsule-sdk/store-sqlite` | Receipt persistence                                                                                   |
 | `@capsule-sdk/cli`                                      | The `capsule` CLI                                                                                     |
 | `@capsule-sdk/bridge-worker`                            | `capsule-bridge-worker`: a provider worker for Fabric's bridge protocol v1 (fixture and local Docker) |
+
+## Fabric Bridge Worker
+
+`@capsule-sdk/bridge-worker` ships `capsule-bridge-worker`, the provider worker [Fabric](https://github.com/EfeDurmaz16/fabric) spawns to run governed sandbox actions over framed stdio (bridge protocol v1). It serves one capability profile per process: `fixture`, a deterministic in-memory provider, or `docker`, a local engine.
+
+```bash
+pnpm build
+node packages/bridge-worker/dist/bin.js --profile fixture --config worker.json
+node packages/bridge-worker/dist/bin.js --profile docker --config worker.json --receipts receipts.jsonl
+
+pnpm bridge:docker-smoke --image debian:bookworm-slim   # proves the Docker profile on your engine; the worker never pulls
+pnpm bridge:sea                                          # one executable with no Node on the host; needs Node 26 (--build-sea)
+pnpm bridge:artifact-smoke                               # replays every shared scenario against that executable with an empty PATH
+```
+
+The protocol, the shared fixtures under `protocol/bridge/v1`, and how the worker applies the rules are in [Fabric bridge protocol](docs/bridge-protocol.md).
 
 ## Known Limitations
 
@@ -341,9 +365,12 @@ pnpm install
 pnpm build
 pnpm test
 pnpm typecheck
+pnpm format:check
+pnpm docs:api:check     # docs/api-reference.md is generated; regenerate with pnpm docs:api
+pnpm capsule:gap:check  # docs/provider-matrix.md is generated; regenerate with pnpm capsule:gap
 ```
 
-Adapter contributions should include a capability map, docs, and the shared contract tests. See [contributing](docs/contributing.md).
+CI runs those plus the release audit, benchmark bounds, and the bridge worker artifact and Docker smoke jobs; the full list is in [contributing](docs/contributing.md#ci-gates). Adapter contributions should include a capability map, docs, and the shared contract tests.
 
 ## License
 
