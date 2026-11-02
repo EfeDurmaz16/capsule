@@ -1,0 +1,42 @@
+
+> capsule@0.1.0 capsule:gap:check /private/tmp/capsule-wt/m4
+> node scripts/capsule-gap-report.mjs --check
+
+# Capsule Gap Report
+
+| Adapter | Native | Emulated | Experimental | Unsupported |
+| --- | ---: | ---: | ---: | ---: |
+| @capsule-sdk/docker | 10 | 3 | 2 | 28 |
+| @capsule-sdk/e2b | 9 | 2 | 1 | 35 |
+| @capsule-sdk/daytona | 9 | 2 | 1 | 34 |
+| @capsule-sdk/modal | 6 | 1 | 1 | 36 |
+| @capsule-sdk/cloud-run | 14 | 0 | 2 | 24 |
+| @capsule-sdk/cloudflare | 4 | 0 | 1 | 35 |
+| @capsule-sdk/vercel | 5 | 0 | 0 | 36 |
+| @capsule-sdk/neon | 4 | 0 | 0 | 10 |
+| @capsule-sdk/kubernetes | 12 | 0 | 2 | 26 |
+| @capsule-sdk/lambda | 1 | 1 | 0 | 35 |
+| @capsule-sdk/ecs | 8 | 1 | 0 | 31 |
+| @capsule-sdk/ec2 | 5 | 0 | 1 | 34 |
+| @capsule-sdk/fly | 7 | 0 | 2 | 8 |
+| @capsule-sdk/azure | 10 | 0 | 1 | 7 |
+
+## Mock-First Example References
+- examples/agent-code-execution/package.json
+- examples/agent-code-execution/src/index.ts
+- examples/agent-preview-environment/package.json
+- examples/agent-preview-environment/src/index.ts
+- examples/capability-check/package.json
+- examples/capability-check/src/index.ts
+- examples/policy-receipts/package.json
+- examples/policy-receipts/src/index.ts
+- examples/preview-environment-model/package.json
+- examples/preview-environment-model/src/index.ts
+- examples/stripe-projects-provisioning/package.json
+- examples/stripe-projects-provisioning/src/index.ts
+
+## Recommended Next Work
+- Reduce unsupported counts by implementing explicit lifecycle operations, not by pretending support exists.
+- Move examples to env-gated real adapters while preserving mock mode for credential-free docs.
+- Add live tests behind CAPSULE_LIVE_TESTS=1 and provider-specific credentials.
+

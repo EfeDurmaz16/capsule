@@ -104,6 +104,21 @@ describe("GAP-01: docker timeouts", () => {
     expect(fake.calls.some((args) => args[0] === "rm" || args[0] === "start")).toBe(false);
   });
 
+  it("reports a timed-out docker start as an unknown create by id and never removes the container", async () => {
+    // The daemon may have started the container although the start client was killed; a caller that
+    // resolved the name already holds it. A rollback here would destroy a live sandbox without a destroy call.
+    const fake = fakeDaemon((args) => (args[0] === "start" ? timedOut : undefined));
+    const error = await new Capsule({ adapter: fake.adapter }).sandbox.create({ name: "maybe-started", timeoutMs: 50 }).then(
+      () => undefined,
+      (caught: unknown) => caught
+    );
+
+    expect(error).toBeInstanceOf(UnknownOutcomeError);
+    expect((error as UnknownOutcomeError).operation).toBe("sandbox.create");
+    expect((error as UnknownOutcomeError).resource).toMatchObject({ provider: "docker", kind: "sandbox", nativeId: "box-1", scope: { name: "maybe-started" } });
+    expect(fake.calls.some((args) => args[0] === "rm")).toBe(false);
+  });
+
   it("reports a timed-out docker rm as an unknown destroy of that container, not a failure", async () => {
     const fake = fakeDaemon((args) => (args[0] === "rm" ? timedOut : undefined));
     const store = new MemoryReceiptStore();

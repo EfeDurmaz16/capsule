@@ -1,0 +1,1651 @@
+{
+  "meta": {
+    "label": "m4-perf-4831f81",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 20,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "4831f8130f9cc7dddc6e8a2e37223aad36a2afa8",
+      "packagesTree": "97fbe32be7f65a59b01329bc5d49ff98b29b4a59",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "4831f8130f9cc7dddc6e8a2e37223aad36a2afa8",
+    "date": "2026-11-02T20:23:56.840Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        5.91455078125,
+        8.32421875,
+        9.7998046875
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)"
+  },
+  "workload": "perf-05-kubernetes-logs",
+  "case": "40-pods-3-containers-limit-20",
+  "params": {
+    "pods": 40,
+    "containers": 3,
+    "linesPerContainer": 25,
+    "latencyMs": 5,
+    "seed": 3,
+    "limit": 20
+  },
+  "runs": [
+    {
+      "side": "A",
+      "pair": 0,
+      "childWallMs": 884.8356249999997,
+      "loadAverage1m": 5.5166015625,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 685.842583,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 689.752708,
+      "process": {
+        "startMemory": {
+          "heapUsed": 42746216,
+          "rss": 133890048,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42677256,
+          "rss": 141508608,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 141508608
+      }
+    },
+    {
+      "side": "B",
+      "pair": 0,
+      "childWallMs": 374.9482910000006,
+      "loadAverage1m": 5.5166015625,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 173.651375,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 177.467583,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43226672,
+          "rss": 134086656,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43860176,
+          "rss": 142753792,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 142753792
+      }
+    },
+    {
+      "side": "A",
+      "pair": 1,
+      "childWallMs": 885.1634169999888,
+      "loadAverage1m": 6.28466796875,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 683.2814999999999,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 687.775541,
+      "process": {
+        "startMemory": {
+          "heapUsed": 42944704,
+          "rss": 134266880,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42806440,
+          "rss": 142082048,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 142082048
+      }
+    },
+    {
+      "side": "B",
+      "pair": 1,
+      "childWallMs": 382.1307500000112,
+      "loadAverage1m": 6.28466796875,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 172.39491699999996,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 176.251667,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43042272,
+          "rss": 133857280,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43926120,
+          "rss": 142753792,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 142753792
+      }
+    },
+    {
+      "side": "A",
+      "pair": 2,
+      "childWallMs": 904.4269580000255,
+      "loadAverage1m": 6.08984375,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 688.885792,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 693.391333,
+      "process": {
+        "startMemory": {
+          "heapUsed": 42952360,
+          "rss": 134348800,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42639768,
+          "rss": 142032896,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 142032896
+      }
+    },
+    {
+      "side": "B",
+      "pair": 2,
+      "childWallMs": 376.78483399999095,
+      "loadAverage1m": 6.08984375,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 172.209292,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 176.42187499999997,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43484744,
+          "rss": 135004160,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43863096,
+          "rss": 143687680,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 143687680
+      }
+    },
+    {
+      "side": "A",
+      "pair": 3,
+      "childWallMs": 878.196082999988,
+      "loadAverage1m": 8.31201171875,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 673.0965840000001,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 677.4602090000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43002344,
+          "rss": 134791168,
+          "external": 3867365,
+          "arrayBuffers": 218570
+        },
+        "endMemory": {
+          "heapUsed": 42649504,
+          "rss": 142262272,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 142262272
+      }
+    },
+    {
+      "side": "B",
+      "pair": 3,
+      "childWallMs": 418.7564999999886,
+      "loadAverage1m": 8.31201171875,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 171.41837499999997,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 177.014834,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43289056,
+          "rss": 134955008,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43866576,
+          "rss": 143622144,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 143622144
+      }
+    },
+    {
+      "side": "A",
+      "pair": 4,
+      "childWallMs": 1021.7564579999889,
+      "loadAverage1m": 7.833984375,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 681.783916,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 686.824375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 42879232,
+          "rss": 139771904,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42609744,
+          "rss": 147275776,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 147275776
+      }
+    },
+    {
+      "side": "B",
+      "pair": 4,
+      "childWallMs": 389.18304200004786,
+      "loadAverage1m": 7.833984375,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 170.290084,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 174.81033299999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43226672,
+          "rss": 134463488,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43933512,
+          "rss": 143425536,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 143425536
+      }
+    },
+    {
+      "side": "A",
+      "pair": 5,
+      "childWallMs": 943.069542000012,
+      "loadAverage1m": 7.8203125,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 678.477875,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 683.901875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 42745768,
+          "rss": 135200768,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42669784,
+          "rss": 142802944,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 142802944
+      }
+    },
+    {
+      "side": "B",
+      "pair": 5,
+      "childWallMs": 423.1952089999686,
+      "loadAverage1m": 7.8203125,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 170.46800000000002,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 174.83620799999997,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43353688,
+          "rss": 136347648,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43895736,
+          "rss": 145096704,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 145096704
+      }
+    },
+    {
+      "side": "A",
+      "pair": 6,
+      "childWallMs": 921.8432499999763,
+      "loadAverage1m": 7.21337890625,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 686.716583,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 691.5464579999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43003488,
+          "rss": 134856704,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42696544,
+          "rss": 142475264,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 142475264
+      }
+    },
+    {
+      "side": "B",
+      "pair": 6,
+      "childWallMs": 430.89970800001174,
+      "loadAverage1m": 7.21337890625,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 175.032584,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 180.64825,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43226912,
+          "rss": 135020544,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43875664,
+          "rss": 143851520,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 143851520
+      }
+    },
+    {
+      "side": "A",
+      "pair": 7,
+      "childWallMs": 927.4887909999816,
+      "loadAverage1m": 7.32373046875,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 687.673583,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 692.7285420000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43003688,
+          "rss": 134692864,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42646392,
+          "rss": 142229504,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 142229504
+      }
+    },
+    {
+      "side": "B",
+      "pair": 7,
+      "childWallMs": 405.26966699998593,
+      "loadAverage1m": 7.29736328125,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 173.114084,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 177.35116699999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43028264,
+          "rss": 134889472,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43763656,
+          "rss": 143540224,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 143540224
+      }
+    },
+    {
+      "side": "A",
+      "pair": 8,
+      "childWallMs": 886.1756659999955,
+      "loadAverage1m": 6.97802734375,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 687.417,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 691.9755,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43396968,
+          "rss": 134135808,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42645640,
+          "rss": 141819904,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 141819904
+      }
+    },
+    {
+      "side": "B",
+      "pair": 8,
+      "childWallMs": 412.6003330000676,
+      "loadAverage1m": 6.97802734375,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 170.48158399999997,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 174.845958,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43064552,
+          "rss": 134217728,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43798032,
+          "rss": 142852096,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 142852096
+      }
+    },
+    {
+      "side": "A",
+      "pair": 9,
+      "childWallMs": 1058.2119579999708,
+      "loadAverage1m": 6.86279296875,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 677.030375,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 682.9498329999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 42944792,
+          "rss": 139067392,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42604840,
+          "rss": 146554880,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 146554880
+      }
+    },
+    {
+      "side": "B",
+      "pair": 9,
+      "childWallMs": 393.76016700000037,
+      "loadAverage1m": 7.19384765625,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 174.06325,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 178.206375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43042456,
+          "rss": 134496256,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43841136,
+          "rss": 143163392,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 143163392
+      }
+    },
+    {
+      "side": "A",
+      "pair": 10,
+      "childWallMs": 886.5467499999795,
+      "loadAverage1m": 6.99169921875,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 683.183917,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 687.808417,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43006696,
+          "rss": 134217728,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42608256,
+          "rss": 141737984,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 141737984
+      }
+    },
+    {
+      "side": "B",
+      "pair": 10,
+      "childWallMs": 389.15320800000336,
+      "loadAverage1m": 6.99169921875,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 172.73562499999997,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 177.86058299999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43226856,
+          "rss": 134807552,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43761880,
+          "rss": 143425536,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 143425536
+      }
+    },
+    {
+      "side": "A",
+      "pair": 11,
+      "childWallMs": 893.4086670000106,
+      "loadAverage1m": 10.1025390625,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 685.330458,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 689.959708,
+      "process": {
+        "startMemory": {
+          "heapUsed": 42944624,
+          "rss": 134004736,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42642912,
+          "rss": 141475840,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 141475840
+      }
+    },
+    {
+      "side": "B",
+      "pair": 11,
+      "childWallMs": 377.51645800005645,
+      "loadAverage1m": 10.1025390625,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 172.611458,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 176.805417,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43226688,
+          "rss": 134610944,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43847816,
+          "rss": 143425536,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 143425536
+      }
+    },
+    {
+      "side": "A",
+      "pair": 12,
+      "childWallMs": 905.1355840000324,
+      "loadAverage1m": 10.12841796875,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 688.861292,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 693.284625,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43141856,
+          "rss": 134938624,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42733552,
+          "rss": 142557184,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 142557184
+      }
+    },
+    {
+      "side": "B",
+      "pair": 12,
+      "childWallMs": 395.01062499999534,
+      "loadAverage1m": 9.95751953125,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 171.09020900000002,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 175.38262500000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43224080,
+          "rss": 133709824,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43802272,
+          "rss": 142475264,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 142475264
+      }
+    },
+    {
+      "side": "A",
+      "pair": 13,
+      "childWallMs": 885.4617910000961,
+      "loadAverage1m": 10.775390625,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 689.768125,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 694.0945409999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 42881672,
+          "rss": 133709824,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42859664,
+          "rss": 141361152,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 141361152
+      }
+    },
+    {
+      "side": "B",
+      "pair": 13,
+      "childWallMs": 371.8198750000447,
+      "loadAverage1m": 10.775390625,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 170.850167,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 175.38533399999997,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43226632,
+          "rss": 134742016,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43856840,
+          "rss": 143474688,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 143474688
+      }
+    },
+    {
+      "side": "A",
+      "pair": 14,
+      "childWallMs": 891.9840419999091,
+      "loadAverage1m": 10.42724609375,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 686.510291,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 692.554625,
+      "process": {
+        "startMemory": {
+          "heapUsed": 42952288,
+          "rss": 134053888,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42641224,
+          "rss": 141606912,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 141606912
+      }
+    },
+    {
+      "side": "B",
+      "pair": 14,
+      "childWallMs": 441.89958399999887,
+      "loadAverage1m": 10.42724609375,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 171.99404200000004,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 199.769042,
+      "process": {
+        "startMemory": {
+          "heapUsed": 42994496,
+          "rss": 134283264,
+          "external": 3867368,
+          "arrayBuffers": 218573
+        },
+        "endMemory": {
+          "heapUsed": 43995104,
+          "rss": 142917632,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 142917632
+      }
+    },
+    {
+      "side": "A",
+      "pair": 15,
+      "childWallMs": 907.8564580000238,
+      "loadAverage1m": 9.16552734375,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 685.343625,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 690.4826250000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 42881472,
+          "rss": 134971392,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42761808,
+          "rss": 142852096,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 142852096
+      }
+    },
+    {
+      "side": "B",
+      "pair": 15,
+      "childWallMs": 391.42358399997465,
+      "loadAverage1m": 9.16552734375,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 174.23412500000003,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 178.503792,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43225704,
+          "rss": 134610944,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43971152,
+          "rss": 143409152,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 143409152
+      }
+    },
+    {
+      "side": "A",
+      "pair": 16,
+      "childWallMs": 889.7282499999274,
+      "loadAverage1m": 8.21142578125,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 678.807,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 683.964167,
+      "process": {
+        "startMemory": {
+          "heapUsed": 42880432,
+          "rss": 134266880,
+          "external": 3867365,
+          "arrayBuffers": 218570
+        },
+        "endMemory": {
+          "heapUsed": 42706808,
+          "rss": 141950976,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 141950976
+      }
+    },
+    {
+      "side": "B",
+      "pair": 16,
+      "childWallMs": 375.13629200006835,
+      "loadAverage1m": 8.0341796875,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 171.23070800000002,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 175.34362499999997,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43226728,
+          "rss": 134758400,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43760064,
+          "rss": 143392768,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 143392768
+      }
+    },
+    {
+      "side": "A",
+      "pair": 17,
+      "childWallMs": 901.7818750001024,
+      "loadAverage1m": 13.30859375,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 682.965791,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 687.246875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43037688,
+          "rss": 134266880,
+          "external": 3867365,
+          "arrayBuffers": 218570
+        },
+        "endMemory": {
+          "heapUsed": 42599616,
+          "rss": 141754368,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 141754368
+      }
+    },
+    {
+      "side": "B",
+      "pair": 17,
+      "childWallMs": 387.27874999982305,
+      "loadAverage1m": 12.56298828125,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 175.14608299999998,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 180.21545799999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43101504,
+          "rss": 134545408,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43788456,
+          "rss": 143245312,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 143245312
+      }
+    },
+    {
+      "side": "A",
+      "pair": 18,
+      "childWallMs": 901.0810829999391,
+      "loadAverage1m": 10.13671875,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 691.492333,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 696.333417,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43003720,
+          "rss": 134299648,
+          "external": 3875557,
+          "arrayBuffers": 226762
+        },
+        "endMemory": {
+          "heapUsed": 42647840,
+          "rss": 141770752,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 141770752
+      }
+    },
+    {
+      "side": "B",
+      "pair": 18,
+      "childWallMs": 385.5554579999298,
+      "loadAverage1m": 10.13671875,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 172.970708,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 177.65441600000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 43229408,
+          "rss": 134610944,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43898752,
+          "rss": 143278080,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 143278080
+      }
+    },
+    {
+      "side": "A",
+      "pair": 19,
+      "childWallMs": 916.215499999933,
+      "loadAverage1m": 7.69287109375,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 1,
+        "elapsedMs": 690.417833,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": false,
+        "matchesGlobalNewestInOrder": false,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 695.070583,
+      "process": {
+        "startMemory": {
+          "heapUsed": 42658064,
+          "rss": 134086656,
+          "external": 3867365,
+          "arrayBuffers": 218570
+        },
+        "endMemory": {
+          "heapUsed": 42692296,
+          "rss": 141623296,
+          "external": 3984646,
+          "arrayBuffers": 201665
+        },
+        "maxRssBytes": 141623296
+      }
+    },
+    {
+      "side": "B",
+      "pair": 19,
+      "childWallMs": 380.15549999987707,
+      "loadAverage1m": 7.69287109375,
+      "ok": true,
+      "metrics": {
+        "pods": 40,
+        "containersPerPod": 3,
+        "logRequests": 120,
+        "maxOutstandingRequests": 4,
+        "elapsedMs": 173.07654199999996,
+        "entriesReturned": 20,
+        "leakedSecrets": 0,
+        "globallyAscendingTimestamps": true,
+        "matchesGlobalNewestSet": true,
+        "matchesGlobalNewestInOrder": true,
+        "firstRequestedSources": [
+          "pod-026/c0",
+          "pod-026/c1",
+          "pod-026/c2"
+        ]
+      },
+      "caseDurationMs": 177.59708300000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 42842264,
+          "rss": 134643712,
+          "external": 3888318,
+          "arrayBuffers": 239523
+        },
+        "endMemory": {
+          "heapUsed": 43855848,
+          "rss": 143392768,
+          "external": 3984649,
+          "arrayBuffers": 201668
+        },
+        "maxRssBytes": 143392768
+      }
+    }
+  ]
+}

@@ -191,6 +191,27 @@ try {
     replay.answer.resource.native_id === resource.native_id &&
     ownContainers().length === 1;
 
+  // Reconciliation (Fabric ADR 0022): attach finds a create whose answer never reached Fabric by its
+  // operation label, with no docker create; an operation that made nothing is absent, naming the engine.
+  const attach = (operationId, key, waitMs) => {
+    counter += 1;
+    return { type: "attach", request_id: `r-${counter}`, operation_id: operationId, key, scope, action: "sandbox.create", wait_ms: waitMs };
+  };
+  const attached = await roundTrip(worker, attach(createOperation.id, createOperation.key, 5_000));
+  checks.attachFindsCreatedContainer =
+    attached.answer.type === "result" &&
+    attached.answer.state === "completed" &&
+    attached.answer.replayed === false &&
+    attached.answer.resource.native_id === resource.native_id &&
+    ownContainers().length === 1;
+  const absent = await roundTrip(worker, attach(ulid(), "smoke-absent", 500));
+  checks.attachAbsentNamesSearchedEngine =
+    absent.answer.type === "error" &&
+    absent.answer.error.reason === "absent" &&
+    absent.answer.error.searched?.scope?.engine === engine &&
+    !("resource" in absent.answer.error) &&
+    ownContainers().length === 1;
+
   const noApproval = await roundTrip(worker, request("sandbox.destroy", { target: resource, params: {} }));
   checks.destroyNeedsFreshApproval =
     noApproval.answer.type === "error" && noApproval.answer.error.reason === "approval_required" && ownContainers().length === 1;

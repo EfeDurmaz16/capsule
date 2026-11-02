@@ -16,7 +16,11 @@ export interface WorkerPolicy {
 export interface WorkerApproval {
   ref: string;
   action: BridgeAction;
-  /** The one resource the grant covers, or null for a grant not tied to a resource (for example a create). */
+  /**
+   * The one resource the grant covers, or null for a grant not tied to one resource: a create, whose
+   * resource does not exist yet, or a Docker destroy whose container id is known only after the create.
+   * Never empty.
+   */
   native_id: string | null;
   /** A fixed expiry flag, as the fixture scenarios use. */
   expired?: boolean;
@@ -97,6 +101,8 @@ function parseApproval(value: unknown, index: number): WorkerApproval {
   if (typeof value.ref !== "string" || !/^[A-Za-z0-9._:-]{1,128}$/.test(value.ref)) throw new ConfigError(`${what}.ref is not a valid ref`);
   if (typeof value.action !== "string" || !(ACTIONS as readonly string[]).includes(value.action)) throw new ConfigError(`${what}.action is not a v1 action`);
   if (value.native_id !== null && typeof value.native_id !== "string") throw new ConfigError(`${what}.native_id must be a string or null`);
+  // An empty id names no resource and would be matched by nothing or, read loosely, by anything: fail closed.
+  if (value.native_id === "") throw new ConfigError(`${what}.native_id must name a resource or be null`);
   if (value.expired !== undefined && typeof value.expired !== "boolean") throw new ConfigError(`${what}.expired must be a boolean`);
   if (value.expires_at !== undefined && (typeof value.expires_at !== "string" || Number.isNaN(Date.parse(value.expires_at)))) {
     throw new ConfigError(`${what}.expires_at must be an ISO 8601 time`);
@@ -110,11 +116,18 @@ function parseApproval(value: unknown, index: number): WorkerApproval {
   };
 }
 
+/** The operation id each approval ref has resolved for, kept by the session for its lifetime. */
+export type ApprovalUses = Map<string, string>;
+
 /**
  * Resolves an approval ref for one action on one resource into a Capsule grant scoped to exactly that
  * capability and resource, or refuses with the v1 reason. A grant never stretches: a create grant
  * never authorizes destroy, a grant for one sandbox never covers another, an expired grant covers
- * nothing. The ref itself is a name, never a credential, and is not logged.
+ * nothing, and a ref is per operation (protocol rule 7): once it has resolved for one operation id it
+ * is `approval_scope` for every other, so a retry of that operation may carry it again and nothing
+ * else can. The binding is made when the checks pass, before the effect, and stays even if the effect
+ * is then refused by a drain, so a ref never widens. The ref itself is a name, never a credential,
+ * and is not logged.
  */
 export function resolveApproval(
   config: WorkerConfig,
@@ -122,16 +135,23 @@ export function resolveApproval(
   action: BridgeAction,
   provider: string,
   nativeId: string | undefined,
-  now: Date
+  now: Date,
+  operationId: string,
+  uses: ApprovalUses
 ): CapsuleApprovalGrant {
   const approval = config.approvals.find((entry) => entry.ref === ref);
   if (!approval) throw new Refusal("denied", "approval_required", "the approval ref names no grant this worker holds");
   if (approval.action !== action || (approval.native_id !== null && approval.native_id !== nativeId)) {
     throw new Refusal("denied", "approval_scope", "the grant does not cover this action on this resource");
   }
+  const usedBy = uses.get(ref);
+  if (usedBy !== undefined && usedBy !== operationId) {
+    throw new Refusal("denied", "approval_scope", "the grant was already resolved for another operation");
+  }
   if (approval.expired === true || (approval.expires_at !== undefined && Date.parse(approval.expires_at) <= now.getTime())) {
     throw new Refusal("denied", "approval_expired", "the grant has expired");
   }
+  uses.set(ref, operationId);
   // The ref stays out of the grant: Capsule records a grant's id in policy notes and receipts.
   return {
     approved: true,

@@ -4,14 +4,20 @@ import type { ActionCapability, BridgeAction, CapabilityProfile } from "./wire.j
 // protocol/bridge/v1/profiles/*.json. The worker sends the chosen one whole in hello_ack and enforces
 // it. A test compares both documents with the fixtures byte for byte after serialization.
 
-const limits = {
+// Every limit a request is checked against is advertised here, so Fabric refuses the same values
+// before sending. max_output_bytes stays 1 MiB in both profiles: an exec answer holds two streams of
+// that size inside one 16 MiB frame. max_timeout_ms is the exec's own clock, not the request's:
+// the fixture is virtual and short, Docker runs a command for up to an hour and is observed past its
+// request deadline.
+const limitsWith = (maxTimeoutMs: number) => ({
   max_deadline_ms: 600_000,
+  max_timeout_ms: maxTimeoutMs,
   max_observe_wait_ms: 30_000,
   max_output_bytes: 1_048_576,
   max_stdin_bytes: 65_536,
   max_argv: 64,
   max_receipts: 16
-};
+});
 
 export const fixtureProfile: CapabilityProfile = Object.freeze({
   profile: "fixture",
@@ -53,7 +59,7 @@ export const fixtureProfile: CapabilityProfile = Object.freeze({
       secrets: false
     }
   ],
-  limits
+  limits: limitsWith(60_000)
 }) as CapabilityProfile;
 
 export const dockerProfile: CapabilityProfile = Object.freeze({
@@ -97,10 +103,18 @@ export const dockerProfile: CapabilityProfile = Object.freeze({
       secrets: false
     }
   ],
-  limits
+  limits: limitsWith(3_600_000)
 }) as CapabilityProfile;
 
 export const profiles: Readonly<Record<string, CapabilityProfile>> = Object.freeze({ fixture: fixtureProfile, docker: dockerProfile });
+
+/**
+ * Whether an attach of this action is in the profile: a create whose dedupe lets the worker find what
+ * the operation made after a restart, by key (provider_key) or by its operation label (label_query).
+ */
+export function attachable(capability: ActionCapability): boolean {
+  return capability.effect === "create" && capability.dedupe !== "none";
+}
 
 export function actionCapability(profile: CapabilityProfile, action: string): ActionCapability | undefined {
   return profile.actions.find((entry) => entry.action === (action as BridgeAction));

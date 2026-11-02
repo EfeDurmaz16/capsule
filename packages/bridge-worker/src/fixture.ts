@@ -30,7 +30,8 @@ export interface FixtureSandboxState {
   project: string;
   owner_job?: string;
   operation?: string;
-  status: "ready" | "stopping" | "destroyed";
+  /** `starting` is a create the provider accepted and has not finished; `settle` makes it ready. */
+  status: "starting" | "ready" | "stopping" | "destroyed";
 }
 
 export interface FixtureEffect {
@@ -84,7 +85,9 @@ export class FixtureProvider {
         throw new Error(`fixture sandboxes[${index}] needs native_id and project`);
       }
       const status = entry.status ?? "ready";
-      if (status !== "ready" && status !== "stopping") throw new Error(`fixture sandboxes[${index}].status must be ready or stopping`);
+      if (status !== "starting" && status !== "ready" && status !== "stopping") {
+        throw new Error(`fixture sandboxes[${index}].status must be starting, ready or stopping`);
+      }
       // A sandbox a job made carries the creating operation too, as every container the Docker profile
       // creates carries fabric.operation beside fabric.job. A seed with one label and not the other
       // models a resource the worker never makes.
@@ -122,10 +125,11 @@ export class FixtureProvider {
     return this.sandboxes.get(nativeId);
   }
 
-  /** Scripted transitional states become terminal, and execs the provider runs on end. */
+  /** Transitional states become terminal (starting to ready, stopping to destroyed), and execs the provider runs on end. */
   settle(): void {
     for (const sandbox of this.sandboxes.values()) {
-      if (sandbox.status === "stopping") sandbox.status = "destroyed";
+      if (sandbox.status === "starting") sandbox.status = "ready";
+      else if (sandbox.status === "stopping") sandbox.status = "destroyed";
     }
     const running = this.running;
     this.running = [];

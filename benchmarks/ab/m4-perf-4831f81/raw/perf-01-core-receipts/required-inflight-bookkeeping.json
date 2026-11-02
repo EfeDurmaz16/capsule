@@ -1,0 +1,1246 @@
+{
+  "meta": {
+    "label": "m4-perf-4831f81",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 20,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "4831f8130f9cc7dddc6e8a2e37223aad36a2afa8",
+      "packagesTree": "97fbe32be7f65a59b01329bc5d49ff98b29b4a59",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "4831f8130f9cc7dddc6e8a2e37223aad36a2afa8",
+    "date": "2026-11-02T20:23:56.840Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        5.91455078125,
+        8.32421875,
+        9.7998046875
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)"
+  },
+  "workload": "perf-01-core-receipts",
+  "case": "required-inflight-bookkeeping",
+  "params": {
+    "operations": 50000
+  },
+  "runs": [
+    {
+      "side": "A",
+      "pair": 0,
+      "childWallMs": 366.87545800000044,
+      "loadAverage1m": 5.60107421875,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105944000,
+        "heapBytesPerOperation": 2118.88,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 307.216125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4896744,
+          "rss": 47022080,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110711664,
+          "rss": 203128832,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 203915264
+      }
+    },
+    {
+      "side": "B",
+      "pair": 0,
+      "childWallMs": 199.08520800000042,
+      "loadAverage1m": 5.60107421875,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 348056,
+        "heapBytesPerOperation": 6.96112,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 168.215125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46301184,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5149016,
+          "rss": 68714496,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 68714496
+      }
+    },
+    {
+      "side": "A",
+      "pair": 1,
+      "childWallMs": 451.6054579999909,
+      "loadAverage1m": 5.81982421875,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105949568,
+        "heapBytesPerOperation": 2118.99136,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 405.106292,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4845960,
+          "rss": 47022080,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110717232,
+          "rss": 202227712,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 203161600
+      }
+    },
+    {
+      "side": "B",
+      "pair": 1,
+      "childWallMs": 221.60591600000043,
+      "loadAverage1m": 5.81982421875,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 339184,
+        "heapBytesPerOperation": 6.78368,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 186.205375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310152,
+          "rss": 46284800,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5139904,
+          "rss": 68583424,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 68583424
+      }
+    },
+    {
+      "side": "A",
+      "pair": 2,
+      "childWallMs": 408.8830409999937,
+      "loadAverage1m": 6.099609375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105949176,
+        "heapBytesPerOperation": 2118.98352,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 359.55225,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4848648,
+          "rss": 47022080,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110716840,
+          "rss": 203096064,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 203718656
+      }
+    },
+    {
+      "side": "B",
+      "pair": 2,
+      "childWallMs": 206.6172910000023,
+      "loadAverage1m": 6.099609375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 350464,
+        "heapBytesPerOperation": 7.00928,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 174.733208,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46137344,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5151728,
+          "rss": 69451776,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 69451776
+      }
+    },
+    {
+      "side": "A",
+      "pair": 3,
+      "childWallMs": 515.1537919999973,
+      "loadAverage1m": 9.15283203125,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105953216,
+        "heapBytesPerOperation": 2119.06432,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 453.687083,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4824144,
+          "rss": 46940160,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110720880,
+          "rss": 202440704,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 203292672
+      }
+    },
+    {
+      "side": "B",
+      "pair": 3,
+      "childWallMs": 197.7675000000163,
+      "loadAverage1m": 9.15283203125,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 350184,
+        "heapBytesPerOperation": 7.00368,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 167.085333,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46202880,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5151144,
+          "rss": 68485120,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 68485120
+      }
+    },
+    {
+      "side": "A",
+      "pair": 4,
+      "childWallMs": 545.3923749999958,
+      "loadAverage1m": 7.35205078125,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105951712,
+        "heapBytesPerOperation": 2119.03424,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 487.934875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4834904,
+          "rss": 47104000,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110719376,
+          "rss": 201801728,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 202735616
+      }
+    },
+    {
+      "side": "B",
+      "pair": 4,
+      "childWallMs": 217.86295799998334,
+      "loadAverage1m": 7.35205078125,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 348424,
+        "heapBytesPerOperation": 6.96848,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 183.027584,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46350336,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5149688,
+          "rss": 69238784,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 69238784
+      }
+    },
+    {
+      "side": "A",
+      "pair": 5,
+      "childWallMs": 436.60908299998846,
+      "loadAverage1m": 8.6474609375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105952312,
+        "heapBytesPerOperation": 2119.04624,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 376.79916699999995,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4854472,
+          "rss": 47054848,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110719976,
+          "rss": 201998336,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 202833920
+      }
+    },
+    {
+      "side": "B",
+      "pair": 5,
+      "childWallMs": 216.25849999999627,
+      "loadAverage1m": 8.6474609375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 345016,
+        "heapBytesPerOperation": 6.90032,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 182.56062500000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46301184,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5145976,
+          "rss": 69369856,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 69369856
+      }
+    },
+    {
+      "side": "A",
+      "pair": 6,
+      "childWallMs": 378.7710000000079,
+      "loadAverage1m": 6.98974609375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105947984,
+        "heapBytesPerOperation": 2118.95968,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 328.707417,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4825048,
+          "rss": 46972928,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110715648,
+          "rss": 203112448,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 203767808
+      }
+    },
+    {
+      "side": "B",
+      "pair": 6,
+      "childWallMs": 205.5731660000165,
+      "loadAverage1m": 6.98974609375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 354848,
+        "heapBytesPerOperation": 7.09696,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 172.174792,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46202880,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5156112,
+          "rss": 68534272,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 68534272
+      }
+    },
+    {
+      "side": "A",
+      "pair": 7,
+      "childWallMs": 432.65633399999933,
+      "loadAverage1m": 7.55712890625,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105948384,
+        "heapBytesPerOperation": 2118.96768,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 385.880875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4854472,
+          "rss": 47071232,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110716048,
+          "rss": 203735040,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 204390400
+      }
+    },
+    {
+      "side": "B",
+      "pair": 7,
+      "childWallMs": 211.24937500001397,
+      "loadAverage1m": 7.55712890625,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 348344,
+        "heapBytesPerOperation": 6.96688,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 177.640542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46170112,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5149608,
+          "rss": 68534272,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 68534272
+      }
+    },
+    {
+      "side": "A",
+      "pair": 8,
+      "childWallMs": 433.5998749999562,
+      "loadAverage1m": 7.2265625,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105949784,
+        "heapBytesPerOperation": 2118.99568,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 385.12816699999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4827736,
+          "rss": 47022080,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110717520,
+          "rss": 203603968,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 204193792
+      }
+    },
+    {
+      "side": "B",
+      "pair": 8,
+      "childWallMs": 214.23729199997615,
+      "loadAverage1m": 7.2265625,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 350768,
+        "heapBytesPerOperation": 7.01536,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 180.491208,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46268416,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5152032,
+          "rss": 69042176,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 69042176
+      }
+    },
+    {
+      "side": "A",
+      "pair": 9,
+      "childWallMs": 447.78229199990164,
+      "loadAverage1m": 7.3037109375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105950056,
+        "heapBytesPerOperation": 2119.00112,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 394.859958,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4830688,
+          "rss": 47316992,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110717792,
+          "rss": 202866688,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 203538432
+      }
+    },
+    {
+      "side": "B",
+      "pair": 9,
+      "childWallMs": 240.44712499994785,
+      "loadAverage1m": 7.3037109375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 354192,
+        "heapBytesPerOperation": 7.08384,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 203.320042,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310152,
+          "rss": 46284800,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5154984,
+          "rss": 68796416,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 68796416
+      }
+    },
+    {
+      "side": "A",
+      "pair": 10,
+      "childWallMs": 468.3445419999771,
+      "loadAverage1m": 7.49609375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105949856,
+        "heapBytesPerOperation": 2118.99712,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 409.568875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4854472,
+          "rss": 47038464,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110717520,
+          "rss": 202342400,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 203161600
+      }
+    },
+    {
+      "side": "B",
+      "pair": 10,
+      "childWallMs": 204.74124999996275,
+      "loadAverage1m": 7.49609375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 347480,
+        "heapBytesPerOperation": 6.9496,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 171.795833,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46186496,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5148744,
+          "rss": 68698112,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 68698112
+      }
+    },
+    {
+      "side": "A",
+      "pair": 11,
+      "childWallMs": 722.9367920000805,
+      "loadAverage1m": 10.49462890625,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105948864,
+        "heapBytesPerOperation": 2118.97728,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 637.257208,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4860072,
+          "rss": 47398912,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110716528,
+          "rss": 202227712,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 202358784
+      }
+    },
+    {
+      "side": "B",
+      "pair": 11,
+      "childWallMs": 274.8692090000259,
+      "loadAverage1m": 10.49462890625,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 353272,
+        "heapBytesPerOperation": 7.06544,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 231.50908399999997,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46579712,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5154464,
+          "rss": 69255168,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 69255168
+      }
+    },
+    {
+      "side": "A",
+      "pair": 12,
+      "childWallMs": 394.6387499999255,
+      "loadAverage1m": 10.3984375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105947312,
+        "heapBytesPerOperation": 2118.94624,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 339.139667,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4854544,
+          "rss": 46989312,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110715048,
+          "rss": 203243520,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 203866112
+      }
+    },
+    {
+      "side": "B",
+      "pair": 12,
+      "childWallMs": 209.86570800002664,
+      "loadAverage1m": 10.3984375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 353648,
+        "heapBytesPerOperation": 7.07296,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 176.835042,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46350336,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5154912,
+          "rss": 69140480,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 69140480
+      }
+    },
+    {
+      "side": "A",
+      "pair": 13,
+      "childWallMs": 474.38595800008625,
+      "loadAverage1m": 10.41064453125,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105951344,
+        "heapBytesPerOperation": 2119.02688,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 425.569,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4858304,
+          "rss": 47120384,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110719008,
+          "rss": 202506240,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 203407360
+      }
+    },
+    {
+      "side": "B",
+      "pair": 13,
+      "childWallMs": 222.66158299997915,
+      "loadAverage1m": 10.41064453125,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 352824,
+        "heapBytesPerOperation": 7.05648,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 186.27279199999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46383104,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5154088,
+          "rss": 69009408,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 69009408
+      }
+    },
+    {
+      "side": "A",
+      "pair": 14,
+      "childWallMs": 403.0675830000546,
+      "loadAverage1m": 11.078125,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105950512,
+        "heapBytesPerOperation": 2119.01024,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 356.114791,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4888224,
+          "rss": 46940160,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110718176,
+          "rss": 203177984,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 203751424
+      }
+    },
+    {
+      "side": "B",
+      "pair": 14,
+      "childWallMs": 236.15112499997485,
+      "loadAverage1m": 11.078125,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 350776,
+        "heapBytesPerOperation": 7.01552,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 199.626375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46268416,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5152040,
+          "rss": 69156864,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 69156864
+      }
+    },
+    {
+      "side": "A",
+      "pair": 15,
+      "childWallMs": 383.7717499999562,
+      "loadAverage1m": 8.8271484375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105945000,
+        "heapBytesPerOperation": 2118.9,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 331.528333,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4880120,
+          "rss": 47136768,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110712664,
+          "rss": 201424896,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 202145792
+      }
+    },
+    {
+      "side": "B",
+      "pair": 15,
+      "childWallMs": 203.029916999978,
+      "loadAverage1m": 8.8271484375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 350928,
+        "heapBytesPerOperation": 7.01856,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 169.276667,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46219264,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5152192,
+          "rss": 69124096,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 69124096
+      }
+    },
+    {
+      "side": "A",
+      "pair": 16,
+      "childWallMs": 353.4892090000212,
+      "loadAverage1m": 8.09912109375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105946848,
+        "heapBytesPerOperation": 2118.93696,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 303.550291,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4857960,
+          "rss": 46989312,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110714584,
+          "rss": 201523200,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 202342400
+      }
+    },
+    {
+      "side": "B",
+      "pair": 16,
+      "childWallMs": 201.43712500017136,
+      "loadAverage1m": 8.09912109375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 350256,
+        "heapBytesPerOperation": 7.00512,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 170.320209,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46252032,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5151520,
+          "rss": 69287936,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 69287936
+      }
+    },
+    {
+      "side": "A",
+      "pair": 17,
+      "childWallMs": 444.4476250000298,
+      "loadAverage1m": 14.8115234375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105940584,
+        "heapBytesPerOperation": 2118.81168,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 386.66425000000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4854472,
+          "rss": 47071232,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110708248,
+          "rss": 203309056,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 203571200
+      }
+    },
+    {
+      "side": "B",
+      "pair": 17,
+      "childWallMs": 210.4945829999633,
+      "loadAverage1m": 14.8115234375,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 350056,
+        "heapBytesPerOperation": 7.00112,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 175.881,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310152,
+          "rss": 46186496,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5151320,
+          "rss": 68878336,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 68878336
+      }
+    },
+    {
+      "side": "A",
+      "pair": 18,
+      "childWallMs": 423.87837500008754,
+      "loadAverage1m": 10.2060546875,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105951768,
+        "heapBytesPerOperation": 2119.03536,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 375.02,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4830280,
+          "rss": 47153152,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110719432,
+          "rss": 201293824,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 202031104
+      }
+    },
+    {
+      "side": "B",
+      "pair": 18,
+      "childWallMs": 231.25649999990128,
+      "loadAverage1m": 10.2060546875,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 359032,
+        "heapBytesPerOperation": 7.18064,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 194.002958,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46268416,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5160296,
+          "rss": 69173248,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 69173248
+      }
+    },
+    {
+      "side": "A",
+      "pair": 19,
+      "childWallMs": 408.73654199996963,
+      "loadAverage1m": 8.25390625,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 105947424,
+        "heapBytesPerOperation": 2118.94848,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 344.635125,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4825160,
+          "rss": 47038464,
+          "external": 2029677,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 110715088,
+          "rss": 200835072,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 201687040
+      }
+    },
+    {
+      "side": "B",
+      "pair": 19,
+      "childWallMs": 203.76729199988768,
+      "loadAverage1m": 8.25390625,
+      "ok": true,
+      "metrics": {
+        "operations": 50000,
+        "failures": 0,
+        "heapUsedDeltaBytes": 350928,
+        "heapBytesPerOperation": 7.01856,
+        "sandboxStillLive": true
+      },
+      "caseDurationMs": 171.191542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5310080,
+          "rss": 46301184,
+          "external": 2047760,
+          "arrayBuffers": 173672
+        },
+        "endMemory": {
+          "heapUsed": 5152192,
+          "rss": 68714496,
+          "external": 1956142,
+          "arrayBuffers": 16619
+        },
+        "maxRssBytes": 68714496
+      }
+    }
+  ]
+}

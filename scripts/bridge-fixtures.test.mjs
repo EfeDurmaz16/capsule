@@ -9,7 +9,7 @@ import { join, relative, sep } from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-const MANIFEST_SHA256 = "af9a31d70699b1e0fc1ffec8ede50eafbb3bd8fcb35d7b1dd99a9826098d7556";
+const MANIFEST_SHA256 = "40f6490fd8c54fec1f138946386f8b7793f4b8b4b88bb4eb330f828cb5900601";
 
 const root = join(import.meta.dirname, "..", "protocol", "bridge", "v1");
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");

@@ -1,0 +1,6 @@
+
+> capsule@0.1.0 format:check /private/tmp/capsule-wt/m4
+> prettier --check .
+
+Checking formatting...
+All matched files use Prettier code style!
