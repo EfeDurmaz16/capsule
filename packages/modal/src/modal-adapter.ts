@@ -50,17 +50,28 @@ interface ModalFileLike {
   close(): Promise<void>;
 }
 
+interface ModalSandboxStatusLike {
+  sandboxId: string;
+  /** One zero-wait status request: null while the sandbox runs, else its exit code. */
+  poll(): Promise<number | null>;
+}
+
 interface ModalSandboxLike {
   sandboxId: string;
   exec(command: string[], params?: Record<string, unknown>): Promise<ModalProcessLike>;
   open(path: string, mode?: string): Promise<ModalFileLike>;
-  terminate(params?: { wait?: boolean }): Promise<void | number>;
+  /** Sends one terminate request (no wait). The installed SDK detaches the handle afterwards. */
+  terminate(): Promise<unknown>;
 }
 
 interface ModalClientLike {
   apps: { fromName(name: string, params?: Record<string, unknown>): Promise<unknown> };
   images: { fromRegistry(tag: string): unknown };
-  sandboxes: { create(app: unknown, image: unknown, params?: Record<string, unknown>): Promise<ModalSandboxLike> };
+  sandboxes: {
+    create(app: unknown, image: unknown, params?: Record<string, unknown>): Promise<ModalSandboxLike>;
+    /** Returns a fresh attached handle for a sandbox id, with one zero-wait status request. */
+    fromId(sandboxId: string): Promise<ModalSandboxStatusLike>;
+  };
 }
 
 export interface ModalAdapterOptions {
@@ -71,21 +82,23 @@ export interface ModalAdapterOptions {
   environment?: string;
   client?: ModalClientLike;
   /**
-   * Client-side budget for sandbox termination, in milliseconds: the terminate request and the wait for
-   * the sandbox to stop. When it expires destroy rejects with PendingOperationError and writes no
-   * deleted receipt; a create rollback reports its cleanup as pending. Defaults to 60000.
+   * Client-side budget for sandbox termination, in milliseconds: one terminate request followed by
+   * status polls until the sandbox has stopped. Capsule calls the SDK's terminate() once (no wait),
+   * then polls a fresh client.sandboxes.fromId() handle with poll() about once a second; each poll is
+   * one zero-wait request. Defaults to 60000.
    *
-   * SDK limit: the installed modal SDK's Sandbox.terminate, wait and poll accept no AbortSignal or
-   * timeout, so Capsule stops waiting at the deadline but cannot cancel the SDK call. That call keeps
-   * running in the background: it polls Modal (sandboxWait, about every 10 s) until the sandbox exits,
-   * which can keep a Node process alive, and its late result is ignored. Because the SDK sends the
-   * terminate request and waits in one call, a PendingOperationError at the deadline does not prove
-   * Modal accepted the request; observe the sandbox before relying on it.
+   * The installed modal SDK's terminate, poll and fromId accept no AbortSignal or timeout, so the budget
+   * is enforced between calls: no call starts after the deadline, and at most the one zero-wait call in
+   * flight when it expires outlives it; its late answer is ignored. At the deadline destroy rejects
+   * with PendingOperationError when Modal answered the terminate request (the sandbox is stopping) or
+   * with UnknownOutcomeError when it did not (Modal may or may not have received it); neither writes a
+   * deleted receipt. A create rollback reports its cleanup as pending or unknown in the same cases.
    */
   terminateDeadlineMs?: number;
 }
 
 const defaultTerminateDeadlineMs = 60_000;
+const terminatePollIntervalMs = 1_000;
 
 const provider = "modal";
 const adapter = "modal";
@@ -221,45 +234,85 @@ function sandboxLocator(sandboxId: string) {
   return resourceLocator({ provider, kind: "sandbox", nativeId: sandboxId });
 }
 
+interface TerminationObserved {
+  exitCode: number;
+  polls: number;
+}
+
 /**
- * Requests termination and waits for the sandbox to reach a terminal state through the SDK's
- * terminate({ wait: true }), which resolves with the sandbox exit code only after it has stopped.
- * The wait is bounded on the client: if it expires, PendingOperationError carries the sandbox locator.
- * A rejected request or wait is a termination failure and is thrown as a provider error.
+ * Requests termination once through the SDK's terminate() (one sandboxTerminate request, no wait), then
+ * polls until the sandbox has stopped. The SDK detaches the handle terminate() was called on, so a fresh
+ * handle from client.sandboxes.fromId() is polled instead: fromId() is one zero-wait sandboxWait request
+ * made once, and each poll() is another; poll() returns null while the sandbox runs, else its exit code
+ * (137 when terminated, 124 when timed out, otherwise the entrypoint's code).
  *
- * The observation signal is not passed on: terminate, wait and poll take no signal or timeout in the
- * installed SDK (modal 0.7.x). At the deadline the SDK call is abandoned, not cancelled; it keeps
- * polling until the sandbox exits and its late result or error is ignored. Only the SDK's non-public
- * gRPC client accepts a signal. See ModalAdapterOptions.terminateDeadlineMs.
+ * None of these SDK calls takes a signal or timeout (modal 0.7.x), so the deadline is enforced between
+ * them: the observation signal is checked before each call, no call starts after it fires, and the one
+ * call in flight when it fires is abandoned with its late answer ignored. At the deadline:
+ * - terminate() not yet answered: UnknownOutcomeError, since Modal may or may not have received it;
+ * - terminate() answered, sandbox still running: PendingOperationError with the sandbox locator.
+ * A rejected terminate() is a termination failure, thrown as the classified provider error. A rejected
+ * fromId() or poll() after an answered terminate() is an observation failure, reported as pending.
+ * See ModalAdapterOptions.terminateDeadlineMs.
  */
-async function terminateUntilStopped(sandbox: ModalSandboxLike, operation: string, deadlineMs: number): Promise<number | undefined> {
-  return await observeUntilTerminal<number | undefined>(
-    async () => {
-      try {
-        const exitCode = await sandbox.terminate({ wait: true });
-        return { done: true, value: typeof exitCode === "number" ? exitCode : undefined };
-      } catch (error) {
-        return { done: "failed", error: asProviderError(error, "Modal sandbox termination failed.") };
-      }
-    },
-    { operation, resource: sandboxLocator(sandbox.sandboxId), deadlineMs, maxObservations: 1 }
-  );
+async function terminateUntilStopped(sandbox: ModalSandboxLike, client: ModalClientLike, operation: string, deadlineMs: number): Promise<TerminationObserved> {
+  const resource = sandboxLocator(sandbox.sandboxId);
+  let requested = false;
+  let handle: ModalSandboxStatusLike | undefined;
+  let polls = 0;
+  try {
+    const exitCode = await observeUntilTerminal<number>(
+      async ({ signal }) => {
+        if (!requested) {
+          try {
+            await sandbox.terminate();
+          } catch (error) {
+            return { done: "failed", error: asProviderError(error, "Modal sandbox termination failed.") };
+          }
+          requested = true;
+        }
+        if (signal.aborted) return { done: false };
+        handle ??= await client.sandboxes.fromId(sandbox.sandboxId);
+        if (signal.aborted) return { done: false };
+        polls += 1;
+        const exitCode = await handle.poll();
+        return exitCode === null ? { done: false, state: "running" } : { done: true, value: exitCode };
+      },
+      { operation, resource, deadlineMs, intervalMs: terminatePollIntervalMs }
+    );
+    return { exitCode, polls };
+  } catch (error) {
+    if (error instanceof PendingOperationError && !requested) {
+      throw new UnknownOutcomeError(
+        `Modal sandbox termination request for ${sandbox.sandboxId} was not answered within ${deadlineMs}ms; whether Modal received it is unknown.`,
+        { operation, resource },
+        error
+      );
+    }
+    throw error;
+  }
 }
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function cleanupStatusOf(error: unknown): CleanupOutcome["status"] {
+  if (error instanceof PendingOperationError) return "pending";
+  if (error instanceof UnknownOutcomeError) return "unknown";
+  return "failed";
+}
+
 // Terminates a sandbox this create call allocated but could not hand back (for example when receipt
 // signing threw). The primary error and the cleanup outcome stay separate.
-async function rollbackCreatedSandbox(sandbox: ModalSandboxLike, primaryError: unknown, deadlineMs: number): Promise<never> {
+async function rollbackCreatedSandbox(sandbox: ModalSandboxLike, client: ModalClientLike, primaryError: unknown, deadlineMs: number): Promise<never> {
   const resources = [sandboxLocator(sandbox.sandboxId)];
   let cleanup: CleanupOutcome;
   try {
-    await terminateUntilStopped(sandbox, "sandbox.create", deadlineMs);
+    await terminateUntilStopped(sandbox, client, "sandbox.create", deadlineMs);
     cleanup = { status: "succeeded", resources };
   } catch (error) {
-    cleanup = { status: error instanceof PendingOperationError ? "pending" : "failed", resources, residual: resources, error };
+    cleanup = { status: cleanupStatusOf(error), resources, residual: resources, error };
   }
   const effects: PartialEffects = { operation: "sandbox.create", outcome: "failed", resources, primaryError, cleanup };
   if (cleanup.status === "failed") {
@@ -270,7 +323,12 @@ async function rollbackCreatedSandbox(sandbox: ModalSandboxLike, primaryError: u
       effects
     );
   }
-  const suffix = cleanup.status === "succeeded" ? "the sandbox was terminated" : "sandbox termination is still pending";
+  const suffix =
+    cleanup.status === "succeeded"
+      ? "the sandbox was terminated"
+      : cleanup.status === "pending"
+        ? "sandbox termination is still pending"
+        : "whether the termination request reached Modal is unknown";
   throw new PartialEffectsError(`Modal sandbox creation failed after sandbox allocation; ${suffix}: ${errorMessage(primaryError)}`, effects);
 }
 
@@ -291,6 +349,7 @@ async function writeStdinAndClose(proc: ModalProcessLike, input: string, sandbox
 class ModalCapsuleSandbox implements Sandbox {
   constructor(
     private readonly sandbox: ModalSandboxLike,
+    private readonly client: ModalClientLike,
     readonly handle: SandboxHandle,
     private readonly context: AdapterContext,
     private readonly terminateDeadlineMs: number
@@ -359,7 +418,7 @@ class ModalCapsuleSandbox implements Sandbox {
 
   async destroy(): Promise<void> {
     const startedAt = new Date();
-    const exitCode = await terminateUntilStopped(this.sandbox, "sandbox.destroy", this.terminateDeadlineMs);
+    const { exitCode, polls } = await terminateUntilStopped(this.sandbox, this.client, "sandbox.destroy", this.terminateDeadlineMs);
     if (this.context.receipts) {
       this.context.createReceipt({
         type: "sandbox.destroy",
@@ -367,7 +426,7 @@ class ModalCapsuleSandbox implements Sandbox {
         startedAt,
         policy: { decision: "allowed", applied: this.context.policy, notes: policyNotes(this.context) },
         resource: { id: this.handle.id, status: "deleted" },
-        metadata: modalReceiptMetadata(removeUndefined({ terminateWait: true, exitCode }))
+        metadata: modalReceiptMetadata({ exitCode, polls })
       });
     }
   }
@@ -428,9 +487,9 @@ export function modal(options: ModalAdapterOptions = {}): CapsuleAdapter {
           }
         } catch (error) {
           // Allocation succeeded but the handle cannot be returned (for example receipt signing threw).
-          return await rollbackCreatedSandbox(sandbox, error, terminateDeadlineMs);
+          return await rollbackCreatedSandbox(sandbox, client, error, terminateDeadlineMs);
         }
-        return new ModalCapsuleSandbox(sandbox, handle, context, terminateDeadlineMs);
+        return new ModalCapsuleSandbox(sandbox, client, handle, context, terminateDeadlineMs);
       }
     }
   };
