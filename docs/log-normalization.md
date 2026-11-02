@@ -15,7 +15,7 @@ Logs are observational. Every `LogEntry[]` Capsule returns is a best-effort boun
 
 ## Pagination
 
-`JobLogsSpec`, `ServiceLogsSpec`, `EdgeLogsSpec`, and `PreviewLogsSpec` accept an optional `cursor?: string`. When a provider exposes a paged log API, the matching result returns an opaque `nextCursor?: string`; pass it back as `spec.cursor` to fetch the next page. `nextCursor` is absent when there are no more pages, and adapters without a paged log API simply never return it. Cursors are opaque provider tokens; do not parse or construct them.
+`JobLogsSpec`, `ServiceLogsSpec`, `EdgeLogsSpec`, and `PreviewLogsSpec` accept an optional `cursor?: string`. When a provider exposes a paged log API, the matching result returns an opaque `nextCursor?: string`; pass it back as `spec.cursor` to fetch the next page. `nextCursor` is absent when there are no more pages, and adapters without a paged log API simply never return it. On Kubernetes a result whose `truncation.reason` is `"deadline"` carries the cursor of the page the deadline cut, whether its pod list or one of its pod log reads was still in flight; passing it back reads that page again, so a pager that stops only when `nextCursor` is absent skips nothing. Cursors are opaque provider tokens; do not parse or construct them. A cursor is valid for the adapter version that issued it or a newer one, not an older one: a newer version can issue cursors an older one does not recognise (the Kubernetes first-page cursor is one), so a cursor persisted across a rolling deploy must not reach the previous version.
 
 ## Follow mode
 

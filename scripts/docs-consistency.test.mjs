@@ -201,3 +201,14 @@ test("DOC-09: the receipt type union and the committed JSON Schema enum agree", 
   const fromSchema = [...JSON.parse(read("schemas/capsule-receipt.schema.json")).properties.type.enum].sort();
   assert.deepEqual(fromTypes, fromSchema);
 });
+
+test("DOC-11: log pagination documents the deadline cursor and the cursor version rule", () => {
+  const pagination = markdownSections(read("docs/log-normalization.md")).get("Pagination");
+  assert.ok(pagination, "docs/log-normalization.md needs a Pagination section");
+  assert.match(pagination, /`nextCursor` is absent when there are no more pages/);
+  // A deadline-truncated Kubernetes result carries the cursor of the page to read again, so "absent
+  // means the end" stays true, and a cursor is only valid for the adapter version that issued it or a newer one.
+  assert.match(pagination, /"deadline"/, "must say what a deadline-truncated result's cursor means");
+  assert.match(pagination, /same page|that page again|read it again/, "must say the cursor rereads the page the deadline cut");
+  assert.match(pagination, /version/, "must state the cursor version rule");
+});
