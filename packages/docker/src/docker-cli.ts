@@ -12,14 +12,20 @@ export interface DockerCommandResult {
    */
   timedOut?: boolean;
   /**
-   * The note runDocker appended to `stderr` after the captured output when it timed out. Callers that
-   * post-process captured output (for example redacting a secret cut by the byte cap) apply that to the
-   * part of `stderr` before this note.
+   * True when runDocker killed the local docker CLI process at deadlineMs. As with a timeout, only the
+   * client stopped: the exec'd process may still be running in the daemon, so the outcome is unknown.
+   */
+  deadlineExceeded?: boolean;
+  /**
+   * The note runDocker appended to `stderr` after the captured output when it timed out or reached its
+   * deadline. Callers that post-process captured output (for example redacting a secret cut by the byte
+   * cap) apply that to the part of `stderr` before this note.
    */
   timeoutNote?: string;
   /**
-   * Set when an output stream reached its byte cap with overflow "error" but the command timed out
-   * before it exited. The timeout wins, because the process may still be running; this keeps the limit.
+   * Set when an output stream reached its byte cap with overflow "error" but the command timed out or
+   * reached its deadline before it exited. The stop wins, because the process may still be running; this
+   * keeps the limit.
    */
   captureLimit?: CaptureLimitError;
   /** Present when outputBounds were applied: per stream, whether and why output was truncated. */
@@ -33,6 +39,12 @@ export interface DockerOutputBounds {
 
 export interface RunDockerOptions {
   timeoutMs?: number;
+  /**
+   * Client-side deadline for the whole command (ExecSpec.bounds.deadlineMs). When it expires the local
+   * docker CLI is killed exactly like a timeout, the output captured so far is kept and the result
+   * carries `deadlineExceeded`. Independent of timeoutMs: whichever expires first stops the CLI.
+   */
+  deadlineMs?: number;
   input?: string;
   /**
    * Per-stream capture bounds, enforced while the output arrives. Bytes past the cap are read and
@@ -77,6 +89,9 @@ class StreamCapture {
   }
 }
 
+// Node fires a setTimeout longer than 2^31 - 1 ms after 1 ms; a longer deadline uses the largest delay.
+const maxTimerDelayMs = 2_147_483_647;
+
 export function runDocker(args: string[], options: RunDockerOptions = {}): Promise<DockerCommandResult> {
   return new Promise((resolve, reject) => {
     const child = spawn("docker", args, { stdio: ["pipe", "pipe", "pipe"] });
@@ -88,9 +103,11 @@ export function runDocker(args: string[], options: RunDockerOptions = {}): Promi
       const stdoutText = stdout.finish();
       const stderrText = stderr.finish();
       const limitError = stdout.limitError ?? stderr.limitError;
-      // A capture-limit error is raised only after the command exits. A timeout means the process may
-      // still be running in the daemon, which the caller must learn first, so it resolves as timed out.
-      if (limitError && !extra.timedOut) {
+      const stopped = extra.timedOut === true || extra.deadlineExceeded === true;
+      // A capture-limit error is raised only after the command exits. A timeout or deadline means the
+      // process may still be running in the daemon, which the caller must learn first, so it resolves
+      // as stopped.
+      if (limitError && !stopped) {
         reject(limitError);
         return;
       }
@@ -100,39 +117,49 @@ export function runDocker(args: string[], options: RunDockerOptions = {}): Promi
         stdout: stdoutText,
         stderr: extra.stderr === undefined ? stderrText : stderrText ? `${stderrText}\n${extra.stderr}` : extra.stderr,
         ...(extra.timedOut ? { timedOut: true } : {}),
-        ...(extra.timedOut && extra.stderr !== undefined ? { timeoutNote: extra.stderr } : {}),
+        ...(extra.deadlineExceeded ? { deadlineExceeded: true } : {}),
+        ...(stopped && extra.stderr !== undefined ? { timeoutNote: extra.stderr } : {}),
         ...(limitError ? { captureLimit: limitError } : {}),
         ...truncation
       });
     };
 
-    const timer =
-      options.timeoutMs === undefined
-        ? undefined
-        : setTimeout(() => {
+    // timeoutMs and deadlineMs each arm a timer; the first to fire kills the CLI and settles the result.
+    const timers: NodeJS.Timeout[] = [];
+    const clearTimers = (): void => {
+      for (const timer of timers) clearTimeout(timer);
+    };
+    const stopAfter = (ms: number | undefined, outcome: () => Partial<DockerCommandResult>): void => {
+      if (ms === undefined) return;
+      timers.push(
+        setTimeout(
+          () => {
             if (settled) {
               return;
             }
             settled = true;
+            clearTimers();
             child.kill("SIGKILL");
-            finish(124, { timedOut: true, stderr: `Command timed out after ${options.timeoutMs}ms` });
-          }, options.timeoutMs);
+            finish(124, outcome());
+          },
+          Math.min(ms, maxTimerDelayMs)
+        )
+      );
+    };
+    stopAfter(options.timeoutMs, () => ({ timedOut: true, stderr: `Command timed out after ${options.timeoutMs}ms` }));
+    stopAfter(options.deadlineMs, () => ({ deadlineExceeded: true, stderr: `Capture deadline of ${options.deadlineMs}ms expired` }));
 
     child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
     child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
     child.on("error", (error) => {
-      if (timer) {
-        clearTimeout(timer);
-      }
+      clearTimers();
       if (!settled) {
         settled = true;
         reject(error);
       }
     });
     child.on("close", (exitCode) => {
-      if (timer) {
-        clearTimeout(timer);
-      }
+      clearTimers();
       if (!settled) {
         settled = true;
         finish(exitCode ?? 1);

@@ -46,6 +46,8 @@ Cleanup: job containers are removed after `job.run`; sandbox examples destroy th
 
 Caveat: local Docker is not safe for hostile untrusted code by default. `network.mode = "none"` maps to Docker network isolation, but filesystem and host daemon access still require careful operator configuration.
 
+Time limits: `sandbox.exec` `timeoutMs` and `bounds.deadlineMs` both kill the local docker CLI when they expire, and exec then throws `UnknownOutcomeError` with the output captured so far. Only the client stops; the process may keep running inside the container, so reconcile it (or destroy the sandbox) before retrying. `job.run` is bounded by `timeoutMs` alone and removes its container on timeout.
+
 ## E2B
 
 Status badges: [credentials: E2B_API_KEY] [cost risk: cloud sandbox runtime] [capabilities: sandbox native] [cleanup: sandbox.destroy]

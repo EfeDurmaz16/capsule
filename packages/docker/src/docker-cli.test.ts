@@ -1,10 +1,10 @@
 // Exercises the real runDocker child-process plumbing against a fake `docker` executable placed first
 // on PATH. No Docker daemon is used.
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { Capsule, CaptureLimitError, defaultCaptureBounds, UnknownOutcomeError } from "@capsule-sdk/core";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { Capsule, CaptureLimitError, defaultCaptureBounds, MemoryReceiptStore, UnknownOutcomeError } from "@capsule-sdk/core";
 import { runDocker } from "./docker-cli.js";
 import { docker } from "./index.js";
 
@@ -15,6 +15,15 @@ function fakeDocker(script: string): void {
   const path = join(binDir, "docker");
   writeFileSync(path, `#!/bin/sh\n${script}\n`);
   chmodSync(path, 0o755);
+}
+
+function processAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 beforeAll(() => {
@@ -138,5 +147,54 @@ describe.skipIf(process.platform === "win32")("runDocker", () => {
     const serialized = JSON.stringify({ cause, inner: (cause as { cause?: unknown }).cause });
     expect(serialized).toContain("[REDACTED]");
     expect(serialized).not.toContain("SUPER");
+  });
+  it("CD-BOUNDS: deadlineMs kills the local CLI and keeps the output captured so far", async () => {
+    const pidFile = join(binDir, "exec.pid");
+    fakeDocker(`printf 'partial'; echo $$ > "${pidFile}"; exec sleep 5`);
+    const bounds = { ...defaultCaptureBounds, deadlineMs: 100 };
+    const started = Date.now();
+    const result = await runDocker(["exec", "c", "x"], { deadlineMs: 100, outputBounds: { stdout: bounds, stderr: bounds } });
+    expect(Date.now() - started).toBeLessThan(4_000);
+    expect(result).toMatchObject({
+      exitCode: 124,
+      deadlineExceeded: true,
+      stdout: "partial",
+      stderr: "Capture deadline of 100ms expired",
+      timeoutNote: "Capture deadline of 100ms expired"
+    });
+    expect(result.timedOut).toBeUndefined();
+    expect(result.truncation?.stdout).toMatchObject({ capturedBytes: 7 });
+    const pid = Number(readFileSync(pidFile, "utf8").trim());
+    await vi.waitFor(() => expect(processAlive(pid)).toBe(false), { timeout: 2_000 });
+  });
+
+  it("CD-BOUNDS: timeoutMs and deadlineMs are independent and the earlier one stops the CLI", async () => {
+    fakeDocker("sleep 5");
+    const byTimeout = await runDocker(["exec", "c", "x"], { timeoutMs: 100, deadlineMs: 5_000 });
+    expect(byTimeout).toMatchObject({ exitCode: 124, timedOut: true, timeoutNote: "Command timed out after 100ms" });
+    expect(byTimeout.deadlineExceeded).toBeUndefined();
+    const byDeadline = await runDocker(["exec", "c", "x"], { timeoutMs: 5_000, deadlineMs: 100 });
+    expect(byDeadline).toMatchObject({ exitCode: 124, deadlineExceeded: true, timeoutNote: "Capture deadline of 100ms expired" });
+    expect(byDeadline.timedOut).toBeUndefined();
+  });
+
+  it("CD-BOUNDS: through the adapter the deadline rejects sandbox.exec as an unknown outcome with the captured output", async () => {
+    fakeDocker(`case "$1" in exec) printf 'partial'; sleep 5 ;; *) ;; esac`);
+    const adapter = docker({
+      checkAvailable: async () => true,
+      runner: (args, options) =>
+        args[0] === "exec" ? runDocker(args, options) : Promise.resolve({ exitCode: 0, stdout: args[0] === "create" ? "box-1\n" : "", stderr: "" })
+    });
+    const store = new MemoryReceiptStore();
+    const box = await new Capsule({ adapter, receipts: true, receiptStore: store }).sandbox.create({});
+    const started = Date.now();
+    const error = (await box.exec({ command: "x", bounds: { deadlineMs: 100, maxBytes: 4 } }).catch((caught: unknown) => caught)) as UnknownOutcomeError;
+    expect(Date.now() - started).toBeLessThan(4_000);
+    expect(error).toBeInstanceOf(UnknownOutcomeError);
+    expect(error.message).toContain("deadline of 100ms");
+    expect(error.resource).toMatchObject({ provider: "docker", kind: "sandbox", nativeId: "box-1" });
+    const details = (error.cause as { cause?: { stdout?: string; truncation?: unknown } }).cause;
+    expect(details).toMatchObject({ stdout: "part", truncation: { stdout: { truncated: true, reason: "bytes", limit: 4 } } });
+    expect(store.receipts.some((receipt) => receipt.type === "sandbox.exec")).toBe(false);
   });
 });
