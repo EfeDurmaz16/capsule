@@ -1,0 +1,237 @@
+{
+  "scenario": "destroy_not_found_carries_absent_evidence",
+  "summary": "A destroy of a resource the provider does not hold answers not_found. Alone, that settles nothing: the worker looked once, now, in its own scope. Once an observe of that resource has answered not_found with the scope it searched, a later destroy's not_found carries that searched scope, and Fabric settles the destroy as succeeded with nothing residual. No provider call is made.",
+  "profile": "fixture",
+  "provider_state": {
+    "binding": {
+      "account": "acct-a",
+      "project": "proj-1"
+    },
+    "policy": {
+      "images": [
+        "fixture/ok"
+      ],
+      "secrets": {
+        "allowed": [
+          "API_TOKEN",
+          "DB_URL"
+        ]
+      }
+    },
+    "approvals": [
+      {
+        "ref": "apr-destroy-gone-1",
+        "action": "sandbox.destroy",
+        "native_id": "fx-key-create-9",
+        "expired": false
+      },
+      {
+        "ref": "apr-destroy-gone-2",
+        "action": "sandbox.destroy",
+        "native_id": "fx-key-create-9",
+        "expired": false
+      }
+    ],
+    "sandboxes": [],
+    "script": []
+  },
+  "journal_state": {
+    "provider_operations": [
+      {
+        "operation_id": "01K8W3A0000000000000000P42",
+        "key": "key-create-9",
+        "digest": "4242424242424242424242424242424242424242424242424242424242424242",
+        "scope": {
+          "job": "01K8W3A00000000000000000J1",
+          "task": "01K8W3A00000000000000000T1",
+          "attempt": "01K8W3A00000000000000000A1",
+          "generation": "1"
+        },
+        "action": "sandbox.create",
+        "target": null,
+        "status": "unknown",
+        "locator": {
+          "provider": "fixture",
+          "scope": {
+            "account": "acct-a",
+            "project": "proj-1"
+          },
+          "kind": "sandbox",
+          "native_id": "fx-key-create-9"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "send": {
+        "type": "request",
+        "request_id": "r-1",
+        "operation": {
+          "id": "01K8W3A0000000000000000P40",
+          "key": "key-destroy-6",
+          "digest": "4040404040404040404040404040404040404040404040404040404040404040"
+        },
+        "scope": {
+          "job": "01K8W3A00000000000000000J1",
+          "task": "01K8W3A00000000000000000T1",
+          "attempt": "01K8W3A00000000000000000A1",
+          "generation": "1"
+        },
+        "action": "sandbox.destroy",
+        "target": {
+          "provider": "fixture",
+          "scope": {
+            "account": "acct-a",
+            "project": "proj-1"
+          },
+          "kind": "sandbox",
+          "native_id": "fx-key-create-9"
+        },
+        "params": {},
+        "approval": {
+          "ref": "apr-destroy-gone-1"
+        },
+        "deadline_ms": 30000
+      }
+    },
+    {
+      "receive": {
+        "type": "error",
+        "request_id": "r-1",
+        "operation_id": "01K8W3A0000000000000000P40",
+        "error": {
+          "code": "provider_failed",
+          "reason": "not_found",
+          "message": "provider_failed: not_found",
+          "effect": "none"
+        }
+      }
+    },
+    {
+      "provider_calls": 0
+    },
+    {
+      "journal": {
+        "operation_id": "01K8W3A0000000000000000P40",
+        "status": "unknown"
+      }
+    },
+    {
+      "send": {
+        "type": "observe",
+        "request_id": "r-2",
+        "operation_id": "01K8W3A0000000000000000P42",
+        "scope": {
+          "job": "01K8W3A00000000000000000J1",
+          "task": "01K8W3A00000000000000000T1",
+          "attempt": "01K8W3A00000000000000000A1",
+          "generation": "1"
+        },
+        "action": "sandbox.create",
+        "resource": {
+          "provider": "fixture",
+          "scope": {
+            "account": "acct-a",
+            "project": "proj-1"
+          },
+          "kind": "sandbox",
+          "native_id": "fx-key-create-9"
+        },
+        "wait_ms": 5000
+      }
+    },
+    {
+      "receive": {
+        "type": "error",
+        "request_id": "r-2",
+        "operation_id": "01K8W3A0000000000000000P42",
+        "error": {
+          "code": "provider_failed",
+          "reason": "not_found",
+          "message": "provider_failed: not_found",
+          "effect": "none",
+          "searched": {
+            "provider": "fixture",
+            "scope": {
+              "account": "acct-a",
+              "project": "proj-1"
+            },
+            "kind": "sandbox"
+          }
+        }
+      }
+    },
+    {
+      "provider_calls": 0
+    },
+    {
+      "journal": {
+        "operation_id": "01K8W3A0000000000000000P42",
+        "status": "unknown"
+      }
+    },
+    {
+      "send": {
+        "type": "request",
+        "request_id": "r-3",
+        "operation": {
+          "id": "01K8W3A0000000000000000P41",
+          "key": "key-destroy-7",
+          "digest": "4141414141414141414141414141414141414141414141414141414141414141"
+        },
+        "scope": {
+          "job": "01K8W3A00000000000000000J1",
+          "task": "01K8W3A00000000000000000T1",
+          "attempt": "01K8W3A00000000000000000A1",
+          "generation": "1"
+        },
+        "action": "sandbox.destroy",
+        "target": {
+          "provider": "fixture",
+          "scope": {
+            "account": "acct-a",
+            "project": "proj-1"
+          },
+          "kind": "sandbox",
+          "native_id": "fx-key-create-9"
+        },
+        "params": {},
+        "approval": {
+          "ref": "apr-destroy-gone-2"
+        },
+        "deadline_ms": 30000
+      }
+    },
+    {
+      "receive": {
+        "type": "error",
+        "request_id": "r-3",
+        "operation_id": "01K8W3A0000000000000000P41",
+        "error": {
+          "code": "provider_failed",
+          "reason": "not_found",
+          "message": "provider_failed: not_found",
+          "effect": "none",
+          "searched": {
+            "provider": "fixture",
+            "scope": {
+              "account": "acct-a",
+              "project": "proj-1"
+            },
+            "kind": "sandbox"
+          }
+        }
+      }
+    },
+    {
+      "provider_calls": 0
+    },
+    {
+      "journal": {
+        "operation_id": "01K8W3A0000000000000000P41",
+        "status": "succeeded"
+      }
+    }
+  ]
+}

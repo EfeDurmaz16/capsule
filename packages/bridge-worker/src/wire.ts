@@ -251,9 +251,11 @@ export interface CleanupReport {
 }
 
 /**
- * Where an attach looked and found nothing: the profile's provider, the worker's bound scope and the
- * resource kind. Required with unknown/absent and on no other error. Absence is evidence about this
- * scope at this time only, so it settles nothing.
+ * Where the worker looked and found nothing: the profile's provider, the worker's bound scope and the
+ * resource kind. Required with unknown/absent, optional with provider_failed/not_found (an observe
+ * that read the resource as absent, and a destroy's not_found once such an observe was answered), and
+ * refused on every other error. Absence is evidence about this scope at this time only; by itself it
+ * settles nothing.
  */
 export interface Searched {
   provider: string;

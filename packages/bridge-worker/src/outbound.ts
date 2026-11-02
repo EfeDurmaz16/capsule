@@ -154,13 +154,15 @@ function check(message: unknown, context: OutboundContext): void {
       if (!ERROR_REASONS[code].includes(error.reason as string)) throw new Violation("unknown_variant", "error.reason");
       if (!ERROR_EFFECTS[code].includes(error.effect as never)) throw new Violation("effect_mismatch", `${code} with effect ${String(error.effect)}`);
       if (typeof error.message !== "string" || error.message.length > 1024) throw new Violation("bad_value", "error.message");
-      // An absent answer names where it looked and no resource; no other error carries searched.
+      // An absent answer names where it looked and no resource. A definite not_found may name where it
+      // looked, as absent evidence for Fabric; no other error carries searched.
       if (error.reason === "absent") {
         if (!("searched" in error)) throw new Violation("missing_field", "error.searched");
         if ("resource" in error) throw new Violation("unknown_field", "error.resource");
         searched(error.searched, context);
       } else if ("searched" in error) {
-        throw new Violation("unknown_field", "error.searched");
+        if (error.reason !== "not_found") throw new Violation("unknown_field", "error.searched");
+        searched(error.searched, context);
       }
       const locatorRequired = code === "pending" || (code === "provider_failed" && error.effect === "applied");
       if (locatorRequired && !("resource" in error)) throw new Violation("missing_field", "error.resource");
