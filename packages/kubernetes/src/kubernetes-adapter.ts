@@ -117,6 +117,12 @@ interface CoreApi {
  * Per-request options of the @kubernetes/client-node 1.x API methods. Capsule passes only a request
  * middleware that attaches an AbortSignal, so a deadline cancels the HTTP request instead of leaving it
  * running. Injected clients may ignore it; Capsule still stops waiting at the deadline.
+ *
+ * SDK limit: the client applies authentication while it builds the request, before any middleware
+ * runs. A kubeconfig exec credential plugin (for example `aws eks get-token` or the GKE auth plugin) is
+ * a child process started there, with no signal to cancel it, so a hung plugin outlives the deadline.
+ * Capsule stops waiting at the deadline all the same, and the middleware refuses a request whose signal
+ * has already aborted, so a plugin that answers late sends nothing to the API server.
  */
 type KubernetesRequestOptions = k8s.ConfigurationOptions<k8s.ObservableMiddleware>;
 
@@ -130,6 +136,10 @@ function abortableRequest(signal: AbortSignal): KubernetesRequestOptions {
     middleware: [
       {
         pre: (request) => {
+          // Authentication ran before this point and cannot be cancelled (see KubernetesRequestOptions).
+          // A request that reaches the middleware after its deadline is dropped here, before the HTTP
+          // library sees it, whatever that library does with an aborted signal.
+          if (signal.aborted) return new k8s.Observable(Promise.reject(signal.reason));
           request.setSignal(signal);
           return new k8s.Observable(Promise.resolve(request));
         },
@@ -162,7 +172,10 @@ export interface KubernetesAdapterOptions {
    * Client-side budget in milliseconds for observing that an accepted foreground DELETE has finished
    * (the object is gone, after finalizers ran). Default 120000. When it expires, service.delete throws
    * PendingOperationError instead of reporting deleted, and an observation GET still in flight is
-   * cancelled.
+   * cancelled. The same holds for the log capture deadline (bounds.deadlineMs). SDK limit: a kubeconfig
+   * exec credential plugin (`aws eks get-token`, the GKE auth plugin) runs before the request carries
+   * the signal and cannot be cancelled; a hung plugin process may outlive the deadline. Capsule stops
+   * waiting at the deadline and sends no request once it has passed, even when the plugin answers later.
    */
   operationDeadlineMs?: number;
   /** Delay between deletion observations in milliseconds. Default 1000. */

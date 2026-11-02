@@ -225,7 +225,7 @@ describe("kubernetes log capture signal", () => {
 describe("kubernetes request signal through @kubernetes/client-node", () => {
   type Sent = { method: string; url: string; signal?: AbortSignal; staticHeader?: string };
 
-  function sdkClients(answer: (request: k8s.RequestContext) => Promise<k8s.ResponseContext> | undefined) {
+  function sdkClients(answer: (request: k8s.RequestContext) => Promise<k8s.ResponseContext> | undefined, auth?: k8s.SecurityAuthentication) {
     const sent: Sent[] = [];
     const httpApi: k8s.HttpLibrary = {
       send(request) {
@@ -237,7 +237,7 @@ describe("kubernetes request signal through @kubernetes/client-node", () => {
     const configuration = k8s.createConfiguration({
       baseServer: new k8s.ServerConfiguration("https://kubernetes.test", {}),
       httpApi,
-      authMethods: {},
+      authMethods: auth ? { default: auth } : {},
       promiseMiddleware: [
         {
           pre: async (request) => {
@@ -316,5 +316,62 @@ describe("kubernetes request signal through @kubernetes/client-node", () => {
       expect(sent[0]?.staticHeader).toBe("kept");
       expect(sent[0]?.signal?.aborted).toBe(true);
     }
+  });
+  // The client applies authentication (an exec credential plugin such as aws eks get-token or the GKE
+  // auth plugin) while it builds the request, before the per-request middleware attaches the signal, so
+  // a hung plugin cannot be cancelled. It must still send nothing once the deadline has passed.
+  function slowAuth(when: (request: k8s.RequestContext) => boolean) {
+    let release: () => void = () => undefined;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    const auth: k8s.SecurityAuthentication = {
+      getName: () => "slow-plugin",
+      applySecurityAuthentication: async (request) => {
+        if (when(request)) await released;
+        request.setHeaderParam("authorization", "Bearer late");
+      }
+    };
+    return { auth, release: () => release() };
+  }
+  const settled = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  it("sends no log capture request after the deadline when the auth step answers late", async () => {
+    const { auth, release } = slowAuth(() => true);
+    const { sent, core } = sdkClients(() => undefined, auth);
+    const capsule = new Capsule({ adapter: kubernetes({ clients: { batch: {} as never, apps: {} as never, core } as never }) });
+    const result = await Promise.race([
+      capsule.service.logs({ id: "svc", bounds: { deadlineMs: 40 } }),
+      new Promise<"still pending">((resolve) => setTimeout(() => resolve("still pending"), 1_000))
+    ]);
+    expect(result).not.toBe("still pending");
+    if (result === "still pending") return;
+    expect(result.logs).toEqual([]);
+    expect(result.truncation).toMatchObject({ truncated: true, reason: "deadline", limit: 40 });
+    expect(sent).toHaveLength(0);
+    release();
+    await settled();
+    expect(sent).toHaveLength(0);
+  });
+
+  it("sends no service.delete observation GET after the deadline when the auth step answers late", async () => {
+    const { auth, release } = slowAuth((request) => request.getHttpMethod() === k8s.HttpMethod.GET);
+    const { sent, apps, core } = sdkClients((request) => {
+      if (request.getHttpMethod() === k8s.HttpMethod.DELETE) {
+        return json({ apiVersion: "apps/v1", kind: "Deployment", metadata: { name: "app", deletionTimestamp: "2026-10-29T00:00:00Z" } });
+      }
+      return undefined;
+    }, auth);
+    const capsule = new Capsule({
+      adapter: kubernetes({ operationDeadlineMs: 40, operationPollIntervalMs: 5, clients: { batch: {} as never, apps, core } as never })
+    });
+    const error = await Promise.race([
+      capsule.service.delete({ id: "app" }).catch((caught: unknown) => caught),
+      new Promise<"still pending">((resolve) => setTimeout(() => resolve("still pending"), 1_000))
+    ]);
+    expect(error).toBeInstanceOf(PendingOperationError);
+    const reads = () => sent.filter((request) => request.method === k8s.HttpMethod.GET);
+    expect(reads()).toHaveLength(0);
+    release();
+    await settled();
+    expect(reads()).toHaveLength(0);
   });
 });
