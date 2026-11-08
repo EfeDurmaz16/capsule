@@ -6,6 +6,7 @@ import { FixtureProvider, fixtureDriver } from "./fixture.js";
 import { readFixture, type ScenarioState } from "./harness.test.support.js";
 import { fixtureProfile } from "./profiles.js";
 import { WorkerSession } from "./session.js";
+import { refusalOutcome } from "./dispatch.js";
 import { fabricOperationLink, parseTraceparent } from "./trace.js";
 import { encodeFrame, FrameReader, decodeBody } from "./frame.js";
 import { MAX_FRAME_BYTES } from "./wire.js";
@@ -125,6 +126,14 @@ describe("bridge worker tracing", () => {
     const operation = (createRequest.operation as { id: string }).id;
     const spans = (await finished()).filter((span) => span.attributes["fabric.operation.id"] === operation);
     expect(spans.map((span) => [span.attributes["capsule.outcome"], span.attributes["capsule.refusal.reason"]])).toEqual([["denied", "owner_mismatch"]]);
+  });
+
+  test("a refusal span uses the Capsule outcome vocabulary for its error code", () => {
+    expect(refusalOutcome("denied")).toBe("denied");
+    expect(refusalOutcome("unsupported")).toBe("unsupported");
+    expect(refusalOutcome("unknown")).toBe("unknown");
+    expect(refusalOutcome("pending")).toBe("pending");
+    for (const code of ["invalid", "unavailable", "provider_failed"] as const) expect(refusalOutcome(code)).toBe("failed");
   });
 
   test("the Fabric link is derived from the operation id alone, and TRACEPARENT is parsed strictly", () => {

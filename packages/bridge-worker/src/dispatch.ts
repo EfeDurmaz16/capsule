@@ -18,7 +18,8 @@ import {
   type CapsuleReceipt,
   type ExecResult,
   type ReceiptStore,
-  type ResourceLocator
+  type ResourceLocator,
+  type SpanOutcome
 } from "@capsule-sdk/core";
 import { fabricOperationLink, parseTraceparent, type WorkerTrace } from "./trace.js";
 import { resolveApproval, type ApprovalUses, type WorkerConfig } from "./config.js";
@@ -42,6 +43,7 @@ import type {
   BridgeRequest,
   CleanupReport,
   ErrorBody,
+  ErrorCode,
   ErrorMessage,
   ExecStream,
   Observe,
@@ -541,13 +543,15 @@ export async function dispatchRequest(context: DispatchContext, runtime: Operati
       capsuleTrace(context.trace, request, runtime),
       request.action,
       { "capsule.provider": context.driver.profile.provider },
-      {
-        outcome: code === "denied" ? "denied" : "failed",
-        reason
-      }
+      { outcome: refusalOutcome(code), reason }
     );
   }
   return answer;
+}
+
+/** The span outcome of an error answer, in the same words the facade uses for the same situation. */
+export function refusalOutcome(code: ErrorCode): SpanOutcome {
+  return code === "denied" || code === "unsupported" || code === "unknown" || code === "pending" ? code : "failed";
 }
 
 /** Operations that already have a Capsule span, or replay the answer of one that had. */
