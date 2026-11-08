@@ -28,9 +28,9 @@ writeFileSync(
   setup,
   `import { writeFileSync } from "node:fs";
 import { trace } from ${JSON.stringify(resolveFromRoot("@opentelemetry/api"))};
-import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from ${JSON.stringify(resolveFromRoot("@opentelemetry/sdk-trace-base"))};
+import { TracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from ${JSON.stringify(resolveFromRoot("@opentelemetry/sdk-trace"))};
 const exporter = new InMemorySpanExporter();
-trace.setGlobalTracerProvider(new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] }));
+trace.setGlobalTracerProvider(new TracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] }));
 process.on("exit", () => writeFileSync(process.env.CAPSULE_SPAN_DUMP, JSON.stringify(exporter.getFinishedSpans().map((span) => ({
   name: span.name, traceId: span.spanContext().traceId, spanId: span.spanContext().spanId, status: span.status,
   attributes: span.attributes, events: span.events.map((event) => ({ name: event.name, attributes: event.attributes ?? {} })),
@@ -88,9 +88,10 @@ async function libraryRun() {
   const { Capsule } = await import(pathToFileURL(join(root, "packages", "core", "dist", "index.js")).href);
   const { JsonlReceiptStore } = await import(pathToFileURL(join(root, "packages", "store-jsonl", "dist", "index.js")).href);
   const { trace } = await import(resolveFromRoot("@opentelemetry/api"));
-  const { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } = await import(resolveFromRoot("@opentelemetry/sdk-trace-base"));
+  const { TracerProvider, InMemorySpanExporter, SimpleSpanProcessor } = await import(resolveFromRoot("@opentelemetry/sdk-trace"));
   const exporter = new InMemorySpanExporter();
-  trace.setGlobalTracerProvider(new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] }));
+  const provider = new TracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] });
+  trace.setGlobalTracerProvider(provider);
   const receiptFile = join(scratch, "receipts.jsonl");
   const adapter = {
     name: "evidence",
@@ -132,6 +133,7 @@ async function libraryRun() {
     encoding: "utf8"
   });
   expect(exported.status === 0, `audit export exited ${exported.status}: ${exported.stderr}`);
+  await provider.forceFlush();
   const spans = exporter.getFinishedSpans().map((span) => ({
     name: span.name,
     status: span.status,
@@ -158,7 +160,7 @@ try {
   const evidence = {
     generatedBy: relative(root, fileURLToPath(import.meta.url)),
     exporter:
-      "OpenTelemetry SDK InMemorySpanExporter (sdk-trace-base 2.7.1, api 1.9.1). No container engine was running and no Jaeger image was present locally, so spans are dumped here instead of shown in Jaeger.",
+      "OpenTelemetry SDK InMemorySpanExporter (sdk-trace 3.1.0, api 1.10.0). No container engine was running and no Jaeger image was present locally, so spans are dumped here instead of shown in Jaeger.",
     checks: {
       secretOrApprovalRefInSpans: false,
       secretInAuditExport: false,

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { trace as otelTrace, type Tracer } from "@opentelemetry/api";
-import { AlwaysOffSampler, BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor, type ReadableSpan } from "@opentelemetry/sdk-trace-base";
+import { AlwaysOffSampler, TracerProvider, InMemorySpanExporter, SimpleSpanProcessor, type ReadableSpan } from "@opentelemetry/sdk-trace";
 import { describe, expect, test } from "vitest";
 import {
   Capsule,
@@ -19,11 +19,11 @@ const sha = (value: string) => createHash("sha256").update(value).digest("hex");
 
 function recorder(options: { off?: boolean } = {}) {
   const exporter = new InMemorySpanExporter();
-  const provider = new BasicTracerProvider({
-    spanProcessors: [new SimpleSpanProcessor(exporter)],
+  const provider = new TracerProvider({
+    spanProcessors: [new SimpleSpanProcessor({ exporter })],
     ...(options.off ? { sampler: new AlwaysOffSampler() } : {})
   });
-  return { exporter, tracer: provider.getTracer("capsule-test") };
+  return { tracer: provider.getTracer("capsule-test"), finished: async () => (await provider.forceFlush(), exporter.getFinishedSpans()) };
 }
 
 function adapter(behaviour: { exec?: () => Promise<never>; jobStatus?: "queued" | "succeeded" } = {}): CapsuleAdapter {
@@ -114,9 +114,9 @@ async function scenario(trace: CapsuleTrace | undefined, adapterBehaviour: Param
 
 describe("tracing hook", () => {
   test("every operation gets a span with operation id, job, provider, action, outcome, digests and policy decision", async () => {
-    const { exporter, tracer } = recorder();
+    const { finished, tracer } = recorder();
     await scenario({ tracer, attributes: { "fabric.operation.id": "op_fabric_1" } });
-    const spans = exporter.getFinishedSpans();
+    const spans = (await finished());
     expect(spans.map((span) => span.name)).toEqual(["capsule sandbox.create", "capsule sandbox.exec", "capsule sandbox.exec", "capsule sandbox.destroy"]);
     const [create, exec, denied, destroy] = spans as [ReadableSpan, ReadableSpan, ReadableSpan, ReadableSpan];
     expect(create.attributes).toMatchObject({
@@ -141,16 +141,16 @@ describe("tracing hook", () => {
   });
 
   test("no secret value, raw approval ref or sensitive argv reaches any attribute, event, link or status", async () => {
-    const { exporter, tracer } = recorder();
+    const { finished, tracer } = recorder();
     await scenario({ tracer, argv: true });
-    const all = strings(exporter.getFinishedSpans()).join("\n");
+    const all = strings((await finished())).join("\n");
     expect(all).not.toContain(SECRET);
     expect(all).not.toContain(APPROVAL_ID);
     expect(all).not.toContain("Authorization");
   });
 
   test("pending and unknown outcomes are span events, and the error status carries no message text", async () => {
-    const { exporter, tracer } = recorder();
+    const { finished, tracer } = recorder();
     const capsule = new Capsule({ adapter: adapter({ jobStatus: "queued" }), trace: { tracer } });
     await capsule.job.run({ image: "debian", command: ["true"] });
     const unknown = new Capsule({
@@ -166,7 +166,7 @@ describe("tracing hook", () => {
       trace: { tracer }
     });
     await expect((await pendingCapsule.sandbox.create({})).exec({ command: "true" })).rejects.toBeInstanceOf(PendingOperationError);
-    const spans = exporter.getFinishedSpans();
+    const spans = (await finished());
     const job = spans.find((span) => span.attributes["capsule.action"] === "job.run")!;
     expect(job.attributes["capsule.outcome"]).toBe("pending");
     expect(job.events.map((event) => event.name)).toContain("capsule.outcome.pending");
@@ -178,22 +178,22 @@ describe("tracing hook", () => {
 
   test("sampling off and no tracer give the same results, receipts and denials as a recording tracer", async () => {
     const plain = await scenario(undefined);
-    const { exporter, tracer } = recorder({ off: true });
+    const { finished, tracer } = recorder({ off: true });
     const off = await scenario({ tracer });
     const recording = await scenario({ tracer: recorder().tracer });
     expect(off).toEqual(plain);
     expect(recording).toEqual(plain);
-    expect(exporter.getFinishedSpans()).toHaveLength(0);
+    expect((await finished())).toHaveLength(0);
   });
 
   test("links passed in the trace options are carried on every span", async () => {
-    const { exporter, tracer } = recorder();
+    const { finished, tracer } = recorder();
     const link = {
       context: { traceId: "0af7651916cd43dd8448eb211c80319c", spanId: "b7ad6b7169203331", traceFlags: 1 },
       attributes: { "fabric.operation.id": "op_x" }
     };
     await new Capsule({ adapter: adapter(), trace: { tracer, links: [link] } }).sandbox.create({});
-    const [span] = exporter.getFinishedSpans();
+    const [span] = (await finished());
     expect(span!.links).toEqual([
       expect.objectContaining({ context: expect.objectContaining({ traceId: link.context.traceId, spanId: link.context.spanId }) })
     ]);

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { TracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace";
 import { describe, expect, test } from "vitest";
 import { parseWorkerConfig } from "./config.js";
 import { FixtureProvider, fixtureDriver } from "./fixture.js";
@@ -18,7 +18,9 @@ const base = readFixture<{ provider_state: ScenarioState }>("scenarios/create_ex
 
 function tracedSession(parent?: string) {
   const exporter = new InMemorySpanExporter();
-  const tracer = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] }).getTracer("worker-test");
+  const tracerProvider = new TracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] });
+  const tracer = tracerProvider.getTracer("worker-test");
+  const finished = async () => (await tracerProvider.forceFlush(), exporter.getFinishedSpans());
   const config = parseWorkerConfig({ binding: base.binding, policy: base.policy, approvals: base.approvals }, fixtureProfile);
   const provider = new FixtureProvider(base.binding, { sandboxes: [], script: [] });
   const received: Record<string, unknown>[] = [];
@@ -45,19 +47,19 @@ function tracedSession(parent?: string) {
     throw new Error("the worker wrote nothing");
   };
   const send = (message: object) => session.push(encodeFrame(message, MAX_FRAME_BYTES));
-  return { exporter, next, send };
+  return { finished, next, send };
 }
 
 describe("bridge worker tracing", () => {
   test("Fabric-driven operations carry Capsule spans with the Fabric operation id as attribute and link", async () => {
-    const { exporter, next, send } = tracedSession("00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01");
+    const { finished, next, send } = tracedSession("00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01");
     send(hello);
     await next();
     for (const request of [createRequest, execRequest, destroyRequest]) {
       send(request);
       expect(await next()).toMatchObject({ type: "result", state: "completed" });
     }
-    const spans = exporter.getFinishedSpans().filter((span) => span.name !== "capsule sandbox.attach");
+    const spans = (await finished()).filter((span) => span.name !== "capsule sandbox.attach");
     expect(spans.map((span) => span.name)).toEqual(["capsule sandbox.create", "capsule sandbox.exec", "capsule sandbox.destroy"]);
     for (const [span, request] of spans.map((span, index) => [span, [createRequest, execRequest, destroyRequest][index]!] as const)) {
       const operation = (request.operation as { id: string }).id;
@@ -69,7 +71,7 @@ describe("bridge worker tracing", () => {
   });
 
   test("a refusal before the facade still gets a denied span linked to the Fabric operation", async () => {
-    const { exporter, next, send } = tracedSession();
+    const { finished, next, send } = tracedSession();
     send(hello);
     await next();
     send(createRequest);
@@ -81,7 +83,7 @@ describe("bridge worker tracing", () => {
       operation: { ...(destroyRequest.operation as object), id: "01K8W3A000000000000000REF1", key: "key-refused" }
     });
     expect(await next()).toMatchObject({ type: "error", error: { reason: "approval_required" } });
-    const span = exporter.getFinishedSpans().at(-1);
+    const span = (await finished()).at(-1);
     expect(span?.attributes).toMatchObject({
       "fabric.operation.id": "01K8W3A000000000000000REF1",
       "capsule.outcome": "denied",
