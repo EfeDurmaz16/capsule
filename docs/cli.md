@@ -26,7 +26,7 @@ capsule <command> [<action>] [options] [-- <command>...]
 
 `capsule`, `capsule --help`, `capsule -h` and `capsule help` print the root help. `capsule <command> --help` and `capsule help <command>` print one command's help. A command with actions, run without one (`capsule receipt`), prints its help. `job` and `service` have documented default actions (`run` and `deploy`). Help goes to stdout, exits 0, and does no work: it does not read `capsule.config.json` or contact a provider.
 
-`capsule --version` (or `-v`) prints only the version, at any depth. With `--json` it prints `{"version":"0.1.1"}`.
+`capsule --version` (or `-v`) prints only the version, at any depth. With `--json` it prints `{"version":"0.1.1"}`. When both `--help` and `--version` are given, help wins.
 
 ## Global options
 
@@ -49,6 +49,9 @@ Parsing is strict and happens before any work, before the config file is read, a
 - An extra positional argument fails with exit 2.
 - The command a container runs goes after `--`, and only `run`, `sandbox` and `job run` accept one. `capsule run --image busybox echo hi` fails and asks for `--`; nothing is ever appended to a container command.
 - A string option without a value, a boolean option with a value, and a `--port` that is not 1 to 65535 fail with exit 2.
+- A known option is never read as another option's value: `capsule run --image --json` fails with `missing_value`. A value that starts with a dash can be attached with `=` (`--name=-x`).
+- Without a command, only global options are allowed: `capsule --jsn` and `capsule --image busybox` fail with exit 2 instead of printing help.
+- An invalid value for a command's own arguments (an unknown preset, example, provider or domain) fails with exit 2.
 
 Each failure is two lines on stderr: the error, then a hint.
 
@@ -62,7 +65,7 @@ Did you mean --adapter? Run capsule capabilities --help for usage.
 
 stdout carries the answer and nothing else. Everything that is not data goes to stderr.
 
-- `capsule run` and `capsule sandbox` write the program's stdout to stdout and its stderr to stderr, unchanged, then one line on stderr: `capsule: ran on docker, exit 3, receipt <id>`. The exit code is the program's. The receipt never goes to stdout; `--receipt-file <file>` (or `receipts.path` in `capsule.config.json`) appends it to a JSONL file.
+- `capsule run` and `capsule sandbox` write the program's stdout to stdout and its stderr to stderr, unchanged, then one line on stderr: `capsule: ran on docker, exit 3, receipt <id> in <file>`. The exit code is the program's. The receipt never goes to stdout; `--receipt-file <file>` (or `receipts.path` in `capsule.config.json`) appends it to a JSONL file. Without one the receipt is not saved, and the line says so.
 - Report commands (`capabilities`, `doctor`, `preset list`, `select`, `compare`) print a table by default and JSON with `--json`.
 - Other commands print JSON results.
 - JSON on stdout is pretty-printed for a terminal and one compact line otherwise. Do not depend on whitespace or key order.
@@ -101,7 +104,7 @@ A failure prints nothing on stdout and one single-line JSON document on stderr:
 | -------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0              | Done, including help, version, and an empty result    |                                                                                                                                                                                                                                          |
 | 1              | Operational failure                                   | `unsupported_capability`, `policy_denied`, `provider_auth`, `provider_rejected`, `rate_limited`, `provider_unavailable`, `pending`, `unknown_outcome`, `partial_failure`, `cleanup_failed`, `provider_error`, `failed`, `internal_error` |
-| 2              | Usage error or missing input                          | `unknown_command`, `unknown_option`, `invalid_arguments`, `missing_value`, `unknown_adapter`, `action_required`                                                                                                                          |
+| 2              | Usage error or missing input                          | `unknown_command`, `unknown_option`, `invalid_arguments`, `missing_value`, `unknown_adapter`, `invalid_config`, `action_required`                                                                                                        |
 | 130            | Canceled: Ctrl+C, or a declined confirmation          | `canceled`                                                                                                                                                                                                                               |
 | 128 + n        | Ended by signal n                                     |                                                                                                                                                                                                                                          |
 | Program's code | `run` and `sandbox` exit with the program's exit code |                                                                                                                                                                                                                                          |
@@ -110,7 +113,7 @@ Some commands exit 1 for a negative report without an error: `doctor` when the s
 
 ## Non-interactive mode and consent
 
-Capsule asks before a delete: `service delete`, `neon branch-delete`, and `preview destroy`. The prompt goes to stderr and defaults to No; a declined prompt changes nothing and exits 130. `--yes` answers it.
+Capsule asks before a delete: `service delete`, `neon branch-delete`, and `preview destroy`. The prompt goes to stderr and defaults to No; anything but `y` or `yes`, Ctrl+C, or Ctrl+D changes nothing and exits 130. `--yes` answers it.
 
 A run is non-interactive when `--non-interactive` or `--json` is passed, `CI` is set, or stdin or stderr is not a terminal. A non-interactive run never reads stdin for an answer: a delete without `--yes` fails before any effect with exit 2, reason `action_required`, and a `next` command that adds `--yes`. `--yes` confirms only; `--force` keeps its provider meaning (force a delete where the provider supports it, or overwrite files for `init` and `adapter scaffold`).
 
@@ -122,12 +125,12 @@ Color marks only the `Error:` prefix; the text says the same thing without it. P
 
 ## Environment and configuration
 
-| Source                                                   | Effect                                                                                                                      |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Flags                                                    | Win over everything below                                                                                                   |
-| `capsule.config.json` in the working directory           | Default `adapter`, `policyFile`, and `receipts.path`. An invalid file fails every command except `doctor`, which reports it |
-| Provider variables (`E2B_API_KEY`, `FLY_API_TOKEN`, ...) | Read by the adapters; `capsule doctor` shows which are set, never their values                                              |
-| `CI`, `NO_COLOR`, `FORCE_COLOR`, `TERM`                  | Interaction and color, above                                                                                                |
+| Source                                                   | Effect                                                                                                                                                        |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Flags                                                    | Win over everything below                                                                                                                                     |
+| `capsule.config.json` in the working directory           | Default `adapter`, `policyFile`, and `receipts.path`. An invalid file fails every command except `doctor` (reason `invalid_config`, exit 2), which reports it |
+| Provider variables (`E2B_API_KEY`, `FLY_API_TOKEN`, ...) | Read by the adapters; `capsule doctor` shows which are set, never their values                                                                                |
+| `CI`, `NO_COLOR`, `FORCE_COLOR`, `TERM`                  | Interaction and color, above                                                                                                                                  |
 
 With no adapter from a flag or the config, Capsule uses `docker`. An unknown adapter name fails with exit 2 and lists the valid names.
 
