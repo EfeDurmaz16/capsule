@@ -41,7 +41,7 @@ Adapter PRs are expected to explain:
 
 ## CI Gates
 
-`.github/workflows/ci.yml` runs four parallel jobs. Generated files are checked, never rewritten in CI: `pnpm capsule:gap:check` and `pnpm docs:api:check` fail on drift, and regenerating with `pnpm capsule:gap` or `pnpm docs:api` stays a developer action.
+`.github/workflows/ci.yml` runs six parallel jobs. Generated files are checked, never rewritten in CI: `pnpm capsule:gap:check` and `pnpm docs:api:check` fail on drift, and regenerating with `pnpm capsule:gap` or `pnpm docs:api` stays a developer action.
 
 | Job                                       | Runtime | What it proves                                                                                                                                                                       |
 | ----------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -49,6 +49,8 @@ Adapter PRs are expected to explain:
 | Node 22 compatibility and package exports | Node 22 | unit suite on the declared Node 22 floor, export maps, engine-aware pack smoke (Node 24-only packages skipped) and packed CLI bin                                                    |
 | Node 24 compatibility and package exports | Node 24 | export maps and engine-aware pack smoke                                                                                                                                              |
 | Benchmark bounds                          | Node 24 | `pnpm bench:bounds`: deterministic resource counts and caps, never wall time                                                                                                         |
+| Bridge worker artifact                    | Node 26 | `pnpm bridge:sea` builds the worker as one Linux x64 executable (`node --build-sea`), then `pnpm bridge:artifact-smoke` runs it with no Node on PATH through every shared scenario   |
+| Bridge worker Docker smoke                | Node 24 | `pnpm bridge:docker-smoke --require` on a digest-pinned busybox the job pulls first: the Docker profile against the runner's engine, a skip is a failure                             |
 
 Critical path, measured before any consolidation on the last baseline CI run (7d3a28a, GitHub-hosted ubuntu-latest): the verify job took 129 s (build 47 s, test 21 s, release audit 17 s); each package-exports job took 88 s (build 47 to 49 s). The jobs run in parallel, so merging them would save runner minutes for the repeated build, not wall time, and would serialize the Node 22 and Node 24 checks. They stay separate. The Node 22 unit step adds about 21 s to an 88 s job and the benchmark job is about one build plus 10 s, both below the 129 s critical path. Local gate timings are recorded with `node benchmarks/run-gates.mjs --out <file>`.
 
