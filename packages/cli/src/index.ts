@@ -2777,10 +2777,21 @@ function formatGc(adapter: string, entries: Array<Pick<GcResult, "resource" | "v
 
 async function runGc(parsed: ParsedArgs, modes: Modes, command: string[]): Promise<void> {
   const capsule = await createCapsule(parsed, await loadEffectivePolicy(parsed));
-  const { liveness, forgetFinished } = new JobLeases(defaultLeaseDir());
+  const leases = new JobLeases(defaultLeaseDir());
+  const { liveness } = leases;
+  // A finished job with nothing listed (failed before its create, or everything removed) has no lease left to keep.
+  const prune = (adapter: string) =>
+    leases.prune(adapter, async () => {
+      const listed = await capsule.gc.scan({ liveness });
+      return [...listed.residuals, ...listed.kept].map((entry) => entry.resource);
+    });
   const scan = await capsule.gc.scan({ liveness });
   const table = formatGc(scan.adapter, [...scan.residuals, ...scan.kept]);
-  if (parsed.dryRun || scan.residuals.length === 0) return printReport(parsed, scan, table);
+  if (parsed.dryRun) return printReport(parsed, scan, table);
+  if (scan.residuals.length === 0) {
+    await prune(scan.adapter);
+    return printReport(parsed, scan, table);
+  }
   if (!modes.json) process.stderr.write(`${table}\n`);
   await confirm(modes, `Remove ${scan.residuals.length} residual(s) on ${scan.adapter}?`, parsed.yes, command);
   // The confirmation covers what the user saw: one fresh grant per resource shown, none for anything else.
@@ -2792,7 +2803,7 @@ async function runGc(parsed: ParsedArgs, modes: Modes, command: string[]): Promi
       { approver: "capsule gc", reason: parsed.reason }
     )
   });
-  await forgetFinished(report);
+  await prune(report.adapter);
   printReport(parsed, report, formatGc(report.adapter, [...report.results, ...report.kept]));
   if (report.results.some((result) => result.outcome !== "removed" && result.outcome !== "skipped")) {
     throw new CliError("cleanup_failed", "Some residuals were not removed.");
@@ -3106,37 +3117,32 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "job": {
-      const capsule = await createCapsule(parsed, await loadEffectivePolicy(parsed));
       const action = parsed.positionals?.[0] ?? "run";
-      if (action === "status") {
+      if (action === "status" || action === "cancel") {
+        const capsule = await createCapsule(parsed, await loadEffectivePolicy(parsed));
         const id = parsed.id ?? parsed.name ?? parsed.positionals?.[1];
         if (!id) {
           throw usageError("Missing --id.", "missing_value");
         }
-        requireCapability(capsule, parsed.adapter, "job.status");
-        printJson(await capsule.job.status({ id }));
-        return;
-      }
-      if (action === "cancel") {
-        const id = parsed.id ?? parsed.name ?? parsed.positionals?.[1];
-        if (!id) {
-          throw usageError("Missing --id.", "missing_value");
-        }
-        requireCapability(capsule, parsed.adapter, "job.cancel");
-        printJson(await capsule.job.cancel({ id, reason: parsed.reason }));
+        requireCapability(capsule, parsed.adapter, `job.${action}`);
+        printJson(action === "status" ? await capsule.job.status({ id }) : await capsule.job.cancel({ id, reason: parsed.reason }));
         return;
       }
       if (!parsed.image) {
         throw usageError("Missing --image.", "missing_value");
       }
+      const image = parsed.image;
       const jobCommand = parsed.passthrough ?? [];
-      requireCapability(capsule, parsed.adapter, "job.run");
-      const run = await capsule.job.run({
-        name: parsed.name,
-        image: parsed.image,
-        command: jobCommand.length > 0 ? jobCommand : undefined
+      // The same operation as `capsule run`: a lease and owner labels, so a killed run is found by gc.
+      await withOwnedCapsule(parsed, async (capsule) => {
+        requireCapability(capsule, parsed.adapter, "job.run");
+        const run = await capsule.job.run({
+          name: parsed.name,
+          image,
+          command: jobCommand.length > 0 ? jobCommand : undefined
+        });
+        printJson(run);
       });
-      printJson(run);
       return;
     }
     case "service": {

@@ -53,9 +53,16 @@ function capsule(args: string[]) {
   return { status: result.status, stdout: result.stdout, stderr: result.stderr, dockerCalls };
 }
 
-function lease(job: string, pid: number): void {
+function writeLease(job: string, pid: number, endedAt?: string): void {
   mkdirSync(leaseDir, { recursive: true });
-  writeFileSync(join(leaseDir, `${job}.json`), JSON.stringify({ job, host: hostname(), pid, startedAt: "2026-11-08T10:00:00.000Z", adapter: "docker" }));
+  writeFileSync(
+    join(leaseDir, `${job}.json`),
+    JSON.stringify({ job, host: hostname(), pid, startedAt: "2026-11-08T10:00:00.000Z", adapter: "docker", ...(endedAt ? { endedAt } : {}) })
+  );
+}
+
+function lease(job: string, pid: number): void {
+  writeLease(job, pid);
   writeFileSync(present, `${id}\top_1\t${job}\t\tcreated\t2026-11-08 10:00:00 +0000 UTC\n`);
 }
 
@@ -63,7 +70,10 @@ function lease(job: string, pid: number): void {
 const deadPid = spawnSync("true").pid!;
 
 describe.skipIf(process.platform === "win32")("capsule gc", () => {
-  beforeEach(() => rmSync(stateDir, { recursive: true, force: true }));
+  beforeEach(() => {
+    rmSync(stateDir, { recursive: true, force: true });
+    rmSync(present, { force: true });
+  });
 
   it("--dry-run reports the residual of a killed run and changes nothing", () => {
     lease("job_killed", deadPid);
@@ -107,5 +117,26 @@ describe.skipIf(process.platform === "win32")("capsule gc", () => {
     expect(report.residuals).toEqual([]);
     expect(report.kept).toEqual([expect.objectContaining({ verdict: "live" })]);
     expect(result.dockerCalls.some((call) => call.startsWith("rm"))).toBe(false);
+  });
+
+  it("forgets the lease of a finished run that left nothing, and keeps it on --dry-run", () => {
+    // A run that failed before its create (Docker down, image absent, policy denial) and one killed before it.
+    writeLease("job_failed", deadPid, "2026-11-08T10:00:01.000Z");
+    writeLease("job_killed", deadPid);
+    writeLease("job_running", process.pid);
+    expect(capsule(["gc", "--dry-run", "--json"]).status).toBe(0);
+    expect(existsSync(join(leaseDir, "job_failed.json"))).toBe(true);
+    const result = capsule(["gc", "--yes", "--json"]);
+    expect(result.status, result.stderr).toBe(0);
+    expect(existsSync(join(leaseDir, "job_failed.json"))).toBe(false);
+    expect(existsSync(join(leaseDir, "job_killed.json"))).toBe(false);
+    expect(existsSync(join(leaseDir, "job_running.json"))).toBe(true);
+    expect(result.dockerCalls.some((call) => call.startsWith("rm"))).toBe(false);
+  });
+
+  it("job run creates under a lease with owner labels, the same as capsule run", () => {
+    const result = capsule(["job", "run", "--adapter", "docker", "--image", "busybox", "--", "echo", "hi"]);
+    const run = result.dockerCalls.find((call) => call.startsWith("run "));
+    expect(run, result.stderr).toMatch(/--label capsule_operation=op_[0-9a-f]{32} --label capsule_job=job_[0-9a-f]{32}/);
   });
 });
