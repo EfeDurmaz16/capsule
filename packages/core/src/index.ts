@@ -20,4 +20,15 @@ export * from "./receipts.js";
 export * from "./receipt-schema.js";
 export * from "./residuals.js";
 export * from "./stores.js";
+export {
+  recordRefusal,
+  traceDigest,
+  type CapsuleSpan,
+  type CapsuleSpanLink,
+  type CapsuleTrace,
+  type CapsuleTracer,
+  type SpanAttributeValue,
+  type SpanAttributes,
+  type SpanOutcome
+} from "./tracing.js";
 export * from "./types.js";

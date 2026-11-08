@@ -1,9 +1,10 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { PolicyViolationError, UnsupportedCapabilityError } from "./errors.js";
 import { explainSupportLevel, supportLevel, supports, type CapabilityPath } from "./capabilities.js";
-import { evaluatePolicy, mergeTimeout, redactError, type PolicyInput } from "./policy.js";
+import { evaluatePolicy, mergeTimeout, redactError, redactSensitiveText, type PolicyInput } from "./policy.js";
 import { createReceipt } from "./receipts.js";
 import { capsuleOperationTag } from "./idempotency.js";
+import { activeTraceFrame, inSpan, traceDigest, traceReceipt, type CapsuleTrace, type SpanAttributes } from "./tracing.js";
 import {
   assertOwnerId,
   capsuleOwnerLabels,
@@ -72,6 +73,11 @@ export interface CapsuleOptions {
    * create) and capsule_job labels, so gc can find what a crashed job left behind.
    */
   owner?: { job: string };
+  /**
+   * Opens one span per operation on this tracer, with identities, digests, the policy decision and the
+   * outcome as attributes and receipts as events. Off when omitted; an unsampled tracer changes nothing.
+   */
+  trace?: CapsuleTrace;
 }
 
 interface ReceiptScope {
@@ -680,6 +686,44 @@ export class Capsule {
         });
       }
     };
+    if (options.trace) {
+      for (const [domain, methods] of Object.entries({ gc: this.gc, sandbox: this.sandbox, job: this.job, service: this.service, edge: this.edge, preview: this.preview, machine: this.machine, database: this.database, "database.branch": this.database.branch })) {
+        this.traceMethods(domain, methods as unknown as Record<string, unknown>);
+      }
+    }
+  }
+
+  /** Replaces each function of a domain object with one that runs inside its own span. */
+  private traceMethods(domain: string, methods: Record<string, unknown>): void {
+    for (const [name, method] of Object.entries(methods)) {
+      if (typeof method === "function") methods[name] = this.traced(`${domain}.${name}`, method as (...args: unknown[]) => Promise<unknown>);
+    }
+  }
+
+  private traced<A extends unknown[], R>(action: string, run: (...args: A) => Promise<R>): (...args: A) => Promise<R> {
+    const trace = this.options.trace;
+    if (!trace) return run;
+    return (...args: A) => inSpan(trace, action, this.spanAttributes(args[0]), () => run(...args));
+  }
+
+  /** Attributes taken from an operation's spec: identities and digests only, never values. */
+  private spanAttributes(spec: unknown): SpanAttributes {
+    const input = (spec ?? {}) as { idempotencyKey?: unknown; approval?: { id?: unknown }; command?: unknown; env?: Record<string, string> };
+    const attributes: SpanAttributes = {
+      "capsule.operation.id": newOperationId(),
+      "capsule.provider": this.options.adapter.provider,
+      "capsule.adapter": this.options.adapter.name,
+      ...(this.options.owner ? { "capsule.job": this.options.owner.job } : {})
+    };
+    if (typeof input.idempotencyKey === "string") attributes["capsule.idempotency.key_digest"] = traceDigest(input.idempotencyKey);
+    if (typeof input.approval?.id === "string") attributes["capsule.approval.ref_digest"] = traceDigest(input.approval.id);
+    if (input.command !== undefined) {
+      const argv = normalizeCommand(input.command as ExecSpec["command"]);
+      attributes["capsule.command.argc"] = argv.length;
+      const sensitive = this.options.policy?.secrets?.redactFromLogs !== false && (this.options.policy?.secrets !== undefined || Object.keys(input.env ?? {}).length > 0);
+      if (this.options.trace?.argv && !sensitive) attributes["capsule.command.argv"] = argv.map((part) => redactSensitiveText(part, input.env, this.options.policy)).join(" ");
+    }
+    return attributes;
   }
 
   capabilities(): CapabilityMap {
@@ -734,12 +778,14 @@ export class Capsule {
   }
 
   private evaluateOperationPolicy(path: CapabilityPath, input: Omit<PolicyInput, "capabilityPath"> = {}) {
-    return evaluatePolicy(this.options.policy, {
+    const decision = evaluatePolicy(this.options.policy, {
       ...input,
       capabilityPath: path,
       supportLevel: input.supportLevel ?? supportLevel(this.options.adapter.capabilities, path),
       networkPolicySupport: input.networkPolicySupport ?? this.options.adapter.capabilities.sandbox?.networkPolicy
     });
+    if (this.options.trace) activeTraceFrame()?.span.setAttribute("capsule.policy.decision", decision.decision);
+    return decision;
   }
 
   private contextRuntime(defaultOptions: ContextOptions): ContextRuntime {
@@ -776,6 +822,12 @@ export class Capsule {
   }
 
   private wrapSandbox(sandbox: Sandbox, runtime: ContextRuntime, approval: PolicyInput["approval"]): Sandbox {
+    const governed = this.governSandbox(sandbox, runtime, approval);
+    if (this.options.trace) this.traceMethods("sandbox", governed as unknown as Record<string, unknown>);
+    return governed;
+  }
+
+  private governSandbox(sandbox: Sandbox, runtime: ContextRuntime, approval: PolicyInput["approval"]): Sandbox {
     return {
       handle: sandbox.handle,
       exec: async (spec: ExecSpec) => {
@@ -981,6 +1033,7 @@ export class Capsule {
           options.receiptCounter.count += 1;
         }
         options.collected?.push(receipt);
+        if (this.options.trace) traceReceipt(receipt);
         void this.persistReceipt(receipt, options.pendingWrites);
         return receipt;
       }
@@ -990,7 +1043,9 @@ export class Capsule {
   /** Labels for one create when this Capsule has an owner; Capsule's keys win over the caller's. */
   private owned<T extends { labels?: Record<string, string> }>(spec: T): T {
     if (!this.options.owner) return spec;
-    return { ...spec, labels: { ...spec.labels, ...capsuleOwnerLabels({ operation: newOperationId(), job: this.options.owner.job }) } };
+    // A traced create labels its resource with the operation id its span carries.
+    const operation = (this.options.trace && activeTraceFrame()?.operationId) || newOperationId();
+    return { ...spec, labels: { ...spec.labels, ...capsuleOwnerLabels({ operation, job: this.options.owner.job }) } };
   }
 
   private async removeResidual(
