@@ -243,9 +243,6 @@ importers:
       '@capsule-sdk/store-jsonl':
         specifier: workspace:*
         version: link:../store-jsonl
-      '@opentelemetry/api':
-        specifier: ^1.9.0
-        version: 1.9.1
     devDependencies:
       tsup:
         specifier: ^8.5.0

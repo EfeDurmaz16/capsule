@@ -26,17 +26,13 @@ export function parseTraceparent(value: string | undefined): CapsuleSpanLink | u
 }
 
 /**
- * The global OpenTelemetry tracer, when the process registered an SDK (for example with
- * `node --import ./otel.mjs`). Without one, nothing is imported and the worker does not trace.
+ * The tracer of the provider an OpenTelemetry SDK registered in this process (for example with
+ * `node --import ./otel.mjs`), or undefined when none did. It is read from the API's global slot,
+ * where the SDK put it, so the worker imports nothing and traces wherever it is installed.
  */
 export async function globalTracer(version: string): Promise<CapsuleTracer | undefined> {
-  if (!(globalThis as Record<symbol, unknown>)[Symbol.for("opentelemetry.js.api.1")]) return undefined;
-  try {
-    // A computed specifier keeps bundlers from inlining the optional peer.
-    const specifier = "@opentelemetry/api";
-    const api = (await import(specifier)) as { trace: { getTracer(name: string, version?: string): CapsuleTracer } };
-    return api.trace.getTracer("capsule-bridge-worker", version);
-  } catch {
-    return undefined;
-  }
+  const api = (globalThis as Record<symbol, unknown>)[Symbol.for("opentelemetry.js.api.1")] as
+    { trace?: { getTracer?: (name: string, version?: string) => CapsuleTracer } } | undefined;
+  const provider = api?.trace;
+  return typeof provider?.getTracer === "function" ? provider.getTracer("capsule-bridge-worker", version) : undefined;
 }

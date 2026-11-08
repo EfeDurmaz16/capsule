@@ -37,7 +37,7 @@ A tracer that does not sample (or no `trace` option) leaves results, receipts an
 node --import ./otel.mjs node_modules/@capsule-sdk/bridge-worker/dist/bin.js --profile docker
 ```
 
-where `otel.mjs` holds the three setup lines. `@opentelemetry/api` is an optional peer of the worker; install it next to the worker. The single executable build does not trace.
+where `otel.mjs` holds the three setup lines. The worker takes the tracer from the provider the SDK registered in the process, so it imports nothing and needs no OpenTelemetry package next to it. The single executable build does not trace.
 
 Each Fabric request gets the Capsule spans of its operation, plus:
 
