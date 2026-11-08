@@ -81,14 +81,14 @@ export async function inSpan<R>(trace: CapsuleTrace, action: string, attributes:
 }
 
 /** One span for an operation refused before it reached Capsule, for example by a bridge worker check. */
-export function recordRefusal(trace: CapsuleTrace, action: string, attributes: SpanAttributes, reason: string): void {
+export function recordRefusal(trace: CapsuleTrace, action: string, attributes: SpanAttributes, refusal: { outcome: SpanOutcome; reason: string }): void {
   const span = trace.tracer.startSpan(`capsule ${action}`, {
     kind: 2,
     attributes: { ...trace.attributes, ...attributes, "capsule.action": action },
     ...(trace.links?.length ? { links: trace.links } : {})
   });
-  span.setAttribute("capsule.refusal.reason", reason);
-  finish(span, "denied");
+  span.setAttribute("capsule.refusal.reason", refusal.reason);
+  finish(span, refusal.outcome);
   span.end();
 }
 

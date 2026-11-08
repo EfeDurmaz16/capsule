@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import {
   AdapterExecutionError,
   Capsule,
+  recordRefusal,
+  type CapsuleTrace,
   CleanupFailureError,
   PartialEffectsError,
   PendingOperationError,
@@ -18,6 +20,7 @@ import {
   type ReceiptStore,
   type ResourceLocator
 } from "@capsule-sdk/core";
+import { fabricOperationLink, parseTraceparent, type WorkerTrace } from "./trace.js";
 import { resolveApproval, type ApprovalUses, type WorkerConfig } from "./config.js";
 import type { BridgeDriver, OperationHooks, ResourceState } from "./driver.js";
 import { ExecCancelledError } from "./fixture.js";
@@ -258,6 +261,7 @@ export interface DispatchContext {
   /** Which operation each approval ref has resolved for; a ref is never resolved for a second one. */
   approvalUses: ApprovalUses;
   diagnostic(text: string): void;
+  trace?: WorkerTrace;
 }
 
 const errorMessage = (code: string, reason: string) => `${code}: ${reason}`;
@@ -529,6 +533,31 @@ async function prepare(context: DispatchContext, runtime: OperationRuntime, requ
 
 /** Runs one request to its answer. Every refusal comes back before any provider effect. */
 export async function dispatchRequest(context: DispatchContext, runtime: OperationRuntime, request: BridgeRequest): Promise<Answer> {
+  const answer = await dispatchUntraced(context, runtime, request);
+  // A request refused before the facade has no Capsule span of its own; it gets one here.
+  if (context.trace && answer.type === "error" && !traced.has(runtime)) {
+    const { code, reason } = answer.error;
+    recordRefusal(capsuleTrace(context.trace, request), request.action, { "capsule.provider": context.driver.profile.provider }, {
+      outcome: code === "denied" ? "denied" : "failed",
+      reason
+    });
+  }
+  return answer;
+}
+
+/** Operations whose request reached the Capsule facade, which traces them. */
+const traced = new WeakSet<OperationRuntime>();
+
+function capsuleTrace(trace: WorkerTrace, request: BridgeRequest): CapsuleTrace {
+  const parent = parseTraceparent(trace.parent);
+  return {
+    tracer: trace.tracer,
+    attributes: { "fabric.operation.id": request.operation.id, "fabric.job": request.scope.job, "fabric.request.id": request.request_id },
+    links: [fabricOperationLink(request.operation.id), ...(parent ? [parent] : [])]
+  };
+}
+
+async function dispatchUntraced(context: DispatchContext, runtime: OperationRuntime, request: BridgeRequest): Promise<Answer> {
   const { driver, idempotency } = context;
   let binding: Record<string, string>;
   try {
@@ -599,12 +628,14 @@ async function dispatchChecked(
     },
     detach: () => detached.abort()
   };
+  if (context.trace) traced.add(runtime);
   const capsule = new Capsule({
     adapter: driver.adapter(hooks),
     policy: prepared.facadePolicy,
     receipts: true,
     receiptStore: evidence,
-    receiptPersistence: "required"
+    receiptPersistence: "required",
+    ...(context.trace ? { trace: capsuleTrace(context.trace, request) } : {})
   });
   const target = "target" in request ? request.target : undefined;
   let best: WireLocator | undefined = target;

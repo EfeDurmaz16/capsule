@@ -1,3 +1,4 @@
+import type { WorkerTrace } from "./trace.js";
 import { readFileSync } from "node:fs";
 import { JsonlReceiptStore } from "@capsule-sdk/store-jsonl";
 import { ConfigError, parseWorkerConfig, type WorkerConfig } from "./config.js";
@@ -50,13 +51,14 @@ export function buildDriver(options: StdioWorkerOptions): { driver: BridgeDriver
  * diagnostics go to stderr, bounded. The process exits when the session ends: 0 after a shutdown or
  * end of input, 2 after a framing error or a refused hello.
  */
-export function runStdioWorker(driver: BridgeDriver, config: WorkerConfig): WorkerSession {
+export function runStdioWorker(driver: BridgeDriver, config: WorkerConfig, trace?: WorkerTrace): WorkerSession {
   const stdin = process.stdin;
   const stdout = process.stdout;
   let exiting = false;
   const session = new WorkerSession({
     driver,
     config,
+    ...(trace ? { trace } : {}),
     io: {
       write: (frame) => {
         stdout.write(frame);

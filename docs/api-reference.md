@@ -107,6 +107,7 @@ Exports:
 - `ExecParams` (interface)
 - `ExecStream` (interface)
 - `FabricMessage` (type)
+- `fabricOperationLink` (function)
 - `fixtureAdapter` (function)
 - `FixtureBehavior` (type)
 - `fixtureDriver` (function)
@@ -119,6 +120,7 @@ Exports:
 - `FixtureSeed` (interface)
 - `FrameError` (class)
 - `FrameReader` (class)
+- `globalTracer` (function)
 - `Hello` (interface)
 - `HelloAck` (interface)
 - `HelloLimits` (interface)
@@ -147,6 +149,7 @@ Exports:
 - `parseObserve` (function)
 - `parseRequest` (function)
 - `parseShutdown` (function)
+- `parseTraceparent` (function)
 - `parseWorkerConfig` (function)
 - `PendingReason` (type)
 - `ProfileLimits` (interface)
@@ -183,6 +186,7 @@ Exports:
 - `WorkerMessage` (type)
 - `WorkerPolicy` (interface)
 - `WorkerSession` (class)
+- `WorkerTrace` (interface)
 
 ## @capsule-sdk/cli
 
