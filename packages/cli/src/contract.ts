@@ -169,11 +169,44 @@ export function renderError(error: CliError, modes: Modes, write: (line: string)
   write(lines.join("\n"));
 }
 
+/** Where the prompt reads and writes. Tests pass streams; the CLI uses the process's own. */
+export interface PromptIo {
+  input: NodeJS.ReadableStream;
+  output: NodeJS.WritableStream;
+  terminal?: boolean;
+}
+
+// Resolves with the typed line, or undefined when the user presses Ctrl+C or closes stdin (Ctrl+D).
+// Without the SIGINT and close listeners readline swallows Ctrl+C and the question never settles, so the
+// run ended with exit 0, no message, and the delete unconfirmed but unreported.
+async function ask(io: PromptIo, question: string): Promise<string | undefined> {
+  const rl = createInterface({ input: io.input, output: io.output, terminal: io.terminal });
+  try {
+    return await new Promise<string | undefined>((resolve) => {
+      rl.once("SIGINT", () => {
+        io.output.write("\n");
+        resolve(undefined);
+      });
+      rl.once("close", () => resolve(undefined));
+      rl.question(`${question} [y/N] `, resolve);
+    });
+  } finally {
+    rl.close();
+  }
+}
+
 /**
  * The only prompt. `--yes` answers it; without a terminal it never reads stdin and fails as
- * action_required naming --yes; a declined prompt is canceled (exit 130). Prompts go to stderr, default No.
+ * action_required naming --yes; anything but y or yes, Ctrl+C, or a closed stdin is canceled (exit 130).
+ * Prompts go to stderr, default No.
  */
-export async function confirm(modes: Modes, question: string, yes: boolean | undefined, command: string[]): Promise<void> {
+export async function confirm(
+  modes: Modes,
+  question: string,
+  yes: boolean | undefined,
+  command: string[],
+  io: PromptIo = { input: process.stdin, output: process.stderr }
+): Promise<void> {
   if (yes) return;
   if (!modes.interactive) {
     throw new CliError("action_required", `${question} Confirmation is required and this run is non-interactive.`, {
@@ -181,10 +214,8 @@ export async function confirm(modes: Modes, question: string, yes: boolean | und
       next: [...command, "--yes"]
     });
   }
-  const rl = createInterface({ input: process.stdin, output: process.stderr });
-  const answer = await new Promise<string>((resolve) => rl.question(`${question} [y/N] `, resolve));
-  rl.close();
-  if (!/^y(es)?$/i.test(answer.trim())) {
+  const answer = await ask(io, question);
+  if (answer === undefined || !/^y(es)?$/i.test(answer.trim())) {
     throw new CliError("canceled", "Canceled. Nothing was changed.");
   }
 }

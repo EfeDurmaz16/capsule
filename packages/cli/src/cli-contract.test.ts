@@ -7,6 +7,7 @@ import { chmodSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { PassThrough } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 
@@ -160,5 +161,31 @@ describe("failure classes", () => {
     expect(toCliError(new TypeError("bug"))).toMatchObject({ reason: "internal_error", exitCode: 1 });
     expect(usageError("bad", "missing_value").exitCode).toBe(2);
     expect(new CliError("canceled", "Canceled.").exitCode).toBe(130);
+  });
+});
+
+// The terminal branch of the only prompt, driven through readline in terminal mode on in-memory streams:
+// the same key handling a real terminal gets, including Ctrl+C (\u0003) and Ctrl+D (\u0004).
+describe("the confirmation prompt on a terminal", () => {
+  const interactive = { json: false, interactive: true, color: false, debug: false };
+
+  async function answer(keys: string | undefined): Promise<unknown> {
+    const { confirm } = await import("./contract.js");
+    const input = new PassThrough();
+    const output = new PassThrough();
+    output.resume();
+    const pending = confirm(interactive, "Delete it?", undefined, ["capsule", "x"], { input, output, terminal: true });
+    setImmediate(() => (keys === undefined ? input.end() : input.write(keys)));
+    return pending.then(
+      () => "confirmed",
+      (error: unknown) => error
+    );
+  }
+
+  it("y confirms; n, Enter, Ctrl+C, Ctrl+D and a closed stdin cancel with exit 130", async () => {
+    expect(await answer("y\r")).toBe("confirmed");
+    for (const keys of ["n\r", "\r", "\u0003", "\u0004", undefined]) {
+      expect(await answer(keys), JSON.stringify(keys)).toMatchObject({ reason: "canceled", exitCode: 130 });
+    }
   });
 });
