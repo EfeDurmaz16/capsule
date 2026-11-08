@@ -1278,19 +1278,34 @@ async function exportAudit(parsed: ParsedArgs): Promise<void> {
   if (!parsed.receiptFile) throw usageError("Missing --receipt-file for audit export.", "missing_value");
   const bound = (flag: string, value: string | undefined) => {
     if (value === undefined) return undefined;
-    const time = /^\d{4}-\d\d-\d\dT/.test(value) ? Date.parse(value) : Number.NaN;
-    if (Number.isNaN(time)) throw usageError(`--${flag} must be an ISO 8601 time, for example 2026-11-01T00:00:00Z.`);
+    // A date alone is midnight UTC, as ISO 8601 and Date.parse read it.
+    const time = /^\d{4}-\d\d-\d\d(T|$)/.test(value) ? Date.parse(value) : Number.NaN;
+    if (Number.isNaN(time)) throw usageError(`--${flag} must be an ISO 8601 date or time, for example 2026-11-01 or 2026-11-01T00:00:00Z.`);
     return time;
   };
-  const since = bound("since", parsed.since) ?? -Infinity;
-  const until = bound("until", parsed.until) ?? Infinity;
+  const since = bound("since", parsed.since);
+  const until = bound("until", parsed.until);
+  const bounded = since !== undefined || until !== undefined;
+  // A receipt whose startedAt is not a time cannot be placed in a window: exported when there is no
+  // window, otherwise left out and named on stderr, never dropped silently.
+  const unplaced: string[] = [];
   for await (const receipt of jsonlReceiptStore(parsed.receiptFile).iterate()) {
-    const time = Date.parse(receipt.startedAt);
-    if (!(time >= since && time < until)) continue;
+    if (bounded) {
+      const time = Date.parse(receipt.startedAt);
+      if (Number.isNaN(time)) {
+        unplaced.push(receipt.id);
+        continue;
+      }
+      if (time < (since ?? -Infinity) || time >= (until ?? Infinity)) continue;
+    }
     const at = receipt.startedAt;
     const { decision, notes = [] } = receipt.policy;
     const decided = { kind: "decision", at, receipt_id: receipt.id, provider: receipt.provider, capability: receipt.capabilityPath, decision, notes };
     if (!process.stdout.write(`${JSON.stringify({ kind: "receipt", at, receipt })}\n${JSON.stringify(decided)}\n`)) await once(process.stdout, "drain");
+  }
+  if (unplaced.length > 0) {
+    const noun = unplaced.length === 1 ? "receipt" : "receipts";
+    process.stderr.write(`audit export: left out ${unplaced.length} ${noun} whose startedAt is not a time: ${unplaced.join(", ")}\n`);
   }
 }
 

@@ -22,7 +22,7 @@ afterEach(async () => {
   if (root) await rm(root, { recursive: true, force: true });
 });
 
-async function exportLines(args: string[]) {
+async function exportLines(args: string[], badTime = false) {
   root = await mkdtemp(join(tmpdir(), "capsule-audit-export-"));
   const file = join(root, "receipts.jsonl");
   const receipts = [
@@ -30,15 +30,22 @@ async function exportLines(args: string[]) {
     receipt("2026-11-02T00:00:00.000Z", "denied", ["approval missing"]),
     receipt("2026-11-03T00:00:00.000Z", "allowed")
   ];
+  if (badTime) receipts[0] = { ...receipts[0]!, startedAt: "not a time" };
   await writeFile(file, receipts.map((entry) => JSON.stringify(entry)).join("\n") + "\n", "utf8");
   const out: string[] = [];
   vi.spyOn(process.stdout, "write").mockImplementation((chunk: string | Uint8Array) => {
     out.push(String(chunk));
     return true;
   });
+  const err: string[] = [];
+  vi.spyOn(process.stderr, "write").mockImplementation((chunk: string | Uint8Array) => {
+    err.push(String(chunk));
+    return true;
+  });
   await main(["audit", "export", "--receipt-file", file, ...args]);
   return {
     receipts,
+    stderr: err.join(""),
     lines: out
       .join("")
       .split("\n")
@@ -73,5 +80,21 @@ describe("capsule audit export", () => {
 
   test("a time that is not ISO 8601 is a usage error", async () => {
     await expect(exportLines(["--since", "yesterday"])).rejects.toThrow(/--since/);
+  });
+  test("a date-only bound is midnight UTC", async () => {
+    const { receipts, lines } = await exportLines(["--since", "2026-11-02", "--until", "2026-11-03"]);
+    expect(lines.filter((line) => line.kind === "receipt").map((line) => (line.receipt as { id: string }).id)).toEqual([receipts[1]!.id]);
+  });
+
+  test("a receipt whose startedAt is not a time is exported without bounds and reported, never dropped silently, with bounds", async () => {
+    const all = await exportLines([], true);
+    expect(all.lines.filter((line) => line.kind === "receipt")).toHaveLength(3);
+    expect(all.stderr).toBe("");
+    const bounded = await exportLines(["--since", "2026-11-01T00:00:00Z"], true);
+    expect(bounded.lines.filter((line) => line.kind === "receipt").map((line) => (line.receipt as { id: string }).id)).toEqual(
+      bounded.receipts.slice(1).map((entry) => entry.id)
+    );
+    expect(bounded.stderr).toContain(bounded.receipts[0]!.id);
+    expect(bounded.stderr).toMatch(/1 receipt/);
   });
 });

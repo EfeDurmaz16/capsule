@@ -79,7 +79,7 @@ The span name is `capsule <action>`, kind `CLIENT`.
 capsule audit export --receipt-file .capsule/receipts.jsonl --since 2026-11-01T00:00:00Z --until 2026-11-08T00:00:00Z --json
 ```
 
-It streams two JSON lines per stored receipt that started in `[since, until)`: `{"kind":"receipt","at":...,"receipt":{...}}` with the receipt as stored, then `{"kind":"decision","at":...,"receipt_id":...,"provider":...,"capability":...,"decision":...,"notes":[...]}`. Both bounds are optional ISO 8601 times. A policy denial before the provider call writes no receipt, so it appears in spans, not in the export.
+It streams two JSON lines per stored receipt that started in `[since, until)`: `{"kind":"receipt","at":...,"receipt":{...}}` with the receipt as stored, then `{"kind":"decision","at":...,"receipt_id":...,"provider":...,"capability":...,"decision":...,"notes":[...]}`. Both bounds are optional ISO 8601 dates or times; a date alone is midnight UTC. With a bound, a receipt whose `startedAt` is not a time cannot be placed in the window: it is left out and its id is named on stderr. A policy denial before the provider call writes no receipt, so it appears in spans, not in the export.
 
 ## Evidence
 
