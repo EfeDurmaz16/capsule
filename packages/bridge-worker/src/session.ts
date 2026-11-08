@@ -1,3 +1,4 @@
+import type { WorkerTrace } from "./trace.js";
 import { redactSensitiveText } from "@capsule-sdk/core";
 import type { WorkerConfig } from "./config.js";
 import {
@@ -56,6 +57,8 @@ export interface SessionOptions {
   driver: BridgeDriver;
   config: WorkerConfig;
   io: SessionIO;
+  /** Spans for every request, linked to the Fabric operation. Off when omitted. */
+  trace?: WorkerTrace;
 }
 
 /** A request makes an effect; an observe or an attach only reads. */
@@ -118,7 +121,8 @@ export class WorkerSession {
       idempotency: this.idempotency,
       execs: new ExecLedger(),
       approvalUses: new Map(),
-      diagnostic: (text) => this.diagnostic(text)
+      diagnostic: (text) => this.diagnostic(text),
+      ...(options.trace ? { trace: options.trace } : {})
     };
     this.exited = new Promise((resolve) => {
       this.resolveExit = resolve;

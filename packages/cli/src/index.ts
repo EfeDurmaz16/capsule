@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { once } from "node:events";
 import { spawnSync } from "node:child_process";
 import { createPublicKey, verify as verifySignature } from "node:crypto";
 import { readFileSync, realpathSync } from "node:fs";
@@ -109,6 +110,8 @@ interface ParsedArgs {
   domains?: string[];
   outDir?: string;
   receiptFile?: string;
+  since?: string;
+  until?: string;
   id?: string;
   project?: string;
   name?: string;
@@ -1267,6 +1270,43 @@ async function createReceiptInspectReport(parsed: ParsedArgs): Promise<ReceiptIn
     store: { path: parsed.receiptFile, receiptCount },
     receipts: selected
   };
+}
+
+// JSONL for a log or SIEM pipeline: each receipt as stored, then its policy decision, for receipts that
+// started in [since, until). Streamed, so a large store is never held in memory.
+async function exportAudit(parsed: ParsedArgs): Promise<void> {
+  if (!parsed.receiptFile) throw usageError("Missing --receipt-file for audit export.", "missing_value");
+  const bound = (flag: string, value: string | undefined) => {
+    if (value === undefined) return undefined;
+    // A date alone is midnight UTC, as ISO 8601 and Date.parse read it.
+    const time = /^\d{4}-\d\d-\d\d(T|$)/.test(value) ? Date.parse(value) : Number.NaN;
+    if (Number.isNaN(time)) throw usageError(`--${flag} must be an ISO 8601 date or time, for example 2026-11-01 or 2026-11-01T00:00:00Z.`);
+    return time;
+  };
+  const since = bound("since", parsed.since);
+  const until = bound("until", parsed.until);
+  const bounded = since !== undefined || until !== undefined;
+  // A receipt whose startedAt is not a time cannot be placed in a window: exported when there is no
+  // window, otherwise left out and named on stderr, never dropped silently.
+  const unplaced: string[] = [];
+  for await (const receipt of jsonlReceiptStore(parsed.receiptFile).iterate()) {
+    if (bounded) {
+      const time = Date.parse(receipt.startedAt);
+      if (Number.isNaN(time)) {
+        unplaced.push(receipt.id);
+        continue;
+      }
+      if (time < (since ?? -Infinity) || time >= (until ?? Infinity)) continue;
+    }
+    const at = receipt.startedAt;
+    const { decision, notes = [] } = receipt.policy;
+    const decided = { kind: "decision", at, receipt_id: receipt.id, provider: receipt.provider, capability: receipt.capabilityPath, decision, notes };
+    if (!process.stdout.write(`${JSON.stringify({ kind: "receipt", at, receipt })}\n${JSON.stringify(decided)}\n`)) await once(process.stdout, "drain");
+  }
+  if (unplaced.length > 0) {
+    const noun = unplaced.length === 1 ? "receipt" : "receipts";
+    process.stderr.write(`audit export: left out ${unplaced.length} ${noun} whose startedAt is not a time: ${unplaced.join(", ")}\n`);
+  }
 }
 
 function formatPresetCatalogTable(entries: PresetCatalogEntry[]): string {
@@ -2969,6 +3009,11 @@ export async function main(argv: string[]): Promise<void> {
         return;
       }
       throw usageError("Unknown receipt command. Use verify or inspect.", "unknown_command");
+    }
+    case "audit": {
+      if (parsed.rest[0] !== "export") throw usageError("Unknown audit command. Use export.", "unknown_command");
+      await exportAudit(parsed);
+      return;
     }
     case "preset": {
       const action = parsed.rest[0];

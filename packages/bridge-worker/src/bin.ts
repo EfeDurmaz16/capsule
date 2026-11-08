@@ -2,6 +2,7 @@
 import { parseArgs } from "node:util";
 import { ConfigError } from "./config.js";
 import { buildDriver, runStdioWorker } from "./stdio.js";
+import { globalTracer } from "./trace.js";
 import { PROTOCOL_VERSION, WORKER_ID } from "./wire.js";
 
 const usage = `Usage: capsule-bridge-worker --profile <fixture|docker> [--config <file.json>] [--receipts <file.jsonl>] [--engine <name>]
@@ -14,6 +15,9 @@ length-prefixed JSON frames on stdin and stdout. Stdout carries frames only; dia
   --receipts  docker only: append receipts to this JSONL file and list them in results
   --engine    docker only: the docker context every command goes to, when the config has no binding
               (default: the CLI's current context, read once)
+
+Tracing: start the worker with an OpenTelemetry SDK registered (node --import ./otel.mjs) and every
+request gets a span linked to its Fabric operation; TRACEPARENT links them to the spawning session.
 `;
 
 let values;
@@ -55,7 +59,14 @@ try {
     ...(values.receipts ? { receiptsPath: values.receipts } : {}),
     ...(values.engine ? { engine: values.engine } : {})
   });
-  runStdioWorker(driver, config);
+  // Traces only when the process registered an OpenTelemetry SDK, for example with node --import.
+  // No top-level await: the single executable build bundles this file as CommonJS.
+  void globalTracer(WORKER_ID)
+    .then((tracer) => runStdioWorker(driver, config, tracer ? { tracer, ...(process.env.TRACEPARENT ? { parent: process.env.TRACEPARENT } : {}) } : undefined))
+    .catch((error: unknown) => {
+      process.stderr.write(`capsule-bridge-worker: ${error instanceof Error ? error.message : String(error)}\n`);
+      process.exit(2);
+    });
 } catch (error) {
   if (error instanceof ConfigError || error instanceof Error) {
     process.stderr.write(`capsule-bridge-worker: ${error.message}\n`);

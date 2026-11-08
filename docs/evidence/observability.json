@@ -1,0 +1,363 @@
+{
+  "generatedBy": "scripts/otel-evidence.mjs",
+  "exporter": "OpenTelemetry SDK InMemorySpanExporter (sdk-trace 3.1.0, api 1.10.0). No container engine was running and no Jaeger image was present locally, so spans are dumped here instead of shown in Jaeger.",
+  "checks": {
+    "secretOrApprovalRefInSpans": false,
+    "secretInAuditExport": false,
+    "traceparentLinked": true
+  },
+  "worker": {
+    "profile": "fixture",
+    "answers": ["completed", "completed", "approval_required", "completed"],
+    "spans": [
+      {
+        "name": "capsule sandbox.create",
+        "status": {
+          "code": 0
+        },
+        "attributes": {
+          "fabric.operation.id": "01K8W3A0000000000000000001",
+          "fabric.job": "01K8W3A00000000000000000J1",
+          "fabric.request.id": "r-1",
+          "capsule.operation.id": "op_9cc39e58eef5463e8a132fe974aff73c",
+          "capsule.provider": "fixture",
+          "capsule.adapter": "fixture",
+          "capsule.idempotency.key_digest": "2f323e4d8a431e6bc5124f6a838bab46809fce6e0d1df830834e06fa07dd55be",
+          "capsule.action": "sandbox.create",
+          "capsule.policy.decision": "allowed",
+          "capsule.outcome": "completed"
+        },
+        "events": [
+          {
+            "name": "capsule.receipt",
+            "attributes": {
+              "capsule.receipt.id": "fa4fe8cd-eadd-4a32-9c5d-70351e6ad7c7",
+              "capsule.receipt.type": "sandbox.create"
+            }
+          }
+        ],
+        "links": [
+          {
+            "traceId": "dfc6e64a0f59158397bb9c1b22838406",
+            "spanId": "85fd5dd89c759c79",
+            "attributes": {
+              "fabric.operation.id": "01K8W3A0000000000000000001"
+            }
+          },
+          {
+            "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+            "spanId": "00f067aa0ba902b7",
+            "attributes": {}
+          }
+        ]
+      },
+      {
+        "name": "capsule sandbox.attach",
+        "status": {
+          "code": 0
+        },
+        "attributes": {
+          "fabric.operation.id": "01K8W3A0000000000000000002",
+          "fabric.job": "01K8W3A00000000000000000J1",
+          "fabric.request.id": "r-2",
+          "capsule.operation.id": "op_de2e5f35ee5d4cbc942c125f3dabfe1d",
+          "capsule.provider": "fixture",
+          "capsule.adapter": "fixture",
+          "capsule.action": "sandbox.attach",
+          "capsule.outcome": "completed"
+        },
+        "events": [],
+        "links": [
+          {
+            "traceId": "a0454a17e8b214ef4af6819785e1f65e",
+            "spanId": "5d52808343a0e8b6",
+            "attributes": {
+              "fabric.operation.id": "01K8W3A0000000000000000002"
+            }
+          },
+          {
+            "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+            "spanId": "00f067aa0ba902b7",
+            "attributes": {}
+          }
+        ]
+      },
+      {
+        "name": "capsule sandbox.exec",
+        "status": {
+          "code": 0
+        },
+        "attributes": {
+          "fabric.operation.id": "01K8W3A0000000000000000002",
+          "fabric.job": "01K8W3A00000000000000000J1",
+          "fabric.request.id": "r-2",
+          "capsule.operation.id": "op_0ae79ac848e643f9a8d13a45aebd9c38",
+          "capsule.provider": "fixture",
+          "capsule.adapter": "fixture",
+          "capsule.idempotency.key_digest": "ea2be321f0efafe04a5c6cc80d554a14b345c31aa86d159a79d9d8a4c35d7e12",
+          "capsule.command.argc": 3,
+          "capsule.action": "sandbox.exec",
+          "capsule.policy.decision": "allowed",
+          "capsule.outcome": "completed"
+        },
+        "events": [
+          {
+            "name": "capsule.receipt",
+            "attributes": {
+              "capsule.receipt.id": "59883a3b-ed22-4b9a-87c6-754c26e15702",
+              "capsule.receipt.type": "sandbox.exec",
+              "capsule.receipt.exit_code": 127
+            }
+          }
+        ],
+        "links": [
+          {
+            "traceId": "a0454a17e8b214ef4af6819785e1f65e",
+            "spanId": "5d52808343a0e8b6",
+            "attributes": {
+              "fabric.operation.id": "01K8W3A0000000000000000002"
+            }
+          },
+          {
+            "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+            "spanId": "00f067aa0ba902b7",
+            "attributes": {}
+          }
+        ]
+      },
+      {
+        "name": "capsule sandbox.destroy",
+        "status": {
+          "code": 2,
+          "message": "denied"
+        },
+        "attributes": {
+          "fabric.operation.id": "01K8W3A0000000000000000003",
+          "fabric.job": "01K8W3A00000000000000000J1",
+          "fabric.request.id": "r-3",
+          "capsule.provider": "fixture",
+          "capsule.action": "sandbox.destroy",
+          "capsule.refusal.reason": "approval_required",
+          "capsule.outcome": "denied",
+          "capsule.policy.decision": "denied"
+        },
+        "events": [
+          {
+            "name": "capsule.policy.denied",
+            "attributes": {
+              "capsule.policy.violation_count": 0
+            }
+          }
+        ],
+        "links": [
+          {
+            "traceId": "6c8a0f1a49c078cfc62696530ec72a90",
+            "spanId": "0fbca936d19cca10",
+            "attributes": {
+              "fabric.operation.id": "01K8W3A0000000000000000003"
+            }
+          },
+          {
+            "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+            "spanId": "00f067aa0ba902b7",
+            "attributes": {}
+          }
+        ]
+      },
+      {
+        "name": "capsule sandbox.attach",
+        "status": {
+          "code": 0
+        },
+        "attributes": {
+          "fabric.operation.id": "01K8W3A0000000000000000004",
+          "fabric.job": "01K8W3A00000000000000000J1",
+          "fabric.request.id": "r-4",
+          "capsule.operation.id": "op_8361313ddeb0421c882f15b036c21d6a",
+          "capsule.provider": "fixture",
+          "capsule.adapter": "fixture",
+          "capsule.action": "sandbox.attach",
+          "capsule.outcome": "completed"
+        },
+        "events": [],
+        "links": [
+          {
+            "traceId": "1e942d05b3f7d34a8e75c4dd5f0e2748",
+            "spanId": "a34509d8bd854d01",
+            "attributes": {
+              "fabric.operation.id": "01K8W3A0000000000000000004"
+            }
+          },
+          {
+            "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+            "spanId": "00f067aa0ba902b7",
+            "attributes": {}
+          }
+        ]
+      },
+      {
+        "name": "capsule sandbox.destroy",
+        "status": {
+          "code": 0
+        },
+        "attributes": {
+          "fabric.operation.id": "01K8W3A0000000000000000004",
+          "fabric.job": "01K8W3A00000000000000000J1",
+          "fabric.request.id": "r-4",
+          "capsule.operation.id": "op_5b87bfd8a09e455397e55462ebf76d5b",
+          "capsule.provider": "fixture",
+          "capsule.adapter": "fixture",
+          "capsule.action": "sandbox.destroy",
+          "capsule.policy.decision": "allowed",
+          "capsule.outcome": "completed"
+        },
+        "events": [
+          {
+            "name": "capsule.receipt",
+            "attributes": {
+              "capsule.receipt.id": "d1f653dd-4d2a-4571-9591-34287e33b666",
+              "capsule.receipt.type": "sandbox.destroy"
+            }
+          }
+        ],
+        "links": [
+          {
+            "traceId": "1e942d05b3f7d34a8e75c4dd5f0e2748",
+            "spanId": "a34509d8bd854d01",
+            "attributes": {
+              "fabric.operation.id": "01K8W3A0000000000000000004"
+            }
+          },
+          {
+            "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+            "spanId": "00f067aa0ba902b7",
+            "attributes": {}
+          }
+        ]
+      }
+    ]
+  },
+  "library": {
+    "spans": [
+      {
+        "name": "capsule job.run",
+        "status": {
+          "code": 0
+        },
+        "attributes": {
+          "capsule.operation.id": "op_ad1d4109f67e47d6941a0cc5036977e0",
+          "capsule.provider": "evidence",
+          "capsule.adapter": "evidence",
+          "capsule.job": "job_evidence",
+          "capsule.idempotency.key_digest": "5108deb71ee1d00d8e14ad48f2ddee3dca264528a5ae802ac5a682ee11ecc0d7",
+          "capsule.command.argc": 3,
+          "capsule.action": "job.run",
+          "capsule.policy.decision": "allowed",
+          "capsule.result.status": "succeeded",
+          "capsule.outcome": "completed"
+        },
+        "events": [
+          {
+            "name": "capsule.receipt",
+            "attributes": {
+              "capsule.receipt.id": "943c8e20-0d75-49e9-9d93-7fbf05657939",
+              "capsule.receipt.type": "job.run",
+              "capsule.receipt.exit_code": 0
+            }
+          }
+        ],
+        "links": []
+      },
+      {
+        "name": "capsule job.run",
+        "status": {
+          "code": 2,
+          "message": "PolicyViolationError"
+        },
+        "attributes": {
+          "capsule.operation.id": "op_8ade3862e31941b1a7afb9322d54634a",
+          "capsule.provider": "evidence",
+          "capsule.adapter": "evidence",
+          "capsule.job": "job_evidence",
+          "capsule.command.argc": 1,
+          "capsule.action": "job.run",
+          "capsule.outcome": "denied",
+          "capsule.policy.decision": "denied",
+          "capsule.error.type": "PolicyViolationError"
+        },
+        "events": [
+          {
+            "name": "capsule.policy.denied",
+            "attributes": {
+              "capsule.policy.violation_count": 1
+            }
+          }
+        ],
+        "links": []
+      }
+    ],
+    "auditExport": [
+      {
+        "kind": "receipt",
+        "at": "2026-11-08T18:54:01.503Z",
+        "receipt": {
+          "id": "943c8e20-0d75-49e9-9d93-7fbf05657939",
+          "schemaVersion": "capsule.receipt.v1",
+          "type": "job.run",
+          "provider": "evidence",
+          "adapter": "evidence",
+          "capabilityPath": "job.run",
+          "supportLevel": "native",
+          "command": ["sh", "-c", "echo [REDACTED]"],
+          "startedAt": "2026-11-08T18:54:01.503Z",
+          "finishedAt": "2026-11-08T18:54:01.503Z",
+          "durationMs": 0,
+          "exitCode": 0,
+          "stdoutHash": "2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df",
+          "stderrHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "policy": {
+            "decision": "allowed",
+            "applied": {
+              "secrets": {
+                "allowed": ["API_TOKEN"],
+                "redactFromLogs": true
+              }
+            },
+            "notes": [
+              "Adapter support level for job.run: native.",
+              "Secret redaction is applied to Capsule-observed stdout, stderr, and log entries; provider-side logs may need separate controls."
+            ],
+            "enforcement": "native",
+            "trace": [
+              {
+                "check": "support-level",
+                "verdict": "noted"
+              },
+              {
+                "check": "secrets",
+                "verdict": "passed"
+              }
+            ]
+          },
+          "metadata": {
+            "idempotencyKey": "evidence-1",
+            "idempotencyScope": "job.run",
+            "operationTag": "21d41f52b675f1f46352b1ba16ab0096"
+          }
+        }
+      },
+      {
+        "kind": "decision",
+        "at": "2026-11-08T18:54:01.503Z",
+        "receipt_id": "943c8e20-0d75-49e9-9d93-7fbf05657939",
+        "provider": "evidence",
+        "capability": "job.run",
+        "decision": "allowed",
+        "notes": [
+          "Adapter support level for job.run: native.",
+          "Secret redaction is applied to Capsule-observed stdout, stderr, and log entries; provider-side logs may need separate controls."
+        ]
+      }
+    ]
+  }
+}

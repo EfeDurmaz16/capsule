@@ -9,6 +9,7 @@ Start with the [README](https://github.com/EfeDurmaz16/capsule#readme) for the p
 - [Capability model](capability-model.md): support levels, capability negotiation, and provider selection
 - [Policy model](policy-model.md): checks that run before every runtime action
 - [Execution receipts](execution-receipts.md): what receipts record and what they prove
+- [Observability](observability.md): OpenTelemetry spans per operation, and the audit JSONL export
 - [Log normalization](log-normalization.md): how each provider's raw logs map into a single LogEntry shape
 - [Artifacts](artifacts.md): hashing, manifests, and the filesystem collector
 - [Security model](security-model.md)

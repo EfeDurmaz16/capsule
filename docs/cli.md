@@ -10,20 +10,21 @@ Until the npm release, `capsule` means `node packages/cli/dist/index.js` after `
 capsule <command> [<action>] [options] [-- <command>...]
 ```
 
-| Command                                                       | Does                                                                              |
-| ------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `run`                                                         | Run a command in a one-off container; its stdout and stderr are the program's own |
-| `sandbox`                                                     | Create a sandbox, run one command in it, then destroy it                          |
-| `gc`                                                          | Find what crashed or ended runs left behind, and remove it (asks first)           |
-| `capabilities`                                                | Show what an adapter supports                                                     |
-| `doctor`                                                      | Check this machine: Node, Docker, and provider credentials                        |
-| `policy explain`                                              | Explain a policy decision without calling a provider                              |
-| `receipt verify`, `receipt inspect`                           | Verify or inspect stored receipts                                                 |
-| `job`, `service`, `machine`, `edge`, `neon`                   | Provider operations                                                               |
-| `preview plan`, `preview create`, `preview destroy`           | Preview environments                                                              |
-| `preset`, `select`, `compare`, `classify`                     | Planning reports                                                                  |
-| `init`, `examples`, `adapter scaffold`, `live-test`, `verify` | Project and repository tools                                                      |
-| `completion bash\|zsh\|fish`                                  | Shell completion script                                                           |
+| Command                                                       | Does                                                                                |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `run`                                                         | Run a command in a one-off container; its stdout and stderr are the program's own   |
+| `sandbox`                                                     | Create a sandbox, run one command in it, then destroy it                            |
+| `gc`                                                          | Find what crashed or ended runs left behind, and remove it (asks first)             |
+| `capabilities`                                                | Show what an adapter supports                                                       |
+| `doctor`                                                      | Check this machine: Node, Docker, and provider credentials                          |
+| `policy explain`                                              | Explain a policy decision without calling a provider                                |
+| `receipt verify`, `receipt inspect`                           | Verify or inspect stored receipts                                                   |
+| `audit export`                                                | Receipts and their policy decisions as JSONL, by time window (`--since`, `--until`) |
+| `job`, `service`, `machine`, `edge`, `neon`                   | Provider operations                                                                 |
+| `preview plan`, `preview create`, `preview destroy`           | Preview environments                                                                |
+| `preset`, `select`, `compare`, `classify`                     | Planning reports                                                                    |
+| `init`, `examples`, `adapter scaffold`, `live-test`, `verify` | Project and repository tools                                                        |
+| `completion bash\|zsh\|fish`                                  | Shell completion script                                                             |
 
 `capsule`, `capsule --help`, `capsule -h` and `capsule help` print the root help. `capsule <command> --help` and `capsule help <command>` print one command's help. A command with actions, run without one (`capsule receipt`), prints its help. `job` and `service` have documented default actions (`run` and `deploy`). Help goes to stdout, exits 0, and does no work: it does not read `capsule.config.json` or contact a provider.
 

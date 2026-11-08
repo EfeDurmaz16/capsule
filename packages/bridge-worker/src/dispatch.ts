@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import {
   AdapterExecutionError,
   Capsule,
+  recordRefusal,
+  type CapsuleTrace,
   CleanupFailureError,
   PartialEffectsError,
   PendingOperationError,
@@ -16,8 +18,10 @@ import {
   type CapsuleReceipt,
   type ExecResult,
   type ReceiptStore,
-  type ResourceLocator
+  type ResourceLocator,
+  type SpanOutcome
 } from "@capsule-sdk/core";
+import { fabricOperationLink, parseTraceparent, type WorkerTrace } from "./trace.js";
 import { resolveApproval, type ApprovalUses, type WorkerConfig } from "./config.js";
 import type { BridgeDriver, OperationHooks, ResourceState } from "./driver.js";
 import { ExecCancelledError } from "./fixture.js";
@@ -39,6 +43,7 @@ import type {
   BridgeRequest,
   CleanupReport,
   ErrorBody,
+  ErrorCode,
   ErrorMessage,
   ExecStream,
   Observe,
@@ -258,6 +263,7 @@ export interface DispatchContext {
   /** Which operation each approval ref has resolved for; a ref is never resolved for a second one. */
   approvalUses: ApprovalUses;
   diagnostic(text: string): void;
+  trace?: WorkerTrace;
 }
 
 const errorMessage = (code: string, reason: string) => `${code}: ${reason}`;
@@ -529,6 +535,45 @@ async function prepare(context: DispatchContext, runtime: OperationRuntime, requ
 
 /** Runs one request to its answer. Every refusal comes back before any provider effect. */
 export async function dispatchRequest(context: DispatchContext, runtime: OperationRuntime, request: BridgeRequest): Promise<Answer> {
+  const answer = await dispatchUntraced(context, runtime, request);
+  // A request refused before the facade has no Capsule span of its own; it gets one here.
+  if (context.trace && answer.type === "error" && !traced.has(runtime)) {
+    const { code, reason } = answer.error;
+    recordRefusal(
+      capsuleTrace(context.trace, request, runtime),
+      request.action,
+      { "capsule.provider": context.driver.profile.provider },
+      { outcome: refusalOutcome(code), reason }
+    );
+  }
+  return answer;
+}
+
+/** The span outcome of an error answer, in the same words the facade uses for the same situation. */
+export function refusalOutcome(code: ErrorCode): SpanOutcome {
+  return code === "denied" || code === "unsupported" || code === "unknown" || code === "pending" ? code : "failed";
+}
+
+/** Operations that already have a Capsule span, or replay the answer of one that had. */
+const traced = new WeakSet<OperationRuntime>();
+
+function capsuleTrace(trace: WorkerTrace, request: BridgeRequest, runtime: OperationRuntime): CapsuleTrace {
+  const parent = parseTraceparent(trace.parent);
+  return {
+    // Marks the operation when a span really starts, so a refusal after the facade was built but
+    // before it was called (an owner mismatch, a drain) still gets its own span.
+    tracer: {
+      startSpan: (name, options) => {
+        traced.add(runtime);
+        return trace.tracer.startSpan(name, options);
+      }
+    },
+    attributes: { "fabric.operation.id": request.operation.id, "fabric.job": request.scope.job, "fabric.request.id": request.request_id },
+    links: [fabricOperationLink(request.operation.id), ...(parent ? [parent] : [])]
+  };
+}
+
+async function dispatchUntraced(context: DispatchContext, runtime: OperationRuntime, request: BridgeRequest): Promise<Answer> {
   const { driver, idempotency } = context;
   let binding: Record<string, string>;
   try {
@@ -549,6 +594,8 @@ export async function dispatchRequest(context: DispatchContext, runtime: Operati
     if (prior.answer === undefined || prior.digest !== request.operation.digest) {
       return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("invalid", "idempotency_conflict"));
     }
+    // A replay runs nothing and refuses nothing new: the first request already has its spans.
+    traced.add(runtime);
     return { ...prior.answer, request_id: runtime.requestId, operation_id: runtime.operationId, ...(prior.answer.type === "result" ? { replayed: true } : {}) };
   }
   idempotency.begin(key, request.operation.digest);
@@ -604,7 +651,8 @@ async function dispatchChecked(
     policy: prepared.facadePolicy,
     receipts: true,
     receiptStore: evidence,
-    receiptPersistence: "required"
+    receiptPersistence: "required",
+    ...(context.trace ? { trace: capsuleTrace(context.trace, request, runtime) } : {})
   });
   const target = "target" in request ? request.target : undefined;
   let best: WireLocator | undefined = target;

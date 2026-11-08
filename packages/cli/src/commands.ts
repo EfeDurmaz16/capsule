@@ -78,11 +78,13 @@ role s <name> Neon role name
 route=routes a <route> Edge route (repeatable)
 security-group=securityGroups a <id> AWS security group (repeatable)
 spec-file s <file> Policy input JSON
+since s <time> Export from this ISO 8601 date or time (inclusive)
 subnet-id s <id> EC2 subnet id
 subnet=subnets a <id> AWS subnet (repeatable)
 subscription-id s <id> Azure subscription id
 target s <name> Daytona or Vercel target
 task-definition s <arn> ECS task definition
+until s <time> Export up to this ISO 8601 date or time (exclusive)
 workers-dev-subdomain s <name> Cloudflare workers.dev subdomain
 yes b - Confirm a delete without a prompt
 zone-id s <id> Cloudflare zone id
@@ -168,6 +170,13 @@ export const commandSpecs: Record<string, CommandSpec> = {
     options: ["receipt-file", "public-key", "require-signature", "allow-unverified-signatures", "id"],
     actions: { verify: { summary: "Check hashes and signatures" }, inspect: { summary: "Print receipts, or one by id" } },
     examples: ["receipt verify --receipt-file .capsule/receipts.jsonl"]
+  },
+  audit: {
+    summary: "Export receipts and policy decisions as JSONL",
+    usage: ["audit export --receipt-file <file> [--since <time>] [--until <time>]"],
+    options: ["receipt-file", "since", "until"],
+    actions: { export: { summary: "One JSON line per receipt and per decision" } },
+    examples: ["audit export --receipt-file .capsule/receipts.jsonl --since 2026-11-01T00:00:00Z"]
   },
   job: {
     summary: "Run, inspect, or cancel a provider job",
