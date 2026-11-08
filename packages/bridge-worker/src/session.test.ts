@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { parseWorkerConfig, resolveApproval } from "./config.js";
 import { IdempotencyTable, type Answer } from "./dispatch.js";
 import type { BridgeDriver } from "./driver.js";
 import { fixtureDriver } from "./fixture.js";
@@ -106,6 +107,41 @@ describe("admission", () => {
     connection.send({ ...destroyRequest, approval: { ref: "apr-other" } });
     expect(await connection.next()).toMatchObject({ error: { code: "denied", reason: "approval_scope", effect: "none" } });
     expect(world.provider.effects).toEqual([]);
+  });
+
+  test("an approval ref is per operation: resolved once, it is out of scope for every other operation", async () => {
+    // Rule 7. Without the binding one ref would authorize the same action again and again for as long
+    // as the worker lives; Fabric stores no ref, but the caller can repeat one and the worker must not accept it.
+    const { world, connection } = await started({
+      approvals: [{ ref: "apr-once", action: "sandbox.exec", native_id: "fx-key-create-1", expired: false }]
+    });
+    connection.send(exec(1, { approval: { ref: "apr-once" } }));
+    expect(await connection.next()).toMatchObject({ type: "result", request_id: "r-1", state: "completed" });
+    connection.send(exec(2, { approval: { ref: "apr-once" } }));
+    expect(await connection.next()).toMatchObject({ request_id: "r-2", error: { code: "denied", reason: "approval_scope", effect: "none" } });
+    expect(world.provider.effects.filter((effect) => effect.call === "exec")).toHaveLength(1);
+  });
+
+  test("a grant with an empty native_id is refused at config time: it would cover nothing or everything", () => {
+    const grant = (nativeId: string | null, action = "sandbox.destroy") => ({ approvals: [{ ref: "apr-x", action, native_id: nativeId, expired: false }] });
+    expect(() => parseWorkerConfig(grant(""), fixtureProfile)).toThrow(/native_id/);
+    expect(() => parseWorkerConfig(grant("", "sandbox.create"), fixtureProfile)).toThrow(/native_id/);
+    // null stays the documented form of a grant not tied to one resource: the Docker profile cannot
+    // name a container id before the create that makes it.
+    expect(parseWorkerConfig(grant(null), fixtureProfile).approvals[0]).toMatchObject({ native_id: null });
+  });
+
+  test("a bound approval ref still resolves for the operation it was bound to", () => {
+    const config = parseWorkerConfig(
+      { approvals: [{ ref: "apr-once", action: "sandbox.destroy", native_id: "fx-key-create-1", expired: false }] },
+      fixtureProfile
+    );
+    const uses = new Map<string, string>();
+    const resolve = (operationId: string) =>
+      resolveApproval(config, "apr-once", "sandbox.destroy", "fixture", "fx-key-create-1", new Date(), operationId, uses);
+    expect(resolve("01K8W3A0000000000000000D01")).toMatchObject({ approved: true, capabilities: ["sandbox.destroy"] });
+    expect(resolve("01K8W3A0000000000000000D01")).toMatchObject({ approved: true });
+    expect(() => resolve("01K8W3A0000000000000000D02")).toThrow(/another operation/);
   });
 
   test("an unknown approval ref is no approval", async () => {
@@ -331,6 +367,47 @@ describe("observe", () => {
     connection.send(observe("r-11", "01K8W3A00000000000000000P1", "sandbox.create", "fx-key-create-1"));
     expect(await connection.next()).toMatchObject({ type: "result", request_id: "r-11", state: "completed", output: { status: "ready" } });
     expect(world.provider.effects).toHaveLength(1);
+  });
+
+  test("an observe of a destroy whose target is absent answers unknown/absent with the scope searched, never a result", async () => {
+    const { world, connection } = await started({ sandboxes: [] });
+    connection.send(observe("r-10", "01K8W3A00000000000000000P3", "sandbox.destroy", "fx-key-create-1"));
+    expect(await connection.next()).toEqual({
+      type: "error",
+      request_id: "r-10",
+      operation_id: "01K8W3A00000000000000000P3",
+      error: {
+        code: "unknown",
+        reason: "absent",
+        message: expect.any(String),
+        effect: "unknown",
+        observations: 1,
+        deadline_ms: 1000,
+        searched: { provider: "fixture", scope: { account: "acct-a", project: "proj-1" }, kind: "sandbox" }
+      }
+    });
+    expect(world.provider.effects).toEqual([]);
+  });
+
+  test("an observe of a create whose resource is absent answers unknown/absent with the scope searched", async () => {
+    const { world, connection } = await started({ sandboxes: [] });
+    connection.send(observe("r-10", "01K8W3A00000000000000000P1", "sandbox.create", "fx-key-create-1"));
+    expect(await connection.next()).toMatchObject({
+      type: "error",
+      error: { code: "unknown", reason: "absent", effect: "unknown", observations: 1, deadline_ms: 1000, searched: { provider: "fixture", kind: "sandbox" } }
+    });
+    expect(world.provider.effects).toEqual([]);
+  });
+
+  test("a destroy answered not_found carries no searched, whatever an earlier observe read", async () => {
+    const { world, connection } = await started({ sandboxes: [] });
+    connection.send(observe("r-10", "01K8W3A00000000000000000P1", "sandbox.create", "fx-key-create-1"));
+    expect(await connection.next()).toMatchObject({ type: "error", error: { reason: "absent" } });
+    connection.send(destroyRequest);
+    const answer = await connection.next();
+    expect(answer).toMatchObject({ type: "error", error: { code: "provider_failed", reason: "not_found", effect: "none" } });
+    expect(answer.error).not.toHaveProperty("searched");
+    expect(world.provider.effects).toEqual([]);
   });
 
   test("an observe of a create refuses a seeded sandbox labelled with another operation, and answers its own", async () => {

@@ -1,0 +1,754 @@
+{
+  "meta": {
+    "label": "m4-perf-recheck-c7254d8",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 30,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "c7254d825407e784674523b12313e8124ec7f061",
+      "packagesTree": "97fbe32be7f65a59b01329bc5d49ff98b29b4a59",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "c7254d825407e784674523b12313e8124ec7f061",
+    "date": "2026-11-02T21:24:46.543Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        5.9873046875,
+        6.6396484375,
+        6.88818359375
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)",
+    "loadAverageAtEnd": [
+      4.9423828125,
+      5.77880859375,
+      6.35205078125
+    ]
+  },
+  "cases": [
+    {
+      "workload": "perf-01-core-receipts",
+      "case": "parallel-required-delayed-a",
+      "okA": 30,
+      "okB": 30,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "aLatencyMs.p50": {
+          "n": 30,
+          "medianA": 53.256333500000096,
+          "medianB": 53.15647899999988,
+          "p95A": 53.635750000000144,
+          "p95B": 53.54679199999998,
+          "medianRatio": 0.9982244864032436,
+          "ci95": [
+            0.9969518234159833,
+            1.0001999335179788
+          ],
+          "verdict": "no difference"
+        },
+        "aLatencyMs.p95": {
+          "n": 30,
+          "medianA": 54.11925050000002,
+          "medianB": 54.12141649999991,
+          "p95A": 54.39750000000001,
+          "p95B": 54.557334,
+          "medianRatio": 1.000138866223267,
+          "ci95": [
+            0.9991414966577388,
+            1.0009264530373083
+          ],
+          "verdict": "no difference"
+        },
+        "bLatencyMs.p50": {
+          "n": 30,
+          "medianA": 53.209062500000016,
+          "medianB": 3.7623330000000124,
+          "p95A": 53.58704199999988,
+          "p95B": 3.9317499999999654,
+          "medianRatio": 0.07078262013010322,
+          "ci95": [
+            0.06267288857597811,
+            0.07295685887548262
+          ],
+          "verdict": "better"
+        },
+        "bLatencyMs.p95": {
+          "n": 30,
+          "medianA": 54.06768800000003,
+          "medianB": 4.182646000000091,
+          "p95A": 54.31112499999995,
+          "p95B": 4.3786249999999995,
+          "medianRatio": 0.0773470710954826,
+          "ci95": [
+            0.0763242812792219,
+            0.0775158921510789
+          ],
+          "verdict": "better"
+        },
+        "childWallMs": {
+          "n": 30,
+          "medianA": 2163.5901460000023,
+          "medianB": 2174.2751249999856,
+          "p95A": 2173.1901250000083,
+          "p95B": 2184.5560419999965,
+          "medianRatio": 1.0044491886338167,
+          "ci95": [
+            1.0013402930784054,
+            1.0057065870823982
+          ],
+          "verdict": "worse"
+        },
+        "iterations": {
+          "n": 30,
+          "medianA": 40,
+          "medianB": 40,
+          "p95A": 40,
+          "p95B": 40,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "outcomes.aRejected": {
+          "n": 30,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "outcomes.aResolved": {
+          "n": 30,
+          "medianA": 40,
+          "medianB": 40,
+          "p95A": 40,
+          "p95B": 40,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "outcomes.bRejected": {
+          "n": 30,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "outcomes.bRejectedWithAError": {
+          "n": 30,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "outcomes.bResolved": {
+          "n": 30,
+          "medianA": 40,
+          "medianB": 40,
+          "p95A": 40,
+          "p95B": 40,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "process.maxRssBytes": {
+          "n": 30,
+          "medianA": 54968320,
+          "medianB": 54886400,
+          "p95A": 55132160,
+          "p95B": 55066624,
+          "medianRatio": 0.9989558021841174,
+          "ci95": [
+            0.998217468648375,
+            0.9994035187590059
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {
+        "bSettlesBeforeA": {
+          "A": "false",
+          "B": "true"
+        }
+      }
+    },
+    {
+      "workload": "perf-03-aws-client-reuse",
+      "case": "ecs-owned-client",
+      "okA": 30,
+      "okB": 30,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 30,
+          "medianA": 110.85620850000123,
+          "medianB": 94.6041455000086,
+          "p95A": 133.0112079999999,
+          "p95B": 114.12175000004936,
+          "medianRatio": 0.8649691992595252,
+          "ci95": [
+            0.8189769210796997,
+            0.9104806911655913
+          ],
+          "verdict": "better"
+        },
+        "firstCallMs": {
+          "n": 30,
+          "medianA": 2.0963335,
+          "medianB": 2.0852079999999944,
+          "p95A": 2.218333000000001,
+          "p95B": 3.019166999999996,
+          "medianRatio": 1.0153562265741267,
+          "ci95": [
+            0.9730672756252967,
+            1.0299539700003235
+          ],
+          "verdict": "no difference"
+        },
+        "injectedClientCalls": {
+          "n": 30,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "process.maxRssBytes": {
+          "n": 30,
+          "medianA": 80125952,
+          "medianB": 76857344,
+          "p95A": 80429056,
+          "p95B": 81002496,
+          "medianRatio": 0.9592630074759463,
+          "ci95": [
+            0.9582864384577143,
+            0.9615820219235864
+          ],
+          "verdict": "better"
+        },
+        "sendCalls": {
+          "n": 30,
+          "medianA": 50,
+          "medianB": 50,
+          "p95A": 50,
+          "p95B": 50,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "uniqueSdkClients": {
+          "n": 30,
+          "medianA": 50,
+          "medianB": 1,
+          "p95A": 50,
+          "p95B": 1,
+          "medianRatio": 0.02,
+          "ci95": [
+            0.02,
+            0.02
+          ],
+          "verdict": "better"
+        },
+        "warmCallMedianMs": {
+          "n": 30,
+          "medianA": 0.051250000000003126,
+          "medianB": 0.006687999999996919,
+          "p95A": 0.05287500000000023,
+          "p95B": 0.007041999999998438,
+          "medianRatio": 0.13019315293107064,
+          "ci95": [
+            0.12623983892460378,
+            0.13165076269437115
+          ],
+          "verdict": "better"
+        },
+        "warmCallP95Ms": {
+          "n": 30,
+          "medianA": 0.2663119999999992,
+          "medianB": 0.06041700000000816,
+          "p95A": 0.30400000000000205,
+          "p95B": 0.078708000000006,
+          "medianRatio": 0.23351317840439775,
+          "ci95": [
+            0.2259881608082316,
+            0.24284033321573284
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {}
+    },
+    {
+      "workload": "perf-04-vercel-log-streams",
+      "case": "idle-limit-10",
+      "okA": 30,
+      "okB": 30,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "bytesEmitted": {
+          "n": 30,
+          "medianA": 278,
+          "medianB": 278,
+          "p95A": 278,
+          "p95B": 278,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "childWallMs": {
+          "n": 30,
+          "medianA": 3043.9303329999966,
+          "medianB": 3056.956374500005,
+          "p95A": 3049.494917,
+          "p95B": 3068.409541000001,
+          "medianRatio": 1.0034979643064734,
+          "ci95": [
+            1.002532461880194,
+            1.0049339396110049
+          ],
+          "verdict": "worse"
+        },
+        "heapUsedDeltaBytes": {
+          "n": 30,
+          "medianA": 2682224,
+          "medianB": 2706184,
+          "p95A": 2682368,
+          "p95B": 2706328,
+          "medianRatio": 1.0089328855457262,
+          "ci95": [
+            1.0089328855457262,
+            1.0089328855457262
+          ],
+          "verdict": "worse"
+        },
+        "peakRssGrowthBytes": {
+          "n": 30,
+          "medianA": 10321920,
+          "medianB": 10215424,
+          "p95A": 10584064,
+          "p95B": 10452992,
+          "medianRatio": 0.9896532488114105,
+          "ci95": [
+            0.978626884535524,
+            0.9935999836159581
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 30,
+          "medianA": 60186624,
+          "medianB": 59785216,
+          "p95A": 60440576,
+          "p95B": 60030976,
+          "medianRatio": 0.9940070825388178,
+          "ci95": [
+            0.9922420314272943,
+            0.9949610484129967
+          ],
+          "verdict": "better"
+        },
+        "recordsEmitted": {
+          "n": 30,
+          "medianA": 1,
+          "medianB": 1,
+          "p95A": 1,
+          "p95B": 1,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "requests": {
+          "n": 30,
+          "medianA": 1,
+          "medianB": 1,
+          "p95A": 1,
+          "p95B": 1,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "settleMs": {
+          "n": 30,
+          "medianA": 3002.2396040000003,
+          "medianB": 3001.9980205,
+          "p95A": 3002.960083,
+          "p95B": 3002.8402499999997,
+          "medianRatio": 0.999884132834745,
+          "ci95": [
+            0.9997581923793386,
+            1.0001323673783467
+          ],
+          "verdict": "no difference"
+        }
+      },
+      "observations": {
+        "outcome": {
+          "A": "\"timeout\"",
+          "B": "\"timeout\""
+        },
+        "settledBeforeDeadline": {
+          "A": "false",
+          "B": "false"
+        },
+        "entriesReturned": {
+          "A": "null",
+          "B": "null"
+        },
+        "entriesWithinLimit": {
+          "A": "null",
+          "B": "null"
+        },
+        "error": {
+          "A": "null",
+          "B": "null"
+        },
+        "bodyCancelled": {
+          "A": "false",
+          "B": "false"
+        },
+        "sourceClosed": {
+          "A": "false",
+          "B": "false"
+        }
+      }
+    },
+    {
+      "workload": "perf-05-kubernetes-logs",
+      "case": "40-pods-3-containers-limit-20",
+      "okA": 30,
+      "okB": 30,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 30,
+          "medianA": 1041.5695834999933,
+          "medianB": 481.3024999999907,
+          "p95A": 1088.6518330000108,
+          "p95B": 520.587458,
+          "medianRatio": 0.46248664263885353,
+          "ci95": [
+            0.45785188360707474,
+            0.46728508489410064
+          ],
+          "verdict": "better"
+        },
+        "containersPerPod": {
+          "n": 30,
+          "medianA": 3,
+          "medianB": 3,
+          "p95A": 3,
+          "p95B": 3,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "elapsedMs": {
+          "n": 30,
+          "medianA": 744.174708,
+          "medianB": 191.1645625,
+          "p95A": 752.772542,
+          "p95B": 195.40775000000002,
+          "medianRatio": 0.25681277552563453,
+          "ci95": [
+            0.2548905350137388,
+            0.2578058708444657
+          ],
+          "verdict": "better"
+        },
+        "entriesReturned": {
+          "n": 30,
+          "medianA": 20,
+          "medianB": 20,
+          "p95A": 20,
+          "p95B": 20,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "leakedSecrets": {
+          "n": 30,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "logRequests": {
+          "n": 30,
+          "medianA": 120,
+          "medianB": 120,
+          "p95A": 120,
+          "p95B": 120,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "maxOutstandingRequests": {
+          "n": 30,
+          "medianA": 1,
+          "medianB": 4,
+          "p95A": 1,
+          "p95B": 4,
+          "medianRatio": 4,
+          "ci95": [
+            4,
+            4
+          ],
+          "verdict": "changed"
+        },
+        "pods": {
+          "n": 30,
+          "medianA": 40,
+          "medianB": 40,
+          "p95A": 40,
+          "p95B": 40,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "process.maxRssBytes": {
+          "n": 30,
+          "medianA": 141565952,
+          "medianB": 142573568,
+          "p95A": 142393344,
+          "p95B": 143196160,
+          "medianRatio": 1.0071250311498519,
+          "ci95": [
+            1.0061910650237187,
+            1.0090878132001144
+          ],
+          "verdict": "worse"
+        }
+      },
+      "observations": {
+        "globallyAscendingTimestamps": {
+          "A": "true",
+          "B": "true"
+        },
+        "matchesGlobalNewestSet": {
+          "A": "false",
+          "B": "true"
+        },
+        "matchesGlobalNewestInOrder": {
+          "A": "false",
+          "B": "true"
+        },
+        "firstRequestedSources": {
+          "A": "[\"pod-026/c0\",\"pod-026/c1\",\"pod-026/c2\"]",
+          "B": "[\"pod-026/c0\",\"pod-026/c1\",\"pod-026/c2\"]"
+        }
+      }
+    },
+    {
+      "workload": "perf-11-jsonl-read",
+      "case": "read-50k",
+      "okA": 30,
+      "okB": 30,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 30,
+          "medianA": 204.92781249999825,
+          "medianB": 188.8441874999844,
+          "p95A": 224.419249999999,
+          "p95B": 208.93224999999802,
+          "medianRatio": 0.9265325427145608,
+          "ci95": [
+            0.9036198519503829,
+            0.9669462170341905
+          ],
+          "verdict": "better"
+        },
+        "elapsedMs": {
+          "n": 30,
+          "medianA": 60.12629199999999,
+          "medianB": 57.140083000000004,
+          "p95A": 69.09725,
+          "p95B": 63.515416999999985,
+          "medianRatio": 0.954683806280054,
+          "ci95": [
+            0.9312290281409192,
+            0.9909470108714533
+          ],
+          "verdict": "better"
+        },
+        "fileBytes": {
+          "n": 30,
+          "medianA": 21883890,
+          "medianB": 21883890,
+          "p95A": 21883890,
+          "p95B": 21883890,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "heapUsedWhileHeldBytes": {
+          "n": 30,
+          "medianA": 80613872,
+          "medianB": 43722712,
+          "p95A": 80648000,
+          "p95B": 43754744,
+          "medianRatio": 0.542336260832396,
+          "ci95": [
+            0.5422118940998656,
+            0.5424544616304185
+          ],
+          "verdict": "better"
+        },
+        "peakRssGrowthBytes": {
+          "n": 30,
+          "medianA": 88203264,
+          "medianB": 59310080,
+          "p95A": 88358912,
+          "p95B": 59424768,
+          "medianRatio": 0.6723562389439991,
+          "ci95": [
+            0.6718924191462479,
+            0.6728590244191148
+          ],
+          "verdict": "better"
+        },
+        "process.maxRssBytes": {
+          "n": 30,
+          "medianA": 172302336,
+          "medianB": 144293888,
+          "p95A": 172785664,
+          "p95B": 144523264,
+          "medianRatio": 0.8372004564473183,
+          "ci95": [
+            0.8366376642529856,
+            0.837768486521046
+          ],
+          "verdict": "better"
+        },
+        "receiptsRead": {
+          "n": 30,
+          "medianA": 50000,
+          "medianB": 50000,
+          "p95A": 50000,
+          "p95B": 50000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "receiptsWritten": {
+          "n": 30,
+          "medianA": 50000,
+          "medianB": 50000,
+          "p95A": 50000,
+          "p95B": 50000,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        }
+      },
+      "observations": {
+        "outcome": {
+          "A": "\"resolved\"",
+          "B": "\"resolved\""
+        },
+        "idsDigest": {
+          "A": "\"c935f8bcea5784799cd468d8a18f47d57fad3e3105ed504e82cf5263adfa8ccd\"",
+          "B": "\"33aec30c97510918f453a49894ae147fce7f7329db43974e34cf806cbb599431\""
+        },
+        "error": {
+          "A": "null",
+          "B": "null"
+        },
+        "errorNamesCorruptLine": {
+          "A": "null",
+          "B": "null"
+        }
+      }
+    }
+  ]
+}

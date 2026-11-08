@@ -1,0 +1,4 @@
+
+> capsule@0.1.0 typecheck /private/tmp/capsule-wt/m4
+> tsc -p tsconfig.typecheck.json --noEmit
+

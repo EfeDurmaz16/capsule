@@ -109,6 +109,24 @@ export interface Observe {
   wait_ms: number;
 }
 
+/**
+ * Finds the resource an earlier create of this operation made, by the operation's identity, for a
+ * create whose answer never reached Fabric. It names no resource, makes no mutating call and needs no
+ * approval (Fabric's specification, "Reconciliation (M4)").
+ */
+export interface Attach {
+  type: "attach";
+  request_id: string;
+  /** The original create's operation id: the label the Docker profile finds a container by. */
+  operation_id: string;
+  /** The original create's operation key: the fixture provider's native id is fx-<key>. */
+  key: string;
+  /** The original operation's scope. A resource another job or operation made is owner_mismatch. */
+  scope: RequestScope;
+  action: BridgeAction;
+  wait_ms: number;
+}
+
 export interface Cancel {
   type: "cancel";
   request_id: string;
@@ -122,7 +140,7 @@ export interface Shutdown {
   drain_ms: number;
 }
 
-export type FabricMessage = Hello | BridgeRequest | Observe | Cancel | Shutdown;
+export type FabricMessage = Hello | BridgeRequest | Observe | Attach | Cancel | Shutdown;
 
 export interface ActionCapability {
   action: BridgeAction;
@@ -137,6 +155,8 @@ export interface ActionCapability {
 
 export interface ProfileLimits {
   max_deadline_ms: number;
+  /** Upper bound of an exec's own timeout_ms. It may exceed max_deadline_ms: an exec still running at its deadline is answered running and settled by observing it. */
+  max_timeout_ms: number;
   max_observe_wait_ms: number;
   max_output_bytes: number;
   max_stdin_bytes: number;
@@ -206,12 +226,12 @@ export type Effect = "none" | "applied" | "pending" | "unknown";
 /** Reasons per code, exactly the v1 table. */
 export const ERROR_REASONS: Readonly<Record<ErrorCode, readonly string[]>> = {
   invalid: ["unknown_field", "missing_field", "bad_integer", "bad_id", "bad_string", "bad_locator", "limit", "duplicate_request_id", "idempotency_conflict"],
-  unsupported: ["action", "observe", "cancel"],
+  unsupported: ["action", "observe", "cancel", "attach"],
   denied: ["policy_denied", "approval_required", "approval_expired", "approval_scope", "secret_not_allowed", "scope_mismatch", "owner_mismatch"],
   unavailable: ["busy", "shutting_down"],
   provider_failed: ["provider_refused", "not_found", "quota"],
   pending: ["observation_deadline", "shutting_down"],
-  unknown: ["reply_lost", "observation_failed"]
+  unknown: ["reply_lost", "observation_failed", "absent"]
 };
 
 /** The effect each code allows. */
@@ -230,6 +250,18 @@ export interface CleanupReport {
   residual: WireLocator[];
 }
 
+/**
+ * Where the worker looked and found nothing: the profile's provider, the worker's bound scope and the
+ * resource kind. Required with unknown/absent (an attach that found nothing, or an observe whose one
+ * read found no resource) and refused on every other error. Absence is evidence about this scope at
+ * this time only; what it settles is Fabric's journal's to say.
+ */
+export interface Searched {
+  provider: string;
+  scope: Record<string, string>;
+  kind: string;
+}
+
 export interface ErrorBody {
   code: ErrorCode;
   reason: string;
@@ -240,6 +272,7 @@ export interface ErrorBody {
   observations?: number;
   deadline_ms?: number;
   cleanup?: CleanupReport;
+  searched?: Searched;
 }
 
 export interface ErrorMessage {

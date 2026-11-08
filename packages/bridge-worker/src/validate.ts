@@ -1,10 +1,11 @@
 import { NOT_AN_INTEGER } from "./frame.js";
-import { actionCapability } from "./profiles.js";
+import { actionCapability, attachable } from "./profiles.js";
 import {
   ACTIONS,
   MAX_DRAIN_MS,
   MAX_FRAME_BYTES,
   MAX_REQUEST_BYTES,
+  type Attach,
   type BridgeAction,
   type BridgeRequest,
   type CapabilityProfile,
@@ -135,8 +136,10 @@ function names(value: unknown, what: string): string[] {
 }
 
 /**
- * A locator of this profile. Structure errors are `bad_locator`; whether its scope is the worker's own
- * is checked later as `denied`/`scope_mismatch`.
+ * A locator of this profile. A locator with no `native_id` (absent, null or empty) names no resource and
+ * is `missing_field`: only a `sandbox.create`, which carries no locator at all, has no resource yet, so
+ * a destroy, exec or observe without one fails closed. Other structure errors are `bad_locator`; whether
+ * its scope is the worker's own is checked later as `denied`/`scope_mismatch`.
  */
 export function parseLocator(value: unknown, profile: CapabilityProfile, what: string): WireLocator {
   const bad = (detail: string) => invalid("bad_locator", `${what}: ${detail}`);
@@ -158,6 +161,7 @@ export function parseLocator(value: unknown, profile: CapabilityProfile, what: s
     if (typeof entry !== "string" || entry.length < 1 || entry.length > 512 || CONTROL.test(entry)) throw bad(`scope.${key} is not 1 to 512 characters`);
     scopeOut[key] = entry;
   }
+  if (nativeId === undefined || nativeId === null || nativeId === "") throw invalid("missing_field", `${what}: native_id names no resource`);
   if (!safeNativeId(nativeId)) throw bad("native_id is not a safe identifier");
   const locator: WireLocator = { provider, scope: scopeOut, kind, native_id: nativeId };
   if (nativeOperationId !== undefined) {
@@ -288,7 +292,7 @@ export function parseRequest(message: Json, profile: CapabilityProfile): BridgeR
       argv,
       stdin,
       cwd: p.cwd === null ? null : text(p.cwd, "params.cwd"),
-      timeout_ms: bounded(p.timeout_ms, 1, limits.max_deadline_ms, "params.timeout_ms"),
+      timeout_ms: bounded(p.timeout_ms, 1, limits.max_timeout_ms, "params.timeout_ms"),
       max_output_bytes: bounded(p.max_output_bytes, 1, limits.max_output_bytes, "params.max_output_bytes"),
       secret_names: names(p.secret_names, "params.secret_names")
     };
@@ -339,6 +343,26 @@ export function parseObserve(message: Json, profile: CapabilityProfile): Observe
   const resource = parseLocator(body.resource, profile, "resource");
   const waitMs = bounded(body.wait_ms, 1, profile.limits.max_observe_wait_ms, "wait_ms");
   return { type: "observe", request_id: requestId, operation_id: operationId, scope, action: capability.action, resource, wait_ms: waitMs };
+}
+
+/**
+ * Parses an attach. Schema first (an attach with a resource is unknown_field: a caller with a locator
+ * observes instead), then the action: outside the profile it is unsupported/action, in it but not a
+ * create the profile can find again it is unsupported/attach. Then wait_ms within the profile's limit.
+ */
+export function parseAttach(message: Json, profile: CapabilityProfile): Attach {
+  const keys = ["type", "request_id", "operation_id", "key", "scope", "action", "wait_ms"] as const;
+  const body = fields(message, keys, keys, "attach");
+  const requestId = id(body.request_id, KEY, "request_id");
+  const operationId = id(body.operation_id, ULID, "operation_id");
+  const key = id(body.key, KEY, "key");
+  const scope = parseScope(body.scope);
+  const action = body.action;
+  const capability = typeof action === "string" ? actionCapability(profile, action) : undefined;
+  if (!capability) throw new Refusal("unsupported", "action", "attach names an action outside the negotiated profile");
+  if (!attachable(capability)) throw new Refusal("unsupported", "attach", `${capability.action} cannot be attached in this profile`);
+  const waitMs = bounded(body.wait_ms, 1, profile.limits.max_observe_wait_ms, "wait_ms");
+  return { type: "attach", request_id: requestId, operation_id: operationId, key, scope, action: capability.action, wait_ms: waitMs };
 }
 
 export function parseCancel(message: Json): Cancel {

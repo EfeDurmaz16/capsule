@@ -1,0 +1,8 @@
+
+> capsule@0.1.0 format:check /private/tmp/capsule-wt/m4
+> prettier --check .
+
+Checking formatting...
+[warn] benchmarks/after/bridge/m4-perf/README.md
+[warn] Code style issues found in the above file. Run Prettier with --write to fix.
+ ELIFECYCLE  Command failed with exit code 1.

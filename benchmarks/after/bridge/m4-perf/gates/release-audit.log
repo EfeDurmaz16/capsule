@@ -1,0 +1,106 @@
+
+> capsule@0.1.0 release:audit /private/tmp/capsule-wt/m4
+> pnpm release:metadata-audit && pnpm release:dependency-audit && pnpm release:markers && pnpm release:pack-smoke
+
+packages/store-sqlite                    |  WARN  Unsupported engine: wanted: {"node":">=24.0.0"} (current: {"node":"v22.23.2","pnpm":"10.32.1"})
+
+> capsule@0.1.0 release:metadata-audit /private/tmp/capsule-wt/m4
+> node scripts/package-publish-audit.mjs --dry-run
+
+Package publish metadata dry-run audit passed for 23 public packages.
+packages/store-sqlite                    |  WARN  Unsupported engine: wanted: {"node":">=24.0.0"} (current: {"node":"v22.23.2","pnpm":"10.32.1"})
+
+> capsule@0.1.0 release:dependency-audit /private/tmp/capsule-wt/m4
+> node scripts/dependency-license-audit.mjs
+
+Dependency and license audit passed for 23 public packages and 8 external runtime dependencies.
+packages/store-sqlite                    |  WARN  Unsupported engine: wanted: {"node":">=24.0.0"} (current: {"node":"v22.23.2","pnpm":"10.32.1"})
+
+> capsule@0.1.0 release:markers /private/tmp/capsule-wt/m4
+> node scripts/no-unfinished-markers.mjs
+
+Unfinished marker gate passed.
+packages/store-sqlite                    |  WARN  Unsupported engine: wanted: {"node":">=24.0.0"} (current: {"node":"v22.23.2","pnpm":"10.32.1"})
+
+> capsule@0.1.0 release:pack-smoke /private/tmp/capsule-wt/m4
+> node scripts/package-pack-smoke.mjs
+
+Progress: resolved 0, reused 0, downloaded 1, added 0
+Progress: resolved 127, reused 99, downloaded 23, added 0
+Progress: resolved 194, reused 166, downloaded 23, added 0
+Progress: resolved 199, reused 171, downloaded 23, added 0
+Progress: resolved 296, reused 268, downloaded 23, added 0
+Progress: resolved 300, reused 272, downloaded 23, added 0
+Progress: resolved 301, reused 272, downloaded 23, added 0
+ WARN  5 deprecated subdependencies found: @opentelemetry/propagator-jaeger@2.7.1, @opentelemetry/sdk-trace-base@2.12.0, @opentelemetry/sdk-trace-base@2.7.1, @opentelemetry/sdk-trace-node@2.7.1, node-domexception@1.0.0
+Packages: +297
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 302, reused 274, downloaded 23, added 283
+Progress: resolved 302, reused 274, downloaded 23, added 297, done
+ WARN  Issues with peer dependencies found
+.
+└─┬ @capsule-sdk/cli 0.1.1
+  └─┬ @capsule-sdk/daytona 0.1.1
+    └─┬ @daytona/sdk 0.175.0
+      ├─┬ @opentelemetry/resources 2.7.1
+      │ ├── ✕ unmet peer @opentelemetry/api@">=1.3.0 <1.10.0": found 1.10.0
+      │ └─┬ @opentelemetry/core 2.7.1
+      │   └── ✕ unmet peer @opentelemetry/api@">=1.0.0 <1.10.0": found 1.10.0
+      ├─┬ @opentelemetry/otlp-exporter-base 0.217.0
+      │ └─┬ @opentelemetry/otlp-transformer 0.217.0
+      │   ├─┬ @opentelemetry/sdk-trace-base 2.7.1
+      │   │ └── ✕ unmet peer @opentelemetry/api@">=1.3.0 <1.10.0": found 1.10.0
+      │   ├─┬ @opentelemetry/sdk-logs 0.217.0
+      │   │ └── ✕ unmet peer @opentelemetry/api@">=1.4.0 <1.10.0": found 1.10.0
+      │   └─┬ @opentelemetry/sdk-metrics 2.7.1
+      │     └── ✕ unmet peer @opentelemetry/api@">=1.9.0 <1.10.0": found 1.10.0
+      ├─┬ @opentelemetry/sdk-trace-base 2.12.0
+      │ ├── ✕ unmet peer @opentelemetry/api@">=1.3.0 <1.10.0": found 1.10.0
+      │ └─┬ @opentelemetry/sdk-trace 2.12.0
+      │   ├── ✕ unmet peer @opentelemetry/api@">=1.3.0 <1.10.0": found 1.10.0
+      │   └─┬ @opentelemetry/resources 2.12.0
+      │     ├── ✕ unmet peer @opentelemetry/api@">=1.3.0 <1.10.0": found 1.10.0
+      │     └─┬ @opentelemetry/core 2.12.0
+      │       └── ✕ unmet peer @opentelemetry/api@">=1.0.0 <1.10.0": found 1.10.0
+      └─┬ @opentelemetry/sdk-node 0.217.0
+        ├── ✕ unmet peer @opentelemetry/api@">=1.3.0 <1.10.0": found 1.10.0
+        ├─┬ @opentelemetry/propagator-b3 2.7.1
+        │ └── ✕ unmet peer @opentelemetry/api@">=1.0.0 <1.10.0": found 1.10.0
+        ├─┬ @opentelemetry/sdk-trace-node 2.7.1
+        │ ├── ✕ unmet peer @opentelemetry/api@">=1.0.0 <1.10.0": found 1.10.0
+        │ └─┬ @opentelemetry/context-async-hooks 2.7.1
+        │   └── ✕ unmet peer @opentelemetry/api@">=1.0.0 <1.10.0": found 1.10.0
+        └─┬ @opentelemetry/propagator-jaeger 2.7.1
+          └── ✕ unmet peer @opentelemetry/api@">=1.0.0 <1.10.0": found 1.10.0
+
+dependencies:
++ @capsule-sdk/ai 0.1.1
++ @capsule-sdk/azure 0.1.1
++ @capsule-sdk/bridge-worker 0.0.0
++ @capsule-sdk/cli 0.1.1
++ @capsule-sdk/cloud-run 0.1.1
++ @capsule-sdk/cloudflare 0.1.1
++ @capsule-sdk/core 0.1.1
++ @capsule-sdk/daytona 0.1.1
++ @capsule-sdk/docker 0.1.1
++ @capsule-sdk/e2b 0.1.1
++ @capsule-sdk/ec2 0.1.1
++ @capsule-sdk/ecs 0.1.1
++ @capsule-sdk/fly 0.1.1
++ @capsule-sdk/kubernetes 0.1.1
++ @capsule-sdk/lambda 0.1.1
++ @capsule-sdk/mock 0.1.1
++ @capsule-sdk/modal 0.1.1
++ @capsule-sdk/neon 0.1.1
++ @capsule-sdk/presets 0.1.1
++ @capsule-sdk/preview 0.2.0
++ @capsule-sdk/store-jsonl 0.1.1
++ @capsule-sdk/store-sqlite 0.1.0
++ @capsule-sdk/vercel 0.1.1
+
+Done in 8.9s using pnpm v10.32.1
+Imported 23 Capsule packages from packed artifacts.
+(node:97008) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Packed capsule-bridge-worker passed the fixture round trip, a refusal before effect and an oversize hello.
+Package pack smoke passed for 23 packages in capsule-pack-smoke-627VOq.

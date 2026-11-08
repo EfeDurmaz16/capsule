@@ -1,0 +1,5 @@
+
+> capsule@0.1.0 docs:api:check /private/tmp/capsule-wt/m4
+> node scripts/generate-api-reference.mjs --check
+
+docs/api-reference.md is current.

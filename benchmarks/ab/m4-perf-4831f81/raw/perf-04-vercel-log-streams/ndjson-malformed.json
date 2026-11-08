@@ -1,0 +1,1650 @@
+{
+  "meta": {
+    "label": "m4-perf-4831f81",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 20,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "4831f8130f9cc7dddc6e8a2e37223aad36a2afa8",
+      "packagesTree": "97fbe32be7f65a59b01329bc5d49ff98b29b4a59",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "4831f8130f9cc7dddc6e8a2e37223aad36a2afa8",
+    "date": "2026-11-02T20:23:56.840Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        5.91455078125,
+        8.32421875,
+        9.7998046875
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)"
+  },
+  "workload": "perf-04-vercel-log-streams",
+  "case": "ndjson-malformed",
+  "params": {
+    "records": 2000,
+    "maxFragmentBytes": 64,
+    "limit": 100,
+    "deadlineMs": 5000,
+    "seed": 11
+  },
+  "runs": [
+    {
+      "side": "A",
+      "pair": 0,
+      "childWallMs": 72.79700000000048,
+      "loadAverage1m": 5.79296875,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 32.798958999999996,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 7984000,
+        "peakRssGrowthBytes": 32964608
+      },
+      "caseDurationMs": 39.703832999999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5050720,
+          "rss": 47316992,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 12938248,
+          "rss": 85032960,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85032960
+      }
+    },
+    {
+      "side": "B",
+      "pair": 0,
+      "childWallMs": 62.516875000001164,
+      "loadAverage1m": 5.79296875,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 18.197042,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3138064,
+        "peakRssGrowthBytes": 17268736
+      },
+      "caseDurationMs": 24.8895,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5060392,
+          "rss": 47759360,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8152856,
+          "rss": 69484544,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69484544
+      }
+    },
+    {
+      "side": "A",
+      "pair": 1,
+      "childWallMs": 88.61370799998986,
+      "loadAverage1m": 5.75390625,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 43.016166999999996,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 7964280,
+        "peakRssGrowthBytes": 33554432
+      },
+      "caseDurationMs": 50.991915999999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5031000,
+          "rss": 47366144,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 12918528,
+          "rss": 85770240,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85770240
+      }
+    },
+    {
+      "side": "B",
+      "pair": 1,
+      "childWallMs": 80.0903330000001,
+      "loadAverage1m": 5.75390625,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 22.011042000000003,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3091064,
+        "peakRssGrowthBytes": 17121280
+      },
+      "caseDurationMs": 31.73175,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4992048,
+          "rss": 47775744,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8105856,
+          "rss": 69550080,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69550080
+      }
+    },
+    {
+      "side": "A",
+      "pair": 2,
+      "childWallMs": 85.83170800001244,
+      "loadAverage1m": 6.099609375,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 39.247083,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 7965912,
+        "peakRssGrowthBytes": 33259520
+      },
+      "caseDurationMs": 47.34375000000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5002816,
+          "rss": 47497216,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 12920160,
+          "rss": 85475328,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85475328
+      }
+    },
+    {
+      "side": "B",
+      "pair": 2,
+      "childWallMs": 72.58849999998347,
+      "loadAverage1m": 6.099609375,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 22.132375000000003,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3140808,
+        "peakRssGrowthBytes": 17596416
+      },
+      "caseDurationMs": 30.907583,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5032160,
+          "rss": 47644672,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8155600,
+          "rss": 69763072,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69763072
+      }
+    },
+    {
+      "side": "A",
+      "pair": 3,
+      "childWallMs": 80.05266600000323,
+      "loadAverage1m": 8.81982421875,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 36.2775,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8189072,
+        "peakRssGrowthBytes": 33767424
+      },
+      "caseDurationMs": 44.814750000000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5035616,
+          "rss": 47480832,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 13143320,
+          "rss": 86163456,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 86163456
+      }
+    },
+    {
+      "side": "B",
+      "pair": 3,
+      "childWallMs": 68.7652910000179,
+      "loadAverage1m": 8.81982421875,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 21.095582999999998,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3128624,
+        "peakRssGrowthBytes": 17514496
+      },
+      "caseDurationMs": 28.563000000000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5060464,
+          "rss": 47562752,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8150096,
+          "rss": 69599232,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69648384
+      }
+    },
+    {
+      "side": "A",
+      "pair": 4,
+      "childWallMs": 89.3262499999837,
+      "loadAverage1m": 7.35205078125,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 41.657166000000004,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 7969080,
+        "peakRssGrowthBytes": 33374208
+      },
+      "caseDurationMs": 50.64375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5037192,
+          "rss": 47415296,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 12923264,
+          "rss": 85590016,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85590016
+      }
+    },
+    {
+      "side": "B",
+      "pair": 4,
+      "childWallMs": 78.81549999996787,
+      "loadAverage1m": 7.35205078125,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 21.914665999999997,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3079856,
+        "peakRssGrowthBytes": 17448960
+      },
+      "caseDurationMs": 29.8155,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5060464,
+          "rss": 47808512,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8094720,
+          "rss": 69763072,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69763072
+      }
+    },
+    {
+      "side": "A",
+      "pair": 5,
+      "childWallMs": 84.42008299997542,
+      "loadAverage1m": 8.6474609375,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 39.521667,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8238624,
+        "peakRssGrowthBytes": 34095104
+      },
+      "caseDurationMs": 47.492709000000005,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4993232,
+          "rss": 47448064,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 13192872,
+          "rss": 86278144,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 86278144
+      }
+    },
+    {
+      "side": "B",
+      "pair": 5,
+      "childWallMs": 67.5700829999987,
+      "loadAverage1m": 8.6474609375,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 18.949416999999997,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3129360,
+        "peakRssGrowthBytes": 17350656
+      },
+      "caseDurationMs": 26.026625000000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5060464,
+          "rss": 47693824,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8144152,
+          "rss": 69484544,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69484544
+      }
+    },
+    {
+      "side": "A",
+      "pair": 6,
+      "childWallMs": 78.1991670000134,
+      "loadAverage1m": 6.98974609375,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 35.525666,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8293608,
+        "peakRssGrowthBytes": 34471936
+      },
+      "caseDurationMs": 42.772833000000006,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5072688,
+          "rss": 47448064,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 13247856,
+          "rss": 86589440,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 86589440
+      }
+    },
+    {
+      "side": "B",
+      "pair": 6,
+      "childWallMs": 80.30745799996657,
+      "loadAverage1m": 6.98974609375,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 21.414333,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3074832,
+        "peakRssGrowthBytes": 17154048
+      },
+      "caseDurationMs": 29.670500000000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 4998936,
+          "rss": 48005120,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8089696,
+          "rss": 69730304,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69779456
+      }
+    },
+    {
+      "side": "A",
+      "pair": 7,
+      "childWallMs": 73.61475000000792,
+      "loadAverage1m": 7.55712890625,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 32.673375,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 7987944,
+        "peakRssGrowthBytes": 33374208
+      },
+      "caseDurationMs": 39.34025,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5029584,
+          "rss": 47415296,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 12942264,
+          "rss": 85508096,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85508096
+      }
+    },
+    {
+      "side": "B",
+      "pair": 7,
+      "childWallMs": 67.48349999997299,
+      "loadAverage1m": 7.55712890625,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 19.563082999999995,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3151176,
+        "peakRssGrowthBytes": 17727488
+      },
+      "caseDurationMs": 26.828500000000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5060392,
+          "rss": 47611904,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8165968,
+          "rss": 69926912,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69926912
+      }
+    },
+    {
+      "side": "A",
+      "pair": 8,
+      "childWallMs": 75.06691600003978,
+      "loadAverage1m": 7.2265625,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 34.06991699999999,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8019664,
+        "peakRssGrowthBytes": 33062912
+      },
+      "caseDurationMs": 41.366499999999995,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5078856,
+          "rss": 47464448,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 12973912,
+          "rss": 85295104,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85295104
+      }
+    },
+    {
+      "side": "B",
+      "pair": 8,
+      "childWallMs": 66.86583299998892,
+      "loadAverage1m": 7.2265625,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 20.000249999999998,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3127808,
+        "peakRssGrowthBytes": 16842752
+      },
+      "caseDurationMs": 27.209583000000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5060392,
+          "rss": 47693824,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8142600,
+          "rss": 69074944,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69074944
+      }
+    },
+    {
+      "side": "A",
+      "pair": 9,
+      "childWallMs": 77.97812500002328,
+      "loadAverage1m": 7.3037109375,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 34.832750000000004,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8078032,
+        "peakRssGrowthBytes": 33374208
+      },
+      "caseDurationMs": 41.882542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5038624,
+          "rss": 47415296,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 13032280,
+          "rss": 85491712,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85491712
+      }
+    },
+    {
+      "side": "B",
+      "pair": 9,
+      "childWallMs": 68.206208000076,
+      "loadAverage1m": 7.3037109375,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 19.723042,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3084648,
+        "peakRssGrowthBytes": 17416192
+      },
+      "caseDurationMs": 26.981875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5060392,
+          "rss": 47710208,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8106152,
+          "rss": 69664768,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69664768
+      }
+    },
+    {
+      "side": "A",
+      "pair": 10,
+      "childWallMs": 184.35229199996684,
+      "loadAverage1m": 7.4560546875,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 36.237708,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8076560,
+        "peakRssGrowthBytes": 33275904
+      },
+      "caseDurationMs": 45.076291999999995,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5009320,
+          "rss": 47513600,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 13030880,
+          "rss": 85540864,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85540864
+      }
+    },
+    {
+      "side": "B",
+      "pair": 10,
+      "childWallMs": 113.2318329999689,
+      "loadAverage1m": 7.4560546875,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 31.322749999999992,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3100456,
+        "peakRssGrowthBytes": 17678336
+      },
+      "caseDurationMs": 44.752750000000006,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5032160,
+          "rss": 47693824,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8123280,
+          "rss": 69992448,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69992448
+      }
+    },
+    {
+      "side": "A",
+      "pair": 11,
+      "childWallMs": 83.38779200008139,
+      "loadAverage1m": 10.45458984375,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 37.954249999999995,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8253912,
+        "peakRssGrowthBytes": 33914880
+      },
+      "caseDurationMs": 45.745334,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5006272,
+          "rss": 47398912,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 13208160,
+          "rss": 86016000,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 86016000
+      }
+    },
+    {
+      "side": "B",
+      "pair": 11,
+      "childWallMs": 82.59525000001304,
+      "loadAverage1m": 10.45458984375,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 23.992542,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3100264,
+        "peakRssGrowthBytes": 16826368
+      },
+      "caseDurationMs": 32.089375000000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5060392,
+          "rss": 47677440,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8115056,
+          "rss": 69025792,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69025792
+      }
+    },
+    {
+      "side": "A",
+      "pair": 12,
+      "childWallMs": 76.08620799996424,
+      "loadAverage1m": 10.3984375,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 34.285792,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8175104,
+        "peakRssGrowthBytes": 33275904
+      },
+      "caseDurationMs": 41.620791000000004,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5059784,
+          "rss": 47366144,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 13129352,
+          "rss": 85426176,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85426176
+      }
+    },
+    {
+      "side": "B",
+      "pair": 12,
+      "childWallMs": 65.96475000004284,
+      "loadAverage1m": 10.3984375,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 19.568542,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3103928,
+        "peakRssGrowthBytes": 17268736
+      },
+      "caseDurationMs": 27.025166999999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5016200,
+          "rss": 47644672,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8125432,
+          "rss": 69468160,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69468160
+      }
+    },
+    {
+      "side": "A",
+      "pair": 13,
+      "childWallMs": 95.70591700007208,
+      "loadAverage1m": 10.61767578125,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 44.127792,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 7989648,
+        "peakRssGrowthBytes": 33275904
+      },
+      "caseDurationMs": 52.44816599999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5029216,
+          "rss": 47398912,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 12943896,
+          "rss": 85442560,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85442560
+      }
+    },
+    {
+      "side": "B",
+      "pair": 13,
+      "childWallMs": 101.68787500006147,
+      "loadAverage1m": 10.61767578125,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 29.03095799999999,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3120208,
+        "peakRssGrowthBytes": 17743872
+      },
+      "caseDurationMs": 39.889165999999996,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5060392,
+          "rss": 48545792,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8135000,
+          "rss": 70729728,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 70729728
+      }
+    },
+    {
+      "side": "A",
+      "pair": 14,
+      "childWallMs": 123.18670900003053,
+      "loadAverage1m": 10.75146484375,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 62.316874999999996,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 7926192,
+        "peakRssGrowthBytes": 33243136
+      },
+      "caseDurationMs": 71.08054200000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5030672,
+          "rss": 47431680,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 12880512,
+          "rss": 85409792,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85409792
+      }
+    },
+    {
+      "side": "B",
+      "pair": 14,
+      "childWallMs": 81.1629579999717,
+      "loadAverage1m": 10.75146484375,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 22.048792,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3117856,
+        "peakRssGrowthBytes": 17350656
+      },
+      "caseDurationMs": 30.551667,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5093232,
+          "rss": 48037888,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8132648,
+          "rss": 69894144,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69894144
+      }
+    },
+    {
+      "side": "A",
+      "pair": 15,
+      "childWallMs": 77.72879100008868,
+      "loadAverage1m": 8.7607421875,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 34.255875,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8226104,
+        "peakRssGrowthBytes": 33193984
+      },
+      "caseDurationMs": 41.66679099999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5017784,
+          "rss": 47366144,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 13180352,
+          "rss": 85360640,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85360640
+      }
+    },
+    {
+      "side": "B",
+      "pair": 15,
+      "childWallMs": 68.00837499997579,
+      "loadAverage1m": 8.7607421875,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 20.172916,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3095952,
+        "peakRssGrowthBytes": 17350656
+      },
+      "caseDurationMs": 27.350042,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5060536,
+          "rss": 47693824,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8110816,
+          "rss": 69517312,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69517312
+      }
+    },
+    {
+      "side": "A",
+      "pair": 16,
+      "childWallMs": 83.04449999984354,
+      "loadAverage1m": 8.09912109375,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 41.22262500000001,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8050816,
+        "peakRssGrowthBytes": 33472512
+      },
+      "caseDurationMs": 48.51991700000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5035616,
+          "rss": 47448064,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 13005064,
+          "rss": 85557248,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85557248
+      }
+    },
+    {
+      "side": "B",
+      "pair": 16,
+      "childWallMs": 69.75916699995287,
+      "loadAverage1m": 8.09912109375,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 20.409125000000003,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3110752,
+        "peakRssGrowthBytes": 17235968
+      },
+      "caseDurationMs": 28.080625,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5000744,
+          "rss": 47644672,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8125616,
+          "rss": 69435392,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69435392
+      }
+    },
+    {
+      "side": "A",
+      "pair": 17,
+      "childWallMs": 81.22112499992363,
+      "loadAverage1m": 14.8115234375,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 37.524917,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8052608,
+        "peakRssGrowthBytes": 33112064
+      },
+      "caseDurationMs": 44.627375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5006160,
+          "rss": 47349760,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 13006856,
+          "rss": 85278720,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85278720
+      }
+    },
+    {
+      "side": "B",
+      "pair": 17,
+      "childWallMs": 69.92570800008252,
+      "loadAverage1m": 14.8115234375,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 20.5905,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3135864,
+        "peakRssGrowthBytes": 17317888
+      },
+      "caseDurationMs": 27.950833000000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5003264,
+          "rss": 47595520,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8150656,
+          "rss": 69500928,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69500928
+      }
+    },
+    {
+      "side": "A",
+      "pair": 18,
+      "childWallMs": 98.33404199988581,
+      "loadAverage1m": 10.2060546875,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 47.96025,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8278344,
+        "peakRssGrowthBytes": 33390592
+      },
+      "caseDurationMs": 56.278041,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5006272,
+          "rss": 47415296,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 13232592,
+          "rss": 85622784,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85622784
+      }
+    },
+    {
+      "side": "B",
+      "pair": 18,
+      "childWallMs": 102.98741700011306,
+      "loadAverage1m": 11.0703125,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 29.911125000000006,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3112688,
+        "peakRssGrowthBytes": 17727488
+      },
+      "caseDurationMs": 41.9445,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5060464,
+          "rss": 47955968,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8134192,
+          "rss": 70172672,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 70172672
+      }
+    },
+    {
+      "side": "A",
+      "pair": 19,
+      "childWallMs": 76.18508300022222,
+      "loadAverage1m": 7.9931640625,
+      "ok": true,
+      "metrics": {
+        "outcome": "rejected",
+        "settleMs": 35.50945900000001,
+        "settledBeforeDeadline": true,
+        "entriesReturned": null,
+        "entriesWithinLimit": null,
+        "error": {
+          "name": "SyntaxError",
+          "constructor": "SyntaxError",
+          "message": "Unterminated string in JSON at position 28 (line 1 column 29)"
+        },
+        "requests": 1,
+        "bytesEmitted": 565525,
+        "recordsEmitted": 0,
+        "bodyCancelled": false,
+        "sourceClosed": true,
+        "heapUsedDeltaBytes": 8038328,
+        "peakRssGrowthBytes": 33079296
+      },
+      "caseDurationMs": 42.770167,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5029632,
+          "rss": 47497216,
+          "external": 1907378,
+          "arrayBuffers": 33217
+        },
+        "endMemory": {
+          "heapUsed": 12992576,
+          "rss": 85295104,
+          "external": 4589938,
+          "arrayBuffers": 1199004
+        },
+        "maxRssBytes": 85295104
+      }
+    },
+    {
+      "side": "B",
+      "pair": 19,
+      "childWallMs": 65.49912499985658,
+      "loadAverage1m": 7.9931640625,
+      "ok": true,
+      "metrics": {
+        "outcome": "resolved",
+        "settleMs": 20.237250000000003,
+        "settledBeforeDeadline": true,
+        "entriesReturned": 100,
+        "entriesWithinLimit": true,
+        "error": null,
+        "requests": 1,
+        "bytesEmitted": 28059,
+        "recordsEmitted": 0,
+        "bodyCancelled": true,
+        "sourceClosed": false,
+        "heapUsedDeltaBytes": 3092264,
+        "peakRssGrowthBytes": 17367040
+      },
+      "caseDurationMs": 27.009583000000003,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5060464,
+          "rss": 47792128,
+          "external": 2076981,
+          "arrayBuffers": 16655
+        },
+        "endMemory": {
+          "heapUsed": 8113736,
+          "rss": 69599232,
+          "external": 4024413,
+          "arrayBuffers": 633479
+        },
+        "maxRssBytes": 69599232
+      }
+    }
+  ]
+}

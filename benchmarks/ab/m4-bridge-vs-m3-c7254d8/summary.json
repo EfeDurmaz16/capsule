@@ -1,0 +1,575 @@
+{
+  "meta": {
+    "label": "m4-bridge-vs-m3-c7254d8",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 20,
+    "anchor": {
+      "commit": "91d4e0d5f2a3224fc678870240fd7aeb2a9d426d",
+      "packagesTree": "e9812d51ebb6aa06eaa8aa56b15c6197fd4ae7aa"
+    },
+    "candidate": {
+      "commit": "c7254d825407e784674523b12313e8124ec7f061",
+      "packagesTree": "97fbe32be7f65a59b01329bc5d49ff98b29b4a59",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "c7254d825407e784674523b12313e8124ec7f061",
+    "date": "2026-11-02T21:31:04.864Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        4.9423828125,
+        5.77880859375,
+        6.35205078125
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)",
+    "loadAverageAtEnd": [
+      5.16015625,
+      5.75146484375,
+      6.31787109375
+    ]
+  },
+  "cases": [
+    {
+      "workload": "m3-bridge-worker",
+      "case": "spawn-to-hello-ack",
+      "okA": 20,
+      "okB": 20,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 20,
+          "medianA": 660.9332710000006,
+          "medianB": 675.3467914999997,
+          "p95A": 695.4004580000001,
+          "p95B": 707.3109999999997,
+          "medianRatio": 1.005212802841156,
+          "ci95": [
+            0.9822939481945847,
+            1.0542150236610095
+          ],
+          "verdict": "no difference"
+        },
+        "process.maxRssBytes": {
+          "n": 20,
+          "medianA": 53870592,
+          "medianB": 53886976,
+          "p95A": 53952512,
+          "p95B": 53968896,
+          "medianRatio": 1.0001519756838906,
+          "ci95": [
+            0.9995437955360156,
+            1.0009140767824498
+          ],
+          "verdict": "no difference"
+        },
+        "samples": {
+          "n": 20,
+          "medianA": 20,
+          "medianB": 20,
+          "p95A": 20,
+          "p95B": 20,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "spawnToHelloAckMs.max": {
+          "n": 20,
+          "medianA": 32.5536875,
+          "medianB": 32.46820800000003,
+          "p95A": 36.034499999999994,
+          "p95B": 39.035000000000025,
+          "medianRatio": 1.0046524716786758,
+          "ci95": [
+            0.9742458697747556,
+            1.0383957279616225
+          ],
+          "verdict": "no difference"
+        },
+        "spawnToHelloAckMs.min": {
+          "n": 20,
+          "medianA": 26.792917000000017,
+          "medianB": 27.002312500000002,
+          "p95A": 28.396749999999997,
+          "p95B": 29.331999999999994,
+          "medianRatio": 1.0069665307070634,
+          "ci95": [
+            1.0002384789527494,
+            1.015765304831206
+          ],
+          "verdict": "worse"
+        },
+        "spawnToHelloAckMs.n": {
+          "n": 20,
+          "medianA": 20,
+          "medianB": 20,
+          "p95A": 20,
+          "p95B": 20,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "spawnToHelloAckMs.p50": {
+          "n": 20,
+          "medianA": 28.416542,
+          "medianB": 28.71256250000001,
+          "p95A": 30.36029199999996,
+          "p95B": 30.683208999999977,
+          "medianRatio": 0.99719132020162,
+          "ci95": [
+            0.9848429881408005,
+            1.0453309010889495
+          ],
+          "verdict": "no difference"
+        },
+        "spawnToHelloAckMs.p95": {
+          "n": 20,
+          "medianA": 31.317791500000006,
+          "medianB": 31.979583500000004,
+          "p95A": 32.41533300000003,
+          "p95B": 35.05766600000004,
+          "medianRatio": 1.0102043287109566,
+          "ci95": [
+            0.9907031265033739,
+            1.0478375241927824
+          ],
+          "verdict": "no difference"
+        },
+        "workerMaxRssBytes.max": {
+          "n": 20,
+          "medianA": 49741824,
+          "medianB": 49725440,
+          "p95A": 49807360,
+          "p95B": 49840128,
+          "medianRatio": 0.9995060373097194,
+          "ci95": [
+            0.9986835606467601,
+            1
+          ],
+          "verdict": "no difference"
+        },
+        "workerMaxRssBytes.min": {
+          "n": 20,
+          "medianA": 49422336,
+          "medianB": 49397760,
+          "p95A": 49479680,
+          "p95B": 49446912,
+          "medianRatio": 0.9996684350132626,
+          "ci95": [
+            0.9990064579956084,
+            1
+          ],
+          "verdict": "no difference"
+        },
+        "workerMaxRssBytes.n": {
+          "n": 20,
+          "medianA": 20,
+          "medianB": 20,
+          "p95A": 20,
+          "p95B": 20,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "workerMaxRssBytes.p50": {
+          "n": 20,
+          "medianA": 49553408,
+          "medianB": 49545216,
+          "p95A": 49594368,
+          "p95B": 49594368,
+          "medianRatio": 0.9996693668284578,
+          "ci95": [
+            0.9993388429752066,
+            1
+          ],
+          "verdict": "no difference"
+        },
+        "workerMaxRssBytes.p95": {
+          "n": 20,
+          "medianA": 49717248,
+          "medianB": 49684480,
+          "p95A": 49741824,
+          "p95B": 49725440,
+          "medianRatio": 0.9993410214168039,
+          "ci95": [
+            0.9990112063282794,
+            1.000000108563205
+          ],
+          "verdict": "no difference"
+        }
+      },
+      "observations": {}
+    },
+    {
+      "workload": "m3-bridge-worker",
+      "case": "request-round-trip",
+      "okA": 20,
+      "okB": 20,
+      "errorsA": [],
+      "errorsB": [],
+      "metrics": {
+        "childWallMs": {
+          "n": 20,
+          "medianA": 141.0908545000002,
+          "medianB": 137.89387499999975,
+          "p95A": 149.12716700000237,
+          "p95B": 146.3658749999995,
+          "medianRatio": 0.9839955608038942,
+          "ci95": [
+            0.9682338005206674,
+            0.9988108748898097
+          ],
+          "verdict": "better"
+        },
+        "createRoundTripMs.max": {
+          "n": 20,
+          "medianA": 0.2505834999999976,
+          "medianB": 0.22866649999999566,
+          "p95A": 0.33962499999999807,
+          "p95B": 0.3374589999999955,
+          "medianRatio": 0.903207755396996,
+          "ci95": [
+            0.7859624385870442,
+            1.144799712427862
+          ],
+          "verdict": "no difference"
+        },
+        "createRoundTripMs.min": {
+          "n": 20,
+          "medianA": 0.05243749999999636,
+          "medianB": 0.0515205000000023,
+          "p95A": 0.05741700000000094,
+          "p95B": 0.05404199999999548,
+          "medianRatio": 0.9800947683188618,
+          "ci95": [
+            0.9608980686279506,
+            0.9922599908043757
+          ],
+          "verdict": "better"
+        },
+        "createRoundTripMs.n": {
+          "n": 20,
+          "medianA": 100,
+          "medianB": 100,
+          "p95A": 100,
+          "p95B": 100,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "createRoundTripMs.p50": {
+          "n": 20,
+          "medianA": 0.06612499999999244,
+          "medianB": 0.063895500000001,
+          "p95A": 0.069500000000005,
+          "p95B": 0.069500000000005,
+          "medianRatio": 0.9795919095254089,
+          "ci95": [
+            0.9476464646907684,
+            1.0052181834887546
+          ],
+          "verdict": "no difference"
+        },
+        "createRoundTripMs.p95": {
+          "n": 20,
+          "medianA": 0.1258539999999968,
+          "medianB": 0.12099999999999511,
+          "p95A": 0.15525000000000944,
+          "p95B": 0.1408749999999941,
+          "medianRatio": 0.9328848091997608,
+          "ci95": [
+            0.8391097762225417,
+            1.0247575378705691
+          ],
+          "verdict": "no difference"
+        },
+        "destroyRoundTripMs.max": {
+          "n": 20,
+          "medianA": 0.3120000000000047,
+          "medianB": 0.33093749999999744,
+          "p95A": 0.33783400000000086,
+          "p95B": 0.3784160000000014,
+          "medianRatio": 1.0699765037944513,
+          "ci95": [
+            0.9760660543681259,
+            1.1394569817519877
+          ],
+          "verdict": "no difference"
+        },
+        "destroyRoundTripMs.min": {
+          "n": 20,
+          "medianA": 0.049708500000001266,
+          "medianB": 0.04106249999999534,
+          "p95A": 0.052916999999993664,
+          "p95B": 0.043583999999995626,
+          "medianRatio": 0.8259181599606058,
+          "ci95": [
+            0.8079840911964794,
+            0.8480427446383683
+          ],
+          "verdict": "better"
+        },
+        "destroyRoundTripMs.n": {
+          "n": 20,
+          "medianA": 100,
+          "medianB": 100,
+          "p95A": 100,
+          "p95B": 100,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "destroyRoundTripMs.p50": {
+          "n": 20,
+          "medianA": 0.06204150000000652,
+          "medianB": 0.051916999999995994,
+          "p95A": 0.06920900000000074,
+          "p95B": 0.056166999999987866,
+          "medianRatio": 0.8292140805252111,
+          "ci95": [
+            0.8077273900782065,
+            0.8575870927511775
+          ],
+          "verdict": "better"
+        },
+        "destroyRoundTripMs.p95": {
+          "n": 20,
+          "medianA": 0.11418699999999404,
+          "medianB": 0.08972899999999129,
+          "p95A": 0.1533330000000035,
+          "p95B": 0.13995800000000713,
+          "medianRatio": 0.8018878629950984,
+          "ci95": [
+            0.6161995913641622,
+            0.9302861143841986
+          ],
+          "verdict": "better"
+        },
+        "execOk": {
+          "n": 20,
+          "medianA": 500,
+          "medianB": 500,
+          "p95A": 500,
+          "p95B": 500,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "execRoundTripMs.max": {
+          "n": 20,
+          "medianA": 0.9154790000000013,
+          "medianB": 0.8686875000000036,
+          "p95A": 1.044041,
+          "p95B": 1.028374999999997,
+          "medianRatio": 0.9891894594601913,
+          "ci95": [
+            0.9485439150390773,
+            1.0319850923622935
+          ],
+          "verdict": "no difference"
+        },
+        "execRoundTripMs.min": {
+          "n": 20,
+          "medianA": 0.0563124999999971,
+          "medianB": 0.055603999999995324,
+          "p95A": 0.058417000000005714,
+          "p95B": 0.056874999999990905,
+          "medianRatio": 0.9808987624812937,
+          "ci95": [
+            0.9636894509001374,
+            1.0026212094554872
+          ],
+          "verdict": "no difference"
+        },
+        "execRoundTripMs.n": {
+          "n": 20,
+          "medianA": 500,
+          "medianB": 500,
+          "p95A": 500,
+          "p95B": 500,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "execRoundTripMs.p50": {
+          "n": 20,
+          "medianA": 0.07949950000000428,
+          "medianB": 0.07893750000000921,
+          "p95A": 0.08374999999999488,
+          "p95B": 0.08762500000000273,
+          "medianRatio": 0.9928715896419992,
+          "ci95": [
+            0.9690301090517627,
+            1.0172154723510523
+          ],
+          "verdict": "no difference"
+        },
+        "execRoundTripMs.p95": {
+          "n": 20,
+          "medianA": 0.18991700000000122,
+          "medianB": 0.18804200000000293,
+          "p95A": 0.23749999999999716,
+          "p95B": 0.22954099999999755,
+          "medianRatio": 1.0070601821331184,
+          "ci95": [
+            0.955068462291967,
+            1.0360572384083344
+          ],
+          "verdict": "no difference"
+        },
+        "exitCode": {
+          "n": 20,
+          "medianA": 0,
+          "medianB": 0,
+          "p95A": 0,
+          "p95B": 0,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "lifecycleOk": {
+          "n": 20,
+          "medianA": 100,
+          "medianB": 1,
+          "p95A": 100,
+          "p95B": 1,
+          "medianRatio": 0.01,
+          "ci95": [
+            0.01,
+            0.01
+          ],
+          "verdict": "changed"
+        },
+        "process.maxRssBytes": {
+          "n": 20,
+          "medianA": 54124544,
+          "medianB": 54140928,
+          "p95A": 54280192,
+          "p95B": 54280192,
+          "medianRatio": 0.9996967859308672,
+          "ci95": [
+            0.9989394379186308,
+            1.0013617109892399
+          ],
+          "verdict": "no difference"
+        },
+        "refusalRoundTripMs.max": {
+          "n": 20,
+          "medianA": 0.19354199999998656,
+          "medianB": 0.1875415000000018,
+          "p95A": 0.27566699999999855,
+          "p95B": 0.3849170000000015,
+          "medianRatio": 0.9969632071592205,
+          "ci95": [
+            0.701740565166423,
+            1.271298947154258
+          ],
+          "verdict": "no difference"
+        },
+        "refusalRoundTripMs.min": {
+          "n": 20,
+          "medianA": 0.038958000000000936,
+          "medianB": 0.039082999999990875,
+          "p95A": 0.04079099999999869,
+          "p95B": 0.04045800000000099,
+          "medianRatio": 1.008626172497948,
+          "ci95": [
+            0.9644270677410778,
+            1.030881915925089
+          ],
+          "verdict": "no difference"
+        },
+        "refusalRoundTripMs.n": {
+          "n": 20,
+          "medianA": 100,
+          "medianB": 100,
+          "p95A": 100,
+          "p95B": 100,
+          "medianRatio": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "verdict": "equal"
+        },
+        "refusalRoundTripMs.p50": {
+          "n": 20,
+          "medianA": 0.04812499999999886,
+          "medianB": 0.049562999999999136,
+          "p95A": 0.05295900000000131,
+          "p95B": 0.05279199999999662,
+          "medianRatio": 1.0125049188958446,
+          "ci95": [
+            0.9725967132868191,
+            1.0899386314479877
+          ],
+          "verdict": "no difference"
+        },
+        "refusalRoundTripMs.p95": {
+          "n": 20,
+          "medianA": 0.07774949999999592,
+          "medianB": 0.08116649999999481,
+          "p95A": 0.0928339999999821,
+          "p95B": 0.1097079999999977,
+          "medianRatio": 1.0725951974853616,
+          "ci95": [
+            0.9726645241349892,
+            1.1877595756225967
+          ],
+          "verdict": "no difference"
+        },
+        "workerMaxRssBytes": {
+          "n": 20,
+          "medianA": 66265088,
+          "medianB": 66207744,
+          "p95A": 66666496,
+          "p95B": 66486272,
+          "medianRatio": 0.9983974000579515,
+          "ci95": [
+            0.9965522295922293,
+            0.999628467129302
+          ],
+          "verdict": "better"
+        }
+      },
+      "observations": {}
+    }
+  ]
+}

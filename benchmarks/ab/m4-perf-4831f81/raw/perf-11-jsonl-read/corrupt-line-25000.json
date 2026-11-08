@@ -1,0 +1,1607 @@
+{
+  "meta": {
+    "label": "m4-perf-4831f81",
+    "harness": "capsule synthetic benchmark harness v1, interleaved A/B",
+    "dataKind": "mock/synthetic: injected fake clients, local fake executables and generated files; no provider calls",
+    "order": "for each pair, for each case: A (anchor) then B (candidate), each in a fresh node --expose-gc process",
+    "pairs": 20,
+    "anchor": {
+      "commit": "7d3a28a8c0e9b9282b1079ea3d2fc61c32c6f8f7",
+      "packagesTree": "66b109a5e72fdc418d86eb0b060443863ebcf346"
+    },
+    "candidate": {
+      "commit": "4831f8130f9cc7dddc6e8a2e37223aad36a2afa8",
+      "packagesTree": "97fbe32be7f65a59b01329bc5d49ff98b29b4a59",
+      "dirtyPackages": false,
+      "snapshot": true
+    },
+    "harnessCommit": "4831f8130f9cc7dddc6e8a2e37223aad36a2afa8",
+    "date": "2026-11-02T20:23:56.840Z",
+    "host": {
+      "platform": "darwin",
+      "release": "25.6.0",
+      "arch": "arm64",
+      "cpus": 18,
+      "cpuModel": "Apple M5 Pro",
+      "totalMemBytes": 51539607552,
+      "loadAverageAtStart": [
+        5.91455078125,
+        8.32421875,
+        9.7998046875
+      ]
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "v8": "12.4.254.21-node.56"
+    },
+    "statistic": "median of per-pair ratios B/A; 95% bootstrap interval from 10000 resamples of pairs (mulberry32 seed 1)"
+  },
+  "workload": "perf-11-jsonl-read",
+  "case": "corrupt-line-25000",
+  "params": {
+    "receipts": 50000,
+    "corruptLine": 25000
+  },
+  "runs": [
+    {
+      "side": "A",
+      "pair": 0,
+      "childWallMs": 174.97462500000256,
+      "loadAverage1m": 5.8603515625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-R5VSNS/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 35.75149999999999,
+        "peakRssGrowthBytes": 73285632,
+        "heapUsedWhileHeldBytes": 63527392
+      },
+      "caseDurationMs": 136.1775,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 47955968,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68572800,
+          "rss": 151961600,
+          "external": 2668540,
+          "arrayBuffers": 541472
+        },
+        "maxRssBytes": 151961600
+      }
+    },
+    {
+      "side": "B",
+      "pair": 0,
+      "childWallMs": 173.94445799999812,
+      "loadAverage1m": 5.8603515625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-nfoLRq/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 33.68508300000002,
+        "peakRssGrowthBytes": 36438016,
+        "heapUsedWhileHeldBytes": 21337496
+      },
+      "caseDurationMs": 135.172791,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5232928,
+          "rss": 48152576,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 26436592,
+          "rss": 111591424,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115933184
+      }
+    },
+    {
+      "side": "A",
+      "pair": 1,
+      "childWallMs": 186.3365000000049,
+      "loadAverage1m": 5.96337890625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-58rVnV/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 34.095291,
+        "peakRssGrowthBytes": 73154560,
+        "heapUsedWhileHeldBytes": 63495216
+      },
+      "caseDurationMs": 147.013417,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 48103424,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68540656,
+          "rss": 151830528,
+          "external": 2668540,
+          "arrayBuffers": 541472
+        },
+        "maxRssBytes": 151830528
+      }
+    },
+    {
+      "side": "B",
+      "pair": 1,
+      "childWallMs": 168.1337499999936,
+      "loadAverage1m": 5.96337890625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-FBnIzf/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 26.867999999999995,
+        "peakRssGrowthBytes": 35733504,
+        "heapUsedWhileHeldBytes": 25820024
+      },
+      "caseDurationMs": 129.73791699999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5245968,
+          "rss": 48201728,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30912912,
+          "rss": 115310592,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115310592
+      }
+    },
+    {
+      "side": "A",
+      "pair": 2,
+      "childWallMs": 190.3638749999809,
+      "loadAverage1m": 9.1669921875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-NLmP6y/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 37.162791999999996,
+        "peakRssGrowthBytes": 73367552,
+        "heapUsedWhileHeldBytes": 63561736
+      },
+      "caseDurationMs": 150.55408300000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48037888,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68607048,
+          "rss": 151977984,
+          "external": 2669140,
+          "arrayBuffers": 542072
+        },
+        "maxRssBytes": 151977984
+      }
+    },
+    {
+      "side": "B",
+      "pair": 2,
+      "childWallMs": 195.17908299999544,
+      "loadAverage1m": 9.1669921875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-NJC1OM/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 30.21620900000002,
+        "peakRssGrowthBytes": 35815424,
+        "heapUsedWhileHeldBytes": 25809304
+      },
+      "caseDurationMs": 154.581875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5244392,
+          "rss": 48234496,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30902240,
+          "rss": 115900416,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115900416
+      }
+    },
+    {
+      "side": "A",
+      "pair": 3,
+      "childWallMs": 170.7008339999884,
+      "loadAverage1m": 8.15869140625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-jhzXOZ/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 34.052915999999996,
+        "peakRssGrowthBytes": 73138176,
+        "heapUsedWhileHeldBytes": 63477080
+      },
+      "caseDurationMs": 134.439333,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48070656,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68522416,
+          "rss": 152059904,
+          "external": 2669140,
+          "arrayBuffers": 542072
+        },
+        "maxRssBytes": 152059904
+      }
+    },
+    {
+      "side": "B",
+      "pair": 3,
+      "childWallMs": 174.77295899999444,
+      "loadAverage1m": 8.15869140625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-2lsZUe/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 29.02041699999998,
+        "peakRssGrowthBytes": 35700736,
+        "heapUsedWhileHeldBytes": 25785728
+      },
+      "caseDurationMs": 138.056791,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5248288,
+          "rss": 48119808,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30878584,
+          "rss": 115212288,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115212288
+      }
+    },
+    {
+      "side": "A",
+      "pair": 4,
+      "childWallMs": 198.5810829999973,
+      "loadAverage1m": 9.27587890625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-slwBs0/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 42.468041,
+        "peakRssGrowthBytes": 73252864,
+        "heapUsedWhileHeldBytes": 63520632
+      },
+      "caseDurationMs": 154.909625,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48054272,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68565992,
+          "rss": 151961600,
+          "external": 2669140,
+          "arrayBuffers": 542072
+        },
+        "maxRssBytes": 151961600
+      }
+    },
+    {
+      "side": "B",
+      "pair": 4,
+      "childWallMs": 199.73029199999291,
+      "loadAverage1m": 9.27587890625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-eFAOqf/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 38.041375000000016,
+        "peakRssGrowthBytes": 36388864,
+        "heapUsedWhileHeldBytes": 21329984
+      },
+      "caseDurationMs": 160.95966700000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5236576,
+          "rss": 48250880,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 26429064,
+          "rss": 112214016,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 116572160
+      }
+    },
+    {
+      "side": "A",
+      "pair": 5,
+      "childWallMs": 180.84016699995846,
+      "loadAverage1m": 7.08544921875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-fjMyPO/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 38.810417000000015,
+        "peakRssGrowthBytes": 73302016,
+        "heapUsedWhileHeldBytes": 63500936
+      },
+      "caseDurationMs": 143.27425000000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48136192,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68546264,
+          "rss": 151977984,
+          "external": 2669140,
+          "arrayBuffers": 542072
+        },
+        "maxRssBytes": 151977984
+      }
+    },
+    {
+      "side": "B",
+      "pair": 5,
+      "childWallMs": 173.07820799999172,
+      "loadAverage1m": 7.08544921875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-p6gtC9/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 34.446708,
+        "peakRssGrowthBytes": 36208640,
+        "heapUsedWhileHeldBytes": 21329664
+      },
+      "caseDurationMs": 137.410291,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5244392,
+          "rss": 48250880,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 26428800,
+          "rss": 111525888,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115884032
+      }
+    },
+    {
+      "side": "A",
+      "pair": 6,
+      "childWallMs": 186.88795800000662,
+      "loadAverage1m": 8.2353515625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-EQcNKD/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 34.351541999999995,
+        "peakRssGrowthBytes": 72843264,
+        "heapUsedWhileHeldBytes": 63546368
+      },
+      "caseDurationMs": 147.362292,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48005120,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68591704,
+          "rss": 151748608,
+          "external": 2669340,
+          "arrayBuffers": 542272
+        },
+        "maxRssBytes": 151748608
+      }
+    },
+    {
+      "side": "B",
+      "pair": 6,
+      "childWallMs": 173.32320900005288,
+      "loadAverage1m": 8.2353515625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-2A3nf8/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 27.92108300000001,
+        "peakRssGrowthBytes": 35700736,
+        "heapUsedWhileHeldBytes": 25797832
+      },
+      "caseDurationMs": 135.8265,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5244464,
+          "rss": 48103424,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30890760,
+          "rss": 115638272,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115638272
+      }
+    },
+    {
+      "side": "A",
+      "pair": 7,
+      "childWallMs": 195.33345799997915,
+      "loadAverage1m": 7.40478515625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-lcxFBb/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 41.195750000000004,
+        "peakRssGrowthBytes": 73023488,
+        "heapUsedWhileHeldBytes": 63495168
+      },
+      "caseDurationMs": 151.29370899999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48087040,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68540504,
+          "rss": 151470080,
+          "external": 2668540,
+          "arrayBuffers": 541472
+        },
+        "maxRssBytes": 151470080
+      }
+    },
+    {
+      "side": "B",
+      "pair": 7,
+      "childWallMs": 211.59283300000243,
+      "loadAverage1m": 7.40478515625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-kqIUF0/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 34.98916699999998,
+        "peakRssGrowthBytes": 35815424,
+        "heapUsedWhileHeldBytes": 25806104
+      },
+      "caseDurationMs": 166.141333,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5245968,
+          "rss": 48152576,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30899008,
+          "rss": 115474432,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115474432
+      }
+    },
+    {
+      "side": "A",
+      "pair": 8,
+      "childWallMs": 187.30616599996574,
+      "loadAverage1m": 6.59716796875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-vwPm8b/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 38.391583,
+        "peakRssGrowthBytes": 73220096,
+        "heapUsedWhileHeldBytes": 63522880
+      },
+      "caseDurationMs": 146.451458,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270536,
+          "rss": 48119808,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68568304,
+          "rss": 152059904,
+          "external": 2668540,
+          "arrayBuffers": 541472
+        },
+        "maxRssBytes": 152059904
+      }
+    },
+    {
+      "side": "B",
+      "pair": 8,
+      "childWallMs": 185.53304200002458,
+      "loadAverage1m": 6.59716796875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-S9oGOO/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 32.643834,
+        "peakRssGrowthBytes": 35733504,
+        "heapUsedWhileHeldBytes": 25812984
+      },
+      "caseDurationMs": 142.266041,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5236656,
+          "rss": 48201728,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30905864,
+          "rss": 115474432,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115474432
+      }
+    },
+    {
+      "side": "A",
+      "pair": 9,
+      "childWallMs": 362.12758299999405,
+      "loadAverage1m": 8.1884765625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-WF45CL/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 188.93362499999998,
+        "peakRssGrowthBytes": 73449472,
+        "heapUsedWhileHeldBytes": 63564656
+      },
+      "caseDurationMs": 309.035542,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 48152576,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68609976,
+          "rss": 152158208,
+          "external": 2668740,
+          "arrayBuffers": 541672
+        },
+        "maxRssBytes": 152158208
+      }
+    },
+    {
+      "side": "B",
+      "pair": 9,
+      "childWallMs": 195.53429199999664,
+      "loadAverage1m": 8.1884765625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-AG55gM/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 31.32745799999998,
+        "peakRssGrowthBytes": 35717120,
+        "heapUsedWhileHeldBytes": 25804128
+      },
+      "caseDurationMs": 147.408875,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5239280,
+          "rss": 48431104,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30896992,
+          "rss": 115523584,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115523584
+      }
+    },
+    {
+      "side": "A",
+      "pair": 10,
+      "childWallMs": 216.58566600002814,
+      "loadAverage1m": 8.22509765625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-fUaLjr/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 34.89516699999999,
+        "peakRssGrowthBytes": 73269248,
+        "heapUsedWhileHeldBytes": 63496608
+      },
+      "caseDurationMs": 173.818541,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 48119808,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68541944,
+          "rss": 152109056,
+          "external": 2669140,
+          "arrayBuffers": 542072
+        },
+        "maxRssBytes": 152109056
+      }
+    },
+    {
+      "side": "B",
+      "pair": 10,
+      "childWallMs": 187.81166699994355,
+      "loadAverage1m": 8.22509765625,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-yR8wOz/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 29.471542,
+        "peakRssGrowthBytes": 35749888,
+        "heapUsedWhileHeldBytes": 25835672
+      },
+      "caseDurationMs": 145.86425,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5247624,
+          "rss": 48218112,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30928536,
+          "rss": 115507200,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115507200
+      }
+    },
+    {
+      "side": "A",
+      "pair": 11,
+      "childWallMs": 181.8825829999987,
+      "loadAverage1m": 9.67138671875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-YeA5gj/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 34.53979199999998,
+        "peakRssGrowthBytes": 73252864,
+        "heapUsedWhileHeldBytes": 63528840
+      },
+      "caseDurationMs": 137.453834,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48480256,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68574176,
+          "rss": 152240128,
+          "external": 2669140,
+          "arrayBuffers": 542072
+        },
+        "maxRssBytes": 152240128
+      }
+    },
+    {
+      "side": "B",
+      "pair": 11,
+      "childWallMs": 180.39716699998826,
+      "loadAverage1m": 9.67138671875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-hHNo4r/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 28.73754199999999,
+        "peakRssGrowthBytes": 35766272,
+        "heapUsedWhileHeldBytes": 25794624
+      },
+      "caseDurationMs": 140.248333,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5239352,
+          "rss": 48250880,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30887576,
+          "rss": 115769344,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115769344
+      }
+    },
+    {
+      "side": "A",
+      "pair": 12,
+      "childWallMs": 175.54495799995493,
+      "loadAverage1m": 9.9921875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-TjAEbb/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 32.26474999999999,
+        "peakRssGrowthBytes": 72859648,
+        "heapUsedWhileHeldBytes": 63542696
+      },
+      "caseDurationMs": 135.83695799999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48119808,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68588072,
+          "rss": 151977984,
+          "external": 2669140,
+          "arrayBuffers": 542072
+        },
+        "maxRssBytes": 151977984
+      }
+    },
+    {
+      "side": "B",
+      "pair": 12,
+      "childWallMs": 160.32983399997465,
+      "loadAverage1m": 9.9921875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-Jl7UYL/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 28.332375,
+        "peakRssGrowthBytes": 35684352,
+        "heapUsedWhileHeldBytes": 25807512
+      },
+      "caseDurationMs": 126.45333400000001,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5238912,
+          "rss": 48168960,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30900368,
+          "rss": 115572736,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115572736
+      }
+    },
+    {
+      "side": "A",
+      "pair": 13,
+      "childWallMs": 182.49049999995623,
+      "loadAverage1m": 9.17626953125,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-Hq6fQn/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 36.532624999999996,
+        "peakRssGrowthBytes": 73170944,
+        "heapUsedWhileHeldBytes": 63555040
+      },
+      "caseDurationMs": 135.292959,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 48414720,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68600480,
+          "rss": 152436736,
+          "external": 2668940,
+          "arrayBuffers": 541872
+        },
+        "maxRssBytes": 152436736
+      }
+    },
+    {
+      "side": "B",
+      "pair": 13,
+      "childWallMs": 173.3878750000149,
+      "loadAverage1m": 9.17626953125,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-MhmM7Y/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 33.603458,
+        "peakRssGrowthBytes": 35995648,
+        "heapUsedWhileHeldBytes": 25816880
+      },
+      "caseDurationMs": 132.74349999999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5245968,
+          "rss": 48201728,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30909784,
+          "rss": 115671040,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115671040
+      }
+    },
+    {
+      "side": "A",
+      "pair": 14,
+      "childWallMs": 183.80575000005774,
+      "loadAverage1m": 9.71630859375,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-ncF4Gq/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 38.24954199999999,
+        "peakRssGrowthBytes": 73121792,
+        "heapUsedWhileHeldBytes": 63519416
+      },
+      "caseDurationMs": 140.765541,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 48136192,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68564824,
+          "rss": 152059904,
+          "external": 2669140,
+          "arrayBuffers": 542072
+        },
+        "maxRssBytes": 152059904
+      }
+    },
+    {
+      "side": "B",
+      "pair": 14,
+      "childWallMs": 160.06729199993424,
+      "loadAverage1m": 9.41845703125,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-chnmBg/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 27.801958,
+        "peakRssGrowthBytes": 35782656,
+        "heapUsedWhileHeldBytes": 25791160
+      },
+      "caseDurationMs": 123.993459,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5253280,
+          "rss": 48201728,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30884032,
+          "rss": 115392512,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115392512
+      }
+    },
+    {
+      "side": "A",
+      "pair": 15,
+      "childWallMs": 193.28749999997672,
+      "loadAverage1m": 9.46142578125,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-ujh8qE/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 38.42741700000002,
+        "peakRssGrowthBytes": 73367552,
+        "heapUsedWhileHeldBytes": 63523712
+      },
+      "caseDurationMs": 152.87454100000002,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 48005120,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68569160,
+          "rss": 151535616,
+          "external": 2669540,
+          "arrayBuffers": 542472
+        },
+        "maxRssBytes": 151535616
+      }
+    },
+    {
+      "side": "B",
+      "pair": 15,
+      "childWallMs": 208.35525000002235,
+      "loadAverage1m": 9.46142578125,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-8Ljxil/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 44.16883299999998,
+        "peakRssGrowthBytes": 35799040,
+        "heapUsedWhileHeldBytes": 25808920
+      },
+      "caseDurationMs": 164.91375,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5258432,
+          "rss": 48283648,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30901856,
+          "rss": 115818496,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115818496
+      }
+    },
+    {
+      "side": "A",
+      "pair": 16,
+      "childWallMs": 188.99137499998324,
+      "loadAverage1m": 17.9892578125,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-rup1DC/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 36.081541999999985,
+        "peakRssGrowthBytes": 73039872,
+        "heapUsedWhileHeldBytes": 63522432
+      },
+      "caseDurationMs": 149.57816699999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 48054272,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68567880,
+          "rss": 151879680,
+          "external": 2669340,
+          "arrayBuffers": 542272
+        },
+        "maxRssBytes": 151879680
+      }
+    },
+    {
+      "side": "B",
+      "pair": 16,
+      "childWallMs": 174.42425000015646,
+      "loadAverage1m": 17.9892578125,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-cKPCPk/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 28.571166000000005,
+        "peakRssGrowthBytes": 35782656,
+        "heapUsedWhileHeldBytes": 25781464
+      },
+      "caseDurationMs": 134.694667,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5229632,
+          "rss": 48185344,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30874392,
+          "rss": 115326976,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115326976
+      }
+    },
+    {
+      "side": "A",
+      "pair": 17,
+      "childWallMs": 169.11354200006463,
+      "loadAverage1m": 12.07861328125,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-IdSHzD/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 35.902041999999994,
+        "peakRssGrowthBytes": 73007104,
+        "heapUsedWhileHeldBytes": 63517592
+      },
+      "caseDurationMs": 130.849666,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270464,
+          "rss": 47923200,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68563032,
+          "rss": 151584768,
+          "external": 2669140,
+          "arrayBuffers": 542072
+        },
+        "maxRssBytes": 151584768
+      }
+    },
+    {
+      "side": "B",
+      "pair": 17,
+      "childWallMs": 162.3595000000205,
+      "loadAverage1m": 12.07861328125,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-n6Rs8e/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 30.06066699999998,
+        "peakRssGrowthBytes": 35717120,
+        "heapUsedWhileHeldBytes": 25815432
+      },
+      "caseDurationMs": 124.84858399999999,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5236656,
+          "rss": 48119808,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30908320,
+          "rss": 115458048,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115458048
+      }
+    },
+    {
+      "side": "A",
+      "pair": 18,
+      "childWallMs": 185.1170830000192,
+      "loadAverage1m": 9.02099609375,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-PO1ZBn/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 36.70712500000002,
+        "peakRssGrowthBytes": 73105408,
+        "heapUsedWhileHeldBytes": 63515432
+      },
+      "caseDurationMs": 146.104334,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48005120,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68560768,
+          "rss": 151683072,
+          "external": 2669140,
+          "arrayBuffers": 542072
+        },
+        "maxRssBytes": 151683072
+      }
+    },
+    {
+      "side": "B",
+      "pair": 18,
+      "childWallMs": 173.49350000009872,
+      "loadAverage1m": 9.02099609375,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-aU2kBe/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 28.77075000000002,
+        "peakRssGrowthBytes": 35733504,
+        "heapUsedWhileHeldBytes": 25836824
+      },
+      "caseDurationMs": 135.77137499999998,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5244320,
+          "rss": 48185344,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 30929672,
+          "rss": 114999296,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 114999296
+      }
+    },
+    {
+      "side": "A",
+      "pair": 19,
+      "childWallMs": 173.6557090000715,
+      "loadAverage1m": 7.0576171875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-REmO7F/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 33.521625,
+        "peakRssGrowthBytes": 72679424,
+        "heapUsedWhileHeldBytes": 63529408
+      },
+      "caseDurationMs": 135.291792,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5270392,
+          "rss": 48136192,
+          "external": 2231372,
+          "arrayBuffers": 147507
+        },
+        "endMemory": {
+          "heapUsed": 68574776,
+          "rss": 151601152,
+          "external": 2669140,
+          "arrayBuffers": 542072
+        },
+        "maxRssBytes": 151601152
+      }
+    },
+    {
+      "side": "B",
+      "pair": 19,
+      "childWallMs": 166.8828340000473,
+      "loadAverage1m": 7.0576171875,
+      "ok": true,
+      "metrics": {
+        "receiptsWritten": 50000,
+        "fileBytes": 21883469,
+        "outcome": "rejected",
+        "receiptsRead": null,
+        "idsDigest": null,
+        "error": {
+          "name": "Error",
+          "constructor": "Error",
+          "message": "Invalid JSONL receipt at /var/folders/7x/672w195d6vqbvcnwq1hm7tkc0000gn/T/capsule-ab-OKVy1w/jsonl-cOVlOz/receipts.jsonl:25000."
+        },
+        "errorNamesCorruptLine": true,
+        "elapsedMs": 32.82725000000001,
+        "peakRssGrowthBytes": 36257792,
+        "heapUsedWhileHeldBytes": 21337016
+      },
+      "caseDurationMs": 130.243583,
+      "process": {
+        "startMemory": {
+          "heapUsed": 5233352,
+          "rss": 48119808,
+          "external": 2102571,
+          "arrayBuffers": 25282
+        },
+        "endMemory": {
+          "heapUsed": 26436080,
+          "rss": 111411200,
+          "external": 6338212,
+          "arrayBuffers": 4211144
+        },
+        "maxRssBytes": 115720192
+      }
+    }
+  ]
+}

@@ -5,7 +5,7 @@ import { fixtureProfile } from "./profiles.js";
 
 // Runs every shared scenario in protocol/bridge/v1/scenarios against the worker and the deterministic
 // fixture provider. Each `receive` must match exactly, except error and protocol_error message strings.
-// `journal` steps are Fabric's to check; here they only have to name an operation the worker answered.
+// `journal` steps and a `journal_state` header are Fabric's to check; the worker's run ignores them.
 
 type Step = Record<string, unknown>;
 
@@ -80,7 +80,7 @@ describe("bridge v1 shared scenarios against the fixture provider", () => {
   const names = fixtureNames("scenarios");
 
   test("the scenario set is the v1 set", () => {
-    expect(names).toHaveLength(18);
+    expect(names).toHaveLength(25);
   });
 
   for (const name of names) {

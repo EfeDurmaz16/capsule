@@ -1,4 +1,5 @@
 import { PendingOperationError, UnknownOutcomeError, type ResourceLocator } from "@capsule-sdk/core";
+import type { Searched } from "./wire.js";
 
 // Bounded observation of an action the provider already accepted, on a virtual or a wall clock.
 // Terminal-only actions answer `result` only after a terminal state was observed; otherwise the
@@ -69,6 +70,24 @@ export class BridgeUnknownError extends UnknownOutcomeError {
     cause?: unknown
   ) {
     super(`${details.operation} outcome is unknown: ${reason}.`, details, cause);
+  }
+}
+
+/**
+ * An attach found nothing made by the operation: UnknownOutcomeError with no resource and the scope
+ * it searched. The create's outcome stays unknown, since a create may still land after this answer.
+ */
+export class BridgeAbsentError extends UnknownOutcomeError {
+  readonly reason = "absent" as const;
+  readonly searched: Searched;
+  readonly observations: number;
+  readonly deadlineMs: number;
+
+  constructor(details: { operation: string; searched: Searched; observations: number; deadlineMs: number }) {
+    super(`${details.operation} outcome is unknown: absent.`, { operation: details.operation });
+    this.searched = details.searched;
+    this.observations = details.observations;
+    this.deadlineMs = details.deadlineMs;
   }
 }
 
