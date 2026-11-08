@@ -731,7 +731,7 @@ export class Capsule {
       const argv = normalizeCommand(input.command as ExecSpec["command"]);
       attributes["capsule.command.argc"] = argv.length;
       const sensitive =
-        this.options.policy?.secrets?.redactFromLogs !== false && (this.options.policy?.secrets !== undefined || Object.keys(input.env ?? {}).length > 0);
+        Object.keys(input.env ?? {}).length > 0 || (this.options.policy?.secrets !== undefined && this.options.policy.secrets.redactFromLogs !== false);
       if (this.options.trace?.argv && !sensitive)
         attributes["capsule.command.argv"] = argv.map((part) => redactSensitiveText(part, input.env, this.options.policy)).join(" ");
     }
