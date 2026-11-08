@@ -106,47 +106,36 @@ describe("CLI doctor credential diagnostics", () => {
     });
   });
 
-  test("reports runtime, workspace, package versions, and release audit availability", async () => {
-    const report = await createDoctorReport({ env: {}, dockerCheck: async () => true });
+  test("checks the user's machine, not Capsule's repository, and is ready for docker in an empty directory", async () => {
+    const empty = await mkdtemp(join(tmpdir(), "capsule-doctor-"));
+    try {
+      const report = await createDoctorReport({ env: {}, cwd: empty, dockerCheck: async () => true });
+      expect(report).toMatchObject({ adapter: "docker", ready: true, blockers: [], docker: "available", config: { status: "absent" } });
+      expect(report.node).toMatchObject({ version: process.version, requirement: ">=22", supported: true });
+      expect(JSON.stringify(report)).not.toMatch(/release:audit|pnpm-workspace|packages\//);
+    } finally {
+      await rm(empty, { recursive: true, force: true });
+    }
+  });
 
-    expect(report.node).toMatchObject({
-      version: process.version,
-      requirement: ">=22",
-      supported: true
-    });
-    expect(report.workspace).toMatchObject({
-      status: "ok",
-      packageManager: "pnpm@10.32.1",
-      missingFiles: []
-    });
-    expect(report.packages.find((pkg) => pkg.name === "@capsule-sdk/core")).toMatchObject({
-      name: "@capsule-sdk/core",
-      version: "0.1.1",
-      private: false
-    });
-    expect(report.packages.find((pkg) => pkg.name === "@capsule-sdk/test-utils")).toMatchObject({
-      name: "@capsule-sdk/test-utils",
-      version: "0.1.0",
-      private: true
-    });
-    expect(report.releaseAudit).toMatchObject({
-      status: "available",
-      command: "pnpm release:audit",
-      missingScripts: []
-    });
-    expect(report.releaseAudit.scripts).toEqual(
-      expect.arrayContaining(["release:audit", "release:metadata-audit", "release:dependency-audit", "release:markers", "release:pack-smoke"])
-    );
+  test("names what blocks the selected adapter: Docker for docker, required credentials for cloud adapters", async () => {
+    const noDocker = await createDoctorReport({ env: {}, dockerCheck: async () => false });
+    expect(noDocker.ready).toBe(false);
+    expect(noDocker.blockers.join()).toMatch(/Docker is not reachable/);
+    const e2b = await createDoctorReport({ env: {}, adapter: "e2b", dockerCheck: async () => false });
+    expect(e2b).toMatchObject({ adapter: "e2b", ready: false, blockers: ["set E2B_API_KEY"] });
+    const configured = await createDoctorReport({ env: { E2B_API_KEY: "secret-value" }, adapter: "e2b", dockerCheck: async () => false });
+    expect(configured.ready).toBe(true);
+    expect(JSON.stringify(configured)).not.toContain("secret-value");
   });
 
   test("prints doctor as a human table by default and stable json on request", async () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     try {
       await main(["doctor", "--adapter", "neon"]);
       const tableOutput = String(log.mock.calls[0]?.[0]);
       expect(tableOutput).toContain("Capsule doctor");
-      expect(tableOutput).toContain("Runtime");
-      expect(tableOutput).toContain("Workspace");
       expect(tableOutput).toContain("Providers");
       expect(tableOutput).toContain("neon");
       expect(() => JSON.parse(tableOutput)).toThrow();
@@ -155,10 +144,11 @@ describe("CLI doctor credential diagnostics", () => {
       await main(["doctor", "--adapter", "neon", "--json"]);
       const jsonOutput = JSON.parse(String(log.mock.calls[0]?.[0])) as Awaited<ReturnType<typeof createDoctorReport>>;
       expect(jsonOutput.node.version).toBe(process.version);
-      expect(jsonOutput.workspace.status).toBe("ok");
+      expect(jsonOutput.adapter).toBe("neon");
       expect(jsonOutput.providers[0]?.provider).toBe("neon");
     } finally {
       log.mockRestore();
+      error.mockRestore();
       process.exitCode = undefined;
     }
   });
@@ -328,8 +318,12 @@ describe("CLI capability explanations", () => {
 
   test("prints remediation hints for unsupported CLI capabilities", async () => {
     await expect(main(["job", "run", "--adapter", "neon", "--image", "node:22"])).rejects.toThrow(
-      'neon does not support job.run. Choose another adapter, change the workflow requirements, or use a provider-specific escape hatch for job.run. Docs: https://github.com/EfeDurmaz16/capsule/blob/main/docs/capability-model.md. Safe retry: inspect adapter capabilities or choose a supported adapter before retrying; Capsule failed before provider execution. Run "capsule capabilities --adapter neon --explain" to inspect supported operations.'
+      "neon does not support job.run. Choose another adapter, change the workflow requirements, or use a provider-specific escape hatch for job.run. Docs: https://github.com/EfeDurmaz16/capsule/blob/main/docs/capability-model.md. Safe retry: inspect adapter capabilities or choose a supported adapter before retrying; Capsule failed before provider execution."
     );
+    await expect(main(["job", "run", "--adapter", "neon", "--image", "node:22"])).rejects.toMatchObject({
+      reason: "unsupported_capability",
+      next: ["capsule", "capabilities", "--adapter", "neon", "--explain"]
+    });
   });
 
   test("parses the explain flag", () => {
@@ -567,7 +561,7 @@ describe("CLI shell completions", () => {
 
     expect(createShellCompletionScript("bash")).toContain("complete -F _capsule_completions capsule");
     expect(createShellCompletionScript("bash")).toContain(
-      "doctor verify live-test classify policy receipt preview preset init examples adapter select compare capabilities run sandbox job service machine edge neon completion"
+      "run sandbox capabilities doctor policy receipt job service machine edge neon preview preset select compare classify init examples adapter live-test verify completion help"
     );
     expect(createShellCompletionScript("zsh")).toContain("#compdef capsule");
     expect(createShellCompletionScript("zsh")).toContain("shells=(bash zsh fish)");
@@ -1126,7 +1120,7 @@ describe("CLI preview lifecycle", () => {
       expect(cleanupPlanText).not.toContain("postgresql://");
 
       log.mockClear();
-      await main(["preview", "destroy", "--cleanup-file", cleanupFile]);
+      await main(["preview", "destroy", "--cleanup-file", cleanupFile, "--yes"]);
       const destroyOutput = JSON.parse(String(log.mock.calls[0]?.[0])) as {
         status: string;
         summary: { cleaned: number; failed: number; unsupported: number; leaked: number };
@@ -1170,7 +1164,7 @@ describe("CLI preview lifecycle", () => {
       await main(["preview", "create", "--config-file", configFile, "--cleanup-file", cleanupFile]);
       log.mockClear();
 
-      await main(["preview", "destroy", "--cleanup-file", cleanupFile]);
+      await main(["preview", "destroy", "--cleanup-file", cleanupFile, "--yes"]);
       const destroyOutput = JSON.parse(String(log.mock.calls[0]?.[0])) as {
         status: string;
         summary: { cleaned: number; partial: number; failed: number; unsupported: number; leaked: number };

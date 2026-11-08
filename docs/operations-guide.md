@@ -9,7 +9,7 @@ pnpm build                                   # or: pnpm --filter "@capsule-sdk/c
 node packages/cli/dist/index.js <command>
 ```
 
-`pnpm --filter @capsule-sdk/cli build` alone fails on a fresh clone because the CLI's workspace dependencies have no `dist` yet. Run `doctor` and `examples` from the repository root: both read the workspace from the working directory, so under `pnpm --filter @capsule-sdk/cli exec` they see `packages/cli` instead.
+`pnpm --filter @capsule-sdk/cli build` alone fails on a fresh clone because the CLI's workspace dependencies have no `dist` yet. Run `examples` from the repository root: it reads the workspace from the working directory, so under `pnpm --filter @capsule-sdk/cli exec` it sees `packages/cli` instead. Exit codes, streams, `--json` and non-interactive behavior are specified in [`docs/cli.md`](./cli.md).
 
 A `capsule.config.json` in the working directory supplies a default adapter, `receipts.path`, and `policyFile`. Explicit flags (`--adapter`, `--receipt-file`, `--policy-file`) always override the config file.
 
@@ -33,7 +33,7 @@ Verify local prerequisites before running anything.
 capsule doctor
 ```
 
-Reports Docker availability, Node version support, workspace status, and release-audit availability. Exits non-zero if any of those are not ready, so it is safe to gate a script on it. Pass `--adapter <name>` to scope the check.
+Reports Node version support, Docker availability, `capsule.config.json` status, and provider credential variables (names only). Exits 0 when the selected adapter is ready (Docker reachable for `docker`, required variables set for a cloud adapter) and 1 otherwise, so it is safe to gate a script on it. It checks this machine, not Capsule's repository, so it works from any directory. Pass `--adapter <name>` to check another adapter.
 
 ## Inspect adapter support: `capabilities`
 
@@ -88,10 +88,10 @@ Create a multi-resource preview from a config file, and destroy it from the clea
 
 ```bash
 capsule preview create --config-file preview.json --cleanup-file .capsule/preview-cleanup.json
-capsule preview destroy --cleanup-file .capsule/preview-cleanup.json
+capsule preview destroy --cleanup-file .capsule/preview-cleanup.json --yes
 ```
 
-`preview create` always exits zero on a completed plan. `preview destroy` exits non-zero only on a real cleanup failure (`partial`). Resources with no cleanup action by design (edge, job) resolve to `unsupported` and do not fail the destroy. For an end-to-end multi-provider run, see [`docs/real-orchestration-walkthrough.md`](./real-orchestration-walkthrough.md) and [`docs/preview-environments.md`](./preview-environments.md).
+`preview destroy` asks before it deletes; in CI or any run without a terminal pass `--yes`, or it fails with exit 2 before any delete. `preview create` always exits zero on a completed plan. `preview destroy` exits non-zero only on a real cleanup failure (`partial`). Resources with no cleanup action by design (edge, job) resolve to `unsupported` and do not fail the destroy. For an end-to-end multi-provider run, see [`docs/real-orchestration-walkthrough.md`](./real-orchestration-walkthrough.md) and [`docs/preview-environments.md`](./preview-environments.md).
 
 ## Plan and validate live tests: `live-test plan` / `live-test validate`
 
@@ -127,6 +127,6 @@ The CLI also exposes provider selection and direct execution helpers, all listed
 - `compare providers --left <a> --right <b>`: compare two adapters' capabilities.
 - `adapter scaffold <provider> --domain <domain>`: scaffold a new adapter package.
 - `completion bash|zsh|fish`: emit a shell completion script.
-- `run`, `sandbox`, `job`, `service`, `machine`, `edge`, `neon`: execute a single primitive against an adapter.
+- `run`, `sandbox`, `job`, `service`, `machine`, `edge`, `neon`: execute a single primitive against an adapter. Put the command a container runs after `--`. `service delete` and `neon branch-delete` ask first; pass `--yes` when there is no terminal.
 
-Run `capsule --help` for the full command list with example invocations.
+Run `capsule --help` for the command list and `capsule <command> --help` for one command's options and examples.

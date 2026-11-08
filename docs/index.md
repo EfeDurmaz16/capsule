@@ -21,6 +21,7 @@ Start with the [README](https://github.com/EfeDurmaz16/capsule#readme) for the p
 
 ## Using Capsule
 
+- [CLI contract](cli.md): commands, streams, `--json`, exit codes, non-interactive mode
 - [Operations guide](operations-guide.md): the CLI surface, task by task
 - [Real provider quickstarts](real-provider-quickstarts.md)
 - [Real orchestration walkthrough](real-orchestration-walkthrough.md): Neon plus Vercel plus Cloud Run preview end to end

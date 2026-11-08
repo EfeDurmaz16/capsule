@@ -63,7 +63,7 @@ The CLI can run the same composition model from a JSON config file and persist a
 
 ```bash
 capsule preview create --config-file preview.json --cleanup-file .capsule/preview-cleanup.json
-capsule preview destroy --cleanup-file .capsule/preview-cleanup.json
+capsule preview destroy --cleanup-file .capsule/preview-cleanup.json --yes
 ```
 
 Minimal config:

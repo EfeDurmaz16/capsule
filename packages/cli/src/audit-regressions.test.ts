@@ -167,7 +167,7 @@ describe("M1 audit regressions: cli", () => {
     });
 
     it("network none from the configured policy reaches the docker arguments and the receipt", async () => {
-      const result = await runInFakeDockerProject(["run", "--image", "fixture-image", "--", "echo", "fixture"], {
+      const result = await runInFakeDockerProject(["run", "--json", "--image", "fixture-image", "--", "echo", "fixture"], {
         "capsule.config.json": { policyFile: "capsule.policy.json" },
         "capsule.policy.json": { network: { mode: "none" } }
       });
@@ -175,8 +175,9 @@ describe("M1 audit regressions: cli", () => {
       const runCalls = result.calls.filter((line) => line.startsWith("run "));
       expect(runCalls).toHaveLength(1);
       expect(runCalls[0]).toContain("--network none");
-      const receipt = JSON.parse(result.logs.find((line) => line.trim().startsWith("{")) ?? "{}") as { policy?: { applied?: unknown } };
-      expect(receipt.policy?.applied).toMatchObject({ network: { mode: "none" } });
+      expect(result.logs).toHaveLength(1);
+      const { receipt } = JSON.parse(result.logs[0] ?? "{}") as { receipt?: { policy?: { applied?: unknown } } };
+      expect(receipt?.policy?.applied).toMatchObject({ network: { mode: "none" } });
     });
 
     it("a missing configured policy file fails before any provider call", async () => {
@@ -325,7 +326,11 @@ describe("M1 audit regressions: cli", () => {
 
     it("runs the advertised branch-delete shape against Neon with no adapter flag", async () => {
       const calls: FetchCall[] = [];
-      const result = await runInFakeDockerProject(["neon", "branch-delete", "--project", "audit", "--branch-id", "br_xxx", "--hard-delete"], {}, calls);
+      const result = await runInFakeDockerProject(
+        ["neon", "branch-delete", "--project", "audit", "--branch-id", "br_xxx", "--hard-delete", "--yes"],
+        {},
+        calls
+      );
       expect(result.outcome).toBe("resolved");
       expect(calls).toEqual([{ method: "DELETE", url: "https://console.neon.tech/api/v2/projects/audit/branches/br_xxx?hard_delete=true" }]);
       expect(result.calls).toEqual([]);

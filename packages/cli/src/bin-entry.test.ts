@@ -25,7 +25,7 @@ describe.skipIf(process.platform === "win32")("capsule bin entry", () => {
       const viaLink = run(link);
       const direct = run(entry);
       expect(direct.status, direct.stderr).toBe(0);
-      expect(direct.stdout).toContain("Capsule CLI");
+      expect(direct.stdout).toContain("Usage\n  capsule <command> [options]");
       expect(viaLink.status).toBe(0);
       expect(viaLink.stdout).toBe(direct.stdout);
     } finally {
