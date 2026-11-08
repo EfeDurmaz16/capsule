@@ -74,7 +74,19 @@ import { presetCatalog, type PresetCatalogEntry } from "@capsule-sdk/presets";
 import { jsonlReceiptStore } from "@capsule-sdk/store-jsonl";
 import { dockerAvailableLazy, isProviderAdapterName, loadProviderAdapter, providerAdapterNames } from "./adapters.js";
 import { commandSpecs, globalOptionSpecs, helpText, optionSpecs, parseCommandLine } from "./commands.js";
-import { CliError, confirm, exitCodes, printable, renderError, resolveModes, toCliError, usageError, type Modes } from "./contract.js";
+import {
+  CliError,
+  confirm,
+  exitCodes,
+  invalidConfig,
+  printable,
+  renderError,
+  resolveModes,
+  toCliError,
+  usageError,
+  type ModeFlags,
+  type Modes
+} from "./contract.js";
 
 interface ParsedArgs {
   command?: string;
@@ -761,9 +773,19 @@ async function readJsonFile(path: string): Promise<{ name?: string; scripts?: Re
   }
 }
 
+// A file the user wrote is input, not a Capsule bug: a parse failure is invalid_config (exit 2), never the
+// SyntaxError that toCliError treats as an internal error.
+function parseJsonText(text: string, label: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw invalidConfig(`${label} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 function assertJsonObject(value: unknown, label: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error(`${label} must contain a JSON object.`);
+    throw invalidConfig(`${label} must contain a JSON object.`);
   }
   return value as Record<string, unknown>;
 }
@@ -772,7 +794,7 @@ async function readJsonObjectFile<T>(path: string | undefined, fallback: T): Pro
   if (!path) {
     return fallback;
   }
-  return assertJsonObject(JSON.parse(await readFile(path, "utf8")), path) as T;
+  return assertJsonObject(parseJsonText(await readFile(path, "utf8"), path), path) as T;
 }
 
 function nodeVersionSupported(version: string): boolean {
@@ -933,7 +955,7 @@ function assertPolicyExplainCapability(path: string | undefined): CapabilityPath
     throw usageError("Missing --capability for policy explain.", "missing_value");
   }
   if (!path.includes(".")) {
-    throw new Error(`Invalid capability path "${path}". Use dot notation such as job.run.`);
+    throw usageError(`Invalid capability path "${path}". Use dot notation such as job.run.`);
   }
   return path as CapabilityPath;
 }
@@ -950,11 +972,11 @@ export function coercePolicySpecNow(value: unknown): Date | undefined {
   if (typeof value === "string" || typeof value === "number") {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
-      throw new Error(`Invalid "now" in policy spec: ${JSON.stringify(value)}. Use an ISO 8601 date string such as 2026-01-01T00:00:00.000Z.`);
+      throw invalidConfig(`Invalid "now" in policy spec: ${JSON.stringify(value)}. Use an ISO 8601 date string such as 2026-01-01T00:00:00.000Z.`);
     }
     return date;
   }
-  throw new Error(`Invalid "now" in policy spec: expected an ISO 8601 date string, received ${typeof value}.`);
+  throw invalidConfig(`Invalid "now" in policy spec: expected an ISO 8601 date string, received ${typeof value}.`);
 }
 
 function redactResourceScope(resource: CapsuleApprovalResourceScope, policy: CapsulePolicy): CapsuleApprovalResourceScope {
@@ -1050,26 +1072,26 @@ function assertCapsulePolicyShape(value: unknown, label: string): CapsulePolicy 
     }
     const fields = Object.hasOwn(policySectionFields, key) ? policySectionFields[key] : undefined;
     if (fields === undefined) {
-      throw new Error(`${label} has unknown policy section ${JSON.stringify(key)}. Known sections: ${[...policySectionKeys].join(", ")}.`);
+      throw invalidConfig(`${label} has unknown policy section ${JSON.stringify(key)}. Known sections: ${[...policySectionKeys].join(", ")}.`);
     }
     const sectionRecord = assertJsonObject(section, `${label} section ${key}`);
     for (const [field, fieldValue] of Object.entries(sectionRecord)) {
       const kind = Object.hasOwn(fields, field) ? fields[field] : undefined;
       if (kind === undefined) {
-        throw new Error(`${label} has unknown field ${JSON.stringify(field)} in policy section ${key}. Known fields: ${Object.keys(fields).join(", ")}.`);
+        throw invalidConfig(`${label} has unknown field ${JSON.stringify(field)} in policy section ${key}. Known fields: ${Object.keys(fields).join(", ")}.`);
       }
       if (!policyFieldMatches(kind, fieldValue)) {
-        throw new Error(`${label} ${key}.${field} must be ${policyFieldKindLabels[kind]}.`);
+        throw invalidConfig(`${label} ${key}.${field} must be ${policyFieldKindLabels[kind]}.`);
       }
     }
   }
   const network = record.network as { mode?: unknown } | undefined;
   if (network !== undefined && !policyNetworkModes.has(String(network.mode))) {
-    throw new Error(`${label} network.mode must be one of ${[...policyNetworkModes].join(", ")}.`);
+    throw invalidConfig(`${label} network.mode must be one of ${[...policyNetworkModes].join(", ")}.`);
   }
   const secrets = record.secrets as { redactionProfile?: unknown } | undefined;
   if (secrets?.redactionProfile !== undefined && !policyRedactionProfiles.has(String(secrets.redactionProfile))) {
-    throw new Error(`${label} secrets.redactionProfile must be one of ${[...policyRedactionProfiles].join(", ")}.`);
+    throw invalidConfig(`${label} secrets.redactionProfile must be one of ${[...policyRedactionProfiles].join(", ")}.`);
   }
   return record as CapsulePolicy;
 }
@@ -1084,7 +1106,7 @@ async function loadEffectivePolicy(parsed: ParsedArgs): Promise<CapsulePolicy | 
   }
   const label = `Policy file ${JSON.stringify(parsed.policyFile)} (from ${parsed.policyFileSource === "config" ? "capsule.config.json policyFile" : "--policy-file"})`;
   if (parsed.policyFile.length === 0) {
-    throw new Error(`${label} is empty. No provider was contacted.`);
+    throw invalidConfig(`${label} is empty. No provider was contacted.`);
   }
   let text: string;
   try {
@@ -1097,7 +1119,7 @@ async function loadEffectivePolicy(parsed: ParsedArgs): Promise<CapsulePolicy | 
   try {
     value = JSON.parse(text);
   } catch {
-    throw new Error(`${label} is not valid JSON. No provider was contacted.`);
+    throw invalidConfig(`${label} is not valid JSON. No provider was contacted.`);
   }
   return deepFreeze(assertCapsulePolicyShape(value, label));
 }
@@ -1131,7 +1153,7 @@ async function createPolicyExplainReport(parsed: ParsedArgs): Promise<PolicyExpl
 function createPublicKeyVerifier(publicKeyPem: string): ReceiptVerifier {
   const key = createPublicKey(publicKeyPem);
   if (key.asymmetricKeyType !== "ed25519") {
-    throw new Error(`Unsupported --public-key type "${key.asymmetricKeyType ?? "unknown"}". receipt verify --public-key supports ed25519 keys.`);
+    throw usageError(`Unsupported --public-key type "${key.asymmetricKeyType ?? "unknown"}". receipt verify --public-key supports ed25519 keys.`);
   }
   return {
     algorithm: "ed25519",
@@ -1260,14 +1282,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function assertRecordValue(value: unknown, label: string): Record<string, unknown> {
   if (!isRecord(value)) {
-    throw new Error(`${label} must be a JSON object.`);
+    throw invalidConfig(`${label} must be a JSON object.`);
   }
   return value;
 }
 
 function assertStringValue(value: unknown, label: string): string {
   if (typeof value !== "string" || value.trim() === "") {
-    throw new Error(`${label} must be a non-empty string.`);
+    throw invalidConfig(`${label} must be a non-empty string.`);
   }
   return value;
 }
@@ -1275,7 +1297,7 @@ function assertStringValue(value: unknown, label: string): string {
 function optionalBooleanValue(value: unknown, label: string): boolean | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "boolean") {
-    throw new Error(`${label} must be a boolean.`);
+    throw invalidConfig(`${label} must be a boolean.`);
   }
   return value;
 }
@@ -1283,7 +1305,7 @@ function optionalBooleanValue(value: unknown, label: string): boolean | undefine
 function optionalNumberValue(value: unknown, label: string): number | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`${label} must be a finite number.`);
+    throw invalidConfig(`${label} must be a finite number.`);
   }
   return value;
 }
@@ -1298,7 +1320,7 @@ function optionalStringRecord(value: unknown, label: string): Record<string, str
   const record = assertRecordValue(value, label);
   for (const [key, entry] of Object.entries(record)) {
     if (typeof entry !== "string") {
-      throw new Error(`${label}.${key} must be a string.`);
+      throw invalidConfig(`${label}.${key} must be a string.`);
     }
   }
   return record as Record<string, string>;
@@ -1307,7 +1329,7 @@ function optionalStringRecord(value: unknown, label: string): Record<string, str
 function previewConfigResources<TSpec>(value: unknown, label: string): Array<PreviewConfigResource<TSpec>> | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value)) {
-    throw new Error(`${label} must be an array.`);
+    throw invalidConfig(`${label} must be an array.`);
   }
   return value.map((entry, index) => {
     const record = assertRecordValue(entry, `${label}[${index}]`);
@@ -1338,7 +1360,7 @@ async function readPreviewConfigFile(path: string | undefined): Promise<PreviewC
   if (!path) {
     throw usageError("Missing --config-file for preview create.", "missing_value");
   }
-  return validatePreviewConfig(assertJsonObject(JSON.parse(await readFile(path, "utf8")), path), path);
+  return validatePreviewConfig(assertJsonObject(parseJsonText(await readFile(path, "utf8"), path), path), path);
 }
 
 function previewResourceConfigs(
@@ -1388,7 +1410,7 @@ function parsedArgsFromPreviewAdapterConfig(adapter: string, options: Record<str
   const parsed: ParsedArgs = { adapter, adapterSource: "preview", rest: [] };
   for (const [key, value] of Object.entries(options ?? {})) {
     if (!previewAdapterOptionKeys.has(key as keyof ParsedArgs)) {
-      throw new Error(`Unsupported preview adapter option "${key}" for ${adapter}.`);
+      throw invalidConfig(`Unsupported preview adapter option "${key}" for ${adapter}.`);
     }
     (parsed as unknown as Record<string, unknown>)[key] = value;
   }
@@ -1571,7 +1593,7 @@ const previewResourceKinds: readonly PreviewResourceKind[] = ["database", "servi
 
 function assertPreviewResourceKind(value: unknown, label: string): PreviewResourceKind {
   if (typeof value !== "string" || !previewResourceKinds.includes(value as PreviewResourceKind)) {
-    throw new Error(`${label} must be one of ${previewResourceKinds.join(", ")}.`);
+    throw invalidConfig(`${label} must be one of ${previewResourceKinds.join(", ")}.`);
   }
   return value as PreviewResourceKind;
 }
@@ -1586,13 +1608,13 @@ function optionalStringValue(value: unknown, label: string): string | undefined 
 function validatePreviewCleanupActions(value: unknown, label: string): PreviewCleanupPlan["actions"] {
   if (value === undefined) return [];
   if (!Array.isArray(value)) {
-    throw new Error(`${label} must be an array.`);
+    throw invalidConfig(`${label} must be an array.`);
   }
   return value.map((item, index) => {
     const at = `${label}[${index}]`;
     const action = assertRecordValue(item, at);
     if (action.reversible !== true) {
-      throw new Error(`${at}.reversible must be true.`);
+      throw invalidConfig(`${at}.reversible must be true.`);
     }
     const resourceScope = optionalStringRecord(action.resourceScope, `${at}.resourceScope`);
     const resourceRef = optionalStringValue(action.resourceRef, `${at}.resourceRef`);
@@ -1600,7 +1622,7 @@ function validatePreviewCleanupActions(value: unknown, label: string): PreviewCl
     const resourceName = optionalStringValue(action.resourceName, `${at}.resourceName`);
     const cleanupOrder = optionalNumberValue(action.cleanupOrder, `${at}.cleanupOrder`);
     if (cleanupOrder === undefined) {
-      throw new Error(`${at}.cleanupOrder must be a number.`);
+      throw invalidConfig(`${at}.cleanupOrder must be a number.`);
     }
     return {
       actionId: assertStringValue(action.actionId, `${at}.actionId`),
@@ -1625,7 +1647,7 @@ function validateSerializedCleanup(value: unknown, label: string): SerializedPre
   const cleanup = assertRecordValue(value, label);
   const options = cleanup.options === undefined ? undefined : assertRecordValue(cleanup.options, `${label}.options`);
   if (cleanup.reversible !== undefined && cleanup.reversible !== true) {
-    throw new Error(`${label}.reversible must be true when present.`);
+    throw invalidConfig(`${label}.reversible must be true when present.`);
   }
   return {
     actionId: optionalStringValue(cleanup.actionId, `${label}.actionId`),
@@ -1642,12 +1664,12 @@ function validateSerializedCleanup(value: unknown, label: string): SerializedPre
 
 function validatePreviewCleanupPlan(record: Record<string, unknown>, label: string): PreviewCleanupPlanFile {
   if (record.schema !== previewCleanupPlanFileSchema && record.schema !== legacyPreviewCleanupPlanFileSchema) {
-    throw new Error(`${label}.schema must be ${previewCleanupPlanFileSchema}.`);
+    throw invalidConfig(`${label}.schema must be ${previewCleanupPlanFileSchema}.`);
   }
   const preview = assertRecordValue(record.preview, `${label}.preview`) as unknown as PreviewEnvironment;
   const resources = record.resources;
   if (!Array.isArray(resources)) {
-    throw new Error(`${label}.resources must be an array.`);
+    throw invalidConfig(`${label}.resources must be an array.`);
   }
   const previewId = typeof record.previewId === "string" ? record.previewId : preview.id;
   return {
@@ -1690,11 +1712,11 @@ function validatePreviewResidual(value: unknown, label: string): PreviewResidual
   const locator = assertRecordValue(residual.locator, `${label}.locator`);
   const order = optionalNumberValue(residual.order, `${label}.order`);
   if (order === undefined) {
-    throw new Error(`${label}.order must be a number.`);
+    throw invalidConfig(`${label}.order must be a number.`);
   }
   const outcome = assertStringValue(residual.outcome, `${label}.outcome`);
   if (!previewResidualOutcomes.has(outcome)) {
-    throw new Error(`${label}.outcome must be one of ${[...previewResidualOutcomes].join(", ")}.`);
+    throw invalidConfig(`${label}.outcome must be one of ${[...previewResidualOutcomes].join(", ")}.`);
   }
   const scope = optionalStringRecord(locator.scope, `${label}.locator.scope`);
   const nativeOperationId = optionalStringValue(locator.nativeOperationId, `${label}.locator.nativeOperationId`);
@@ -1716,7 +1738,7 @@ async function readPreviewCleanupPlanFile(path: string | undefined): Promise<Pre
   if (!path) {
     throw usageError("Missing --cleanup-file for preview destroy.", "missing_value");
   }
-  return validatePreviewCleanupPlan(assertJsonObject(JSON.parse(await readFile(path, "utf8")), path), path);
+  return validatePreviewCleanupPlan(assertJsonObject(parseJsonText(await readFile(path, "utf8"), path), path), path);
 }
 
 // Legacy files have no refs; fall back to kind and native id only for them.
@@ -1969,7 +1991,7 @@ export function liveTestCommandPlan(provider?: string, plans: LiveTestPlan[] = l
   }
   const plan = plans.find((entry) => entry.provider === provider);
   if (!plan) {
-    throw new Error(`Unknown live-test provider "${provider}". Providers: ${plans.map((entry) => entry.provider).join(", ")}`);
+    throw usageError(`Unknown live-test provider "${provider}". Providers: ${plans.map((entry) => entry.provider).join(", ")}`);
   }
   return [withGuardedCommands(plan)];
 }
@@ -2199,7 +2221,7 @@ function toPackageSegment(provider: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
   if (!segment) {
-    throw new Error("Provider name must contain at least one alphanumeric character.");
+    throw usageError("Provider name must contain at least one alphanumeric character.");
   }
   return segment;
 }
@@ -2216,11 +2238,11 @@ function toTypeName(factoryName: string): string {
 
 function assertScaffoldDomains(domains: string[]): AdapterScaffoldDomain[] {
   if (domains.length === 0) {
-    throw new Error(`Missing --domain. Supported domains: ${adapterScaffoldDomains.join(", ")}`);
+    throw usageError(`Missing --domain. Supported domains: ${adapterScaffoldDomains.join(", ")}`, "missing_value");
   }
   return domains.map((domain) => {
     if (!(adapterScaffoldDomains as readonly string[]).includes(domain)) {
-      throw new Error(`Unknown adapter domain "${domain}". Supported domains: ${adapterScaffoldDomains.join(", ")}`);
+      throw usageError(`Unknown adapter domain "${domain}". Supported domains: ${adapterScaffoldDomains.join(", ")}`);
     }
     return domain as AdapterScaffoldDomain;
   });
@@ -2572,7 +2594,7 @@ export async function runExampleCommand(
   const report = await createExamplesReport({ workspaceRoot });
   const example = report.examples.find((entry) => entry.id === id || entry.packageName === id);
   if (!example) {
-    throw new Error(`Unknown example "${id}". Run "capsule examples list" to inspect available examples.`);
+    throw usageError(`Unknown example "${id}". Run "capsule examples list" to inspect available examples.`);
   }
   if (!example.runnableWithoutCredentials) {
     throw new Error(`Example "${example.id}" requires local Docker and is not runnable by the credential-free examples command.`);
@@ -2617,7 +2639,7 @@ async function createCapsuleForCapabilityInspection(provider: string): Promise<C
 
 function assertComparableProvider(provider: string): void {
   if (!(comparableProviders as readonly string[]).includes(provider)) {
-    throw new Error(`Unknown provider "${provider}". Comparable providers: ${comparableProviders.join(", ")}`);
+    throw usageError(`Unknown provider "${provider}". Comparable providers: ${comparableProviders.join(", ")}`);
   }
 }
 
@@ -2659,7 +2681,7 @@ function assertCapsuleConfigShape(config: CapsuleConfigFile): void {
   const record = config as unknown as Record<string, unknown>;
   for (const key of ["adapter", "policyFile"] as const) {
     if (Object.hasOwn(record, key) && typeof record[key] !== "string") {
-      throw new Error(`capsule.config.json ${key} must be a string when present.`);
+      throw invalidConfig(`capsule.config.json ${key} must be a string when present.`);
     }
   }
   if (!Object.hasOwn(record, "receipts")) {
@@ -2667,10 +2689,10 @@ function assertCapsuleConfigShape(config: CapsuleConfigFile): void {
   }
   const receipts = assertJsonObject(record.receipts, "capsule.config.json receipts");
   if (Object.hasOwn(receipts, "enabled") && typeof receipts.enabled !== "boolean") {
-    throw new Error("capsule.config.json receipts.enabled must be a boolean when present.");
+    throw invalidConfig("capsule.config.json receipts.enabled must be a boolean when present.");
   }
   if (Object.hasOwn(receipts, "path") && typeof receipts.path !== "string") {
-    throw new Error("capsule.config.json receipts.path must be a string when present.");
+    throw invalidConfig("capsule.config.json receipts.path must be a string when present.");
   }
 }
 
@@ -2687,7 +2709,7 @@ async function readCapsuleConfigFile(cwd: string = process.cwd()): Promise<Capsu
     }
     throw new Error(`Could not read ${path}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
-  const config = assertJsonObject(JSON.parse(text), path) as CapsuleConfigFile;
+  const config = assertJsonObject(parseJsonText(text, "capsule.config.json"), "capsule.config.json") as CapsuleConfigFile;
   assertCapsuleConfigShape(config);
   return config;
 }
@@ -2767,7 +2789,8 @@ export function cliVersion(): string {
 export async function main(argv: string[]): Promise<void> {
   const line = parse(argv);
   const modes = resolveModes(line);
-  if (line.version) {
+  // --help wins over --version when both are given.
+  if (line.version && !line.help) {
     if (line.json) printJson({ version: cliVersion() });
     else console.log(cliVersion());
     return;
@@ -2823,7 +2846,7 @@ export async function main(argv: string[]): Promise<void> {
         printJson(deleted);
         return;
       }
-      throw new Error("Unknown neon command. Use branch-create or branch-delete.");
+      throw usageError("Unknown neon command. Use branch-create or branch-delete.", "unknown_command");
     }
     case "doctor": {
       const report = await createDoctorReport({ adapter: parsed.adapter, provider: parsed.provider, config: configError?.message });
@@ -2835,7 +2858,7 @@ export async function main(argv: string[]): Promise<void> {
     case "verify": {
       const action = parsed.rest[0];
       if (action !== "providers") {
-        throw new Error("Unknown verify command. Use providers.");
+        throw usageError("Unknown verify command. Use providers.", "unknown_command");
       }
       const report = await createProviderVerificationReport({ provider: parsed.provider ?? parsed.adapter });
       printJson(report);
@@ -2854,7 +2877,7 @@ export async function main(argv: string[]): Promise<void> {
         process.exitCode = report.providers.every((entry) => entry.status === "ready") ? 0 : 1;
         return;
       }
-      throw new Error("Unknown live-test command. Use plan or validate.");
+      throw usageError("Unknown live-test command. Use plan or validate.", "unknown_command");
     }
     case "capabilities": {
       const capsule = await createCapsule(parsed);
@@ -2866,7 +2889,7 @@ export async function main(argv: string[]): Promise<void> {
     case "policy": {
       const action = parsed.rest[0];
       if (action !== "explain") {
-        throw new Error("Unknown policy command. Use explain.");
+        throw usageError("Unknown policy command. Use explain.", "unknown_command");
       }
       printJson(await createPolicyExplainReport(parsed));
       return;
@@ -2883,7 +2906,7 @@ export async function main(argv: string[]): Promise<void> {
         printJson(await createReceiptInspectReport(parsed));
         return;
       }
-      throw new Error("Unknown receipt command. Use verify or inspect.");
+      throw usageError("Unknown receipt command. Use verify or inspect.", "unknown_command");
     }
     case "preset": {
       const action = parsed.rest[0];
@@ -2898,12 +2921,12 @@ export async function main(argv: string[]): Promise<void> {
         }
         const entry = presetCatalog.find((preset) => preset.id === id);
         if (!entry) {
-          throw new Error(`Unknown preset "${id}". Run capsule preset list to see available presets.`);
+          throw usageError(`Unknown preset "${id}". Run capsule preset list to see available presets.`);
         }
         printJson(entry);
         return;
       }
-      throw new Error("Unknown preset command. Use list or explain.");
+      throw usageError("Unknown preset command. Use list or explain.", "unknown_command");
     }
     case "preview": {
       const action = parsed.rest[0];
@@ -2928,12 +2951,12 @@ export async function main(argv: string[]): Promise<void> {
         process.exitCode = report.status === "partial" ? 1 : 0;
         return;
       }
-      throw new Error("Unknown preview command. Use plan, create, or destroy.");
+      throw usageError("Unknown preview command. Use plan, create, or destroy.", "unknown_command");
     }
     case "classify": {
       const action = parsed.rest[0];
       if (action !== "provider") {
-        throw new Error("Unknown classify command. Use provider.");
+        throw usageError("Unknown classify command. Use provider.", "unknown_command");
       }
       const provider = parsed.rest[1] ?? parsed.provider;
       const service = parsed.rest[2] ?? parsed.name;
@@ -2946,7 +2969,7 @@ export async function main(argv: string[]): Promise<void> {
     case "adapter": {
       const action = parsed.rest[0];
       if (action !== "scaffold") {
-        throw new Error("Unknown adapter command. Use scaffold.");
+        throw usageError("Unknown adapter command. Use scaffold.", "unknown_command");
       }
       const provider = parsed.rest[1] ?? parsed.provider ?? parsed.name;
       if (!provider) {
@@ -2979,12 +3002,12 @@ export async function main(argv: string[]): Promise<void> {
         process.exitCode = report.status === "failed" ? (report.exitCode ?? 1) : 0;
         return;
       }
-      throw new Error("Unknown examples command. Use list or run.");
+      throw usageError("Unknown examples command. Use list or run.", "unknown_command");
     }
     case "select": {
       const action = parsed.rest[0];
       if (action !== "provider") {
-        throw new Error("Unknown select command. Use provider.");
+        throw usageError("Unknown select command. Use provider.", "unknown_command");
       }
       if (!parsed.recipe) {
         throw usageError("Missing --recipe.", "missing_value");
@@ -2999,7 +3022,7 @@ export async function main(argv: string[]): Promise<void> {
     case "compare": {
       const action = parsed.rest[0];
       if (action !== "providers") {
-        throw new Error("Unknown compare command. Use providers.");
+        throw usageError("Unknown compare command. Use providers.", "unknown_command");
       }
       const left = parsed.leftAdapter ?? parsed.rest[1];
       const right = parsed.rightAdapter ?? parsed.rest[2];
@@ -3174,22 +3197,33 @@ function writeRun(
     process.stdout.write(result.stdout);
     process.stderr.write(result.stderr);
   }
-  const where = parsed.receiptFile ? ` in ${parsed.receiptFile}` : "";
+  // Without a receipt file the receipt lived only in memory; say so rather than print an id nothing can look up.
+  const where = parsed.receiptFile ? ` in ${parsed.receiptFile}` : " (not saved; add --receipt-file to keep it)";
   const outcome = result ? `exit ${result.exitCode}` : `no result (status ${job.status})`;
   console.error(`capsule: ran on ${job.adapter}, ${outcome}${receipt ? `, receipt ${receipt.id}${where}` : ""}`);
   return exitCode;
 }
 
+// The output modes come from the same parse main uses, so an error and a success on one command line
+// agree. Only a line that does not parse falls back to scanning the tokens before --.
+function modeFlags(argv: string[]): ModeFlags {
+  try {
+    return parse(argv);
+  } catch {
+    const handoff = argv.indexOf("--");
+    const own = handoff === -1 ? argv : argv.slice(0, handoff);
+    return {
+      json: own.includes("--json"),
+      nonInteractive: own.includes("--non-interactive"),
+      noColor: own.includes("--no-color"),
+      debug: own.includes("--debug")
+    };
+  }
+}
+
 // Entry point: runs main, renders any failure once on stderr, and returns the exit code.
 export async function runCli(argv: string[]): Promise<number> {
-  const handoff = argv.indexOf("--");
-  const own = handoff === -1 ? argv : argv.slice(0, handoff);
-  const modes = resolveModes({
-    json: own.includes("--json"),
-    nonInteractive: own.includes("--non-interactive"),
-    noColor: own.includes("--no-color"),
-    debug: own.includes("--debug")
-  });
+  const modes = resolveModes(modeFlags(argv));
   process.exitCode = undefined;
   try {
     await main(argv);

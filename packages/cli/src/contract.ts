@@ -3,7 +3,15 @@
 import { createInterface } from "node:readline";
 
 // Usage reasons exit 2; every other failure exits 1. A declined confirmation exits 130.
-const usageReasons = ["unknown_command", "unknown_option", "invalid_arguments", "missing_value", "unknown_adapter", "action_required"] as const;
+const usageReasons = [
+  "unknown_command",
+  "unknown_option",
+  "invalid_arguments",
+  "missing_value",
+  "unknown_adapter",
+  "invalid_config",
+  "action_required"
+] as const;
 const operationalReasons = [
   "unsupported_capability",
   "policy_denied",
@@ -55,6 +63,11 @@ export class CliError extends Error {
     if (this.reason === "canceled") return exitCodes.canceled;
     return (usageReasons as readonly string[]).includes(this.reason) ? exitCodes.usage : exitCodes.failure;
   }
+}
+
+/** A file the user gave Capsule (capsule.config.json, a policy, preview or spec file) is not valid. Exit 2. */
+export function invalidConfig(message: string): CliError {
+  return new CliError("invalid_config", message);
 }
 
 export function usageError(message: string, reason: Reason = "invalid_arguments", options: CliErrorOptions = {}): CliError {

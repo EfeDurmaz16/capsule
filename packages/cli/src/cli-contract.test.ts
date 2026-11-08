@@ -3,7 +3,7 @@
 // (source under tsx) from an empty scratch directory with a fake `docker` on PATH, so no container runs and
 // no provider is contacted. stdin is a pipe, so every child runs non-interactive.
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -32,11 +32,11 @@ writeFileSync(join(root, "docker"), fakeDocker, "utf8");
 chmodSync(join(root, "docker"), 0o755);
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
-function capsule(args: string[], env: Record<string, string> = {}) {
+function capsule(args: string[], env: Record<string, string> = {}, cwd = root) {
   writeFileSync(callLog, "", "utf8");
   const base: Record<string, string | undefined> = { ...process.env, CI: undefined, NO_COLOR: undefined, FORCE_COLOR: undefined };
   const result = spawnSync(process.execPath, ["--import", tsx, entry, ...args], {
-    cwd: root,
+    cwd,
     encoding: "utf8",
     timeout: 60_000,
     env: { ...base, TSX_TSCONFIG_PATH: sourcePathMap, PATH: `${root}:/usr/bin:/bin`, CAPSULE_FAKE_DOCKER_LOG: callLog, ...env }
@@ -124,6 +124,80 @@ describe.skipIf(process.platform === "win32")("capsule CLI contract", () => {
     const confirmed = capsule([...args, "--yes"]);
     expect(confirmed.status).toBe(0);
     expect(JSON.parse(confirmed.stdout)).toMatchObject({ id: "br_1", status: "deleted" });
+  });
+
+  it("a value-taking option never swallows a following option as its value", () => {
+    const image = capsule(["run", "--image", "--json", "--", "sh", "-c", "work"]);
+    expect(image.status).toBe(2);
+    expect(image.stdout).toBe("");
+    expect(image.dockerCalls).toEqual([]);
+    expect(JSON.parse(image.stderr)).toMatchObject({ reason: "missing_value", message: "--image needs a value <image>, but got the option --json." });
+
+    const receipt = capsule(["run", "--receipt-file", "--json", "--image", "busybox", "--", "sh", "-c", "work"]);
+    expect(receipt.status).toBe(2);
+    expect(receipt.dockerCalls).toEqual([]);
+    expect(existsSync(join(root, "--json"))).toBe(false);
+
+    // The error format comes from the same parse as success output: an attached value is not --json.
+    const attached = capsule(["run", "--image=--json", "--adapter", "nope", "--", "x"]);
+    expect(attached.status).toBe(2);
+    expect(attached.stderr).toMatch(/^Error: Unknown adapter/);
+  });
+
+  it("an unknown or command-only option with no command is a usage error, not help and exit 0", () => {
+    const typo = capsule(["--jsn"]);
+    expect(typo.status).toBe(2);
+    expect(typo.stdout).toBe("");
+    expect(typo.stderr).toContain("Unknown option --jsn.");
+    expect(typo.stderr).toContain("Did you mean --json?");
+    const stray = capsule(["--image", "busybox"]);
+    expect(stray.status).toBe(2);
+    expect(stray.stdout).toBe("");
+    expect(capsule(["--json"]).status).toBe(0);
+  });
+
+  it("invalid input in a command's own arguments is a usage error with a usage reason", () => {
+    const cases: Array<[string[], string]> = [
+      [["preset", "explain", "nope"], "invalid_arguments"],
+      [["compare", "providers", "--left", "docker", "--right", "nope"], "invalid_arguments"],
+      [["adapter", "scaffold", "acme"], "missing_value"],
+      [["examples", "run", "nope"], "invalid_arguments"],
+      [["live-test", "plan", "--provider", "nope"], "invalid_arguments"]
+    ];
+    for (const [args, reason] of cases) {
+      const result = capsule([...args, "--json"]);
+      expect(result.status, args.join(" ")).toBe(2);
+      expect(JSON.parse(result.stderr), args.join(" ")).toMatchObject({ status: "action_required", reason });
+    }
+  });
+
+  it("a malformed capsule.config.json is invalid_config naming the file, not internal_error", () => {
+    const dir = join(root, "bad-config");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "capsule.config.json"), "{bad", "utf8");
+    const result = capsule(["capabilities", "--json"], {}, dir);
+    expect(result.status).toBe(2);
+    const error = JSON.parse(result.stderr) as { reason: string; message: string };
+    expect(error.reason).toBe("invalid_config");
+    expect(error.message).toMatch(/^capsule\.config\.json is not valid JSON: /);
+  });
+
+  it("--help wins over --version in either order", () => {
+    for (const args of [
+      ["--help", "--version"],
+      ["--version", "--help"]
+    ]) {
+      const result = capsule(args);
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("Usage");
+    }
+  });
+
+  it("the human receipt line says when the receipt was not saved", () => {
+    const unsaved = capsule(["run", "--image", "busybox", "--", "sh", "-c", "work"]);
+    expect(unsaved.stderr).toMatch(/receipt \S+ \(not saved; add --receipt-file to keep it\)/);
+    const saved = capsule(["run", "--image", "busybox", "--receipt-file", "r.jsonl", "--", "sh", "-c", "work"]);
+    expect(saved.stderr).toMatch(/receipt \S+ in r\.jsonl\n/);
   });
 
   it("help goes to stdout and exits 0; a group without an action shows its help", () => {

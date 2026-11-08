@@ -349,6 +349,15 @@ function helpHint(path: string[], suggestion?: string): string {
   return suggestion ? `Did you mean ${suggestion}? ${help}` : help;
 }
 
+const shortNames = new Set(Object.values(allOptionSpecs).flatMap((spec) => (spec.short ? [spec.short] : [])));
+
+function isOptionName(value: string): boolean {
+  const long = /^--([^=]+)/.exec(value);
+  if (long) return Object.hasOwn(allOptionSpecs, long[1]!);
+  const short = /^-([^-])$/.exec(value);
+  return short !== null && shortNames.has(short[1]!);
+}
+
 /** Strict parse: throws a usage error (exit 2) before any work for anything the command does not read. */
 export function parseCommandLine(argv: string[]): ParsedLine {
   const parsed: ParsedLine = { rest: [], positionals: [], passthrough: [] };
@@ -382,6 +391,13 @@ export function parseCommandLine(argv: string[]): ParsedLine {
     if (token.value === undefined) {
       throw usageError(`${token.rawName} needs a value${spec.hint ? ` ${spec.hint}` : ""}.`, "missing_value");
     }
+    // `--image --json` would otherwise read --json as the image. A separate value that names a known option
+    // is a missing value; a value that really starts with a dash can be attached with =.
+    if (!token.inlineValue && isOptionName(token.value)) {
+      throw usageError(`${token.rawName} needs a value${spec.hint ? ` ${spec.hint}` : ""}, but got the option ${token.value}.`, "missing_value", {
+        hint: `If the value starts with a dash, write ${token.rawName}=${token.value}.`
+      });
+    }
     if (spec.kind === "array") {
       const values = (target[spec.field] as string[] | undefined) ?? [];
       values.push(token.value);
@@ -396,7 +412,20 @@ export function parseCommandLine(argv: string[]): ParsedLine {
   }
   parsed.rest = [...parsed.positionals, ...parsed.passthrough];
   // Help and version skip all other validation, so they work when the rest of the line is wrong.
-  if (parsed.help || parsed.version || parsed.command === undefined) return parsed;
+  if (parsed.help || parsed.version) return parsed;
+  if (parsed.command === undefined) {
+    // Bare `capsule` (or only global flags) shows the root help; a typo or a command option must not.
+    if (unknown.length > 0) {
+      const name = unknown[0]!;
+      const hint = suggest(name.replace(/^-+/, ""), Object.keys(globalOptionSpecs));
+      throw usageError(`Unknown option ${name}.`, "unknown_option", { hint: helpHint([], hint ? `--${hint}` : undefined), data: { options: unknown } });
+    }
+    const commandOption = seen.find((name) => !globalOptionSpecs[name]);
+    if (commandOption) {
+      throw usageError(`--${commandOption} needs a command, for example capsule run --${commandOption} ...`, "invalid_arguments", { hint: helpHint([]) });
+    }
+    return parsed;
+  }
 
   const command = commandSpecs[parsed.command];
   if (!command) {
