@@ -69,8 +69,8 @@ export async function inSpan<R>(trace: CapsuleTrace, action: string, attributes:
     const operationId = attributes["capsule.operation.id"];
     const result = await frames.run({ span, ...(typeof operationId === "string" ? { operationId } : {}) }, run);
     const status = (result as { status?: unknown } | undefined)?.status;
-    const pending = status === "queued" || status === "running" || status === "deploying";
-    finish(span, pending ? "pending" : "completed");
+    if (typeof status === "string") span.setAttribute("capsule.result.status", status);
+    finish(span, statusOutcome(action, status));
     return result;
   } catch (error) {
     finish(span, outcomeOf(error), error);
@@ -90,6 +90,30 @@ export function recordRefusal(trace: CapsuleTrace, action: string, attributes: S
   span.setAttribute("capsule.refusal.reason", refusal.reason);
   finish(span, refusal.outcome);
   span.end();
+}
+
+// Statuses a provider reports before the action reaches a terminal state, across every domain.
+const IN_PROGRESS = new Set([
+  "queued",
+  "deploying",
+  "creating",
+  "building",
+  "releasing",
+  "rolling_back",
+  "resetting",
+  "cancelling",
+  "deleting",
+  "stopping",
+  "starting",
+  "destroying"
+]);
+
+/** The outcome of a result by its provider status. A running machine is up; a running job or migration is not done. */
+export function statusOutcome(action: string, status: unknown): SpanOutcome {
+  if (typeof status !== "string") return "completed";
+  if (status === "failed" || status === "partial") return "failed";
+  if (status === "running") return action.startsWith("machine.") ? "completed" : "pending";
+  return IN_PROGRESS.has(status) ? "pending" : "completed";
 }
 
 export function outcomeOf(error: unknown): SpanOutcome {

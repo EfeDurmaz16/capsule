@@ -12,6 +12,7 @@ import {
   type CapsuleApprovalGrant,
   type CapsuleTrace
 } from "./index.js";
+import { inSpan } from "./tracing.js";
 
 const SECRET = "sk_live_tracing_secret_value_1234567890";
 const APPROVAL_ID = "approval-ref-raw-7f3a";
@@ -116,7 +117,7 @@ describe("tracing hook", () => {
   test("every operation gets a span with operation id, job, provider, action, outcome, digests and policy decision", async () => {
     const { finished, tracer } = recorder();
     await scenario({ tracer, attributes: { "fabric.operation.id": "op_fabric_1" } });
-    const spans = (await finished());
+    const spans = await finished();
     expect(spans.map((span) => span.name)).toEqual(["capsule sandbox.create", "capsule sandbox.exec", "capsule sandbox.exec", "capsule sandbox.destroy"]);
     const [create, exec, denied, destroy] = spans as [ReadableSpan, ReadableSpan, ReadableSpan, ReadableSpan];
     expect(create.attributes).toMatchObject({
@@ -143,7 +144,7 @@ describe("tracing hook", () => {
   test("no secret value, raw approval ref or sensitive argv reaches any attribute, event, link or status", async () => {
     const { finished, tracer } = recorder();
     await scenario({ tracer, argv: true });
-    const all = strings((await finished())).join("\n");
+    const all = strings(await finished()).join("\n");
     expect(all).not.toContain(SECRET);
     expect(all).not.toContain(APPROVAL_ID);
     expect(all).not.toContain("Authorization");
@@ -166,7 +167,7 @@ describe("tracing hook", () => {
       trace: { tracer }
     });
     await expect((await pendingCapsule.sandbox.create({})).exec({ command: "true" })).rejects.toBeInstanceOf(PendingOperationError);
-    const spans = (await finished());
+    const spans = await finished();
     const job = spans.find((span) => span.attributes["capsule.action"] === "job.run")!;
     expect(job.attributes["capsule.outcome"]).toBe("pending");
     expect(job.events.map((event) => event.name)).toContain("capsule.outcome.pending");
@@ -183,7 +184,7 @@ describe("tracing hook", () => {
     const recording = await scenario({ tracer: recorder().tracer });
     expect(off).toEqual(plain);
     expect(recording).toEqual(plain);
-    expect((await finished())).toHaveLength(0);
+    expect(await finished()).toHaveLength(0);
   });
 
   test("links passed in the trace options are carried on every span", async () => {
@@ -193,10 +194,48 @@ describe("tracing hook", () => {
       attributes: { "fabric.operation.id": "op_x" }
     };
     await new Capsule({ adapter: adapter(), trace: { tracer, links: [link] } }).sandbox.create({});
-    const [span] = (await finished());
+    const [span] = await finished();
     expect(span!.links).toEqual([
       expect.objectContaining({ context: expect.objectContaining({ traceId: link.context.traceId, spanId: link.context.spanId }) })
     ]);
+  });
+
+  test("a provider status sets the outcome: in-progress is pending, failed or partial is failed, the rest completed", async () => {
+    const { finished, tracer } = recorder();
+    const cases: Array<[string, string, string]> = [
+      ["job.run", "queued", "pending"],
+      ["job.status", "running", "pending"],
+      ["service.deploy", "deploying", "pending"],
+      ["edge.version", "building", "pending"],
+      ["edge.release", "releasing", "pending"],
+      ["edge.rollback", "rolling_back", "pending"],
+      ["database.branch.reset", "resetting", "pending"],
+      ["database.migrate", "running", "pending"],
+      ["machine.create", "creating", "pending"],
+      ["machine.start", "starting", "pending"],
+      ["machine.stop", "stopping", "pending"],
+      ["machine.destroy", "destroying", "pending"],
+      ["preview.create", "creating", "pending"],
+      ["preview.delete", "deleting", "pending"],
+      ["job.cancel", "cancelling", "pending"],
+      ["machine.start", "running", "completed"],
+      ["edge.version", "created", "completed"],
+      ["job.status", "succeeded", "completed"],
+      ["service.deploy", "ready", "completed"],
+      ["service.deploy", "failed", "failed"],
+      ["edge.version", "failed", "failed"],
+      ["preview.cleanup", "partial", "failed"]
+    ];
+    for (const [action, status] of cases) await inSpan({ tracer }, action, {}, async () => ({ status }));
+    const spans = await finished();
+    expect(spans.map((span) => [span.attributes["capsule.action"], span.attributes["capsule.result.status"], span.attributes["capsule.outcome"]])).toEqual(
+      cases
+    );
+    for (const span of spans) {
+      const outcome = span.attributes["capsule.outcome"];
+      expect(span.status.code).toBe(outcome === "failed" ? 2 : 0);
+      expect(span.events.some((event) => event.name === "capsule.outcome.pending")).toBe(outcome === "pending");
+    }
   });
 
   test("an OpenTelemetry API tracer is accepted as is", () => {
