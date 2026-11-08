@@ -80,7 +80,7 @@ describe("preview cleanup file (GAP-06 CLI half, COMP-01)", () => {
     const { path } = await createCleanupFile();
     logs.length = 0;
 
-    await main(["preview", "destroy", "--cleanup-file", path]);
+    await main(["preview", "destroy", "--cleanup-file", path, "--yes"]);
     const report = JSON.parse(logs[0] ?? "{}") as { status: string; summary: { cleaned: number; leaked: number } };
     expect(report.status).toBe("cleaned");
     expect(report.summary).toMatchObject({ cleaned: 2, leaked: 0 });
@@ -94,7 +94,7 @@ describe("preview cleanup file (GAP-06 CLI half, COMP-01)", () => {
     await rewrite(path, file);
     logs.length = 0;
 
-    await expect(main(["preview", "destroy", "--cleanup-file", path])).rejects.toThrow(/does not match that resource/);
+    await expect(main(["preview", "destroy", "--cleanup-file", path, "--yes"])).rejects.toThrow(/does not match that resource/);
     expect(logs).toEqual([]);
   });
 
@@ -103,7 +103,7 @@ describe("preview cleanup file (GAP-06 CLI half, COMP-01)", () => {
     file.previewId = "preview_foreign";
     await rewrite(path, file);
 
-    await expect(main(["preview", "destroy", "--cleanup-file", path])).rejects.toThrow(/belongs to preview preview_foreign/);
+    await expect(main(["preview", "destroy", "--cleanup-file", path, "--yes"])).rejects.toThrow(/belongs to preview preview_foreign/);
   });
 
   it("rejects malformed actions instead of casting them", async () => {
@@ -111,20 +111,20 @@ describe("preview cleanup file (GAP-06 CLI half, COMP-01)", () => {
     delete file.actions[0]!.idempotencyKey;
     await rewrite(path, file);
 
-    await expect(main(["preview", "destroy", "--cleanup-file", path])).rejects.toThrow(/actions\[0\]\.idempotencyKey must be/);
+    await expect(main(["preview", "destroy", "--cleanup-file", path, "--yes"])).rejects.toThrow(/actions\[0\]\.idempotencyKey must be/);
 
     const second = JSON.parse(await readFile(path, "utf8")) as CleanupFile & { actions: Array<Record<string, unknown>> };
     second.actions[0]!.idempotencyKey = "key";
     second.actions[0]!.kind = "bucket";
     await writeFile(path, JSON.stringify(second), "utf8");
-    await expect(main(["preview", "destroy", "--cleanup-file", path])).rejects.toThrow(/actions\[0\]\.kind must be one of/);
+    await expect(main(["preview", "destroy", "--cleanup-file", path, "--yes"])).rejects.toThrow(/actions\[0\]\.kind must be one of/);
   });
 
   it("applies --hard-delete to the bound plan action", async () => {
     const { path } = await createCleanupFile();
     logs.length = 0;
 
-    await main(["preview", "destroy", "--cleanup-file", path, "--hard-delete"]);
+    await main(["preview", "destroy", "--cleanup-file", path, "--hard-delete", "--yes"]);
     const report = JSON.parse(logs[0] ?? "{}") as { receipts: Array<{ type: string; metadata?: Record<string, unknown> }> };
     const deletes = report.receipts.filter((receipt) => receipt.type === "database.branch.delete");
     expect(deletes).toHaveLength(2);
@@ -216,7 +216,7 @@ describe("preview create failing part-way (GAP-06 CLI half)", () => {
     expect(file.actions).toHaveLength(2);
 
     await withNeon(200, async (calls) => {
-      await main(["preview", "destroy", "--cleanup-file", cleanupFile, "--json"]);
+      await main(["preview", "destroy", "--cleanup-file", cleanupFile, "--json", "--yes"]);
       expect(calls).toEqual([{ method: "DELETE", url: "https://console.neon.tech/api/v2/projects/p1/branches/br-leak-1" }]);
     });
     const report = JSON.parse(logs.at(-1) ?? "{}") as { status: string; summary: { cleaned: number; leaked: number } };
