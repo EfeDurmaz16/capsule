@@ -129,6 +129,19 @@ describe("JobLeases", () => {
   });
 });
 
+describe("liveSet", () => {
+  test("live wins, the caller's ended owners have ended, and an owner it does not know is unknown", async () => {
+    const liveness = liveSet({ live: { operations: ["op_live"], jobs: ["job_live"] }, ended: { operations: ["op_done"], jobs: ["job_done", "job_live"] } });
+    expect(await liveness({ operation: "op_live" })).toBe("live");
+    expect(await liveness({ operation: "op_x", job: "job_live" })).toBe("live");
+    expect(await liveness({ operation: "op_done" })).toBe("ended");
+    expect(await liveness({ operation: "op_x", job: "job_done" })).toBe("ended");
+    // Another daemon's sandbox on the same engine: neither set holds it, so it is kept.
+    expect(await liveness({ operation: "op_other", job: "job_other" })).toBe("unknown");
+    expect(await liveSet({})({ operation: "op_other" })).toBe("unknown");
+  });
+});
+
 describe("cleanupGrantProblem", () => {
   const request: CleanupApprovalRequest = { capabilityPath: "sandbox.destroy", resource: { type: "sandbox", id: "sb-1", provider: "fake" } };
   test.each([
@@ -136,7 +149,10 @@ describe("cleanupGrantProblem", () => {
     [{ expiresAt: undefined }, "no expiresAt"],
     [{ expiresAt: "2000-01-01T00:00:00.000Z" }, "expired"],
     [{ capabilities: undefined }, "not scoped to capabilities"],
-    [{ capabilities: ["sandbox.create", "sandbox.destroy"] }, "also authorizes a create"],
+    [{ capabilities: ["sandbox.create", "sandbox.destroy"] }, "more than sandbox.destroy"],
+    [{ capabilities: ["sandbox.destroy", "edge.version"] }, "more than sandbox.destroy"],
+    [{ capabilities: ["sandbox.destroy", "service.update"] }, "more than sandbox.destroy"],
+    [{ capabilities: ["sandbox.destroy", "machine.start"] }, "more than sandbox.destroy"],
     [{ capabilities: ["sandbox.exec"] }, "not valid for sandbox.destroy"],
     [{ resources: undefined }, "not scoped to resources"],
     [{ resources: [{ type: "sandbox", provider: "fake" }] }, "not valid for sb-1"],
@@ -155,7 +171,7 @@ describe("Capsule.gc", () => {
     const { adapter, calls } = labellingAdapter();
     await new Capsule({ adapter, owner: { job: "job_dead" } }).sandbox.create({});
     await new Capsule({ adapter, owner: { job: "job_live" } }).sandbox.create({});
-    const scan = await new Capsule({ adapter }).gc.scan({ liveness: liveSet({ jobs: ["job_live"] }) });
+    const scan = await new Capsule({ adapter }).gc.scan({ liveness: liveSet({ live: { jobs: ["job_live"] }, ended: { jobs: ["job_dead"] } }) });
     expect(scan.residuals.map((entry) => entry.resource.job)).toEqual(["job_dead"]);
     expect(scan.kept.map((entry) => entry.resource.job)).toEqual(["job_live"]);
     expect(calls).toEqual(["create:sb-1", "create:sb-2"]);
@@ -163,7 +179,7 @@ describe("Capsule.gc", () => {
 
   test("scan fails closed on an adapter that cannot list", async () => {
     const { adapter } = labellingAdapter({ withResiduals: false });
-    await expect(new Capsule({ adapter }).gc.scan({ liveness: liveSet({}) })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
+    await expect(new Capsule({ adapter }).gc.scan({ liveness: liveSet({ ended: { jobs: ["job_dead"] } }) })).rejects.toBeInstanceOf(UnsupportedCapabilityError);
   });
 
   test("remove needs a fresh scoped grant per resource, writes a receipt per removal, and observes it gone", async () => {
@@ -173,7 +189,7 @@ describe("Capsule.gc", () => {
     const store = new MemoryReceiptStore();
     const requests: CleanupApprovalRequest[] = [];
     const report = await new Capsule({ adapter, receipts: true, receiptStore: store, receiptPersistence: "required" }).gc.remove({
-      liveness: liveSet({}),
+      liveness: liveSet({ ended: { jobs: ["job_dead"] } }),
       reason: "crash",
       approve: (request) => {
         requests.push(request);
@@ -205,7 +221,10 @@ describe("Capsule.gc", () => {
   test("a removal the second scan still sees is unconfirmed, not removed", async () => {
     const { adapter } = labellingAdapter({ keepAfterDestroy: true });
     await new Capsule({ adapter, owner: { job: "job_dead" } }).sandbox.create({});
-    const report = await new Capsule({ adapter, receipts: true }).gc.remove({ liveness: liveSet({}), approve: (request) => freshGrant(request) });
+    const report = await new Capsule({ adapter, receipts: true }).gc.remove({
+      liveness: liveSet({ ended: { jobs: ["job_dead"] } }),
+      approve: (request) => freshGrant(request)
+    });
     expect(report.results.map((result) => result.outcome)).toEqual(["unconfirmed"]);
   });
 
@@ -214,7 +233,10 @@ describe("Capsule.gc", () => {
     await new Capsule({ adapter, owner: { job: "job_dead" } }).sandbox.create({});
     await new Capsule({ adapter, owner: { job: "job_live" } }).sandbox.create({});
     resources.set("run-1", { provider: "fake", kind: "job-container", id: "run-1", operation: "op_x", job: "job_dead" });
-    const report = await new Capsule({ adapter, receipts: true }).gc.remove({ liveness: liveSet({ jobs: ["job_live"] }), approve: () => undefined });
+    const report = await new Capsule({ adapter, receipts: true }).gc.remove({
+      liveness: liveSet({ live: { jobs: ["job_live"] }, ended: { jobs: ["job_dead"] } }),
+      approve: () => undefined
+    });
     expect(report.results.map((result) => [result.resource.id, result.outcome])).toEqual([
       ["sb-1", "denied"],
       ["run-1", "skipped"]
@@ -225,9 +247,9 @@ describe("Capsule.gc", () => {
 
   test("remove refuses to run without receipts", async () => {
     const { adapter } = labellingAdapter();
-    await expect(new Capsule({ adapter }).gc.remove({ liveness: liveSet({}), approve: (request) => freshGrant(request) })).rejects.toBeInstanceOf(
-      PolicyViolationError
-    );
+    await expect(
+      new Capsule({ adapter }).gc.remove({ liveness: liveSet({ ended: { jobs: ["job_dead"] } }), approve: (request) => freshGrant(request) })
+    ).rejects.toBeInstanceOf(PolicyViolationError);
   });
 });
 
@@ -261,21 +283,36 @@ describe("consentApprovals and withJobLease", () => {
     expect(await withJobLease(labellingAdapter({ withResiduals: false }).adapter, async (owner) => owner, leases)).toBeUndefined();
   });
 
-  test("forgetFinished keeps the lease of a job with anything left", async () => {
-    const leases = new JobLeases(join(scratch, "forget"), "host-a", () => false);
-    await (await leases.open({ job: "job_done" })).end();
-    await (await leases.open({ job: "job_left" })).end();
-    const resource = (id: string, job: string) => ({ provider: "fake", kind: "sandbox", id, operation: "op", job });
-    await leases.forgetFinished({
-      provider: "fake",
-      adapter: "fake",
-      results: [
-        { resource: resource("a", "job_done"), verdict: "ended", outcome: "removed", receipts: [] },
-        { resource: resource("b", "job_left"), verdict: "ended", outcome: "denied", receipts: [] }
-      ],
-      kept: []
-    });
-    expect(await leases.read("job_done")).toBeUndefined();
-    expect(await leases.read("job_left")).toBeDefined();
+  test("prune forgets finished leases with nothing listed, and keeps running, listed, foreign and other-adapter ones", async () => {
+    const dir = join(scratch, "prune");
+    const running = new Set<number>();
+    const leases = new JobLeases(dir, "host-a", (pid) => running.has(pid));
+    await (await leases.open({ job: "job_failed", adapter: "fake" })).end();
+    await (await leases.open({ job: "job_left", adapter: "fake" })).end();
+    await (await leases.open({ job: "job_other_adapter", adapter: "other" })).end();
+    await (await new JobLeases(dir, "host-b").open({ job: "job_other_host", adapter: "fake" })).end();
+    // Never ended, and its process is gone: killed with -9 before it created anything.
+    await leases.open({ job: "job_killed", adapter: "fake" });
+    writeFileSync(join(dir, "job_running.json"), JSON.stringify({ job: "job_running", host: "host-a", pid: 4242, startedAt: "x", adapter: "fake" }));
+    running.add(4242);
+    writeFileSync(join(dir, "broken.json"), "{");
+    const listed = async () => [{ provider: "fake", kind: "sandbox", id: "a", operation: "op", job: "job_left" }];
+    expect((await leases.prune("fake", listed)).sort()).toEqual(["job_failed", "job_killed"]);
+    for (const job of ["job_failed", "job_killed"]) expect(await leases.read(job)).toBeUndefined();
+    for (const job of ["job_left", "job_other_adapter", "job_running"]) expect(await leases.read(job)).toBeDefined();
+    expect(await new JobLeases(dir, "host-b").read("job_other_host")).toBeDefined();
+  });
+
+  test("prune does not list when no lease is finished, and an absent directory is empty", async () => {
+    const leases = new JobLeases(join(scratch, "prune-none"), "host-a", () => true);
+    let listings = 0;
+    const listed = async () => {
+      listings += 1;
+      return [];
+    };
+    expect(await leases.prune("fake", listed)).toEqual([]);
+    await leases.open({ job: "job_live", adapter: "fake" });
+    expect(await leases.prune("fake", listed)).toEqual([]);
+    expect(listings).toBe(0);
   });
 });

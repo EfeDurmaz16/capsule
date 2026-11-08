@@ -41,7 +41,7 @@ describe("docker residuals", () => {
     calls.length = 0;
     const store = new MemoryReceiptStore();
     const report = await new Capsule({ adapter, receipts: true, receiptStore: store }).gc.remove({
-      liveness: liveSet({}),
+      liveness: liveSet({ ended: { jobs: ["job_1"] } }),
       approve: (request) => ({
         approved: true,
         id: "fresh",

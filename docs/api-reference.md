@@ -441,6 +441,7 @@ Exports:
 - `ObservationStep` (type)
 - `observeUntilTerminal` (function)
 - `OpenLease` (interface)
+- `OwnerSets` (interface)
 - `OwnerVerdict` (type)
 - `PartialEffects` (interface)
 - `PartialEffectsError` (class)

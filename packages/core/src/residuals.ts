@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { homedir, hostname } from "node:os";
 import { join } from "node:path";
 import type { CapsuleAdapter } from "./adapters.js";
@@ -59,11 +59,25 @@ export type OwnerVerdict = "live" | "ended" | "exited" | "unknown";
 
 export type Liveness = (owner: { operation: string; job?: string }) => OwnerVerdict | Promise<OwnerVerdict>;
 
-/** A liveness from sets the caller holds: anything outside them has ended. */
-export function liveSet(live: { operations?: Iterable<string>; jobs?: Iterable<string> }): Liveness {
-  const operations = new Set(live.operations ?? []);
-  const jobs = new Set(live.jobs ?? []);
-  return (owner) => (operations.has(owner.operation) || (owner.job !== undefined && jobs.has(owner.job)) ? "live" : "ended");
+/** Operations and jobs, by id. */
+export interface OwnerSets {
+  operations?: Iterable<string>;
+  jobs?: Iterable<string>;
+}
+
+/**
+ * A liveness from sets the caller holds. An owner in `live` is live; one in `ended` (and not live) has
+ * ended; any other owner is unknown and kept, because another caller sharing the scope may own it.
+ */
+export function liveSet(sets: { live?: OwnerSets; ended?: OwnerSets }): Liveness {
+  const has = (owners: OwnerSets | undefined) => {
+    const operations = new Set(owners?.operations ?? []);
+    const jobs = new Set(owners?.jobs ?? []);
+    return (owner: { operation: string; job?: string }) => operations.has(owner.operation) || (owner.job !== undefined && jobs.has(owner.job));
+  };
+  const live = has(sets.live);
+  const ended = has(sets.ended);
+  return (owner) => (live(owner) ? "live" : ended(owner) ? "ended" : "unknown");
 }
 
 export interface ResidualEntry {
@@ -114,8 +128,8 @@ export async function classifyResiduals(provider: string, adapter: string, resou
 
 /**
  * Why `grant` is not a fresh cleanup grant for `request`, or undefined when it is. A cleanup grant is
- * approved, unexpired, scoped to exactly the cleanup capability and to this resource, and authorizes no
- * create, so a grant that let something be made can never remove it.
+ * approved, unexpired, scoped to exactly the cleanup capability and nothing else, and to this resource,
+ * so a grant that let something be made or changed can never remove it.
  */
 export function cleanupGrantProblem(grant: CapsuleApprovalGrant, request: CleanupApprovalRequest, now: Date = new Date()): string | undefined {
   if (!grant.approved) return "the grant is not approved";
@@ -124,8 +138,12 @@ export function cleanupGrantProblem(grant: CapsuleApprovalGrant, request: Cleanu
   if (!Number.isFinite(expires)) return "the grant has an invalid expiresAt";
   if (expires <= now.getTime()) return `the grant expired at ${grant.expiresAt}`;
   if (!grant.capabilities || grant.capabilities.length === 0) return "the grant is not scoped to capabilities";
-  if (grant.capabilities.some((path) => /\.(create|run|deploy|branchCreate)$/.test(path))) return "the grant also authorizes a create";
-  if (!grant.capabilities.includes(request.capabilityPath)) return `the grant is not valid for ${request.capabilityPath}`;
+  // Exactly the cleanup capability: any other path (a create, a deploy, edge.version, service.update) is refused.
+  if (grant.capabilities.length !== 1 || grant.capabilities[0] !== request.capabilityPath) {
+    return grant.capabilities.includes(request.capabilityPath)
+      ? `the grant authorizes more than ${request.capabilityPath}`
+      : `the grant is not valid for ${request.capabilityPath}`;
+  }
   if (!grant.resources || grant.resources.length === 0) return "the grant is not scoped to resources";
   const target = request.resource as Record<string, unknown>;
   const matches = grant.resources.some(
@@ -258,14 +276,43 @@ export class JobLeases {
     await rm(this.path(job), { force: true });
   }
 
-  /** Forgets every job in `report` whose residuals were all removed and that has nothing kept. */
-  readonly forgetFinished = async (report: GcReport): Promise<void> => {
-    const jobs = new Set(report.results.flatMap((result) => (result.resource.job ? [result.resource.job] : [])));
-    for (const job of jobs) {
-      const left = [...report.results.filter((result) => result.outcome !== "removed"), ...report.kept].some((entry) => entry.resource.job === job);
-      if (!left) await this.forget(job);
+  /** Every well-formed lease in the directory. */
+  async list(): Promise<JobLease[]> {
+    let names: string[];
+    try {
+      names = await readdir(this.dir);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
     }
-  };
+    const leases: JobLease[] = [];
+    for (const name of names) {
+      if (!name.endsWith(".json")) continue;
+      const lease = await this.read(name.slice(0, -".json".length)).catch(() => undefined);
+      if (lease) leases.push(lease);
+    }
+    return leases;
+  }
+
+  /**
+   * Deletes the leases of finished jobs that left nothing `listed` shows: on this host, for `adapter`,
+   * ended or with their process gone. The leases are judged before the listing is taken, so a job that
+   * was still running then cannot have created anything the listing missed. Returns the jobs forgotten.
+   */
+  async prune(adapter: string, listed: () => Promise<Iterable<LabeledResource>>): Promise<string[]> {
+    const finished = (await this.list()).filter(
+      (lease) => lease.host === this.host && lease.adapter === adapter && (lease.endedAt !== undefined || !this.running(lease.pid))
+    );
+    if (finished.length === 0) return [];
+    const left = new Set([...(await listed())].flatMap((resource) => (resource.job ? [resource.job] : [])));
+    const forgotten: string[] = [];
+    for (const lease of finished) {
+      if (left.has(lease.job)) continue;
+      await this.forget(lease.job);
+      forgotten.push(lease.job);
+    }
+    return forgotten;
+  }
 
   /** The liveness these leases prove. */
   readonly liveness: Liveness = async (owner) => {
