@@ -19,7 +19,7 @@
           "fabric.operation.id": "01K8W3A0000000000000000001",
           "fabric.job": "01K8W3A00000000000000000J1",
           "fabric.request.id": "r-1",
-          "capsule.operation.id": "op_4d7f5854c91743dcb55add0cc5b8355d",
+          "capsule.operation.id": "op_a875303fe7f9407aa62093031bd0b54b",
           "capsule.provider": "fixture",
           "capsule.adapter": "fixture",
           "capsule.idempotency.key_digest": "2f323e4d8a431e6bc5124f6a838bab46809fce6e0d1df830834e06fa07dd55be",
@@ -31,7 +31,7 @@
           {
             "name": "capsule.receipt",
             "attributes": {
-              "capsule.receipt.id": "251ff44c-5b71-4659-b85a-14f2dd3a5286",
+              "capsule.receipt.id": "6c53ae63-68b1-455f-9604-ca4c80e98ee9",
               "capsule.receipt.type": "sandbox.create"
             }
           }
@@ -60,7 +60,7 @@
           "fabric.operation.id": "01K8W3A0000000000000000002",
           "fabric.job": "01K8W3A00000000000000000J1",
           "fabric.request.id": "r-2",
-          "capsule.operation.id": "op_bb594914292746e28822a4146d8bc975",
+          "capsule.operation.id": "op_41a081d443d94e74beddb3126913d077",
           "capsule.provider": "fixture",
           "capsule.adapter": "fixture",
           "capsule.action": "sandbox.attach",
@@ -91,7 +91,7 @@
           "fabric.operation.id": "01K8W3A0000000000000000002",
           "fabric.job": "01K8W3A00000000000000000J1",
           "fabric.request.id": "r-2",
-          "capsule.operation.id": "op_fcd54563335a4080873dd1796030c45c",
+          "capsule.operation.id": "op_e075b58410584920a28767e5813ce4d6",
           "capsule.provider": "fixture",
           "capsule.adapter": "fixture",
           "capsule.idempotency.key_digest": "ea2be321f0efafe04a5c6cc80d554a14b345c31aa86d159a79d9d8a4c35d7e12",
@@ -104,7 +104,7 @@
           {
             "name": "capsule.receipt",
             "attributes": {
-              "capsule.receipt.id": "1fdcd7e5-595a-4013-b18e-3aa48aaf9288",
+              "capsule.receipt.id": "64105082-ed91-4de7-b348-63991cddcffa",
               "capsule.receipt.type": "sandbox.exec",
               "capsule.receipt.exit_code": 127
             }
@@ -173,7 +173,7 @@
           "fabric.operation.id": "01K8W3A0000000000000000004",
           "fabric.job": "01K8W3A00000000000000000J1",
           "fabric.request.id": "r-4",
-          "capsule.operation.id": "op_c7efe83d756e413abe3ec86772b1ea50",
+          "capsule.operation.id": "op_38b16bdaad9e424c9d83e3224c7d1243",
           "capsule.provider": "fixture",
           "capsule.adapter": "fixture",
           "capsule.action": "sandbox.attach",
@@ -204,7 +204,7 @@
           "fabric.operation.id": "01K8W3A0000000000000000004",
           "fabric.job": "01K8W3A00000000000000000J1",
           "fabric.request.id": "r-4",
-          "capsule.operation.id": "op_5a4f19ef66f945fdb3f773788742cf29",
+          "capsule.operation.id": "op_b47bf632549a40b7b1c98f96dcad04a6",
           "capsule.provider": "fixture",
           "capsule.adapter": "fixture",
           "capsule.action": "sandbox.destroy",
@@ -215,7 +215,7 @@
           {
             "name": "capsule.receipt",
             "attributes": {
-              "capsule.receipt.id": "c9f392f5-abd1-451e-afdc-828bc2e851a4",
+              "capsule.receipt.id": "2f18a16c-b588-42ca-bd99-0b6176a4594f",
               "capsule.receipt.type": "sandbox.destroy"
             }
           }
@@ -245,7 +245,7 @@
           "code": 0
         },
         "attributes": {
-          "capsule.operation.id": "op_6b7efe7cde8c414e946e228fe53d2856",
+          "capsule.operation.id": "op_3c8065fa15ce4bc0ac0b86f09859b838",
           "capsule.provider": "evidence",
           "capsule.adapter": "evidence",
           "capsule.job": "job_evidence",
@@ -259,7 +259,7 @@
           {
             "name": "capsule.receipt",
             "attributes": {
-              "capsule.receipt.id": "fa26d8c5-d3fe-4b79-be79-1b5415d70f7f",
+              "capsule.receipt.id": "0f3989c0-7ac0-434c-b512-1f06d22032be",
               "capsule.receipt.type": "job.run",
               "capsule.receipt.exit_code": 0
             }
@@ -274,7 +274,7 @@
           "message": "PolicyViolationError"
         },
         "attributes": {
-          "capsule.operation.id": "op_c12c7343684048f7a34e5f63e8e2d662",
+          "capsule.operation.id": "op_4d3c02b1dc994e8a90b9a1a758d33da1",
           "capsule.provider": "evidence",
           "capsule.adapter": "evidence",
           "capsule.job": "job_evidence",
@@ -298,9 +298,9 @@
     "auditExport": [
       {
         "kind": "receipt",
-        "at": "2026-11-08T18:28:37.475Z",
+        "at": "2026-11-08T18:31:07.778Z",
         "receipt": {
-          "id": "fa26d8c5-d3fe-4b79-be79-1b5415d70f7f",
+          "id": "0f3989c0-7ac0-434c-b512-1f06d22032be",
           "schemaVersion": "capsule.receipt.v1",
           "type": "job.run",
           "provider": "evidence",
@@ -308,8 +308,8 @@
           "capabilityPath": "job.run",
           "supportLevel": "native",
           "command": ["sh", "-c", "echo [REDACTED]"],
-          "startedAt": "2026-11-08T18:28:37.475Z",
-          "finishedAt": "2026-11-08T18:28:37.475Z",
+          "startedAt": "2026-11-08T18:31:07.778Z",
+          "finishedAt": "2026-11-08T18:31:07.778Z",
           "durationMs": 0,
           "exitCode": 0,
           "stdoutHash": "2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df",
@@ -347,8 +347,8 @@
       },
       {
         "kind": "decision",
-        "at": "2026-11-08T18:28:37.475Z",
-        "receipt_id": "fa26d8c5-d3fe-4b79-be79-1b5415d70f7f",
+        "at": "2026-11-08T18:31:07.778Z",
+        "receipt_id": "0f3989c0-7ac0-434c-b512-1f06d22032be",
         "provider": "evidence",
         "capability": "job.run",
         "decision": "allowed",
