@@ -18,5 +18,6 @@ export * from "./provider-selection.js";
 export * from "./redaction-fixtures.js";
 export * from "./receipts.js";
 export * from "./receipt-schema.js";
+export * from "./residuals.js";
 export * from "./stores.js";
 export * from "./types.js";
