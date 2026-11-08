@@ -15,7 +15,7 @@ import { randomBytes } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os, { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { expect, hello, startWorker } from "./bridge-worker-client.mjs";
 
@@ -176,6 +176,14 @@ try {
   worker.child.kill("SIGKILL");
   await worker.exit;
   checks.workerKillLeftContainerRunning = docker(["inspect", "--format", "{{.State.Running}}", resource.native_id]).stdout.trim() === "true";
+  // The residual scan (worker internal API, not a v1 frame) lists the container once its operation is
+  // not live, and keeps it while it is.
+  const { dockerDriver, listResiduals } = await import(pathToFileURL(join(repoRoot, "packages", "bridge-worker", "dist", "index.js")).href);
+  const orphaned = await listResiduals(dockerDriver(), { operations: [] });
+  const held = await listResiduals(dockerDriver(), { operations: [createOperation.id] });
+  checks.residualListedAfterKill =
+    orphaned.residuals.some((entry) => entry.resource.id === resource.native_id && entry.resource.job === job) &&
+    !held.residuals.some((entry) => entry.resource.id === resource.native_id);
   worker = spawnWorker();
   worker.send(hello("docker"));
   const secondAck = await worker.next();

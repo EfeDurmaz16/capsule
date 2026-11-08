@@ -1,4 +1,4 @@
-import type { ReceiptStore } from "@capsule-sdk/core";
+import type { LabeledResource, ReceiptStore } from "@capsule-sdk/core";
 import { docker, runDocker, type DockerCommandResult, type RunDockerOptions } from "@capsule-sdk/docker";
 import type { BridgeDriver, ResourceState } from "./driver.js";
 import { wallClock } from "./observe.js";
@@ -128,6 +128,26 @@ export function dockerDriver(options: DockerDriverOptions = {}): BridgeDriver {
       const listed = await runner(["ps", "-a", "-q", "--no-trunc", "--filter", `label=fabric.operation=${operationId}`], { timeoutMs: 20_000 });
       if (listed.exitCode !== 0) throw new Error(`docker ps failed with exit ${listed.exitCode}`);
       return listed.stdout.split(/\s+/).find((id) => id.length > 0);
+    },
+    labeled: async () => {
+      const format = ["{{.ID}}", '{{.Label "fabric.operation"}}', '{{.Label "fabric.job"}}', "{{.State}}", "{{.CreatedAt}}"].join("\t");
+      const listed = await runner(["ps", "-a", "--no-trunc", "--filter", "label=fabric.operation", "--format", format], { timeoutMs: 20_000 });
+      if (listed.exitCode !== 0) throw new Error(`docker ps failed with exit ${listed.exitCode}`);
+      const resources: LabeledResource[] = [];
+      for (const line of listed.stdout.split("\n")) {
+        const [id = "", operation = "", job = "", state = "", createdAt = "", ...extra] = line.split("\t");
+        if (extra.length > 0 || !/^[0-9a-f]{12,64}$/.test(id) || operation === "") continue;
+        resources.push({
+          provider: "docker",
+          kind: "container",
+          id,
+          operation,
+          ...(job === "" ? {} : { job }),
+          ...(state === "" ? {} : { status: state }),
+          ...(createdAt === "" ? {} : { createdAt })
+        });
+      }
+      return resources;
     },
     terminal: (action, state) => {
       if (action === "sandbox.destroy") return state.exists ? { terminal: false, ...(state.status ? { state: state.status } : {}) } : { terminal: true };

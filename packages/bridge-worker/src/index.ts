@@ -31,6 +31,7 @@ export {
 } from "./observe.js";
 export { checkWorkerMessage, type OutboundContext, type OutboundViolation } from "./outbound.js";
 export { actionCapability, attachable, dockerProfile, fixtureProfile, profiles } from "./profiles.js";
+export { listResiduals } from "./residuals.js";
 export { WorkerSession, type SessionIO, type SessionOptions } from "./session.js";
 export { buildDriver, runStdioWorker, type StdioWorkerOptions } from "./stdio.js";
 export {

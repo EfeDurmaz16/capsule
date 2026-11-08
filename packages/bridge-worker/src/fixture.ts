@@ -125,6 +125,17 @@ export class FixtureProvider {
     return this.sandboxes.get(nativeId);
   }
 
+  /** Sandboxes in the bound scope that carry an operation and are not destroyed. A read, not an effect. */
+  labeled(): FixtureSandboxState[] {
+    return [...this.sandboxes.values()].filter(
+      (sandbox) =>
+        sandbox.operation !== undefined &&
+        sandbox.status !== "destroyed" &&
+        sandbox.account === this.binding.account &&
+        sandbox.project === this.binding.project
+    );
+  }
+
   /** Transitional states become terminal (starting to ready, stopping to destroyed), and execs the provider runs on end. */
   settle(): void {
     for (const sandbox of this.sandboxes.values()) {
@@ -349,6 +360,15 @@ export function fixtureDriver(provider: FixtureProvider): BridgeDriver {
         owner: { ...(sandbox.owner_job ? { job: sandbox.owner_job } : {}), ...(sandbox.operation ? { operation: sandbox.operation } : {}) }
       };
     },
+    labeled: async () =>
+      provider.labeled().map((sandbox) => ({
+        provider: "fixture",
+        kind: "sandbox",
+        id: sandbox.native_id,
+        operation: sandbox.operation!,
+        ...(sandbox.owner_job ? { job: sandbox.owner_job } : {}),
+        status: sandbox.status
+      })),
     findCreated: async (_operationId, key) => {
       const sandbox = provider.sandbox(`fx-${key}`);
       return sandbox && sandbox.status !== "destroyed" ? sandbox.native_id : undefined;
