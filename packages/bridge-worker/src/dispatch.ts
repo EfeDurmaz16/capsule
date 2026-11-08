@@ -538,7 +538,7 @@ export async function dispatchRequest(context: DispatchContext, runtime: Operati
   if (context.trace && answer.type === "error" && !traced.has(runtime)) {
     const { code, reason } = answer.error;
     recordRefusal(
-      capsuleTrace(context.trace, request),
+      capsuleTrace(context.trace, request, runtime),
       request.action,
       { "capsule.provider": context.driver.profile.provider },
       {
@@ -550,13 +550,20 @@ export async function dispatchRequest(context: DispatchContext, runtime: Operati
   return answer;
 }
 
-/** Operations whose request reached the Capsule facade, which traces them. */
+/** Operations that already have a Capsule span, or replay the answer of one that had. */
 const traced = new WeakSet<OperationRuntime>();
 
-function capsuleTrace(trace: WorkerTrace, request: BridgeRequest): CapsuleTrace {
+function capsuleTrace(trace: WorkerTrace, request: BridgeRequest, runtime: OperationRuntime): CapsuleTrace {
   const parent = parseTraceparent(trace.parent);
   return {
-    tracer: trace.tracer,
+    // Marks the operation when a span really starts, so a refusal after the facade was built but
+    // before it was called (an owner mismatch, a drain) still gets its own span.
+    tracer: {
+      startSpan: (name, options) => {
+        traced.add(runtime);
+        return trace.tracer.startSpan(name, options);
+      }
+    },
     attributes: { "fabric.operation.id": request.operation.id, "fabric.job": request.scope.job, "fabric.request.id": request.request_id },
     links: [fabricOperationLink(request.operation.id), ...(parent ? [parent] : [])]
   };
@@ -583,6 +590,8 @@ async function dispatchUntraced(context: DispatchContext, runtime: OperationRunt
     if (prior.answer === undefined || prior.digest !== request.operation.digest) {
       return refusalAnswer(runtime.requestId, runtime.operationId, new Refusal("invalid", "idempotency_conflict"));
     }
+    // A replay runs nothing and refuses nothing new: the first request already has its spans.
+    traced.add(runtime);
     return { ...prior.answer, request_id: runtime.requestId, operation_id: runtime.operationId, ...(prior.answer.type === "result" ? { replayed: true } : {}) };
   }
   idempotency.begin(key, request.operation.digest);
@@ -633,14 +642,13 @@ async function dispatchChecked(
     },
     detach: () => detached.abort()
   };
-  if (context.trace) traced.add(runtime);
   const capsule = new Capsule({
     adapter: driver.adapter(hooks),
     policy: prepared.facadePolicy,
     receipts: true,
     receiptStore: evidence,
     receiptPersistence: "required",
-    ...(context.trace ? { trace: capsuleTrace(context.trace, request) } : {})
+    ...(context.trace ? { trace: capsuleTrace(context.trace, request, runtime) } : {})
   });
   const target = "target" in request ? request.target : undefined;
   let best: WireLocator | undefined = target;

@@ -16,13 +16,13 @@ const execRequest = readFixture<{ message: Record<string, unknown> }>("cases/req
 const destroyRequest = readFixture<{ message: Record<string, unknown> }>("cases/request_destroy_valid.json").message;
 const base = readFixture<{ provider_state: ScenarioState }>("scenarios/create_exec_destroy.json").provider_state;
 
-function tracedSession(parent?: string) {
+function tracedSession(parent?: string, script: unknown[] = [], sandboxes: unknown[] = []) {
   const exporter = new InMemorySpanExporter();
   const tracerProvider = new TracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] });
   const tracer = tracerProvider.getTracer("worker-test");
   const finished = async () => (await tracerProvider.forceFlush(), exporter.getFinishedSpans());
   const config = parseWorkerConfig({ binding: base.binding, policy: base.policy, approvals: base.approvals }, fixtureProfile);
-  const provider = new FixtureProvider(base.binding, { sandboxes: [], script: [] });
+  const provider = new FixtureProvider(base.binding, { sandboxes, script });
   const received: Record<string, unknown>[] = [];
   const reader = new FrameReader(() => MAX_FRAME_BYTES);
   const session = new WorkerSession({
@@ -90,6 +90,41 @@ describe("bridge worker tracing", () => {
       "capsule.refusal.reason": "approval_required"
     });
     expect(span?.links[0]?.attributes).toEqual({ "fabric.operation.id": "01K8W3A000000000000000REF1" });
+  });
+
+  test("replaying a stored error answer records no second span for the same Fabric operation", async () => {
+    const { finished, next, send } = tracedSession(undefined, [{ action: "sandbox.create", native_id: "fx-key-create-1", behavior: "fail" }]);
+    send(hello);
+    await next();
+    send(createRequest);
+    const first = (await next()) as { type: string; error?: { code: string } };
+    expect(first.type).toBe("error");
+    const operation = (createRequest.operation as { id: string }).id;
+    const count = async () => (await finished()).filter((span) => span.attributes["fabric.operation.id"] === operation).length;
+    const before = await count();
+    expect(before).toBeGreaterThan(0);
+    send({ ...createRequest, request_id: "r-replay" });
+    expect(await next()).toMatchObject({ type: "error", request_id: "r-replay", error: { code: first.error!.code } });
+    expect(await count()).toBe(before);
+  });
+
+  test("a refusal inside the checked dispatch, before any facade call, still gets its span", async () => {
+    const other = {
+      native_id: "fx-key-create-1",
+      account: "acct-a",
+      project: "proj-1",
+      owner_job: "01K8W3A0000000000000OTHERJ",
+      operation: "01K8W3A0000000000000OTHERP",
+      status: "ready"
+    };
+    const { finished, next, send } = tracedSession(undefined, [], [other]);
+    send(hello);
+    await next();
+    send(createRequest);
+    expect(await next()).toMatchObject({ type: "error", error: { reason: "owner_mismatch" } });
+    const operation = (createRequest.operation as { id: string }).id;
+    const spans = (await finished()).filter((span) => span.attributes["fabric.operation.id"] === operation);
+    expect(spans.map((span) => [span.attributes["capsule.outcome"], span.attributes["capsule.refusal.reason"]])).toEqual([["denied", "owner_mismatch"]]);
   });
 
   test("the Fabric link is derived from the operation id alone, and TRACEPARENT is parsed strictly", () => {
