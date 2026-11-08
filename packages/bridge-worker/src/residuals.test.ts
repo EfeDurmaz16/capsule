@@ -6,7 +6,7 @@ import { listResiduals } from "./residuals.js";
 const id = "c".repeat(64);
 
 describe("bridge residual scan", () => {
-  test("the fixture lists sandboxes of operations Fabric does not hold live, and makes no effect", async () => {
+  test("the fixture lists sandboxes of operations Fabric ended, keeps the rest, and makes no effect", async () => {
     const provider = new FixtureProvider(
       { account: "acct", project: "proj" },
       {
@@ -19,10 +19,24 @@ describe("bridge residual scan", () => {
         ]
       }
     );
-    const scan = await listResiduals(fixtureDriver(provider), { operations: ["op-a"], jobs: ["job-3"] });
+    const scan = await listResiduals(fixtureDriver(provider), {
+      live: { operations: ["op-a"], jobs: ["job-3"] },
+      ended: { jobs: ["job-1", "job-2", "job-3"] }
+    });
     expect(scan.residuals.map((entry) => [entry.resource.id, entry.verdict])).toEqual([["fx-b", "ended"]]);
     expect(scan.kept.map((entry) => entry.resource.id)).toEqual(["fx-a", "fx-c"]);
     expect(provider.effects).toEqual([]);
+  });
+
+  test("a sandbox of another daemon on the same engine is kept, never a residual", async () => {
+    const driver = dockerDriver({
+      binding: { engine: "orbstack" },
+      runner: async () => ({ exitCode: 0, stdout: `${id}\top-b\tjob-b\trunning\tx\n${"d".repeat(64)}\top-a\tjob-a\texited\tx\n`, stderr: "" })
+    });
+    // Daemon A holds nothing live and ended job-a; job-b belongs to daemon B.
+    const scan = await listResiduals(driver, { live: { operations: [] }, ended: { jobs: ["job-a"] } });
+    expect(scan.residuals.map((entry) => [entry.resource.job, entry.verdict])).toEqual([["job-a", "ended"]]);
+    expect(scan.kept.map((entry) => [entry.resource.job, entry.verdict])).toEqual([["job-b", "unknown"]]);
   });
 
   test("the docker profile lists by fabric.operation on the bound engine", async () => {
@@ -34,7 +48,7 @@ describe("bridge residual scan", () => {
         return { exitCode: 0, stdout: `${id}\top-1\tjob-1\trunning\tx\nnot-an-id\top-2\tjob-2\trunning\tx\n`, stderr: "" };
       }
     });
-    const scan = await listResiduals(driver, { operations: [] });
+    const scan = await listResiduals(driver, { ended: { jobs: ["job-1"] } });
     expect(scan.residuals.map((entry) => entry.resource)).toEqual([
       { provider: "docker", kind: "container", id, operation: "op-1", job: "job-1", status: "running", createdAt: "x" }
     ]);
