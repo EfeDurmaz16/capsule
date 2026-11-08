@@ -39,7 +39,14 @@ function capsule(args: string[], env: Record<string, string> = {}, cwd = root) {
     cwd,
     encoding: "utf8",
     timeout: 60_000,
-    env: { ...base, TSX_TSCONFIG_PATH: sourcePathMap, PATH: `${root}:/usr/bin:/bin`, CAPSULE_FAKE_DOCKER_LOG: callLog, ...env }
+    env: {
+      ...base,
+      TSX_TSCONFIG_PATH: sourcePathMap,
+      PATH: `${root}:/usr/bin:/bin`,
+      CAPSULE_FAKE_DOCKER_LOG: callLog,
+      CAPSULE_STATE_DIR: join(root, "state"),
+      ...env
+    }
   });
   const dockerCalls = readFileSync(callLog, "utf8").split("\n").filter(Boolean);
   return { status: result.status, stdout: result.stdout, stderr: result.stderr, dockerCalls };

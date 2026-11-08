@@ -14,6 +14,7 @@ capsule <command> [<action>] [options] [-- <command>...]
 | ------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | `run`                                                         | Run a command in a one-off container; its stdout and stderr are the program's own |
 | `sandbox`                                                     | Create a sandbox, run one command in it, then destroy it                          |
+| `gc`                                                          | Find what crashed or ended runs left behind, and remove it (asks first)           |
 | `capabilities`                                                | Show what an adapter supports                                                     |
 | `doctor`                                                      | Check this machine: Node, Docker, and provider credentials                        |
 | `policy explain`                                              | Explain a policy decision without calling a provider                              |
@@ -113,7 +114,7 @@ Some commands exit 1 for a negative report without an error: `doctor` when the s
 
 ## Non-interactive mode and consent
 
-Capsule asks before a delete: `service delete`, `neon branch-delete`, and `preview destroy`. The prompt goes to stderr and defaults to No; anything but `y` or `yes`, Ctrl+C, or Ctrl+D changes nothing and exits 130. `--yes` answers it.
+Capsule asks before a delete: `service delete`, `neon branch-delete`, `preview destroy`, and `gc`. The prompt goes to stderr and defaults to No; anything but `y` or `yes`, Ctrl+C, or Ctrl+D changes nothing and exits 130. `--yes` answers it.
 
 A run is non-interactive when `--non-interactive` or `--json` is passed, `CI` is set, or stdin or stderr is not a terminal. A non-interactive run never reads stdin for an answer: a delete without `--yes` fails before any effect with exit 2, reason `action_required`, and a `next` command that adds `--yes`. `--yes` confirms only; `--force` keeps its provider meaning (force a delete where the provider supports it, or overwrite files for `init` and `adapter scaffold`).
 
@@ -133,6 +134,25 @@ Color marks only the `Error:` prefix; the text says the same thing without it. P
 | `CI`, `NO_COLOR`, `FORCE_COLOR`, `TERM`                  | Interaction and color, above                                                                                                                                  |
 
 With no adapter from a flag or the config, Capsule uses `docker`. An unknown adapter name fails with exit 2 and lists the valid names.
+
+## gc
+
+A run can die before it cleans up: `kill -9`, a crash, a closed laptop. `capsule gc` finds what it left and removes it.
+
+On an adapter that can list what it labelled (Docker today), `run` and `sandbox` write a job lease before the first provider call, and every create carries two labels: `capsule_operation` (new per create) and `capsule_job`. The lease names the host and process. `sandbox` deletes it once the sandbox is destroyed; any other end leaves it, marked ended. Leases live in `CAPSULE_STATE_DIR/jobs`, else `XDG_STATE_HOME/capsule/jobs`, else `~/.local/state/capsule/jobs`, so `gc` works from any directory on the same machine.
+
+`gc` lists every container with a `capsule_operation` label and decides for each one:
+
+| Owner     | Meaning                                                              | gc         |
+| --------- | -------------------------------------------------------------------- | ---------- |
+| `live`    | the lease's process is running                                       | keeps it   |
+| `exited`  | the lease's process is gone (killed or crashed)                      | removes it |
+| `ended`   | the run ended without removing it                                    | removes it |
+| `unknown` | no job label, no lease on this machine, or a lease from another host | keeps it   |
+
+`gc --dry-run` only reports. Without it, `gc` prints the report to stderr and asks; without a terminal it needs `--yes` (exit 2, `action_required`). The answer covers the resources shown: each removal gets its own grant, made then, valid for 60 seconds, scoped to `sandbox.destroy` and that one resource. A grant that also allows a create is refused, so the grant that made something never removes it. Every removal writes a `sandbox.destroy` receipt with `metadata.gc` (the owner verdict) and `metadata.reason` (`--reason`), and counts as `removed` only when a second listing no longer shows it; otherwise it is `unconfirmed`. Job containers are reported and `skipped`. A lease whose resources are all removed is deleted. Exit 1 (`cleanup_failed`) when any residual is `denied`, `failed` or `unconfirmed`.
+
+A reused process id reads as `live`, so a resource can be kept that could have gone; it is never the other way round.
 
 ## doctor
 
