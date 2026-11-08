@@ -561,7 +561,7 @@ describe("CLI shell completions", () => {
 
     expect(createShellCompletionScript("bash")).toContain("complete -F _capsule_completions capsule");
     expect(createShellCompletionScript("bash")).toContain(
-      "run sandbox gc capabilities doctor policy receipt job service machine edge neon preview preset select compare classify init examples adapter live-test verify completion help"
+      "run sandbox gc capabilities doctor policy receipt audit job service machine edge neon preview preset select compare classify init examples adapter live-test verify completion help"
     );
     expect(createShellCompletionScript("zsh")).toContain("#compdef capsule");
     expect(createShellCompletionScript("zsh")).toContain("shells=(bash zsh fish)");
