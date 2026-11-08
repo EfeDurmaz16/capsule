@@ -687,7 +687,17 @@ export class Capsule {
       }
     };
     if (options.trace) {
-      for (const [domain, methods] of Object.entries({ gc: this.gc, sandbox: this.sandbox, job: this.job, service: this.service, edge: this.edge, preview: this.preview, machine: this.machine, database: this.database, "database.branch": this.database.branch })) {
+      for (const [domain, methods] of Object.entries({
+        gc: this.gc,
+        sandbox: this.sandbox,
+        job: this.job,
+        service: this.service,
+        edge: this.edge,
+        preview: this.preview,
+        machine: this.machine,
+        database: this.database,
+        "database.branch": this.database.branch
+      })) {
         this.traceMethods(domain, methods as unknown as Record<string, unknown>);
       }
     }
@@ -720,8 +730,10 @@ export class Capsule {
     if (input.command !== undefined) {
       const argv = normalizeCommand(input.command as ExecSpec["command"]);
       attributes["capsule.command.argc"] = argv.length;
-      const sensitive = this.options.policy?.secrets?.redactFromLogs !== false && (this.options.policy?.secrets !== undefined || Object.keys(input.env ?? {}).length > 0);
-      if (this.options.trace?.argv && !sensitive) attributes["capsule.command.argv"] = argv.map((part) => redactSensitiveText(part, input.env, this.options.policy)).join(" ");
+      const sensitive =
+        this.options.policy?.secrets?.redactFromLogs !== false && (this.options.policy?.secrets !== undefined || Object.keys(input.env ?? {}).length > 0);
+      if (this.options.trace?.argv && !sensitive)
+        attributes["capsule.command.argv"] = argv.map((part) => redactSensitiveText(part, input.env, this.options.policy)).join(" ");
     }
     return attributes;
   }

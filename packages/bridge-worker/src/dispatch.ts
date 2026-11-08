@@ -537,10 +537,15 @@ export async function dispatchRequest(context: DispatchContext, runtime: Operati
   // A request refused before the facade has no Capsule span of its own; it gets one here.
   if (context.trace && answer.type === "error" && !traced.has(runtime)) {
     const { code, reason } = answer.error;
-    recordRefusal(capsuleTrace(context.trace, request), request.action, { "capsule.provider": context.driver.profile.provider }, {
-      outcome: code === "denied" ? "denied" : "failed",
-      reason
-    });
+    recordRefusal(
+      capsuleTrace(context.trace, request),
+      request.action,
+      { "capsule.provider": context.driver.profile.provider },
+      {
+        outcome: code === "denied" ? "denied" : "failed",
+        reason
+      }
+    );
   }
   return answer;
 }

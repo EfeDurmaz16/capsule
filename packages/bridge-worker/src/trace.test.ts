@@ -74,10 +74,19 @@ describe("bridge worker tracing", () => {
     await next();
     send(createRequest);
     await next();
-    send({ ...destroyRequest, approval: null, request_id: "r-refused", operation: { ...(destroyRequest.operation as object), id: "01K8W3A000000000000000REF1", key: "key-refused" } });
+    send({
+      ...destroyRequest,
+      approval: null,
+      request_id: "r-refused",
+      operation: { ...(destroyRequest.operation as object), id: "01K8W3A000000000000000REF1", key: "key-refused" }
+    });
     expect(await next()).toMatchObject({ type: "error", error: { reason: "approval_required" } });
     const span = exporter.getFinishedSpans().at(-1);
-    expect(span?.attributes).toMatchObject({ "fabric.operation.id": "01K8W3A000000000000000REF1", "capsule.outcome": "denied", "capsule.refusal.reason": "approval_required" });
+    expect(span?.attributes).toMatchObject({
+      "fabric.operation.id": "01K8W3A000000000000000REF1",
+      "capsule.outcome": "denied",
+      "capsule.refusal.reason": "approval_required"
+    });
     expect(span?.links[0]?.attributes).toEqual({ "fabric.operation.id": "01K8W3A000000000000000REF1" });
   });
 

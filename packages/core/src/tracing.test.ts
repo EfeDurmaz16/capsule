@@ -33,7 +33,15 @@ function adapter(behaviour: { exec?: () => Promise<never>; jobStatus?: "queued" 
     provider: "fake",
     capabilities: {
       sandbox: { create: "native", exec: "native", fileRead: "native", fileWrite: "native", fileList: "native", destroy: "native" },
-      job: { run: "native", status: "unsupported", cancel: "unsupported", logs: "unsupported", artifacts: "unsupported", timeout: "unsupported", env: "unsupported" }
+      job: {
+        run: "native",
+        status: "unsupported",
+        cancel: "unsupported",
+        logs: "unsupported",
+        artifacts: "unsupported",
+        timeout: "unsupported",
+        env: "unsupported"
+      }
     },
     sandbox: {
       create: async (spec) => {
@@ -90,7 +98,11 @@ async function scenario(trace: CapsuleTrace | undefined, adapterBehaviour: Param
     owner: { job: "job_trace" },
     ...(trace ? { trace } : {})
   });
-  const sandbox = await capsule.sandbox.create({ env: { API_TOKEN: SECRET }, approval: { ...grant("sandbox.create"), capabilities: ["sandbox.create", "sandbox.exec"] }, idempotencyKey: "idem-create-1" });
+  const sandbox = await capsule.sandbox.create({
+    env: { API_TOKEN: SECRET },
+    approval: { ...grant("sandbox.create"), capabilities: ["sandbox.create", "sandbox.exec"] },
+    idempotencyKey: "idem-create-1"
+  });
   const result = await sandbox.exec({ command: ["sh", "-c", `curl -H "Authorization: Bearer ${SECRET}" x`], env: { API_TOKEN: SECRET } });
   const denied = await sandbox.exec({ command: "true", env: { NOT_ALLOWED: SECRET } }).then(
     () => "allowed",
@@ -105,12 +117,7 @@ describe("tracing hook", () => {
     const { exporter, tracer } = recorder();
     await scenario({ tracer, attributes: { "fabric.operation.id": "op_fabric_1" } });
     const spans = exporter.getFinishedSpans();
-    expect(spans.map((span) => span.name)).toEqual([
-      "capsule sandbox.create",
-      "capsule sandbox.exec",
-      "capsule sandbox.exec",
-      "capsule sandbox.destroy"
-    ]);
+    expect(spans.map((span) => span.name)).toEqual(["capsule sandbox.create", "capsule sandbox.exec", "capsule sandbox.exec", "capsule sandbox.destroy"]);
     const [create, exec, denied, destroy] = spans as [ReadableSpan, ReadableSpan, ReadableSpan, ReadableSpan];
     expect(create.attributes).toMatchObject({
       "capsule.operation.id": expect.stringMatching(/^op_[0-9a-f]{32}$/),
@@ -181,10 +188,15 @@ describe("tracing hook", () => {
 
   test("links passed in the trace options are carried on every span", async () => {
     const { exporter, tracer } = recorder();
-    const link = { context: { traceId: "0af7651916cd43dd8448eb211c80319c", spanId: "b7ad6b7169203331", traceFlags: 1 }, attributes: { "fabric.operation.id": "op_x" } };
+    const link = {
+      context: { traceId: "0af7651916cd43dd8448eb211c80319c", spanId: "b7ad6b7169203331", traceFlags: 1 },
+      attributes: { "fabric.operation.id": "op_x" }
+    };
     await new Capsule({ adapter: adapter(), trace: { tracer, links: [link] } }).sandbox.create({});
     const [span] = exporter.getFinishedSpans();
-    expect(span!.links).toEqual([expect.objectContaining({ context: expect.objectContaining({ traceId: link.context.traceId, spanId: link.context.spanId }) })]);
+    expect(span!.links).toEqual([
+      expect.objectContaining({ context: expect.objectContaining({ traceId: link.context.traceId, spanId: link.context.spanId }) })
+    ]);
   });
 
   test("an OpenTelemetry API tracer is accepted as is", () => {
