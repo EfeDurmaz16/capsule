@@ -137,6 +137,12 @@ export const commandSpecs: Record<string, CommandSpec> = {
     passthrough: true,
     examples: ['sandbox --adapter e2b -- node -e "console.log(1)"']
   },
+  gc: {
+    summary: "Remove what crashed runs left behind (asks first)",
+    usage: ["gc [--dry-run] [--yes] [options]"],
+    options: [...executionOptions, "dry-run", "reason", "yes"],
+    examples: ["gc --dry-run"]
+  },
   capabilities: {
     summary: "Show what an adapter supports",
     usage: ["capabilities [--adapter <name>] [--explain]"],

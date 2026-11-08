@@ -74,7 +74,7 @@ Provider-maintained adapters with explicit capability maps, changelog tracking, 
 The deferred items of the M1 correctness audit (GAP-14, GAP-20, PERF-11, PERF-12, PERF-14) are closed; each has a regression test named after its id. These limits stay visible:
 
 - Sandbox file operations have no per-call approval override yet; fresh approval covers exec and destroy (see [policy model](policy-model.md)).
-- Preview resources and cleanup plans live in process memory; a crash before cleanup loses them.
+- Preview resources and cleanup plans live in process memory; a crash before cleanup loses them. `capsule gc` covers sandboxes on Docker: a run killed mid-create leaves a labelled container and a lease, and gc finds and removes it under a fresh approval (`pnpm gc:docker-smoke`). Other adapters label creates when the Capsule has an owner, but cannot list them for gc yet, and gc does not remove job containers.
 - Each `Capsule` instance adds an `AsyncLocalStorage` scope per operation; very large numbers of concurrent operations on one instance have not been profiled.
 
 ## Verification Levels

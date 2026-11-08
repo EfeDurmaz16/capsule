@@ -10,6 +10,7 @@ import {
   UnknownOutcomeError,
   providerExecutionError,
   resourceLocator,
+  type LabeledResource,
   type AdapterContext,
   type Artifact,
   type AttachSandboxSpec,
@@ -28,7 +29,7 @@ import {
   type Sandbox,
   type SandboxHandle
 } from "@capsule-sdk/core";
-import { capsuleOperationTags, collectFileArtifacts, logsFromOutput, redactSecrets, resolveExecOutputBounds } from "@capsule-sdk/core";
+import { capsuleOperationTags, capsuleOwnerLabelKeys, collectFileArtifacts, logsFromOutput, redactSecrets, resolveExecOutputBounds } from "@capsule-sdk/core";
 import { dockerAvailable, runDocker, type DockerCommandResult, type DockerOutputBounds, type RunDockerOptions } from "./docker-cli.js";
 
 type DockerRunner = (args: string[], options?: RunDockerOptions) => Promise<DockerCommandResult>;
@@ -733,6 +734,29 @@ class DockerSandbox implements Sandbox {
   }
 }
 
+const residualLabelKeys = [capsuleOwnerLabelKeys.operation, capsuleOwnerLabelKeys.job, dockerRunLabelKey] as const;
+
+/** Parses `docker ps` lines of id, operation, job, run label, state and creation time, tab-separated. */
+export function parseLabeledContainers(stdout: string): LabeledResource[] {
+  const resources: LabeledResource[] = [];
+  for (const line of stdout.split("\n")) {
+    const fields = line.split("\t");
+    if (fields.length !== 6) continue;
+    const [id = "", operation = "", job = "", run = "", state = "", createdAt = ""] = fields;
+    if (!/^[0-9a-f]{12,64}$/.test(id) || operation === "") continue;
+    resources.push({
+      provider,
+      kind: run === "" ? "sandbox" : "job-container",
+      id,
+      operation,
+      ...(job === "" ? {} : { job }),
+      ...(state === "" ? {} : { status: state }),
+      ...(createdAt === "" ? {} : { createdAt })
+    });
+  }
+  return resources;
+}
+
 export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
   const runner: DockerRunner = options.runner ?? runDocker;
   const checkAvailable = options.checkAvailable ?? dockerAvailable;
@@ -741,6 +765,20 @@ export function docker(options: DockerAdapterOptions = {}): CapsuleAdapter {
     provider,
     capabilities: dockerCapabilities,
     raw: { cli: "docker" },
+    residuals: {
+      // A read only: every container, running or not, that carries the capsule_operation label.
+      list: async (): Promise<LabeledResource[]> => {
+        await ensureDocker(checkAvailable);
+        const format = ["{{.ID}}", ...residualLabelKeys.map((key) => `{{.Label "${key}"}}`), "{{.State}}", "{{.CreatedAt}}"].join("\t");
+        const listed = await runner(["ps", "-a", "--no-trunc", "--filter", `label=${capsuleOwnerLabelKeys.operation}`, "--format", format], {
+          timeoutMs: 20_000
+        });
+        if (listed.exitCode !== 0) {
+          throw dockerCliError(`docker ps failed while listing labelled containers: ${listed.stderr}`, listed);
+        }
+        return parseLabeledContainers(listed.stdout);
+      }
+    },
     sandbox: {
       create: async (spec: CreateSandboxSpec, context: AdapterContext): Promise<Sandbox> => {
         await ensureDocker(checkAvailable);

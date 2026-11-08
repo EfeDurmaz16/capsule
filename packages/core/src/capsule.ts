@@ -1,9 +1,20 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { UnsupportedCapabilityError } from "./errors.js";
+import { PolicyViolationError, UnsupportedCapabilityError } from "./errors.js";
 import { explainSupportLevel, supportLevel, supports, type CapabilityPath } from "./capabilities.js";
 import { evaluatePolicy, mergeTimeout, redactError, type PolicyInput } from "./policy.js";
 import { createReceipt } from "./receipts.js";
 import { capsuleOperationTag } from "./idempotency.js";
+import {
+  assertOwnerId,
+  capsuleOwnerLabels,
+  classifyResiduals,
+  cleanupGrantProblem,
+  newOperationId,
+  type GcReport,
+  type GcResult,
+  type Liveness,
+  type ResidualScan
+} from "./residuals.js";
 import type { AdapterContext, CapsuleAdapter } from "./adapters.js";
 import type { ReceiptPersistenceMode, ReceiptStore } from "./stores.js";
 import type {
@@ -46,6 +57,7 @@ import type {
   VersionEdgeSpec
 } from "./types.js";
 import type { ReceiptSigner } from "./receipts.js";
+import type { CleanupApprovalRequest, CleanupApprovalResolver } from "./types.js";
 import type { ExecSpec, Sandbox, SandboxDestroyOptions } from "./types.js";
 
 export interface CapsuleOptions {
@@ -55,6 +67,11 @@ export interface CapsuleOptions {
   receiptPersistence?: ReceiptPersistenceMode;
   receiptStore?: ReceiptStore;
   receiptSigner?: ReceiptSigner;
+  /**
+   * The job this Capsule acts for. When set, every create carries capsule_operation (a new id per
+   * create) and capsule_job labels, so gc can find what a crashed job left behind.
+   */
+  owner?: { job: string };
 }
 
 interface ReceiptScope {
@@ -72,6 +89,10 @@ interface ContextOptions extends PolicyInput {
    * and the list is dropped with the operation, so sibling operations never share completion waits.
    */
   pendingWrites?: Promise<void>[];
+  /** Receipts the operation wrote, for a caller that reports them. */
+  collected?: CapsuleReceipt[];
+  /** Metadata added to every receipt of the operation. */
+  extraMetadata?: Record<string, string>;
 }
 
 /**
@@ -134,8 +155,58 @@ export class Capsule {
   readonly database;
   readonly preview;
   readonly machine;
+  /** Finds and removes what crashed or ended jobs left behind. */
+  readonly gc;
 
   constructor(private readonly options: CapsuleOptions) {
+    if (options.owner) assertOwnerId(options.owner.job, "owner.job");
+    this.gc = {
+      /**
+       * Lists every resource the adapter sees with a Capsule operation label, split into residuals (owner
+       * ended or exited) and kept (owner live or unknown). Read-only: no policy, no receipt, no effect.
+       */
+      scan: async (options: { liveness: Liveness }): Promise<ResidualScan> => {
+        const residuals = this.options.adapter.residuals;
+        if (!residuals) throw new UnsupportedCapabilityError("gc.scan", `${this.options.adapter.name} cannot list labelled resources.`);
+        let listed;
+        try {
+          listed = await residuals.list();
+        } catch (error) {
+          throw redactError(error, undefined, this.options.policy);
+        }
+        return classifyResiduals(this.options.adapter.provider, this.options.adapter.name, listed, options.liveness);
+      },
+      /**
+       * Removes residual sandboxes. Each removal needs its own fresh grant from `approve`, scoped to
+       * sandbox.destroy and that sandbox, never a create grant; each writes a receipt, and counts as
+       * removed only when a second scan no longer sees it. Other kinds are reported as skipped.
+       */
+      remove: async (options: { liveness: Liveness; approve: CleanupApprovalResolver; reason?: string; now?: () => Date }): Promise<GcReport> => {
+        if (!(this.options.receipts ?? false)) {
+          throw new PolicyViolationError("gc writes a receipt for every removal; create the Capsule with receipts: true.", ["receipts"]);
+        }
+        const scan = await this.gc.scan({ liveness: options.liveness });
+        const now = options.now ?? (() => new Date());
+        const results: GcResult[] = [];
+        for (const entry of scan.residuals) {
+          results.push(await this.removeResidual(entry.resource, entry.verdict, options.approve, options.reason, now));
+        }
+        const attempted = results.filter((result) => result.outcome === "removed");
+        if (attempted.length > 0) {
+          let remaining: Set<string> | undefined;
+          try {
+            remaining = new Set((await this.options.adapter.residuals!.list()).map((resource) => resource.id));
+          } catch {
+            remaining = undefined;
+          }
+          for (const result of attempted) {
+            if (remaining === undefined) Object.assign(result, { outcome: "unconfirmed", detail: "the second scan failed, so the removal was not observed" });
+            else if (remaining.has(result.resource.id)) Object.assign(result, { outcome: "unconfirmed", detail: "still listed after the removal" });
+          }
+        }
+        return { provider: scan.provider, adapter: scan.adapter, results, kept: scan.kept };
+      }
+    };
     this.sandbox = {
       create: async (spec: CreateSandboxSpec) => {
         this.require("sandbox.create");
@@ -155,7 +226,7 @@ export class Capsule {
         let sandbox: Sandbox;
         try {
           sandbox = await this.runInContext(runtime.defaultOptions, () =>
-            this.options.adapter.sandbox!.create({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, runtime.context)
+            this.options.adapter.sandbox!.create({ ...this.owned(spec), timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, runtime.context)
           );
         } catch (error) {
           throw redactError(error, spec.env, this.options.policy);
@@ -204,7 +275,7 @@ export class Capsule {
           throw new UnsupportedCapabilityError("job.run");
         }
         return this.withContext(
-          (context) => this.options.adapter.job!.run({ ...spec, timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, context),
+          (context) => this.options.adapter.job!.run({ ...this.owned(spec), timeoutMs: mergeTimeout(this.options.policy, spec.timeoutMs) }, context),
           {
             ...policyInput,
             receiptScopes: receiptScope("job.run", "job.run")
@@ -252,7 +323,7 @@ export class Capsule {
         if (!this.options.adapter.service) {
           throw new UnsupportedCapabilityError("service.deploy");
         }
-        return this.withContext((context) => this.options.adapter.service!.deploy(spec, context), {
+        return this.withContext((context) => this.options.adapter.service!.deploy(this.owned(spec), context), {
           ...policyInput,
           receiptScopes: receiptScope("service.deploy", "service.deploy")
         });
@@ -337,7 +408,7 @@ export class Capsule {
         if (!this.options.adapter.edge) {
           throw new UnsupportedCapabilityError("edge.deploy");
         }
-        return this.withContext((context) => this.options.adapter.edge!.deploy(spec, context), {
+        return this.withContext((context) => this.options.adapter.edge!.deploy(this.owned(spec), context), {
           ...policyInput,
           receiptScopes: receiptScope("edge.deploy", "edge.deploy")
         });
@@ -413,7 +484,7 @@ export class Capsule {
           if (!this.options.adapter.database) {
             throw new UnsupportedCapabilityError("database.branchCreate");
           }
-          return this.withContext((context) => this.options.adapter.database!.branch.create(spec, context), {
+          return this.withContext((context) => this.options.adapter.database!.branch.create(this.owned(spec), context), {
             ...policyInput,
             receiptScopes: receiptScope("database.branch.create", "database.branchCreate")
           });
@@ -487,7 +558,7 @@ export class Capsule {
         if (!this.options.adapter.preview) {
           throw new UnsupportedCapabilityError("preview.create");
         }
-        return this.withContext((context) => this.options.adapter.preview!.create(spec, context), {
+        return this.withContext((context) => this.options.adapter.preview!.create(this.owned(spec), context), {
           ...policyInput,
           receiptScopes: receiptScope("preview.create", "preview.create")
         });
@@ -558,7 +629,7 @@ export class Capsule {
         if (!this.options.adapter.machine) {
           throw new UnsupportedCapabilityError("machine.create");
         }
-        return this.withContext((context) => this.options.adapter.machine!.create(spec, context), {
+        return this.withContext((context) => this.options.adapter.machine!.create(this.owned(spec), context), {
           ...policyInput,
           receiptScopes: receiptScope("machine.create", "machine.create")
         });
@@ -899,7 +970,7 @@ export class Capsule {
         const receipt = createReceipt(
           {
             ...input,
-            metadata: withOperationReceiptMetadata(input.metadata, options),
+            metadata: withOperationReceiptMetadata(options.extraMetadata ? { ...input.metadata, ...options.extraMetadata } : input.metadata, options),
             provider: adapter.provider,
             adapter: adapter.name,
             supportLevel: input.supportLevel ?? supportLevel(adapter.capabilities, input.capabilityPath as CapabilityPath)
@@ -909,10 +980,85 @@ export class Capsule {
         if (options.receiptCounter) {
           options.receiptCounter.count += 1;
         }
+        options.collected?.push(receipt);
         void this.persistReceipt(receipt, options.pendingWrites);
         return receipt;
       }
     };
+  }
+
+  /** Labels for one create when this Capsule has an owner; Capsule's keys win over the caller's. */
+  private owned<T extends { labels?: Record<string, string> }>(spec: T): T {
+    if (!this.options.owner) return spec;
+    return { ...spec, labels: { ...spec.labels, ...capsuleOwnerLabels({ operation: newOperationId(), job: this.options.owner.job }) } };
+  }
+
+  private async removeResidual(
+    resource: GcResult["resource"],
+    verdict: GcResult["verdict"],
+    approve: CleanupApprovalResolver,
+    reason: string | undefined,
+    now: () => Date
+  ): Promise<GcResult> {
+    const base = { resource, verdict, receipts: [] as string[] };
+    if (resource.kind !== "sandbox") return { ...base, outcome: "skipped", detail: `gc removes sandboxes only, not ${resource.kind}` };
+    const request: CleanupApprovalRequest = {
+      capabilityPath: "sandbox.destroy",
+      resource: { type: "sandbox", id: resource.id, provider: resource.provider },
+      ...(reason === undefined ? {} : { reason }),
+      context: {
+        provider: resource.provider,
+        adapter: this.options.adapter.name,
+        scope: { operation: resource.operation, ...(resource.job ? { job: resource.job } : {}) }
+      }
+    };
+    let grant;
+    try {
+      grant = await approve(request);
+    } catch (error) {
+      return { ...base, outcome: "denied", detail: `the approval resolver failed: ${messageOf(redactError(error, undefined, this.options.policy))}` };
+    }
+    if (!grant) return { ...base, outcome: "denied", detail: "no approval" };
+    const problem = cleanupGrantProblem(grant, request, now());
+    if (problem) return { ...base, outcome: "denied", detail: problem, ...(grant.id ? { approval: grant.id } : {}) };
+    const approval = grant.id ? { approval: grant.id } : {};
+    if (!this.supports("sandbox.destroy") || !this.options.adapter.sandbox?.attach) {
+      return { ...base, ...approval, outcome: "skipped", detail: `${this.options.adapter.name} cannot attach to and destroy a sandbox` };
+    }
+    const collected: CapsuleReceipt[] = [];
+    try {
+      const policyInput = { approval: grant, resource: request.resource };
+      const policy = this.evaluateOperationPolicy("sandbox.destroy", policyInput);
+      const runtime = this.contextRuntime({});
+      const sandbox = await this.runInContext(runtime.defaultOptions, () => this.options.adapter.sandbox!.attach!({ id: resource.id }, runtime.context));
+      const emitted = { count: 0 };
+      const extraMetadata = {
+        gc: verdict,
+        capsuleOperation: resource.operation,
+        ...(resource.job ? { capsuleJob: resource.job } : {}),
+        ...(reason === undefined ? {} : { reason })
+      };
+      await this.withSandboxSubOperation(
+        { ...policyInput, receiptScopes: sandboxDestroyReceiptScope, receiptCounter: emitted, collected, extraMetadata },
+        async () => {
+          await sandbox.destroy();
+          if (emitted.count === 0) {
+            runtime.context.createReceipt({
+              type: "sandbox.destroy",
+              capabilityPath: "sandbox.destroy",
+              startedAt: now(),
+              policy,
+              resource: { id: resource.id, status: "deleted" }
+            });
+          }
+        }
+      );
+    } catch (error) {
+      const failed = redactError(error, undefined, this.options.policy);
+      const outcome = failed instanceof PolicyViolationError ? "denied" : "failed";
+      return { ...base, ...approval, outcome, detail: messageOf(failed), receipts: collected.map((receipt) => receipt.id) };
+    }
+    return { ...base, ...approval, outcome: "removed", receipts: collected.map((receipt) => receipt.id) };
   }
 
   private require(path: CapabilityPath) {
@@ -920,6 +1066,10 @@ export class Capsule {
       throw new UnsupportedCapabilityError(path, explainSupportLevel(this.options.adapter.capabilities, path).guidance);
     }
   }
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function normalizeCommand(command: ExecSpec["command"]): string[] {

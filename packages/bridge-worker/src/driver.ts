@@ -1,4 +1,4 @@
-import type { CapsuleAdapter, ReceiptStore } from "@capsule-sdk/core";
+import type { CapsuleAdapter, LabeledResource, ReceiptStore } from "@capsule-sdk/core";
 import type { Clock } from "./observe.js";
 import type { Refusal } from "./validate.js";
 import type { BridgeAction, BridgeRequest, CapabilityProfile } from "./wire.js";
@@ -54,6 +54,11 @@ export interface BridgeDriver {
   findCreated(operationId: string, key: string): Promise<string | undefined>;
   /** Whether `state` is the terminal state of `action`, and the native state to report if not. */
   terminal(action: BridgeAction, state: ResourceState): { terminal: true } | { terminal: false; state?: string };
+  /**
+   * Every resource in the bound scope that carries the worker's operation label, for a residual scan.
+   * Never changes provider state. Not part of the v1 wire protocol.
+   */
+  labeled?(): Promise<LabeledResource[]>;
   /** The provider name a create uses, derived from the operation so a retry cannot pick another. */
   resourceName(operationId: string, key: string): string;
   /** The value of a secret by name, resolved at the execution boundary. Never logged or sent back. */

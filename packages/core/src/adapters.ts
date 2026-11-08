@@ -65,6 +65,7 @@ import type {
   VersionEdgeSpec
 } from "./types.js";
 import type { CreateReceiptInput } from "./receipts.js";
+import type { ResidualAdapter } from "./residuals.js";
 import type { PolicyDecision, PolicyInput } from "./policy.js";
 
 export interface AdapterContext {
@@ -152,4 +153,6 @@ export interface CapsuleAdapter {
   database?: DatabaseAdapter;
   preview?: PreviewAdapter;
   machine?: MachineAdapter;
+  /** Lists resources carrying the capsule_operation label, for gc. Read-only. */
+  residuals?: ResidualAdapter;
 }

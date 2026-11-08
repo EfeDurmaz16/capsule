@@ -1,0 +1,5 @@
+---
+"@capsule-sdk/core": minor
+---
+
+Add crash-safe cleanup. `new Capsule({ owner: { job } })` labels every create with `capsule_operation` (new per create) and `capsule_job`. `capsule.gc.scan({ liveness })` lists labelled resources from an adapter's new optional `residuals.list()` and splits them into residuals (owner `ended` or `exited`) and kept (`live` or `unknown`). `capsule.gc.remove({ liveness, approve })` removes residual sandboxes: each removal needs its own fresh grant scoped to `sandbox.destroy` alone and that resource (a grant that allows any other capability is refused), writes a `sandbox.destroy` receipt, and counts as removed only when a second scan no longer lists it. `JobLeases` keeps per-job leases on disk, proves liveness from them, and `prune`s the leases of finished jobs that left nothing listed; `liveSet({ live, ended })` builds a liveness from sets the caller holds, where an owner in neither set is `unknown` and kept. `consentApprovals` turns a person's confirmation of the listed resources into one such grant each, and `withJobLease` runs work under a lease so a crash leaves it for gc.

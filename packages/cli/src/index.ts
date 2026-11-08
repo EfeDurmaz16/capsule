@@ -7,7 +7,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   Capsule,
+  JobLeases,
   capabilityDiff,
+  consentApprovals,
+  defaultLeaseDir,
+  withJobLease,
   capabilityModelDocsUrl,
   classifyProviderService,
   explainPolicy,
@@ -29,6 +33,7 @@ import {
   type CapsulePolicy,
   type CapsuleReceipt,
   type ClassifyProviderServiceResult,
+  type GcResult,
   type CreateDatabaseBranchSpec,
   type CreatePreviewSpec,
   type DeployEdgeSpec,
@@ -2737,15 +2742,72 @@ function resolveExecutionAdapterName(parsed: ParsedArgs): string {
   return parsed.adapter;
 }
 
-async function createCapsule(parsed: ParsedArgs, policy?: CapsulePolicy): Promise<Capsule> {
+async function createAdapter(parsed: ParsedArgs): Promise<CapsuleAdapter> {
   const adapterName = resolveExecutionAdapterName(parsed);
   const mockFactory = mockAdapterFactories[adapterName];
   if (!mockFactory && !isProviderAdapterName(adapterName)) {
     throw new Error(`Adapter "${adapterName}" has no execution factory.`);
   }
-  const adapter = mockFactory ? mockFactory() : await loadProviderAdapter(adapterName as (typeof providerAdapterNames)[number], parsed);
+  return mockFactory ? mockFactory() : await loadProviderAdapter(adapterName as (typeof providerAdapterNames)[number], parsed);
+}
+
+async function createCapsule(parsed: ParsedArgs, policy?: CapsulePolicy, adapter?: CapsuleAdapter, owner?: { job: string }): Promise<Capsule> {
   const receiptStore = parsed.receiptFile ? jsonlReceiptStore(parsed.receiptFile) : undefined;
-  return new Capsule({ adapter, policy, receipts: true, receiptStore });
+  return new Capsule({ adapter: adapter ?? (await createAdapter(parsed)), policy, receipts: true, receiptStore, owner });
+}
+
+/**
+ * A Capsule for a command that creates something. When the adapter can list what it labelled, the run
+ * holds a job lease, written before any provider call, and every create carries the job's labels, so a
+ * run killed mid-create leaves a residual `capsule gc` can find.
+ */
+async function withOwnedCapsule(parsed: ParsedArgs, work: (capsule: Capsule) => Promise<void>): Promise<void> {
+  const policy = await loadEffectivePolicy(parsed);
+  const adapter = await createAdapter(parsed);
+  await withJobLease(adapter, async (owner) => work(await createCapsule(parsed, policy, adapter, owner)));
+}
+
+// One table for the scan and the removal. Outcome is empty before removal and for what gc keeps (live or unknown owner).
+function formatGc(adapter: string, entries: Array<Pick<GcResult, "resource" | "verdict"> & { outcome?: string; detail?: string }>): string {
+  const rows = entries.map(({ resource, verdict, outcome = "", detail }) =>
+    [`${resource.kind} ${resource.id.slice(0, 12)}`, resource.job ?? "-", verdict, detail ? `${outcome}: ${detail}` : outcome].map(printable)
+  );
+  return `${adapter}: ${rows.length} labelled\n${formatTable(["Resource", "Job", "Owner", "Outcome"], rows)}`;
+}
+
+async function runGc(parsed: ParsedArgs, modes: Modes, command: string[]): Promise<void> {
+  const capsule = await createCapsule(parsed, await loadEffectivePolicy(parsed));
+  const leases = new JobLeases(defaultLeaseDir());
+  const { liveness } = leases;
+  // A finished job with nothing listed (failed before its create, or everything removed) has no lease left to keep.
+  const prune = (adapter: string) =>
+    leases.prune(adapter, async () => {
+      const listed = await capsule.gc.scan({ liveness });
+      return [...listed.residuals, ...listed.kept].map((entry) => entry.resource);
+    });
+  const scan = await capsule.gc.scan({ liveness });
+  const table = formatGc(scan.adapter, [...scan.residuals, ...scan.kept]);
+  if (parsed.dryRun) return printReport(parsed, scan, table);
+  if (scan.residuals.length === 0) {
+    await prune(scan.adapter);
+    return printReport(parsed, scan, table);
+  }
+  if (!modes.json) process.stderr.write(`${table}\n`);
+  await confirm(modes, `Remove ${scan.residuals.length} residual(s) on ${scan.adapter}?`, parsed.yes, command);
+  // The confirmation covers what the user saw: one fresh grant per resource shown, none for anything else.
+  const report = await capsule.gc.remove({
+    liveness,
+    reason: parsed.reason,
+    approve: consentApprovals(
+      scan.residuals.map((entry) => entry.resource.id),
+      { approver: "capsule gc", reason: parsed.reason }
+    )
+  });
+  await prune(report.adapter);
+  printReport(parsed, report, formatGc(report.adapter, [...report.results, ...report.kept]));
+  if (report.results.some((result) => result.outcome !== "removed" && result.outcome !== "skipped")) {
+    throw new CliError("cleanup_failed", "Some residuals were not removed.");
+  }
 }
 
 const neonCommandAdapters = new Set(["neon", "mock-neon"]);
@@ -3055,37 +3117,32 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "job": {
-      const capsule = await createCapsule(parsed, await loadEffectivePolicy(parsed));
       const action = parsed.positionals?.[0] ?? "run";
-      if (action === "status") {
+      if (action === "status" || action === "cancel") {
+        const capsule = await createCapsule(parsed, await loadEffectivePolicy(parsed));
         const id = parsed.id ?? parsed.name ?? parsed.positionals?.[1];
         if (!id) {
           throw usageError("Missing --id.", "missing_value");
         }
-        requireCapability(capsule, parsed.adapter, "job.status");
-        printJson(await capsule.job.status({ id }));
-        return;
-      }
-      if (action === "cancel") {
-        const id = parsed.id ?? parsed.name ?? parsed.positionals?.[1];
-        if (!id) {
-          throw usageError("Missing --id.", "missing_value");
-        }
-        requireCapability(capsule, parsed.adapter, "job.cancel");
-        printJson(await capsule.job.cancel({ id, reason: parsed.reason }));
+        requireCapability(capsule, parsed.adapter, `job.${action}`);
+        printJson(action === "status" ? await capsule.job.status({ id }) : await capsule.job.cancel({ id, reason: parsed.reason }));
         return;
       }
       if (!parsed.image) {
         throw usageError("Missing --image.", "missing_value");
       }
+      const image = parsed.image;
       const jobCommand = parsed.passthrough ?? [];
-      requireCapability(capsule, parsed.adapter, "job.run");
-      const run = await capsule.job.run({
-        name: parsed.name,
-        image: parsed.image,
-        command: jobCommand.length > 0 ? jobCommand : undefined
+      // The same operation as `capsule run`: a lease and owner labels, so a killed run is found by gc.
+      await withOwnedCapsule(parsed, async (capsule) => {
+        requireCapability(capsule, parsed.adapter, "job.run");
+        const run = await capsule.job.run({
+          name: parsed.name,
+          image,
+          command: jobCommand.length > 0 ? jobCommand : undefined
+        });
+        printJson(run);
       });
-      printJson(run);
       return;
     }
     case "service": {
@@ -3146,24 +3203,31 @@ export async function main(argv: string[]): Promise<void> {
       return;
     }
     case "run": {
-      const capsule = await createCapsule(parsed, await loadEffectivePolicy(parsed));
-      const image = parsed.image ?? "node:22";
-      const program = parsed.passthrough?.length ? parsed.passthrough : ["node", "-e", "console.log('hello from capsule')"];
-      const run = await capsule.job.run({ image, command: program });
-      process.exitCode = writeRun(modes, parsed, { adapter: capsule.adapterName(), image, command: program, status: run.status }, run.result, run.receipt);
+      // A run that returns, in any state, has nothing left: the container is removed when it exits.
+      await withOwnedCapsule(parsed, async (capsule) => {
+        const image = parsed.image ?? "node:22";
+        const program = parsed.passthrough?.length ? parsed.passthrough : ["node", "-e", "console.log('hello from capsule')"];
+        const run = await capsule.job.run({ image, command: program });
+        process.exitCode = writeRun(modes, parsed, { adapter: capsule.adapterName(), image, command: program, status: run.status }, run.result, run.receipt);
+      });
       return;
     }
     case "sandbox": {
-      const capsule = await createCapsule(parsed, await loadEffectivePolicy(parsed));
-      const image = parsed.image ?? "node:22";
-      const program = parsed.passthrough?.length ? parsed.passthrough : ["node", "-e", "console.log('hello from sandbox')"];
-      const sandbox = await capsule.sandbox.create({ image });
-      try {
-        const result = await sandbox.exec({ command: program });
-        process.exitCode = writeRun(modes, parsed, { adapter: capsule.adapterName(), image, command: program, status: "succeeded" }, result, result.receipt);
-      } finally {
-        await sandbox.destroy();
-      }
+      await withOwnedCapsule(parsed, async (capsule) => {
+        const image = parsed.image ?? "node:22";
+        const program = parsed.passthrough?.length ? parsed.passthrough : ["node", "-e", "console.log('hello from sandbox')"];
+        const sandbox = await capsule.sandbox.create({ image });
+        try {
+          const result = await sandbox.exec({ command: program });
+          process.exitCode = writeRun(modes, parsed, { adapter: capsule.adapterName(), image, command: program, status: "succeeded" }, result, result.receipt);
+        } finally {
+          await sandbox.destroy();
+        }
+      });
+      return;
+    }
+    case "gc": {
+      await runGc(parsed, modes, command);
       return;
     }
   }
