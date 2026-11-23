@@ -44,6 +44,7 @@ if (options.help) {
 const root = options.root;
 const packagesDir = join(root, "packages");
 const allowedRuntimeDependencies = {
+  "@capsule-sdk/bridge-worker": ["@vercel/sandbox"],
   "@capsule-sdk/cloud-run": ["google-auth-library"],
   "@capsule-sdk/daytona": ["@daytona/sdk"],
   "@capsule-sdk/e2b": ["e2b"],
