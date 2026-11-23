@@ -1,5 +1,0 @@
----
-"@capsule-sdk/core": minor
----
-
-Deepen the policy and receipt control-plane surface. `PolicyDecision` now carries a typed `enforcement` mode (`native`, `delegated`, `advisory`, `unsupported`) derived conservatively from adapter-declared support, an ordered evaluation `trace`, and `cost`, `ttl`, and `network` decision objects (including per-host allowlist diagnostics and the adapter network policy support level) when the policy declares them. The `enforcement` mode and these diagnostics travel into the receipt policy section. A new `mergePolicy(base, override)` combines two policies while always failing toward the stricter side, with documented per-field rules. Receipts gain an optional `schemaVersion` stamped as `capsule.receipt.v1`, an optional `parentId` for receipt chaining, and `metadata.sourceResourceId` / `metadata.parentResourceId` for resource lineage. New `redactionFixtureTokens` and `redactionFixtureObject` exports provide fake, clearly-marked credential-shaped fixtures for redaction tests, and the adapter contract fixtures add `logs` and `lifecycle` kinds.
