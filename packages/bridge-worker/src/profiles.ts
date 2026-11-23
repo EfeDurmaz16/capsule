@@ -106,7 +106,23 @@ export const dockerProfile: CapabilityProfile = Object.freeze({
   limits: limitsWith(3_600_000)
 }) as CapabilityProfile;
 
-export const profiles: Readonly<Record<string, CapabilityProfile>> = Object.freeze({ fixture: fixtureProfile, docker: dockerProfile });
+export const vercelProfile = Object.freeze<CapabilityProfile>({
+  profile: "vercel",
+  version: 1,
+  provider: "vercel",
+  scope_keys: ["account", "project"],
+  resource_kinds: ["sandbox"],
+  clock: "wall",
+  observe_interval_ms: 250,
+  actions: dockerProfile.actions.map((action) => ({
+    ...action,
+    secrets: false,
+    dedupe: action.dedupe === "label_query" ? "provider_key" : action.dedupe
+  })),
+  limits: limitsWith(300_000)
+});
+
+export const profiles: Readonly<Record<string, CapabilityProfile>> = Object.freeze({ fixture: fixtureProfile, docker: dockerProfile, vercel: vercelProfile });
 
 /**
  * Whether an attach of this action is in the profile: a create whose dedupe lets the worker find what

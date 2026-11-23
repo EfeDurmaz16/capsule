@@ -5,12 +5,12 @@ import { buildDriver, runStdioWorker } from "./stdio.js";
 import { globalTracer } from "./trace.js";
 import { PROTOCOL_VERSION, WORKER_ID } from "./wire.js";
 
-const usage = `Usage: capsule-bridge-worker --profile <fixture|docker> [--config <file.json>] [--receipts <file.jsonl>] [--engine <name>]
+const usage = `Usage: capsule-bridge-worker --profile <fixture|docker|vercel> [--config <file.json>] [--receipts <file.jsonl>] [--engine <name>]
 
 Capsule provider worker for the Fabric bridge protocol v${PROTOCOL_VERSION}. Fabric spawns it and speaks
 length-prefixed JSON frames on stdin and stdout. Stdout carries frames only; diagnostics go to stderr.
 
-  --profile   capability profile to serve: fixture (deterministic in-memory provider) or docker (local engine)
+  --profile   capability profile to serve: fixture (deterministic in-memory provider) docker (local engine), or vercel (Sandbox)
   --config    worker config: binding, policy, approvals; for fixture also sandboxes and script
   --receipts  docker only: append receipts to this JSONL file and list them in results
   --engine    docker only: the docker context every command goes to, when the config has no binding
