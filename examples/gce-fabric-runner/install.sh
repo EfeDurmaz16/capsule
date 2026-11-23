@@ -29,5 +29,6 @@ RestartSec=5
 WantedBy=multi-user.target
 UNIT
 sudo systemctl daemon-reload
+sudo systemctl enable fabric-codex-runner.service
 fabric codex-runner --help
 codex --version
