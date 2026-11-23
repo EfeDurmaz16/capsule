@@ -72,6 +72,12 @@ Start the worker with `--profile vercel --config worker.json`. Set `binding.acco
 
 Use `vercel/sandbox/universal` or a Vercel Container Registry image in `sandbox.create`. The profile creates an ephemeral 1-vCPU VM with a five-minute lifetime. The operation determines its name, and the worker records ownership as tags. Create, exec and approved destroy use the existing v1 actions. This profile reserves tags for Fabric and refuses wire secret names. Keep credentials out of plain environment fields and command stdin.
 
+Fabric's one-command Codex handoff starts `--profile vercel-handoff`, a
+private stdio session dedicated to one VM. It accepts a local checkpoint,
+opens a capability-token-authenticated executor, and downloads the final
+workspace. It deletes the VM after Fabric acknowledges the saved output.
+This mode has its own handshake and accepts no v1 frames.
+
 The worker also builds as one executable that needs no Node, Bun or pnpm on the host, a Node single executable application: `pnpm build && pnpm bridge:sea` bundles the bin the package ships and runs `node --build-sea`, so the build needs Node 25.5 or later (Node 26 LTS; Node 22 and 24 would need a separate injector) and the executable embeds that Node. It is built for the platform it is built on, and signed ad hoc on macOS. `pnpm bridge:artifact-smoke` copies it to a fresh directory, runs it with an empty PATH, and replays every shared scenario, the refused frame fixtures and SIGTERM and SIGINT over its stdio. The CI job `bridge-artifact` does both on Linux x64.
 
 How the worker applies the protocol:
