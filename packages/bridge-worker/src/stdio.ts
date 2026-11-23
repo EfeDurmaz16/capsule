@@ -6,6 +6,7 @@ import { dockerDriver } from "./docker.js";
 import type { BridgeDriver } from "./driver.js";
 import { fixtureDriver, fixtureProviderFromConfig } from "./fixture.js";
 import { profiles } from "./profiles.js";
+import { vercelDriver } from "./vercel.js";
 import { WorkerSession } from "./session.js";
 
 export interface StdioWorkerOptions {
@@ -34,6 +35,20 @@ export function buildDriver(options: StdioWorkerOptions): { driver: BridgeDriver
   if (profile.profile === "fixture") {
     if (options.receiptsPath) throw new ConfigError("the fixture profile keeps receipts in memory; --receipts is for docker");
     return { driver: fixtureDriver(fixtureProviderFromConfig(config)), config };
+  }
+  if (profile.profile === "vercel") {
+    if (options.engine) throw new ConfigError("--engine is for docker");
+    if (options.receiptsPath) throw new ConfigError("--receipts is for docker");
+    if (!config.binding) throw new ConfigError("vercel requires a binding with account (team ID) and project (project ID)");
+    const token = process.env.VERCEL_OIDC_TOKEN ?? process.env.VERCEL_TOKEN;
+    if (!token) throw new ConfigError("set VERCEL_OIDC_TOKEN or VERCEL_TOKEN for the worker");
+    return {
+      config,
+      driver: vercelDriver({
+        binding: { account: config.binding.account!, project: config.binding.project! },
+        token
+      })
+    };
   }
   const allowedSecrets = new Set(config.policy.secrets?.allowed ?? []);
   const binding = config.binding ?? (options.engine ? { engine: options.engine } : undefined);

@@ -175,6 +175,9 @@ Exports:
 - `StdioWorkerOptions` (interface)
 - `UnknownReason` (type)
 - `Unresolved` (interface)
+- `vercelDriver` (function)
+- `VercelDriverOptions` (interface)
+- `vercelProfile` (const)
 - `virtualClock` (const)
 - `wallClock` (const)
 - `WireLocator` (interface)
@@ -669,6 +672,18 @@ Exports:
 - `FlyClient` (class)
 - `FlyClientOptions` (interface)
 - `FlyRequestOptions` (interface)
+
+## @capsule-sdk/gce
+
+- Package: `@capsule-sdk/gce`
+- Import: `import { ... } from "@capsule-sdk/gce"`
+- Runtime entrypoint: `./dist/index.js`
+- Type declarations: `./dist/index.d.ts`
+- Source: `packages/gce/src/index.ts`
+
+Exports:
+- `gce` (function)
+- `GceOptions` (interface)
 
 ## @capsule-sdk/kubernetes
 

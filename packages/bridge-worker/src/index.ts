@@ -30,7 +30,7 @@ export {
   type UnknownReason
 } from "./observe.js";
 export { checkWorkerMessage, type OutboundContext, type OutboundViolation } from "./outbound.js";
-export { actionCapability, attachable, dockerProfile, fixtureProfile, profiles } from "./profiles.js";
+export { actionCapability, attachable, dockerProfile, fixtureProfile, profiles, vercelProfile } from "./profiles.js";
 export { listResiduals } from "./residuals.js";
 export { fabricOperationLink, globalTracer, parseTraceparent, type WorkerTrace } from "./trace.js";
 export { WorkerSession, type SessionIO, type SessionOptions } from "./session.js";
@@ -48,3 +48,4 @@ export {
   Refusal
 } from "./validate.js";
 export * from "./wire.js";
+export { vercelDriver, type VercelDriverOptions } from "./vercel.js";

@@ -20,7 +20,8 @@
   "dependencies": {
     "@capsule-sdk/core": "workspace:*",
     "@capsule-sdk/docker": "workspace:*",
-    "@capsule-sdk/store-jsonl": "workspace:*"
+    "@capsule-sdk/store-jsonl": "workspace:*",
+    "@vercel/sandbox": "4.1.0"
   },
   "devDependencies": {
     "tsup": "^8.5.0",
@@ -32,7 +33,7 @@
   "files": [
     "dist"
   ],
-  "description": "Capsule provider worker for the Fabric bridge protocol v1: framed stdio, versioned handshake, governed sandbox actions on a fixture or local Docker profile.",
+  "description": "Capsule provider worker for the Fabric bridge protocol v1: framed stdio, versioned handshake, governed sandbox actions on fixture, Docker and Vercel Sandbox profiles.",
   "license": "MIT",
   "repository": {
     "type": "git",

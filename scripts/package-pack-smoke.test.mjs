@@ -28,7 +28,8 @@ test("engine-aware package pack smoke includes every public package on Node 24",
   const packages = listedPackages("24.0.0");
 
   assert.ok(packages.includes("@capsule-sdk/store-sqlite"));
-  assert.equal(packages.length, 23);
+  assert.ok(packages.includes("@capsule-sdk/gce"));
+  assert.equal(packages.length, 24);
 });
 
 test("CI-06: packed contents allow package metadata and dist output only", async () => {
