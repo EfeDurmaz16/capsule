@@ -9,6 +9,7 @@
     { "path": "./packages/daytona" },
     { "path": "./packages/e2b" },
     { "path": "./packages/ec2" },
+    { "path": "./packages/gce" },
     { "path": "./packages/ecs" },
     { "path": "./packages/fly" },
     { "path": "./packages/kubernetes" },
