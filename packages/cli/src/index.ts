@@ -93,6 +93,7 @@ import {
   type ModeFlags,
   type Modes
 } from "./contract.js";
+import { emulationCatalog, emulationModes, isEmulationProvider } from "./emulate-catalog.js";
 
 interface ParsedArgs {
   command?: string;
@@ -126,6 +127,7 @@ interface ParsedArgs {
   routes?: string[];
   projectId?: string;
   location?: string;
+  mode?: string;
   projectName?: string;
   target?: string;
   namespace?: string;
@@ -2883,6 +2885,41 @@ function requireCapability(capsule: Capsule, adapter: string | undefined, path: 
   }
 }
 
+async function runEmulateCommand(parsed: ParsedArgs): Promise<void> {
+  const provider = parsed.provider;
+  if (provider !== undefined && !isEmulationProvider(provider)) {
+    throw usageError(`Unknown emulation provider "${provider}".`, "invalid_arguments", { hint: "Run capsule emulate list for providers." });
+  }
+
+  if (parsed.rest[0] === "list") {
+    const report = emulationCatalog(provider);
+    const rows = report.providers.map((entry) => [
+      entry.provider,
+      entry.operations.join(", "),
+      entry.evidence.model,
+      entry.evidence["provider-http"],
+      entry.evidence.runtime
+    ]);
+    printReport(parsed, report, formatTable(["Provider", "Model operations", "Model", "Provider HTTP", "Runtime"], rows));
+    return;
+  }
+
+  if (provider === undefined) {
+    throw usageError("Missing --provider.", "missing_value", { hint: "Run capsule emulate list for providers." });
+  }
+  const mode = parsed.mode ?? "model";
+  if (!Object.hasOwn(emulationModes, mode)) {
+    throw usageError(`Unknown emulation mode "${mode}". Use model, provider-http, or runtime.`);
+  }
+  if (mode !== "model") {
+    throw new CliError("unsupported_capability", `${provider} has no ${mode} scenario.`, {
+      next: ["capsule", "emulate", "list", "--provider", provider]
+    });
+  }
+  const { runModelScenario } = await import("./emulate-model.js");
+  printJson(await runModelScenario(provider));
+}
+
 export function cliVersion(): string {
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
   return pkg.version;
@@ -2903,6 +2940,10 @@ export async function main(argv: string[]): Promise<void> {
       throw usageError(`Unknown command "${topic}".`, "unknown_command", { hint: "Run capsule --help for commands." });
     }
     console.log(helpText(topic === "help" ? undefined : topic));
+    return;
+  }
+  if (line.command === "emulate") {
+    await runEmulateCommand(line);
     return;
   }
   // Only a doctor run reports a broken capsule.config.json instead of failing on it.

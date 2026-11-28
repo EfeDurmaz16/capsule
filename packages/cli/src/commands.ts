@@ -56,6 +56,7 @@ instance-type s <type> EC2 instance type
 kubeconfig s <file> Kubernetes kubeconfig path
 left=leftAdapter s <name> First provider to compare
 location s <region> Cloud Run or Azure location
+mode s <mode> Emulation evidence mode (model, provider-http, or runtime)
 name s <name> Resource name
 namespace s <name> Kubernetes namespace
 out-dir s <dir> Directory to write files into
@@ -111,6 +112,7 @@ const executionOptions = [...providerOptions, "policy-file", "receipt-file"];
 interface ActionSpec {
   summary: string;
   args?: string[];
+  options?: string[];
 }
 
 export interface CommandSpec {
@@ -150,6 +152,16 @@ export const commandSpecs: Record<string, CommandSpec> = {
     usage: ["capabilities [--adapter <name>] [--explain]"],
     options: [...providerOptions, "explain"],
     examples: ["capabilities --adapter e2b", "capabilities --adapter kubernetes --namespace default --json"]
+  },
+  emulate: {
+    summary: "List and run offline provider scenarios",
+    usage: ["emulate list [--provider <name>]", "emulate run --provider <name> [--mode <mode>]"],
+    options: ["provider", "mode"],
+    actions: {
+      list: { summary: "List scenarios and available evidence modes", options: ["provider"] },
+      run: { summary: "Run one scenario in the selected mode (default: model)" }
+    },
+    examples: ["emulate list --json", "emulate run --provider vercel --mode model"]
   },
   doctor: {
     summary: "Check this machine: Node, Docker, and provider credentials",
@@ -486,6 +498,11 @@ export function parseCommandLine(argv: string[]): ParsedLine {
     throw usageError(`Unexpected argument "${extra}" for capsule ${path.join(" ")}.${where}`, "invalid_arguments", { hint: helpHint(path) });
   }
   const action = path[1];
+  const actionOptions = action === undefined ? undefined : command.actions?.[action]?.options;
+  const notHereForAction = actionOptions && seen.find((name) => !actionOptions.includes(name) && !globalOptionSpecs[name]);
+  if (notHereForAction) {
+    throw usageError(`capsule ${path.join(" ")} does not take --${notHereForAction}.`, "unknown_option", { hint: helpHint(path) });
+  }
   const takesCommand = command.passthrough && (action === undefined || action === "run");
   if (parsed.passthrough.length > 0 && !takesCommand) {
     throw usageError(`capsule ${path.join(" ")} does not take a command after --.`, "invalid_arguments", { hint: helpHint(path) });

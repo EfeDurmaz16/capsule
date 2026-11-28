@@ -291,6 +291,8 @@ Core ships `nodeSandboxPreset`, `nodeJobPreset`, `ciJobPreset`, `dockerLocalAgen
 capsule init --adapter docker --out-dir .
 capsule doctor
 capsule capabilities --adapter neon
+capsule emulate list
+capsule emulate run --provider neon --mode model
 capsule examples run capability-check
 capsule policy explain --adapter docker --capability job.run --policy-file policy.json --spec-file job-spec.json
 capsule receipt verify --receipt-file .capsule/receipts.jsonl
@@ -302,6 +304,8 @@ capsule preview create --config-file preview.json --cleanup-file .capsule/previe
 ```
 
 `capsule doctor` checks this machine: Node support, Docker availability, `capsule.config.json`, and provider credential env vars without printing secret values. It exits 0 when the selected adapter is ready; `--provider` (or `--adapter`) filters the credential diagnostics to one provider. `capsule receipt inspect` pretty-prints stored receipts (optionally one `--id`) without validating them. `capsule preset list` and `capsule preset explain <id>` browse the preset catalog. `capsule preview plan` compiles a config into a side-effect-free dry-run report. Report commands take `--json` for automation. `capsule run` keeps the program's stdout and stderr apart and exits with its code; the receipt goes to stderr as one line, or to `--receipt-file`. Parsing is strict: an unknown command or option exits 2 instead of falling back. Run `capsule --help` for the full command list. Exit codes, JSON shapes, and streams are documented in [`docs/cli.md`](docs/cli.md).
+
+`capsule emulate` exercises Capsule operations with fixed local inputs and reports the evidence mode each scenario supports. The `model` mode uses in-process test adapters.
 
 Until the npm release, `capsule` here means `node packages/cli/dist/index.js` run from the repository root after `pnpm build`; `examples` reads the workspace from the working directory. `capsule init` scaffolds a `capsule.config.json`. Commands read it from the working directory and apply its `adapter`, `receipts.path`, and `policyFile` when the matching flag is not passed; explicit flags always override the config file. The scaffolded policy sets `secrets.allowed` to `[]`, which denies every environment key by default until you add keys to it.
 
