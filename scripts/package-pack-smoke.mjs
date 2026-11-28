@@ -84,7 +84,8 @@ const packedSizeBudgetBytes = {
   "@capsule-sdk/vercel": 13 * kib,
   "@capsule-sdk/ai": 7 * kib,
   "@capsule-sdk/bridge-worker": 48 * kib,
-  "@capsule-sdk/cli": 32 * kib,
+  // The CLI with its offline model runner packs to about 33.1 KiB.
+  "@capsule-sdk/cli": 34 * kib,
   "@capsule-sdk/core": 61 * kib,
   "@capsule-sdk/presets": 7 * kib,
   "@capsule-sdk/preview": 14 * kib,
@@ -253,6 +254,17 @@ function smokeCliBin(fixtureDir) {
   const report = JSON.parse(output);
   if (report.adapter !== "docker" || report.capabilities?.sandbox?.create !== "native" || report.capabilities?.job?.run !== "native") {
     throw new Error("Packed capsule CLI did not execute against the default Docker adapter capabilities.");
+  }
+
+  const modelOutput = run("pnpm", ["exec", "capsule", "emulate", "run", "--provider", "neon", "--mode", "model", "--json"], { cwd: fixtureDir });
+  const model = JSON.parse(modelOutput);
+  if (
+    model.provider !== "neon" ||
+    model.evidence !== "model" ||
+    model.operations?.join(",") !== "database.branchCreate,database.branchDelete" ||
+    model.cleanup !== "model-destroyed"
+  ) {
+    throw new Error("Packed capsule CLI did not complete the offline Neon model scenario.");
   }
 }
 
