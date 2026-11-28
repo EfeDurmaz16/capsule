@@ -9,6 +9,8 @@ export interface GceOptions {
   startupScript?: string;
   sshKeys?: string;
   maxRunSeconds?: number;
+  /** Compute Engine REST API root, including the API version. */
+  baseUrl?: string;
   fetch?: typeof fetch;
 }
 
@@ -53,7 +55,8 @@ function requestId(scope: string, action: string, key?: string): string {
 export function gce(options: GceOptions): CapsuleAdapter {
   const project = resourceName(options.projectId, "project ID");
   const zone = resourceName(options.zone, "zone");
-  const root = `https://compute.googleapis.com/compute/v1/projects/${project}/zones/${zone}`;
+  const baseUrl = options.baseUrl ?? "https://compute.googleapis.com/compute/v1";
+  const root = `${baseUrl}/projects/${project}/zones/${zone}`;
   const fetcher = options.fetch ?? fetch;
 
   async function request<T>(path: string, method = "GET", body?: object): Promise<T | undefined> {
