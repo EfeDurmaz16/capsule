@@ -10,7 +10,8 @@ import {
   UpdateServiceCommand,
   type Service,
   type ServiceDeployment as EcsServiceDeployment,
-  type Task
+  type Task,
+  type ECSClientConfig
 } from "@aws-sdk/client-ecs";
 import {
   asProviderError,
@@ -80,6 +81,7 @@ export interface ECSAdapterOptions {
   launchType?: "FARGATE" | "EC2" | "EXTERNAL";
   /** Bounds for observing service.delete until ECS reports the service INACTIVE. */
   deleteObservation?: ECSDeleteObservationOptions;
+  clientOptions?: Pick<ECSClientConfig, "endpoint" | "credentials" | "maxAttempts">;
   client?: ECSClientLike;
 }
 
@@ -375,7 +377,7 @@ function serviceMetadata(service: Service | undefined, extra: Record<string, unk
 }
 
 function defaultClient(options: ECSAdapterOptions): ECSClientLike {
-  return new ECSClient({ region: options.region });
+  return new ECSClient({ ...options.clientOptions, region: options.region });
 }
 
 function classifiedClient(client: ECSClientLike): ECSClientLike {

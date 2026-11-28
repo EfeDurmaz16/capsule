@@ -16,6 +16,7 @@ capsule <command> [<action>] [options] [-- <command>...]
 | `sandbox`                                                     | Create a sandbox, run one command in it, then destroy it                            |
 | `gc`                                                          | Find what crashed or ended runs left behind, and remove it (asks first)             |
 | `capabilities`                                                | Show what an adapter supports                                                       |
+| `emulate list`, `emulate run`                                 | Discover and run offline provider scenarios                                         |
 | `doctor`                                                      | Check this machine: Node, Docker, and provider credentials                          |
 | `policy explain`                                              | Explain a policy decision without calling a provider                                |
 | `receipt verify`, `receipt inspect`                           | Verify or inspect stored receipts                                                   |
@@ -99,6 +100,22 @@ A failure prints nothing on stdout and one single-line JSON document on stderr:
 | `data`               | Context, such as the SDK error `code` or the `operation` of an unknown outcome                                                      |
 | `retryable`          | Present and `true` only when running the same command again is safe                                                                 |
 | `userActionRequired` | Present and `true` when a person must confirm                                                                                       |
+
+## Emulation
+
+`capsule emulate list [--provider <name>] [--json]` lists the offline scenarios and their Capsule capability paths for each evidence mode. It works independently of project config and provider initialization.
+
+`capsule emulate run --provider <name> [--mode <mode>] [--json]` defaults to `model` and returns a JSON result with the exercised operations, assertions, and cleanup outcome. Both modes use fixed inputs without project config or cloud credentials.
+
+| Evidence mode   | What it proves                                                          |
+| --------------- | ----------------------------------------------------------------------- |
+| `model`         | Capsule operations were exercised against an in-process model           |
+| `provider-http` | The actual Capsule adapter exercised a local provider HTTP API emulator |
+| `runtime`       | A workload ran in a local runtime                                       |
+
+All 15 providers have a `model` and a `provider-http` scenario. A provider HTTP scenario starts a fixture server on an ephemeral loopback port and runs the provider adapter with a clean working directory, home, and synthetic credentials. The Docker scenario uses the installed Docker CLI to call the fixture Engine API. It needs the Docker CLI on `PATH`.
+
+Provider HTTP output includes observed request methods and paths, plus the Capsule receipts for those operations. The receipts record `supportLevel: "emulated"` and `metadata.providerEvidence: "provider-http"`. They attest to the selected adapter operations against the local provider API fixture. The catalog lists each tested operation. `runtime` currently exits with `unsupported_capability`.
 
 ## Exit codes
 

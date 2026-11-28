@@ -286,6 +286,9 @@ importers:
       '@capsule-sdk/fly':
         specifier: workspace:*
         version: link:../fly
+      '@capsule-sdk/gce':
+        specifier: workspace:*
+        version: link:../gce
       '@capsule-sdk/kubernetes':
         specifier: workspace:*
         version: link:../kubernetes

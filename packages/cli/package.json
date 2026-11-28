@@ -27,6 +27,7 @@
     "@capsule-sdk/ec2": "workspace:*",
     "@capsule-sdk/ecs": "workspace:*",
     "@capsule-sdk/fly": "workspace:*",
+    "@capsule-sdk/gce": "workspace:*",
     "@capsule-sdk/kubernetes": "workspace:*",
     "@capsule-sdk/lambda": "workspace:*",
     "@capsule-sdk/mock": "workspace:*",

@@ -1,4 +1,4 @@
-import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
+import { InvokeCommand, LambdaClient, type LambdaClientConfig } from "@aws-sdk/client-lambda";
 import {
   AdapterExecutionError,
   asProviderError,
@@ -40,6 +40,7 @@ export interface LambdaAdapterOptions {
    */
   invocationType?: "RequestResponse" | "Event" | "DryRun";
   logType?: "None" | "Tail";
+  clientOptions?: Pick<LambdaClientConfig, "endpoint" | "credentials" | "maxAttempts">;
   client?: LambdaClientLike;
 }
 
@@ -163,7 +164,7 @@ function lambdaReceiptMetadata(options: LambdaAdapterOptions, metadata: Record<s
 }
 
 function defaultClient(options: LambdaAdapterOptions): LambdaClientLike {
-  return new LambdaClient({ region: options.region });
+  return new LambdaClient({ ...options.clientOptions, region: options.region });
 }
 
 // Exported for its unit test; the package's public API is src/index.ts.

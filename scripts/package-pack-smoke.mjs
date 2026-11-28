@@ -84,7 +84,8 @@ const packedSizeBudgetBytes = {
   "@capsule-sdk/vercel": 13 * kib,
   "@capsule-sdk/ai": 7 * kib,
   "@capsule-sdk/bridge-worker": 48 * kib,
-  "@capsule-sdk/cli": 32 * kib,
+  // The CLI with the model and provider HTTP runners packs just over 42 KiB.
+  "@capsule-sdk/cli": 43 * kib,
   "@capsule-sdk/core": 61 * kib,
   "@capsule-sdk/presets": 7 * kib,
   "@capsule-sdk/preview": 14 * kib,
@@ -253,6 +254,30 @@ function smokeCliBin(fixtureDir) {
   const report = JSON.parse(output);
   if (report.adapter !== "docker" || report.capabilities?.sandbox?.create !== "native" || report.capabilities?.job?.run !== "native") {
     throw new Error("Packed capsule CLI did not execute against the default Docker adapter capabilities.");
+  }
+
+  const modelOutput = run("pnpm", ["exec", "capsule", "emulate", "run", "--provider", "neon", "--mode", "model", "--json"], { cwd: fixtureDir });
+  const model = JSON.parse(modelOutput);
+  if (
+    model.provider !== "neon" ||
+    model.evidence !== "model" ||
+    model.operations?.join(",") !== "database.branchCreate,database.branchDelete" ||
+    model.cleanup !== "model-destroyed"
+  ) {
+    throw new Error("Packed capsule CLI did not complete the offline Neon model scenario.");
+  }
+
+  const httpOutput = run("pnpm", ["exec", "capsule", "emulate", "run", "--provider", "neon", "--mode", "provider-http", "--json"], { cwd: fixtureDir });
+  const http = JSON.parse(httpOutput);
+  if (
+    http.provider !== "neon" ||
+    http.evidence !== "provider-http" ||
+    (http.requests?.length ?? 0) < 2 ||
+    http.receipts?.length !== 2 ||
+    http.receipts.some((receipt) => receipt.supportLevel !== "emulated" || receipt.metadata?.providerEvidence !== "provider-http") ||
+    http.cleanup !== "emulator-destroyed"
+  ) {
+    throw new Error("Packed capsule CLI did not complete the Neon provider HTTP scenario with emulated receipts.");
   }
 }
 

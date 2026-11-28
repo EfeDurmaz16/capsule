@@ -53,6 +53,82 @@ function capsule(args: string[], env: Record<string, string> = {}, cwd = root) {
 }
 
 describe.skipIf(process.platform === "win32")("capsule CLI contract", () => {
+  it("lists the 15 model scenarios without reading config or invoking Docker", () => {
+    const cwd = join(root, "emulate-config");
+    mkdirSync(cwd);
+    writeFileSync(join(cwd, "capsule.config.json"), "{");
+
+    const result = capsule(["emulate", "list", "--json"], {}, cwd);
+    expect(result).toMatchObject({ status: 0, stderr: "", dockerCalls: [] });
+    const report = JSON.parse(result.stdout);
+    expect(Object.keys(report.modes)).toEqual(["model", "provider-http", "runtime"]);
+    expect(report.providers.map((entry: { provider: string }) => entry.provider)).toEqual([
+      "azure-container-apps",
+      "cloud-run",
+      "cloudflare",
+      "daytona",
+      "docker",
+      "e2b",
+      "ec2",
+      "ecs",
+      "fly",
+      "gce",
+      "kubernetes",
+      "lambda",
+      "modal",
+      "neon",
+      "vercel"
+    ]);
+    expect(report.providers.find((entry: { provider: string }) => entry.provider === "gce")).toEqual({
+      provider: "gce",
+      operations: ["machine.create", "machine.status", "machine.destroy"],
+      providerHttpOperations: ["machine.status"],
+      evidence: { model: "available", "provider-http": "available", runtime: "unsupported" }
+    });
+  });
+
+  it("lists only the selected provider and refuses unknown providers or modes", () => {
+    const list = capsule(["emulate", "list", "--provider", "vercel", "--json"]);
+    expect(list).toMatchObject({ status: 0, stderr: "", dockerCalls: [] });
+    expect(JSON.parse(list.stdout).providers).toEqual([
+      {
+        provider: "vercel",
+        operations: ["edge.deploy"],
+        providerHttpOperations: ["edge.deploy", "edge.status"],
+        evidence: { model: "available", "provider-http": "available", runtime: "unsupported" }
+      }
+    ]);
+
+    const invalid = capsule(["emulate", "run", "--provider", "__proto__", "--json"]);
+    expect(invalid).toMatchObject({ status: 2, stdout: "", dockerCalls: [] });
+    expect(JSON.parse(invalid.stderr)).toMatchObject({ reason: "invalid_arguments" });
+
+    const badMode = capsule(["emulate", "run", "--provider", "vercel", "--mode", "live", "--json"]);
+    expect(badMode).toMatchObject({ status: 2, stdout: "", dockerCalls: [] });
+    expect(JSON.parse(badMode.stderr)).toMatchObject({ reason: "invalid_arguments" });
+
+    const notForList = capsule(["emulate", "list", "--mode", "model", "--json"]);
+    expect(notForList).toMatchObject({ status: 2, stdout: "", dockerCalls: [] });
+    expect(JSON.parse(notForList.stderr)).toMatchObject({ reason: "unknown_option" });
+  });
+
+  it("refuses unavailable runtime evidence without falling back to the model", () => {
+    const result = capsule(["emulate", "run", "--provider", "gce", "--mode", "runtime", "--json"]);
+    expect(result).toMatchObject({ status: 1, stdout: "", dockerCalls: [] });
+    expect(JSON.parse(result.stderr)).toMatchObject({ reason: "unsupported_capability" });
+  });
+
+  it("uses model evidence by default and does not start Docker", () => {
+    const result = capsule(["emulate", "run", "--provider", "docker", "--json"]);
+    expect(result).toMatchObject({ status: 0, stderr: "", dockerCalls: [] });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      provider: "docker",
+      evidence: "model",
+      operations: ["sandbox.create", "sandbox.fileWrite", "sandbox.fileRead", "sandbox.exec", "sandbox.destroy"],
+      cleanup: "model-destroyed"
+    });
+  });
+
   it("--version prints only the version, at any depth", () => {
     expect(capsule(["--version"])).toMatchObject({ status: 0, stdout: `${version}\n`, stderr: "" });
     expect(capsule(["run", "--version"])).toMatchObject({ status: 0, stdout: `${version}\n` });

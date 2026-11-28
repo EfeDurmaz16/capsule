@@ -4,7 +4,8 @@ import {
   RunInstancesCommand,
   StartInstancesCommand,
   StopInstancesCommand,
-  TerminateInstancesCommand
+  TerminateInstancesCommand,
+  type EC2ClientConfig
 } from "@aws-sdk/client-ec2";
 import {
   AdapterExecutionError,
@@ -41,6 +42,7 @@ export interface EC2AdapterOptions {
   keyName?: string;
   iamInstanceProfileArn?: string;
   userData?: string;
+  clientOptions?: Pick<EC2ClientConfig, "endpoint" | "credentials" | "maxAttempts">;
   client?: EC2ClientLike;
 }
 
@@ -105,7 +107,7 @@ export const ec2Capabilities: CapabilityMap = {
 };
 
 function defaultClient(options: EC2AdapterOptions): EC2ClientLike {
-  return new EC2Client({ region: options.region });
+  return new EC2Client({ ...options.clientOptions, region: options.region });
 }
 
 // Exported for its unit test; the package's public API is src/index.ts.

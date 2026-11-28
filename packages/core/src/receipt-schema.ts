@@ -146,6 +146,10 @@ export const capsuleReceiptJsonSchema = {
       type: "object",
       additionalProperties: true,
       properties: {
+        providerEvidence: {
+          const: "provider-http",
+          description: "The real adapter observed a local provider HTTP emulator. The receipt support level is emulated."
+        },
         providerRequestId: {
           type: "string",
           description:

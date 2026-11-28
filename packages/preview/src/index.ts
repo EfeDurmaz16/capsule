@@ -596,12 +596,18 @@ function ttlRecord(ttlMs: number | undefined): Record<string, unknown> | undefin
 }
 
 function assertRealProviders(plan: PreviewPlan): void {
-  if (!plan.requireRealProviders || plan.allowMockProviders) {
+  if (!plan.requireRealProviders) {
     return;
   }
   const entries = resourceGroups(plan);
   for (const entry of entries) {
-    if (isMockCapsule(entry.capsule)) {
+    if (entry.capsule.providerEvidence() === "provider-http") {
+      throw new UnsupportedCapabilityError(
+        "preview.create",
+        `Preview plan requires real providers but ${entry.capsule.adapterName()} uses a provider HTTP emulator.`
+      );
+    }
+    if (!plan.allowMockProviders && isMockCapsule(entry.capsule)) {
       throw new MockProviderNotAllowedError(
         String((entry.capsule.raw() as { provider?: unknown } | undefined)?.provider ?? "unknown"),
         entry.capsule.adapterName()

@@ -31,6 +31,8 @@ export interface DockerOutputBounds {
 }
 
 export interface RunDockerOptions {
+  /** Child process environment. When provided, replaces the inherited environment. */
+  env?: NodeJS.ProcessEnv;
   timeoutMs?: number;
   /** Client-side deadline for the whole command (ExecSpec.bounds.deadlineMs); the first of timeoutMs and deadlineMs to expire kills the CLI. */
   deadlineMs?: number;
@@ -86,6 +88,7 @@ export function runDocker(args: string[], options: RunDockerOptions = {}): Promi
   return new Promise((resolve, reject) => {
     const child = spawn("docker", args, {
       stdio: ["pipe", "pipe", "pipe"],
+      env: options.env,
       ...(options.signal ? { signal: options.signal, killSignal: "SIGKILL" as const } : {}),
       ...(options.detached ? { detached: true } : {})
     });

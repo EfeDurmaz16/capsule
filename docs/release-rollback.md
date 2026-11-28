@@ -20,7 +20,7 @@ pnpm release:audit
 3. `pnpm pack` for every public package, with a packed size budget and a tarball contents check (package metadata and `dist` output only; no tests, fixtures, sources or env files);
 4. install smoke in a temporary fixture using the packed tarballs;
 5. package-name import smoke for every packed package;
-6. `@capsule-sdk/cli` bin smoke through `pnpm exec capsule capabilities`.
+6. `@capsule-sdk/cli` bin smoke through `pnpm exec capsule capabilities` and the Neon model and provider HTTP scenarios that load the packed runners.
 
 Before the first publish, verify manually with the npm account that will publish Capsule:
 

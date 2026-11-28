@@ -1,4 +1,4 @@
-import { CommandExitError, Sandbox as E2BSandbox } from "e2b";
+import { CommandExitError, Sandbox as E2BSandbox, type ConnectionOpts } from "e2b";
 import {
   AdapterExecutionError,
   CleanupFailureError,
@@ -67,8 +67,9 @@ interface E2BSandboxClass {
   create(template: string, options?: Record<string, unknown>): Promise<E2BSandboxInstance>;
 }
 
-export interface E2BAdapterOptions {
-  apiKey?: string;
+export interface E2BAdapterOptions extends Pick<ConnectionOpts, "apiKey" | "apiUrl" | "sandboxUrl"> {
+  /** Account token forwarded by older E2B SDK versions. */
+  accessToken?: string;
   defaultTemplate?: string;
   defaultCwd?: string;
   secure?: boolean;
@@ -192,6 +193,9 @@ function policyNotes(context: AdapterContext): string[] {
 function createOptions(spec: CreateSandboxSpec, context: AdapterContext, options: E2BAdapterOptions): Record<string, unknown> {
   return {
     apiKey: options.apiKey,
+    accessToken: options.accessToken,
+    apiUrl: options.apiUrl,
+    sandboxUrl: options.sandboxUrl,
     envs: spec.env,
     timeoutMs: spec.timeoutMs,
     secure: options.secure,

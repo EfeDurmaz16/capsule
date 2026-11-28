@@ -322,6 +322,7 @@ export interface CapsuleReceipt {
 }
 
 export interface CapsuleReceiptMetadata extends Record<string, unknown> {
+  providerEvidence?: "provider-http";
   providerRequestId?: string;
   providerApiVersion?: string;
   providerRegion?: string;

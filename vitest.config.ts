@@ -11,6 +11,7 @@ const packageAliases = {
   "@capsule-sdk/ec2": "./packages/ec2/src/index.ts",
   "@capsule-sdk/ecs": "./packages/ecs/src/index.ts",
   "@capsule-sdk/fly": "./packages/fly/src/index.ts",
+  "@capsule-sdk/gce": "./packages/gce/src/index.ts",
   "@capsule-sdk/kubernetes": "./packages/kubernetes/src/index.ts",
   "@capsule-sdk/lambda": "./packages/lambda/src/index.ts",
   "@capsule-sdk/mock": "./packages/mock/src/index.ts",
