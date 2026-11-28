@@ -1,7 +1,4 @@
 import assert from "node:assert/strict";
-import { EC2Client } from "@aws-sdk/client-ec2";
-import { ECSClient } from "@aws-sdk/client-ecs";
-import { LambdaClient } from "@aws-sdk/client-lambda";
 import { ec2 } from "@capsule-sdk/ec2";
 import { ecs } from "@capsule-sdk/ecs";
 import { lambda } from "@capsule-sdk/lambda";
@@ -13,7 +10,7 @@ const image = "example:fixture";
 const command = ["echo", "fixture"];
 
 function clientConfig(endpoint: string) {
-  return { endpoint, region, credentials: { accessKeyId: "CAPSULEFIXTURE", secretAccessKey: "local-fixture-only" }, maxAttempts: 1 };
+  return { endpoint, credentials: { accessKeyId: "CAPSULEFIXTURE", secretAccessKey: "local-fixture-only" }, maxAttempts: 1 };
 }
 
 // Verify that the real SDK signed the serialized request with the fixture identity and expected service scope.
@@ -41,7 +38,7 @@ function runEc2() {
 
   return runProviderHttpFixture({
     provider: "ec2",
-    adapter: (endpoint) => ec2({ region, client: new EC2Client(clientConfig(endpoint)) }),
+    adapter: (endpoint) => ec2({ region, clientOptions: clientConfig(endpoint) }),
     handle(request) {
       if (!isSignedPost(request, "ec2", "/")) return;
       const form = new URLSearchParams(request.body.toString());
@@ -97,7 +94,7 @@ function runEcs() {
   let started = false;
   return runProviderHttpFixture({
     provider: "ecs",
-    adapter: (endpoint) => ecs({ region, cluster, taskDefinition, containerName: name, client: new ECSClient(clientConfig(endpoint)) }),
+    adapter: (endpoint) => ecs({ region, cluster, taskDefinition, containerName: name, clientOptions: clientConfig(endpoint) }),
     handle(request) {
       if (!isSignedPost(request, "ecs", "/")) return;
       const input = JSON.parse(request.body.toString());
@@ -146,7 +143,7 @@ export function handleLambdaInvoke(request: ProviderHttpRequest) {
 function runLambda() {
   return runProviderHttpFixture({
     provider: "lambda",
-    adapter: (endpoint) => lambda({ region, client: new LambdaClient(clientConfig(endpoint)) }),
+    adapter: (endpoint) => lambda({ region, clientOptions: clientConfig(endpoint) }),
     handle: handleLambdaInvoke,
     async exercise(capsule) {
       const job = await capsule.job.run({ name, image, command });
