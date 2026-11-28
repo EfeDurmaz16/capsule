@@ -26,7 +26,8 @@ export async function runModalHttp() {
   const image = "debian:bookworm-slim";
   const appId = "ap-capsule";
   const imageId = "im-capsule";
-  const sandboxId = "sb-capsule";
+  // Modal V1 sandbox IDs carry a 22-character base62 suffix.
+  const sandboxId = "sb-0000000000000000000001";
   const tokenId = "capsule-local-id";
   const tokenSecret = "capsule-local-secret";
   const token = "fixture." + Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url") + ".fixture";
