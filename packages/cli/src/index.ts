@@ -2896,11 +2896,10 @@ async function runEmulateCommand(parsed: ParsedArgs): Promise<void> {
     const rows = report.providers.map((entry) => [
       entry.provider,
       entry.operations.join(", "),
-      entry.evidence.model,
-      entry.evidence["provider-http"],
+      entry.providerHttpOperations.join(", "),
       entry.evidence.runtime
     ]);
-    printReport(parsed, report, formatTable(["Provider", "Model operations", "Model", "Provider HTTP", "Runtime"], rows));
+    printReport(parsed, report, formatTable(["Provider", "Model operations", "Provider HTTP operations", "Runtime"], rows));
     return;
   }
 
@@ -2911,10 +2910,15 @@ async function runEmulateCommand(parsed: ParsedArgs): Promise<void> {
   if (!Object.hasOwn(emulationModes, mode)) {
     throw usageError(`Unknown emulation mode "${mode}". Use model, provider-http, or runtime.`);
   }
-  if (mode !== "model") {
+  if (mode === "runtime") {
     throw new CliError("unsupported_capability", `${provider} has no ${mode} scenario.`, {
       next: ["capsule", "emulate", "list", "--provider", provider]
     });
+  }
+  if (mode === "provider-http") {
+    const { runIsolatedProviderHttp } = await import("./emulate-http.js");
+    printJson(await runIsolatedProviderHttp(provider));
+    return;
   }
   const { runModelScenario } = await import("./emulate-model.js");
   printJson(await runModelScenario(provider));

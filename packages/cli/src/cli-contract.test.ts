@@ -82,7 +82,8 @@ describe.skipIf(process.platform === "win32")("capsule CLI contract", () => {
     expect(report.providers.find((entry: { provider: string }) => entry.provider === "gce")).toEqual({
       provider: "gce",
       operations: ["machine.create", "machine.status", "machine.destroy"],
-      evidence: { model: "available", "provider-http": "unsupported", runtime: "unsupported" }
+      providerHttpOperations: ["machine.status"],
+      evidence: { model: "available", "provider-http": "available", runtime: "unsupported" }
     });
   });
 
@@ -90,7 +91,12 @@ describe.skipIf(process.platform === "win32")("capsule CLI contract", () => {
     const list = capsule(["emulate", "list", "--provider", "vercel", "--json"]);
     expect(list).toMatchObject({ status: 0, stderr: "", dockerCalls: [] });
     expect(JSON.parse(list.stdout).providers).toEqual([
-      { provider: "vercel", operations: ["edge.deploy"], evidence: { model: "available", "provider-http": "unsupported", runtime: "unsupported" } }
+      {
+        provider: "vercel",
+        operations: ["edge.deploy"],
+        providerHttpOperations: ["edge.deploy", "edge.status"],
+        evidence: { model: "available", "provider-http": "available", runtime: "unsupported" }
+      }
     ]);
 
     const invalid = capsule(["emulate", "run", "--provider", "__proto__", "--json"]);
@@ -106,8 +112,8 @@ describe.skipIf(process.platform === "win32")("capsule CLI contract", () => {
     expect(JSON.parse(notForList.stderr)).toMatchObject({ reason: "unknown_option" });
   });
 
-  it.each(["provider-http", "runtime"])("refuses unavailable %s evidence without falling back to the model", (mode) => {
-    const result = capsule(["emulate", "run", "--provider", "gce", "--mode", mode, "--json"]);
+  it("refuses unavailable runtime evidence without falling back to the model", () => {
+    const result = capsule(["emulate", "run", "--provider", "gce", "--mode", "runtime", "--json"]);
     expect(result).toMatchObject({ status: 1, stdout: "", dockerCalls: [] });
     expect(JSON.parse(result.stderr)).toMatchObject({ reason: "unsupported_capability" });
   });

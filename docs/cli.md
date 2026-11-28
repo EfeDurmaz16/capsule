@@ -103,9 +103,9 @@ A failure prints nothing on stdout and one single-line JSON document on stderr:
 
 ## Emulation
 
-`capsule emulate list [--provider <name>] [--json]` lists the offline scenarios and their Capsule capability paths. The list also shows which evidence modes each scenario can produce. It reads no project config and does not initialize adapters.
+`capsule emulate list [--provider <name>] [--json]` lists the offline scenarios and their Capsule capability paths for each evidence mode. It works independently of project config and provider initialization.
 
-`capsule emulate run --provider <name> [--mode <mode>] [--json]` defaults to `model` and returns a JSON result with the exercised operations, assertions, and model cleanup outcome. It uses fixed local inputs and does not use project config, provider credentials, or Docker.
+`capsule emulate run --provider <name> [--mode <mode>] [--json]` defaults to `model` and returns a JSON result with the exercised operations, assertions, and cleanup outcome. Both modes use fixed inputs without project config or cloud credentials.
 
 | Evidence mode   | What it proves                                                          |
 | --------------- | ----------------------------------------------------------------------- |
@@ -113,7 +113,9 @@ A failure prints nothing on stdout and one single-line JSON document on stderr:
 | `provider-http` | The actual Capsule adapter exercised a local provider HTTP API emulator |
 | `runtime`       | A workload ran in a local runtime                                       |
 
-The catalog currently supports `model` for all 15 providers. An unavailable mode exits with `unsupported_capability`. Model results attest to behavior inside the in-process test adapters.
+All 15 providers have a `model` and a `provider-http` scenario. A provider HTTP scenario starts a fixture server on an ephemeral loopback port and runs the provider adapter with a clean working directory, home, and synthetic credentials. The Docker scenario uses the installed Docker CLI to call the fixture Engine API. It needs the Docker CLI on `PATH`.
+
+Provider HTTP output includes observed request methods and paths, plus the Capsule receipts for those operations. The receipts record `supportLevel: "emulated"` and `metadata.providerEvidence: "provider-http"`. They attest to the selected adapter operations against the local provider API fixture. The catalog lists each tested operation. `runtime` currently exits with `unsupported_capability`.
 
 ## Exit codes
 

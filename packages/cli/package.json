@@ -18,6 +18,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-ec2": "^3.955.0",
+    "@aws-sdk/client-ecs": "^3.955.0",
+    "@aws-sdk/client-lambda": "^3.955.0",
     "@capsule-sdk/azure": "workspace:*",
     "@capsule-sdk/cloudflare": "workspace:*",
     "@capsule-sdk/cloud-run": "workspace:*",
@@ -27,6 +30,7 @@
     "@capsule-sdk/ec2": "workspace:*",
     "@capsule-sdk/ecs": "workspace:*",
     "@capsule-sdk/fly": "workspace:*",
+    "@capsule-sdk/gce": "workspace:*",
     "@capsule-sdk/kubernetes": "workspace:*",
     "@capsule-sdk/lambda": "workspace:*",
     "@capsule-sdk/mock": "workspace:*",

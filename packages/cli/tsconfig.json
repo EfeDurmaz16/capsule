@@ -17,6 +17,7 @@
     { "path": "../ec2" },
     { "path": "../ecs" },
     { "path": "../fly" },
+    { "path": "../gce" },
     { "path": "../kubernetes" },
     { "path": "../lambda" },
     { "path": "../mock" },

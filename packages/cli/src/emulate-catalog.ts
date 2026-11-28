@@ -25,6 +25,24 @@ export const modelScenarioOperations = {
 
 export type EmulationProvider = keyof typeof modelScenarioOperations;
 
+export const providerHttpScenarioOperations = {
+  "azure-container-apps": ["service.status"],
+  "cloud-run": ["service.status"],
+  cloudflare: deployEdge,
+  daytona: ["sandbox.create", "sandbox.exec", "sandbox.destroy"],
+  docker: ["sandbox.create", "sandbox.destroy"],
+  e2b: ["sandbox.create", "sandbox.destroy"],
+  ec2: machineLifecycle,
+  ecs: ["job.run", "job.status"],
+  fly: machineLifecycle,
+  gce: ["machine.status"],
+  kubernetes: ["service.status"],
+  lambda: runJob,
+  modal: ["sandbox.create", "sandbox.destroy"],
+  neon: modelScenarioOperations.neon,
+  vercel: ["edge.deploy", "edge.status"]
+} as const satisfies Record<EmulationProvider, readonly CapabilityPath[]>;
+
 export function isEmulationProvider(value: string): value is EmulationProvider {
   return Object.hasOwn(modelScenarioOperations, value);
 }
@@ -42,7 +60,9 @@ export function emulationCatalog(provider?: EmulationProvider) {
     providers: (provider === undefined ? providers : [provider]).map((name) => ({
       provider: name,
       operations: modelScenarioOperations[name],
-      evidence: { model: "available", "provider-http": "unsupported", runtime: "unsupported" } as const
+      providerHttpOperations: providerHttpScenarioOperations[name],
+      evidence: { model: "available", "provider-http": "available", runtime: "unsupported" } as const,
+      ...(name === "docker" ? { providerHttpRequirements: ["Docker CLI on PATH"] } : {})
     }))
   };
 }

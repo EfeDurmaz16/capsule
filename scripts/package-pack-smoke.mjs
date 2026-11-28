@@ -266,6 +266,19 @@ function smokeCliBin(fixtureDir) {
   ) {
     throw new Error("Packed capsule CLI did not complete the offline Neon model scenario.");
   }
+
+  const httpOutput = run("pnpm", ["exec", "capsule", "emulate", "run", "--provider", "neon", "--mode", "provider-http", "--json"], { cwd: fixtureDir });
+  const http = JSON.parse(httpOutput);
+  if (
+    http.provider !== "neon" ||
+    http.evidence !== "provider-http" ||
+    (http.requests?.length ?? 0) < 2 ||
+    http.receipts?.length !== 2 ||
+    http.receipts.some((receipt) => receipt.supportLevel !== "emulated" || receipt.metadata?.providerEvidence !== "provider-http") ||
+    http.cleanup !== "emulator-destroyed"
+  ) {
+    throw new Error("Packed capsule CLI did not complete the Neon provider HTTP scenario with emulated receipts.");
+  }
 }
 
 // Runs the packed capsule-bridge-worker bin from the fixture install, outside the repository, on real
