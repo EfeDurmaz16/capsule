@@ -145,6 +145,8 @@ export interface CapsuleAdapter {
   name: string;
   provider: string;
   capabilities: CapabilityMap;
+  /** The adapter is connected to a provider HTTP emulator for this instance. */
+  evidence?: "provider-http";
   raw?: unknown;
   sandbox?: SandboxAdapter;
   job?: JobAdapter;

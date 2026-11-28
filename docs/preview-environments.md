@@ -20,6 +20,8 @@ Capsule should let providers and framework maintainers model their preview orche
 
 Production preview plans should set `requireRealProviders: true`. When that flag is enabled, `@capsule-sdk/preview` rejects adapters whose `raw()` escape hatch declares `{ mock: true }`. Demo and documentation flows can opt in to mock composition with `allowMockProviders: true`, but that mode is explicit and should never be treated as provider completion.
 
+`requireRealProviders: true` also rejects adapters marked with `evidence: "provider-http"` before provisioning starts. The mock-only demo override leaves this check in force.
+
 The package records a resource graph containing service, edge, database, and job resources. Cleanup walks that graph in reverse dependency order and reports partial cleanup failures instead of hiding successfully cleaned resources.
 
 Every creation gets a unique run id from `createPreviewId` (name, time and a random component). The run id is not an idempotency key. Pass `operationId` on the plan to record a caller-stable identity, such as a pull request and commit, on the cleanup plan and the `preview.create` receipt; cleanup idempotency keys stay scoped to the run so one run's keys are never reused for another run's resources.

@@ -54,6 +54,7 @@ import type {
   ServiceStatusSpec,
   StartMachineSpec,
   StopMachineSpec,
+  SupportLevel,
   UpdateServiceSpec,
   VersionEdgeSpec
 } from "./types.js";
@@ -747,11 +748,19 @@ export class Capsule {
   }
 
   supportLevel(path: CapabilityPath) {
-    return supportLevel(this.options.adapter.capabilities, path);
+    return this.observedSupportLevel(supportLevel(this.options.adapter.capabilities, path));
+  }
+
+  private observedSupportLevel(level: SupportLevel): SupportLevel {
+    return this.options.adapter.evidence && level !== "unsupported" ? "emulated" : level;
   }
 
   adapterName(): string {
     return this.options.adapter.name;
+  }
+
+  providerEvidence(): CapsuleAdapter["evidence"] {
+    return this.options.adapter.evidence;
   }
 
   raw(): unknown {
@@ -793,7 +802,7 @@ export class Capsule {
     const decision = evaluatePolicy(this.options.policy, {
       ...input,
       capabilityPath: path,
-      supportLevel: input.supportLevel ?? supportLevel(this.options.adapter.capabilities, path),
+      supportLevel: this.observedSupportLevel(input.supportLevel ?? this.supportLevel(path)),
       networkPolicySupport: input.networkPolicySupport ?? this.options.adapter.capabilities.sandbox?.networkPolicy
     });
     if (this.options.trace) activeTraceFrame()?.span.setAttribute("capsule.policy.decision", decision.decision);
@@ -805,8 +814,7 @@ export class Capsule {
     const normalizedOptions: ContextOptions = {
       ...defaultOptions,
       capabilityPath,
-      supportLevel:
-        defaultOptions.supportLevel ?? (capabilityPath ? supportLevel(this.options.adapter.capabilities, capabilityPath as CapabilityPath) : undefined),
+      supportLevel: defaultOptions.supportLevel ?? (capabilityPath ? this.supportLevel(capabilityPath as CapabilityPath) : undefined),
       idempotencyScope: defaultOptions.idempotencyScope ?? (defaultOptions.idempotencyKey ? capabilityPath : undefined),
       pendingWrites: []
     };
@@ -1012,18 +1020,18 @@ export class Capsule {
     return {
       receipts: this.options.receipts ?? false,
       policy: this.options.policy ?? {},
-      supportLevel: (path: string) => supportLevel(adapter.capabilities, path as CapabilityPath),
+      supportLevel: (path: string) => this.supportLevel(path as CapabilityPath),
       evaluatePolicy: (input = {}) => {
         const options = this.currentContext() ?? runtime.defaultOptions;
         // Sandbox sub-operations carry their capability through the receipt scope, so adapter-side checks
         // validate a capability-scoped (fresh or captured) grant against the operation actually running.
         const capabilityPath = input.capabilityPath ?? options.capabilityPath ?? defaultCapabilityPath(options.receiptScopes);
+        const level = input.supportLevel ?? options.supportLevel ?? (capabilityPath ? this.supportLevel(capabilityPath as CapabilityPath) : undefined);
         return evaluatePolicy(this.options.policy, {
           ...input,
           approval: input.approval ?? options.approval,
           capabilityPath,
-          supportLevel:
-            input.supportLevel ?? options.supportLevel ?? (capabilityPath ? supportLevel(adapter.capabilities, capabilityPath as CapabilityPath) : undefined),
+          supportLevel: level === undefined ? undefined : this.observedSupportLevel(level),
           networkPolicySupport: input.networkPolicySupport ?? adapter.capabilities.sandbox?.networkPolicy,
           resource: input.resource ?? options.resource
         });
@@ -1031,13 +1039,14 @@ export class Capsule {
       createReceipt: (input) => {
         const options = this.currentContext() ?? runtime.defaultOptions;
         assertReceiptScope(input, options.receiptScopes);
+        const metadata = options.extraMetadata ? { ...input.metadata, ...options.extraMetadata } : input.metadata;
         const receipt = createReceipt(
           {
             ...input,
-            metadata: withOperationReceiptMetadata(options.extraMetadata ? { ...input.metadata, ...options.extraMetadata } : input.metadata, options),
+            metadata: withOperationReceiptMetadata(adapter.evidence ? { ...metadata, providerEvidence: adapter.evidence } : metadata, options),
             provider: adapter.provider,
             adapter: adapter.name,
-            supportLevel: input.supportLevel ?? supportLevel(adapter.capabilities, input.capabilityPath as CapabilityPath)
+            supportLevel: this.observedSupportLevel(input.supportLevel ?? this.supportLevel(input.capabilityPath as CapabilityPath))
           },
           this.options.receiptSigner
         );

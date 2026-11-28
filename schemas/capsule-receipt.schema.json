@@ -243,6 +243,10 @@
       "type": "object",
       "additionalProperties": true,
       "properties": {
+        "providerEvidence": {
+          "const": "provider-http",
+          "description": "The real adapter observed a local provider HTTP emulator. The receipt support level is emulated."
+        },
         "providerRequestId": {
           "type": "string",
           "description": "Opaque request id returned by the provider control plane for the API call Capsule observed. This must not contain credentials or bearer tokens."

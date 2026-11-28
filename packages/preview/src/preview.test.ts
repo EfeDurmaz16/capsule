@@ -51,12 +51,19 @@ const capabilities: CapabilityMap = {
 
 function fakeCapsule(
   events: string[] = [],
-  options: { failServiceDeploy?: boolean; failDatabaseDelete?: boolean; mock?: boolean; capabilities?: CapabilityMap } = {}
+  options: {
+    failServiceDeploy?: boolean;
+    failDatabaseDelete?: boolean;
+    mock?: boolean;
+    evidence?: CapsuleAdapter["evidence"];
+    capabilities?: CapabilityMap;
+  } = {}
 ): Capsule {
   const adapter: CapsuleAdapter = {
     name: "fake-preview",
     provider: "fake",
     capabilities: options.capabilities ?? capabilities,
+    evidence: options.evidence,
     raw: options.mock ? { mock: true, provider: "fake" } : undefined,
     database: {
       branch: {
@@ -465,6 +472,25 @@ describe("preview orchestration", () => {
 
     await expect(createPreviewGraph(previewPlan)).resolves.toMatchObject({
       preview: { status: "ready" }
+    });
+  });
+
+  test("refuses an HTTP emulator before provisioning when real providers are required", async () => {
+    const events: string[] = [];
+    const previewPlan = { ...plan(fakeCapsule(events, { evidence: "provider-http" })), requireRealProviders: true, allowMockProviders: true };
+
+    await expect(createPreviewGraph(previewPlan)).rejects.toThrow("uses a provider HTTP emulator");
+    expect(events).toEqual([]);
+  });
+
+  test("preserves emulated evidence in child receipts of an emulator preview", async () => {
+    const capsule = fakeCapsule([], { evidence: "provider-http" });
+    expect(capsule.supportLevel("database.branchCreate")).toBe("emulated");
+    const result = await createPreviewGraph(plan(capsule));
+    expect(result.receipts[0]).toMatchObject({
+      type: "database.branch.create",
+      supportLevel: "emulated",
+      metadata: { providerEvidence: "provider-http" }
     });
   });
 
