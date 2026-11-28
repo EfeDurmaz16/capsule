@@ -256,15 +256,6 @@ importers:
 
   packages/cli:
     dependencies:
-      '@aws-sdk/client-ec2':
-        specifier: ^3.955.0
-        version: 3.1045.0
-      '@aws-sdk/client-ecs':
-        specifier: ^3.955.0
-        version: 3.1045.0
-      '@aws-sdk/client-lambda':
-        specifier: ^3.955.0
-        version: 3.1045.0
       '@capsule-sdk/azure':
         specifier: workspace:*
         version: link:../azure

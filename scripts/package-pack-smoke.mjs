@@ -84,8 +84,8 @@ const packedSizeBudgetBytes = {
   "@capsule-sdk/vercel": 13 * kib,
   "@capsule-sdk/ai": 7 * kib,
   "@capsule-sdk/bridge-worker": 48 * kib,
-  // The CLI with its offline model runner packs to about 33.1 KiB.
-  "@capsule-sdk/cli": 34 * kib,
+  // The CLI with the model and provider HTTP runners packs just over 42 KiB.
+  "@capsule-sdk/cli": 43 * kib,
   "@capsule-sdk/core": 61 * kib,
   "@capsule-sdk/presets": 7 * kib,
   "@capsule-sdk/preview": 14 * kib,

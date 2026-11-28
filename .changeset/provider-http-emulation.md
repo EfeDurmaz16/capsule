@@ -3,7 +3,10 @@
 "@capsule-sdk/core": minor
 "@capsule-sdk/docker": minor
 "@capsule-sdk/e2b": minor
+"@capsule-sdk/ec2": minor
+"@capsule-sdk/ecs": minor
 "@capsule-sdk/gce": minor
+"@capsule-sdk/lambda": minor
 "@capsule-sdk/preview": patch
 ---
 

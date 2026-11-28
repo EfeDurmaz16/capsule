@@ -54,31 +54,27 @@ export async function runIsolatedProviderHttp(provider: EmulationProvider): Prom
   try {
     const source = import.meta.url.endsWith(".ts");
     const loader = source ? ["--import", createRequire(import.meta.url).resolve("tsx")] : [];
-    const { stdout } = await promisify(execFile)(
-      process.execPath,
-      [...loader, "--disable-warning=DEP0205", "--input-type=module", "--eval", childScript, import.meta.url, provider],
-      {
-        cwd: workspace,
-        timeout: 60_000,
-        maxBuffer: 4 * 1024 * 1024,
-        encoding: "utf8",
-        env: {
-          PATH: process.env.PATH,
-          SystemRoot: process.env.SystemRoot,
-          HOME: workspace,
-          USERPROFILE: workspace,
-          TMPDIR: workspace,
-          TMP: workspace,
-          TEMP: workspace,
-          XDG_CONFIG_HOME: workspace,
-          AWS_EC2_METADATA_DISABLED: "true",
-          CAPSULE_EMULATE_PROVIDER: provider,
-          DO_NOT_TRACK: "1",
-          OTEL_SDK_DISABLED: "true",
-          TSX_TSCONFIG_PATH: source ? fileURLToPath(new URL("../../../tsconfig.typecheck.json", import.meta.url)) : undefined
-        }
+    const { stdout } = await promisify(execFile)(process.execPath, [...loader, "--input-type=module", "--eval", childScript, import.meta.url, provider], {
+      cwd: workspace,
+      timeout: 60_000,
+      maxBuffer: 4 * 1024 * 1024,
+      encoding: "utf8",
+      env: {
+        PATH: process.env.PATH,
+        SystemRoot: process.env.SystemRoot,
+        HOME: workspace,
+        USERPROFILE: workspace,
+        TMPDIR: workspace,
+        TMP: workspace,
+        TEMP: workspace,
+        XDG_CONFIG_HOME: workspace,
+        AWS_EC2_METADATA_DISABLED: "true",
+        CAPSULE_EMULATE_PROVIDER: provider,
+        DO_NOT_TRACK: "1",
+        OTEL_SDK_DISABLED: "true",
+        TSX_TSCONFIG_PATH: source ? fileURLToPath(new URL("../../../tsconfig.typecheck.json", import.meta.url)) : undefined
       }
-    ).catch((error: unknown) => {
+    }).catch((error: unknown) => {
       if (error instanceof Error && "stderr" in error && typeof error.stderr === "string" && error.stderr.trim()) throw new Error(error.stderr.trim());
       throw error;
     });
