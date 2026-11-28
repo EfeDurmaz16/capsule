@@ -16,8 +16,9 @@ export function runE2BHttp() {
     adapter: (origin) => e2b({ apiUrl: origin, sandboxUrl: origin, apiKey, accessToken }),
     handle({ method, url, headers, body }) {
       assert.equal(headers["x-api-key"], apiKey);
-      assert.equal(headers.authorization, `Bearer ${accessToken}`);
-      if (method === "POST" && url.pathname === "/sandboxes") {
+      // Older SDKs also send their account token on sandbox requests.
+      if (headers.authorization !== undefined) assert.equal(headers.authorization, `Bearer ${accessToken}`);
+      if (method === "POST" && (url.pathname === "/sandboxes" || url.pathname === "/v2/sandboxes")) {
         assert.equal(state, "empty");
         const request = JSON.parse(body.toString("utf8"));
         assert.equal(request.templateID, "base");

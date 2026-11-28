@@ -67,7 +67,9 @@ interface E2BSandboxClass {
   create(template: string, options?: Record<string, unknown>): Promise<E2BSandboxInstance>;
 }
 
-export interface E2BAdapterOptions extends Pick<ConnectionOpts, "apiKey" | "apiUrl" | "sandboxUrl" | "accessToken"> {
+export interface E2BAdapterOptions extends Pick<ConnectionOpts, "apiKey" | "apiUrl" | "sandboxUrl"> {
+  /** Account token forwarded by older E2B SDK versions. */
+  accessToken?: string;
   defaultTemplate?: string;
   defaultCwd?: string;
   secure?: boolean;
